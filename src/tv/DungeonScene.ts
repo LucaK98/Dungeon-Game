@@ -19,11 +19,12 @@ const ZOOM = 2;
 const DARK_INDOOR = 0.72;
 const DARK_OUTDOOR = 0.1;
 /** Night scenes: almost black outside the light. */
-const DARK_NIGHT = 0.9;
+const DARK_NIGHT = 0.97;
 /** Light circle (in squares) of a hero at night: torch, darkvision (dim), nothing. */
 const NIGHT_TORCH = 6.5;
-const NIGHT_DARKVISION = 3.5;
-const NIGHT_NONE = 1.8;
+/** Darkvision: a wide but only half-cleared circle (grey sight). */
+const NIGHT_DARKVISION = 7;
+const NIGHT_NONE = 1.4;
 const HERO_LIGHT = 5.5;
 const TORCH_LIGHT = 3.5;
 
@@ -284,8 +285,8 @@ export class DungeonScene extends Phaser.Scene {
     const dark = this.dark;
     dark.clear();
     dark.draw(this.fogImage, 0, 0);
-    const erase = (cx: number, cy: number, radius: number) => {
-      this.lightBrush.setScale((radius * 2 * TILE) / 256);
+    const erase = (cx: number, cy: number, radius: number, strength = 1) => {
+      this.lightBrush.setScale((radius * 2 * TILE) / 256).setAlpha(strength);
       dark.erase(this.lightBrush, cx * TILE, cy * TILE);
     };
     for (const id of this.session.partyIds) {
@@ -294,14 +295,14 @@ export class DungeonScene extends Phaser.Scene {
       const f = this.figures.get(id);
       const x = f ? f.container.x / TILE : c.pos.x + 0.5;
       const y = f ? f.container.y / TILE : c.pos.y + 0.5;
-      const radius = !this.session.map.dark
-        ? HERO_LIGHT
-        : c.effects.some((e) => e.id === "torch")
-          ? NIGHT_TORCH
-          : c.darkvisionFt > 0
-            ? NIGHT_DARKVISION
-            : NIGHT_NONE;
-      erase(x, y, radius + Math.sin(time / 180 + x) * 0.12);
+      const wobble = Math.sin(time / 180 + x) * 0.12;
+      if (!this.session.map.dark) erase(x, y, HERO_LIGHT + wobble);
+      else if (c.effects.some((e) => e.id === "torch")) erase(x, y, NIGHT_TORCH + wobble);
+      else {
+        // Without a torch: a tiny circle; darkvision adds a wide, dim grey view.
+        if (c.darkvisionFt > 0) erase(x, y, NIGHT_DARKVISION, 0.45);
+        erase(x, y, NIGHT_NONE + wobble);
+      }
     }
     for (const t of this.torches) {
       const flicker = Math.sin(time / 90 + t.phase) * 0.15 + Math.sin(time / 37 + t.phase * 3) * 0.1;

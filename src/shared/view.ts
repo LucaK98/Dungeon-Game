@@ -39,6 +39,11 @@ export interface MiniMap {
   creatures: MiniCreature[];
   /** Squares the player can walk to this turn. */
   reachable: GridPos[];
+  /**
+   * Night scenes only: what this hero can see, one character per cell:
+   * "0" lit, "1" dim (own darkvision), "2" dark.
+   */
+  light?: string;
 }
 
 export type ActionGroup = "story" | "attack" | "spell" | "item" | "ability" | "look" | "free" | "end";

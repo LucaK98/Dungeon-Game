@@ -16,6 +16,7 @@ import { nameOf } from "../engine/names";
 import type { Rng } from "../engine/rng";
 import { maxTargets, validateCast } from "../engine/spells";
 import { isWalkable, partyStartSpots, revealAround } from "../map/walk";
+import { isLit } from "../engine/vision";
 import type { PlayerAction } from "../shared/events";
 import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
@@ -1160,11 +1161,26 @@ export class GameController {
       }
     }
     const inWindow = (p: GridPos) => p.x >= x0 && p.y >= y0 && p.x < x0 + w && p.y < y0 + h;
+    // Night: each hero only sees what is lit or within their own darkvision.
+    let light: string | undefined;
+    if (map.dark) {
+      light = "";
+      for (let y = y0; y < y0 + h; y++) {
+        for (let x = x0; x < x0 + w; x++) {
+          const p = { x, y };
+          const far = Math.max(Math.abs(x - pos.x), Math.abs(y - pos.y)) * 5;
+          light += isLit(this.battle, p) ? "0" : me.darkvisionFt > 0 && far <= me.darkvisionFt ? "1" : "2";
+        }
+      }
+    }
+    const seen = (p: GridPos) => !light || light[(p.y - y0) * w + (p.x - x0)] !== "2";
     const objects = map.objects
       .filter((o) => o.state !== "hidden" && o.state !== "used" && inWindow(o) && map.explored[cellIndex(map, o.x, o.y)])
       .map((o) => ({ x: o.x, y: o.y, frame: o.frame }));
     const creatures = Object.values(this.battle.creatures)
       .filter((c) => !c.dead && c.pos && inWindow(c.pos) && map.explored[cellIndex(map, c.pos.x, c.pos.y)])
+      // Enemies in the dark stay hidden; the own group is always known.
+      .filter((c) => c.side === "party" || seen(c.pos!))
       .map((c) => ({
         id: c.id,
         x: c.pos!.x,
@@ -1177,7 +1193,7 @@ export class GameController {
         health: c.maxHp ? c.hp / c.maxHp : 0,
         down: c.hp === 0,
       }));
-    return { x0, y0, w, h, frames, overlays, objects, creatures, reachable: mine && !this.pending ? this.reachable(me).filter(inWindow) : [] };
+    return { x0, y0, w, h, frames, overlays, objects, creatures, reachable: mine && !this.pending ? this.reachable(me).filter(inWindow) : [], ...(light ? { light } : {}) };
   }
 
   /** Squares reachable with the movement left (8 directions, around creatures and obstacles). */

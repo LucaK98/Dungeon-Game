@@ -164,3 +164,28 @@ describe("six players", () => {
     expect(spots.every((s) => s !== undefined)).toBe(true);
   });
 });
+
+describe("night on the phone map", () => {
+  it("shows only what the hero can see and hides enemies in the dark", () => {
+    const { game } = setup(4, { free: true });
+    const hero = game.heroOf("p1")!; // human fighter: no darkvision
+    hero.darkvisionFt = 0;
+    game.map.dark = true;
+    game.session.battle.darkness = { lights: [] };
+    game.spawnNearParty(["goblin"]);
+    const goblin = Object.values(game.session.battle.creatures).find((c) => c.monsterId === "goblin")!;
+    const view = () => game.viewFor("p1")!.minimap;
+    const m = view();
+    expect(m.light).toBeDefined();
+    expect(m.light!.length).toBe(m.w * m.h);
+    expect(m.light).not.toContain("0");
+    expect(m.creatures.some((c) => c.id === goblin.id)).toBe(false);
+    expect(m.creatures.some((c) => c.me)).toBe(true);
+    // A torch in the hand lights the surroundings: the goblin is visible if close enough.
+    hero.effects.push({ id: "torch", rounds: 600, sourceId: hero.id });
+    const lit = view();
+    expect(lit.light).toContain("0");
+    const d = Math.max(Math.abs(goblin.pos!.x - hero.pos!.x), Math.abs(goblin.pos!.y - hero.pos!.y));
+    expect(lit.creatures.some((c) => c.id === goblin.id)).toBe(d * 5 <= 20);
+  });
+});

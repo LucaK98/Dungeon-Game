@@ -26,6 +26,15 @@ export function minimapView(map: MiniMap, onTap: (p: GridPos) => void): HTMLElem
       if (overlay) drawFrame(ctx, atlas, overlay, x, y, 1);
     });
     for (const o of map.objects) drawFrame(ctx, atlas, o.frame, (o.x - map.x0) * TILE, (o.y - map.y0) * TILE, 1);
+    // Night: darkness outside the light, dim within the own darkvision.
+    if (map.light) {
+      for (let i = 0; i < map.light.length; i++) {
+        const level = map.light[i];
+        if (level === "0" || !map.frames[i]) continue;
+        ctx.fillStyle = level === "1" ? "rgba(10, 12, 25, 0.5)" : "rgba(0, 0, 0, 0.9)";
+        ctx.fillRect((i % map.w) * TILE, Math.floor(i / map.w) * TILE, TILE, TILE);
+      }
+    }
     // Reachable squares: bright with a frame.
     for (const p of map.reachable) {
       const x = (p.x - map.x0) * TILE;
