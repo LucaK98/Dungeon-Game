@@ -276,6 +276,13 @@ for (const STORY of STORIES) {
       }, 90_000);
     }
 
+    it("works with three players", async () => {
+      for (const seed of [1, 2]) {
+        const { result, state } = await playStory({ story: STORY, seed, duration: "kurz", players: 3 });
+        expect(result, `seed ${seed} stuck in ${state.plan[state.sceneIndex]}`).toBeDefined();
+      }
+    }, 120_000);
+
     it("works with a single player", async () => {
       const { result } = await playStory({ story: STORY, seed: 3, duration: "kurz", players: 1 });
       expect(result).toBeDefined();

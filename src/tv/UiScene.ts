@@ -3,7 +3,6 @@ import { dollFrames } from "../shared/doll";
 import type { Narration } from "../shared/story";
 import type { OrderEntry, RollOutcome } from "../shared/view";
 import { speak } from "./speech";
-import { assetUrl } from "../ui/atlas";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "./DungeonScene";
 import type { AiStatus } from "../dm/ai/aidm";
 
@@ -25,9 +24,7 @@ export class UiScene extends Phaser.Scene {
     super({ key: "ui", active: true });
   }
 
-  preload(): void {
-    if (!this.textures.exists("tiles")) this.load.atlas("tiles", assetUrl("atlas.png"), assetUrl("atlas.json"));
-  }
+  // The tile atlas is loaded by the DungeonScene; the initiative bar (the only user here) appears after it is ready.
 
   private aiBadge: Phaser.GameObjects.Text | undefined;
 
