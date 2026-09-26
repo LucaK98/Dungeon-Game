@@ -95,11 +95,26 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     );
   }
 
+  function renderOrder(v: PlayerView): HTMLElement | null {
+    if (v.mode !== "combat" || !v.order.length) return null;
+    return h(
+      "div",
+      { class: "order", dataset: { help: "initiative" } },
+      ...v.order.map((o) =>
+        h(
+          "span",
+          { class: `order-entry${o.active ? " active" : ""}${o.enemy ? " enemy" : ""}${o.health <= 0 ? " down" : ""}`, style: o.color ? `--player:${o.color}` : "" },
+          o.name,
+        ),
+      ),
+    );
+  }
+
   function renderStatus(v: PlayerView): void {
     if (!v.turn.mine) {
       status.className = "ctl-status waiting";
       status.style.setProperty("--player", v.turn.activeColor ?? "#888");
-      status.replaceChildren(h("span", {}, "⏳ "), h("strong", {}, v.turn.activeName), h("span", {}, " ist dran"));
+      status.replaceChildren(h("span", {}, "⏳ "), h("strong", {}, v.turn.activeName), h("span", {}, " ist dran"), renderOrder(v) ?? "");
       return;
     }
     status.className = "ctl-status mine";
@@ -113,6 +128,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         h("span", { class: `pill${v.turn.actions ? "" : " used"}`, dataset: { help: "aktion" } }, `Aktion ${v.turn.actions ? "✓" : "✗"}`),
         h("span", { class: `pill${v.turn.bonusAction ? "" : " used"}`, dataset: { help: "bonusaktion" } }, `Bonus ${v.turn.bonusAction ? "✓" : "✗"}`),
       ),
+      renderOrder(v) ?? "",
     );
   }
 
@@ -413,6 +429,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     body.replaceChildren(...(tab === "action" ? renderActionTab(view) : tab === "sheet" ? renderSheetTab(me) : renderInventoryTab(me, view)));
     window.scrollTo(0, scroll);
     const pid = playerId();
+    if (view.mode === "combat") maybeHint(pid, "first_fight", view.beginnerMode, body);
     if (view.turn.mine) maybeHint(pid, "first_turn", view.beginnerMode, body);
     if (view.minimap.creatures.some((c) => c.enemy)) maybeHint(pid, "first_enemy", view.beginnerMode, body);
     if (me.hp === 0) maybeHint(pid, "first_down", view.beginnerMode, body);

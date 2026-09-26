@@ -4,16 +4,17 @@
  */
 import { perform, type ActionOutcome, type CombatAction } from "../engine/actions";
 import { inRange } from "../engine/attack";
-import { armorClass, distanceFt, hasCondition, isActive, nextTurn, newTurn } from "../engine/combat";
+import { applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, heal, isActive, nextTurn, newTurn, startCombat } from "../engine/combat";
 import { savingThrow, skillCheck, sumParts } from "../engine/core";
 import { getSpell } from "../engine/data";
 import { averageOf, parseDice, rollDice } from "../engine/dice";
-import { explainCheck, explainDamage, explainDeathSave, explainHp, explainOutcome, type ExplainedLine } from "../engine/explain";
+import { explainCheck, explainDamage, explainDeathSave, explainHp, explainInitiative, explainOutcome, type ExplainedLine } from "../engine/explain";
+import { runAutoTurn } from "../engine/ai";
+import { createMonster } from "../engine/creatures";
 import { findPath } from "../engine/grid";
 import { nameOf } from "../engine/names";
 import type { Rng } from "../engine/rng";
 import { maxTargets, validateCast } from "../engine/spells";
-import { applyDamage } from "../engine/combat";
 import { isWalkable, revealAround } from "../map/walk";
 import type { PlayerAction } from "../shared/events";
 import type { Creature, GridPos } from "../shared/game";
@@ -42,6 +43,14 @@ export interface GameEvents {
   turn(name: string, color: string | undefined): void;
   roomRevealed(name: string): void;
   lines(lines: ExplainedLine[]): void;
+  combat(started: boolean): void;
+}
+
+export interface ControllerOptions {
+  /** Pause between monster actions so everyone can follow on the TV (0 in tests). */
+  monsterDelayMs?: number;
+  /** Demo: heroes fight on their own, too. */
+  autoHeroes?: boolean;
 }
 
 export class GameController {
@@ -50,6 +59,9 @@ export class GameController {
   private rollCounter = 0;
   private beginner = new Map<PlayerId, boolean>();
   private listeners: Partial<GameEvents>[] = [];
+  mode: "explore" | "combat" = "explore";
+  private monsterTimer: ReturnType<typeof setTimeout> | undefined;
+  private destroyed = false;
 
   constructor(
     readonly session: GameSession,
@@ -57,7 +69,13 @@ export class GameController {
     /** Sends an event to one phone. */
     private sendTo: (playerId: PlayerId, event: import("../shared/events").GameEvent) => void,
     private sendAll: (event: import("../shared/events").GameEvent) => void,
+    private opts: ControllerOptions = {},
   ) {}
+
+  destroy(): void {
+    this.destroyed = true;
+    if (this.monsterTimer) clearTimeout(this.monsterTimer);
+  }
 
   on(listener: Partial<GameEvents>): () => void {
     this.listeners.push(listener);
@@ -93,13 +111,15 @@ export class GameController {
 
   /** Exploration: the heroes take turns in party order. */
   start(): void {
+    this.mode = "explore";
     const order = this.heroes().map((c) => ({
       creatureId: c.id,
       total: 0,
       parts: [],
       roll: { rolls: [], natural: 0, mode: "normal" as const, reasons: [] },
     }));
-    this.battle.combat = { round: 1, order, turnIndex: 0, turn: newTurn(this.heroes()[0]!), reactionUsed: {} };
+    const first = this.heroes().find(isActive) ?? this.heroes()[0]!;
+    this.battle.combat = { round: 1, order, turnIndex: Math.max(0, order.findIndex((o) => o.creatureId === first.id)), turn: newTurn(first), reactionUsed: {} };
     this.announceTurn();
     this.broadcast();
   }
@@ -107,18 +127,150 @@ export class GameController {
   announceTurn(): void {
     const c = this.active();
     if (!c) return;
-    this.emit("turn", c.name, c.appearance?.color);
+    this.emit("turn", c.name, c.appearance?.color ?? (c.side === "enemy" ? "#b03030" : undefined));
   }
 
   endTurn(): void {
+    if (this.destroyed) return;
     this.pending = undefined;
-    for (let guard = 0; guard < 10; guard++) {
+    for (let guard = 0; guard < 40; guard++) {
       const start = nextTurn(this.rng, this.battle);
-      if (start.deathSave) this.addLog(explainDeathSave(this.battle, start.deathSave));
+      if (start.deathSave) {
+        const lines = explainDeathSave(this.battle, start.deathSave);
+        this.addLog(lines);
+        this.publishRoll({
+          id: `o${++this.rollCounter}`,
+          creatureId: start.creatureId,
+          title: "Todesrettungswurf",
+          sides: 20,
+          dice: start.deathSave.roll.rolls,
+          kept: start.deathSave.roll.natural,
+          lines,
+          success: start.deathSave.success,
+        });
+      }
+      if (this.checkWinner()) return;
       if (!start.skip) break;
     }
     this.announceTurn();
     this.broadcast();
+    this.maybeRunMonster();
+  }
+
+  // ---------------------------------------------------------------- combat
+
+  /** Demo: puts a group of monsters right next to the heroes. */
+  spawnNearParty(monsterIds: string[]): void {
+    const lead = this.heroes().find((h) => h.pos)!;
+    const free: GridPos[] = [];
+    for (let r = 3; r < 8 && free.length < monsterIds.length; r++) {
+      for (let dy = -r; dy <= r && free.length < monsterIds.length; dy++) {
+        for (let dx = -r; dx <= r && free.length < monsterIds.length; dx++) {
+          const p = { x: lead.pos!.x + dx, y: lead.pos!.y + dy };
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || !isWalkable(this.map, p) || !this.map.explored[cellIndex(this.map, p.x, p.y)]) continue;
+          if (Object.values(this.battle.creatures).some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y)) continue;
+          free.push(p);
+        }
+      }
+    }
+    monsterIds.forEach((id, i) => {
+      if (!free[i]) return;
+      const m = createMonster(id, `spawn-${++this.rollCounter}`, { name: `${nameOf("monsters", id)} ${i + 1}` });
+      m.pos = free[i];
+      this.battle.creatures[m.id] = m;
+    });
+    this.emit("changed");
+    this.checkCombatStart();
+  }
+
+  /** Enemies that notice the heroes: visible and not too far away. */
+  private awakeEnemies(): Creature[] {
+    return this.enemiesVisible().filter((e) => isActive(e) && this.heroes().some((h) => isActive(h) && distanceFt(h, e) <= 60));
+  }
+
+  private checkCombatStart(): boolean {
+    if (this.mode !== "explore") return false;
+    const enemies = this.awakeEnemies();
+    if (!enemies.length) return false;
+    this.pending = undefined;
+    this.mode = "combat";
+    const ids = [...this.heroes().filter((h) => !h.dead).map((h) => h.id), ...enemies.map((e) => e.id)];
+    const combat = startCombat(this.rng, this.battle, ids);
+    const lines: ExplainedLine[] = [
+      { text: "⚔️ Kampf! Alle würfeln Initiative. Wer am höchsten würfelt, ist zuerst dran.", glossarKeys: ["initiative"] },
+      ...combat.order.map((e) => explainInitiative(this.battle, e)),
+    ];
+    this.addLog(lines);
+    this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: combat.order[0]!.creatureId, title: "Kampf!", sides: 20, dice: [], kept: 0, lines });
+    this.emit("combat", true);
+    // Nobody can act while down or asleep: skip ahead like a normal turn change.
+    const first = this.active();
+    if (first && !isActive(first)) {
+      this.endTurn();
+      return true;
+    }
+    this.announceTurn();
+    this.broadcast();
+    this.maybeRunMonster();
+    return true;
+  }
+
+  /** Ends the fight if one side is down. Returns true if it ended. */
+  private checkWinner(): boolean {
+    if (this.mode !== "combat") return false;
+    const winner = combatWinner(this.battle);
+    if (!winner) return false;
+    if (this.monsterTimer) clearTimeout(this.monsterTimer);
+    endCombat(this.battle);
+    const lines: ExplainedLine[] = [];
+    if (winner === "party") {
+      lines.push({ text: "🏆 Sieg! Alle Gegner sind besiegt.", glossarKeys: [] });
+    } else {
+      lines.push({ text: "💀 Die Helden sind gefallen … doch das Schicksal gibt ihnen eine zweite Chance.", glossarKeys: [] });
+    }
+    // Fallen heroes come round after the fight with 1 hit point.
+    for (const h of this.heroes()) {
+      if (!h.dead && h.hp === 0) {
+        heal(h, 1);
+        h.conditions = h.conditions.filter((c) => c.id !== "prone");
+        lines.push({ text: `${h.name} rappelt sich mit 1 Trefferpunkt wieder auf.`, glossarKeys: ["stabil"] });
+      }
+    }
+    this.addLog(lines);
+    this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: this.heroes()[0]!.id, title: winner === "party" ? "Sieg!" : "Niederlage", sides: 20, dice: [], kept: 0, lines, success: winner === "party" });
+    this.emit("combat", false);
+    this.start();
+    return true;
+  }
+
+  private maybeRunMonster(): void {
+    const c = this.active();
+    if (this.mode !== "combat" || !c || this.destroyed) return;
+    if (c.kind !== "monster" && !this.opts.autoHeroes) return;
+    const delay = this.opts.monsterDelayMs ?? 1200;
+    const run = () => this.runMonster(c.id);
+    if (delay <= 0) run();
+    else this.monsterTimer = setTimeout(run, delay);
+  }
+
+  private runMonster(id: string): void {
+    if (this.destroyed || this.active()?.id !== id) return;
+    const monster = this.battle.creatures[id]!;
+    const outcomes = runAutoTurn(this.rng, this.battle, id, { walkable: (p) => isWalkable(this.map, p) });
+    for (const o of outcomes) {
+      if (!o.ok) continue;
+      const title = o.kind === "attack" ? `${monster.name} greift an` : o.kind === "move" ? `${monster.name} bewegt sich` : monster.name;
+      const roll = this.outcomeToRoll(monster, title, 20, o);
+      if (o.kind === "move" && !o.opportunityAttacks.length) {
+        this.addLog(roll.lines);
+        this.emit("changed");
+      } else this.publishRoll(roll);
+    }
+    this.emit("changed");
+    if (this.checkWinner()) return;
+    const delay = this.opts.monsterDelayMs ?? 1200;
+    if (delay <= 0) this.endTurn();
+    else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
   }
 
   // ---------------------------------------------------------------- actions
@@ -249,6 +401,8 @@ export class GameController {
   }
 
   private afterAction(): void {
+    if (this.checkWinner()) return;
+    if (this.checkCombatStart()) return;
     // Revealed rooms from spells like fire bolt don't exist, but death and moves change the board.
     const turn = this.battle.combat?.turn;
     const c = this.active();
@@ -313,6 +467,7 @@ export class GameController {
       lines,
       ...(success !== undefined ? { success } : {}),
       ...(crit !== undefined ? { crit } : {}),
+      hits: hitsOf(o),
     };
   }
 
@@ -488,20 +643,10 @@ export class GameController {
     const turn = this.battle.combat?.turn;
     const mine = active?.id === me.id;
     const roomIndex = me.pos ? (this.map.roomOf[cellIndex(this.map, me.pos.x, me.pos.y)] ?? -1) : -1;
-    const order: OrderEntry[] = (this.battle.combat?.order ?? []).map((o) => {
-      const c = this.battle.creatures[o.creatureId]!;
-      return {
-        id: c.id,
-        name: c.name,
-        ...(c.appearance ? { color: c.appearance.color } : {}),
-        enemy: c.side === "enemy",
-        health: c.maxHp ? c.hp / c.maxHp : 0,
-        active: c.id === active?.id,
-      };
-    });
+    const order = this.orderEntries();
     const view: PlayerView = {
       me,
-      mode: "explore",
+      mode: this.mode,
       round: this.battle.combat?.round ?? 1,
       turn: {
         activeId: active?.id ?? "",
@@ -521,6 +666,24 @@ export class GameController {
     };
     if (this.pending?.playerId === playerId) view.pendingRoll = this.pending.prompt;
     return view;
+  }
+
+  /** Turn order for the initiative bar (TV) and the phones. */
+  orderEntries(): OrderEntry[] {
+    const active = this.active();
+    return (this.battle.combat?.order ?? []).map((o) => {
+      const c = this.battle.creatures[o.creatureId]!;
+      return {
+        id: c.id,
+        name: c.name,
+        ...(this.mode === "combat" ? { initiative: o.total } : {}),
+        ...(c.appearance ? { color: c.appearance.color, look: c.appearance.look } : {}),
+        ...(c.monsterId ? { monsterId: c.monsterId } : {}),
+        enemy: c.side === "enemy",
+        health: c.maxHp ? c.hp / c.maxHp : 0,
+        active: c.id === active?.id,
+      };
+    });
   }
 
   private minimap(me: Creature, mine: boolean): MiniMap {
@@ -799,4 +962,36 @@ export class GameController {
       return option ? option.damage.reduce((s, d) => s + averageOf(d.dice), 0) : 0;
     }
   }
+}
+
+/** Hit point changes of an action, for floating numbers on the board. */
+function hitsOf(o: ActionOutcome): NonNullable<RollOutcome["hits"]> {
+  if (!o.ok) return [];
+  const hits: NonNullable<RollOutcome["hits"]> = [];
+  const fromAttack = (a: import("../shared/game").AttackResult) => {
+    if (!a.hit) hits.push({ targetId: a.targetId, amount: 0, miss: true });
+    else if (a.damage) hits.push({ targetId: a.targetId, amount: a.damage.total, crit: a.crit });
+  };
+  switch (o.kind) {
+    case "attack":
+      fromAttack(o.attack);
+      break;
+    case "move":
+      o.opportunityAttacks.forEach(fromAttack);
+      break;
+    case "spell":
+      for (const t of o.spell.targets) {
+        if (t.attack) fromAttack(t.attack);
+        else if (t.heal) hits.push({ targetId: t.targetId, amount: t.heal.total, heal: true });
+        else if (t.damage) hits.push({ targetId: t.targetId, amount: t.damage.total });
+      }
+      break;
+    case "save-action":
+      o.results.forEach((r) => hits.push({ targetId: r.targetId, amount: r.damage }));
+      break;
+    case "heal":
+      hits.push({ targetId: o.targetId, amount: o.total, heal: true });
+      break;
+  }
+  return hits;
 }

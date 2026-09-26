@@ -159,13 +159,48 @@ export class DungeonScene extends Phaser.Scene {
     for (const c of Object.values(this.session.battle.creatures)) {
       const f = this.figures.get(c.id);
       if (c.dead && f) {
-        f.container.destroy();
+        // Defeated: sink and fade away.
         this.figures.delete(c.id);
+        this.tweens.add({ targets: f.container, alpha: 0, angle: 80, y: f.container.y + 8, duration: 700, delay: 300, onComplete: () => f.container.destroy() });
       } else if (!f && !c.dead) this.addFigure(c);
-      else this.placeFigure(c, true);
+      else if (f) {
+        this.placeFigure(c, true);
+        // Unconscious heroes lie on the ground.
+        f.container.setAngle(c.hp === 0 && c.kind === "pc" ? 90 : 0).setAlpha(c.hp === 0 ? 0.7 : 1);
+      }
     }
     this.fogDirty = true;
     this.focusParty(false);
+  }
+
+  /** Floating damage/heal numbers and a red flash on hit targets. */
+  showHits(hits: { targetId: string; amount: number; heal?: boolean; crit?: boolean; miss?: boolean }[]): void {
+    hits.forEach((hit, i) => {
+      const c = this.session.battle.creatures[hit.targetId];
+      const f = this.figures.get(hit.targetId);
+      const pos = f ? { x: f.container.x, y: f.container.y } : c?.pos ? { x: (c.pos.x + 0.5) * TILE, y: (c.pos.y + 0.5) * TILE } : undefined;
+      if (!pos) return;
+      const text = hit.miss ? "Daneben" : hit.heal ? `+${hit.amount}` : hit.crit ? `${hit.amount}!` : String(hit.amount);
+      const color = hit.miss ? "#cfcfcf" : hit.heal ? "#6dff7a" : hit.crit ? "#ffd700" : "#ff5a4a";
+      const label = this.add
+        .text(pos.x, pos.y - 18, text, { fontFamily: "system-ui, sans-serif", fontSize: hit.crit ? "44px" : "32px", fontStyle: "bold", color, stroke: "#000", strokeThickness: 6 })
+        .setOrigin(0.5)
+        .setScale(0.5)
+        .setDepth(6000);
+      this.tweens.add({ targets: label, y: pos.y - 52, alpha: 0, delay: 250 + i * 120, duration: 1300, ease: "Cubic.easeOut", onComplete: () => label.destroy() });
+      if (f && !hit.miss && !hit.heal) {
+        const images = f.container.list.filter((o): o is Phaser.GameObjects.Image => o instanceof Phaser.GameObjects.Image);
+        images.forEach((img) => img.setTintFill(0xff3030));
+        this.tweens.add({ targets: f.container, x: pos.x + 3, duration: 50, yoyo: true, repeat: 2 });
+        this.time.delayedCall(160, () => images.forEach((img) => img.clearTint()));
+      }
+    });
+  }
+
+  /** In combat the initiative bar takes the left edge; the map moves next to it. */
+  setCombatLayout(on: boolean): void {
+    const left = on ? 340 : 0;
+    this.cameras.main.setViewport(left, 0, BOARD_WIDTH - left, BOARD_HEIGHT);
   }
 
   focusParty(instant: boolean): void {

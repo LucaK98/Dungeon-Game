@@ -14,8 +14,12 @@ export interface AiContext {
   walkable: Walkable;
 }
 
+/** Enemies of `c` that take part in the current fight. */
 function enemiesOf(battle: Battle, c: Creature): Creature[] {
-  return Object.values(battle.creatures).filter((o) => o.side !== c.side && o.side !== "neutral" && !o.dead && o.pos);
+  const inFight = battle.combat ? new Set(battle.combat.order.map((o) => o.creatureId)) : undefined;
+  return Object.values(battle.creatures).filter(
+    (o) => o.side !== c.side && o.side !== "neutral" && !o.dead && o.pos && (!inFight || inFight.has(o.id)),
+  );
 }
 
 function alliesOf(battle: Battle, c: Creature): Creature[] {

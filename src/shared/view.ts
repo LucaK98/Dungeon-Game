@@ -74,6 +74,9 @@ export interface TurnInfo {
 export interface OrderEntry {
   id: string;
   name: string;
+  initiative?: number;
+  look?: DollLook;
+  monsterId?: string;
   color?: string;
   enemy: boolean;
   health: number;
@@ -117,4 +120,6 @@ export interface RollOutcome {
   lines: ExplainedLine[];
   success?: boolean;
   crit?: boolean;
+  /** For the board: who lost or gained hit points. */
+  hits?: { targetId: string; amount: number; heal?: boolean; crit?: boolean; miss?: boolean }[];
 }

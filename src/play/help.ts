@@ -242,7 +242,7 @@ export function whatCanIDo(view: PlayerView | undefined): string[] {
 
 // ---------------------------------------------------------------- hint bubbles
 
-export type HintId = "first_turn" | "first_roll" | "first_enemy" | "first_damage" | "first_spell" | "first_down";
+export type HintId = "first_turn" | "first_roll" | "first_enemy" | "first_damage" | "first_spell" | "first_down" | "first_fight";
 
 const HINTS: Record<HintId, { title: string; text: string; key: string }> = {
   first_turn: {
@@ -269,6 +269,11 @@ const HINTS: Record<HintId, { title: string; text: string; key: string }> = {
     title: "Zaubern",
     text: "Zaubertricks kannst du immer wirken. Größere Zauber verbrauchen einen Zauberplatz. Die kommen erst nach einer langen Rast zurück, also gut einteilen!",
     key: "zauberplaetze",
+  },
+  first_fight: {
+    title: "Erster Kampf! So funktioniert eine Runde",
+    text: "Alle haben Initiative gewürfelt, die Reihenfolge siehst du oben und am Fernseher. Wer dran ist, darf sich bewegen UND eine Aktion machen, meistens angreifen. Danach sind die anderen dran, auch die Gegner.",
+    key: "initiative",
   },
   first_down: {
     title: "Du bist bewusstlos",

@@ -12,7 +12,7 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
   const showBoard = async () => {
     stopView?.();
     const { startBoard } = await import("./board");
-    stopView = startBoard(root, host!);
+    stopView = startBoard(root, host!, { demo: route.demo });
   };
 
   void GameHost.start(route.net).then((started) => {

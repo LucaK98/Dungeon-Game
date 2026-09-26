@@ -409,3 +409,9 @@ body.tip-mode::after {
 .die-dropped { opacity: 0.35; transform: scale(0.8); }
 .dice-lines { display: flex; flex-direction: column; gap: 6px; text-align: left; width: 100%; background: var(--panel); border-radius: 12px; padding: 10px 12px; }
 .dice-lines:empty { display: none; }
+
+.order { display: flex; gap: 6px; overflow-x: auto; width: 100%; padding-top: 4px; }
+.order-entry { --player: #5a4d42; flex: none; padding: 4px 10px; border-radius: 999px; background: #1d1814; border: 2px solid var(--player); font-size: 0.85rem; white-space: nowrap; }
+.order-entry.enemy { border-color: #8a2a2a; }
+.order-entry.active { background: var(--accent); color: #1b1208; font-weight: 800; }
+.order-entry.down { opacity: 0.4; text-decoration: line-through; }

@@ -24,7 +24,7 @@ Zum Testen am Rechner: 1 Tab mit `#/tv`, 2–4 Tabs mit `#/play` in der Handy-An
 
 Mit `?net=local|peer|supabase` wird die Verbindungsart gewählt (Standard: `local`).
 
-Testmodus ohne Handys: `#/tv?demo` startet direkt mit vier Beispiel-Helden. Auf dem Spielbrett springt **N** in den nächsten Raum, **R** baut einen neuen Zufalls-Dungeon.
+Testmodus ohne Handys: `#/tv?demo` startet direkt mit vier Beispiel-Helden. Auf dem Spielbrett baut **R** einen neuen Zufalls-Dungeon, **F** startet einen Demo-Kampf gegen drei Goblins (die Helden kämpfen dann von selbst).
 
 ## Befehle
 

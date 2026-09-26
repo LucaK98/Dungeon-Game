@@ -7,7 +7,8 @@ import { createSession, type GameSession } from "./session";
 import { UiScene } from "./UiScene";
 
 /** The Phaser game board plus the game controller that drives it. */
-export function startBoard(root: HTMLElement, host: GameHost, seed?: number): () => void {
+export function startBoard(root: HTMLElement, host: GameHost, opts: { seed?: number; demo?: boolean } = {}): () => void {
+  const seed = opts.seed;
   const container = document.createElement("div");
   container.className = "tv";
   root.append(container);
@@ -31,34 +32,47 @@ export function startBoard(root: HTMLElement, host: GameHost, seed?: number): ()
     scene: [scene, UiScene],
   });
 
-  let controller: GameController;
+  let controller: GameController | undefined;
   const wire = () => {
+    controller?.destroy();
     controller = new GameController(
       session,
       rng,
       (playerId, event) => host.transport.send(event, playerId),
       (event) => host.transport.send(event),
+      { autoHeroes: !!opts.demo },
     );
     controller.on({
-      changed: () => scene.sys.isActive() && scene.refresh(),
+      changed: () => {
+        if (scene.sys.isActive()) scene.refresh();
+        game.events.emit("order", controller!.mode === "combat" ? controller!.orderEntries() : []);
+      },
       turn: (name, color) => game.events.emit("turn", name, color),
-      roll: (r) => game.events.emit("roll", r),
+      roll: (r) => {
+        game.events.emit("roll", r);
+        if (scene.sys.isActive() && r.hits?.length) scene.showHits(r.hits);
+      },
       roomRevealed: (name) => scene.showRoomName(name),
+      combat: (started) => {
+        game.events.emit("combat", started);
+        if (scene.sys.isActive()) scene.setCombatLayout(started);
+      },
     });
     controller.start();
   };
   wire();
 
-  game.events.on("ui-ready", () => controller.announceTurn());
+  game.events.on("ui-ready", () => controller?.announceTurn());
 
   host.onPlayerEvent((e, from) => {
-    if (e.type === "player_action") controller.handle(from, e.action);
+    if (e.type === "player_action") controller?.handle(from, e.action);
   });
   // A phone that (re)connects gets its view again.
-  const offLobby = host.onChange(() => controller.broadcast());
+  const offLobby = host.onChange(() => controller?.broadcast());
 
-  // Keyboard helper on the TV: R = new random dungeon.
+  // Keyboard helpers on the TV: R = new random dungeon, F = demo fight (demo mode only).
   const onKey = (e: KeyboardEvent) => {
+    if ((e.key === "f" || e.key === "F") && opts.demo) controller?.spawnNearParty(["goblin", "goblin", "goblin"]);
     if (e.key === "r" || e.key === "R") {
       session = newSession();
       wire();
@@ -69,6 +83,7 @@ export function startBoard(root: HTMLElement, host: GameHost, seed?: number): ()
 
   return () => {
     offLobby();
+    controller?.destroy();
     window.removeEventListener("keydown", onKey);
     game.destroy(true);
     container.remove();
