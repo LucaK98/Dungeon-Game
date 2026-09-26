@@ -1,7 +1,7 @@
 import type { DollLook } from "./doll";
 import type { PlayerId, RoomCode } from "./types";
 
-export const MAX_PLAYERS = 4;
+export const MAX_PLAYERS = 6;
 
 /** Everything a player chose on the phone. */
 export interface CharacterProfile {
@@ -23,6 +23,8 @@ export interface LobbyState {
   room: RoomCode;
   phase: "lobby" | "playing";
   players: LobbyPlayer[];
+  /** Chosen on the TV before the lobby. */
+  story?: { id: string; title: string; duration: "kurz" | "mittel" | "lang" };
 }
 
 /** Player colours: easy to tell apart on a TV, with names for the phone. */

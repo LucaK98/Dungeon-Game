@@ -1,6 +1,6 @@
 # Projekt: Couch-Dungeon (Arbeitstitel)
 
-Fantasy-Rollenspiel für 1–4 Spieler an einem Tisch.
+Fantasy-Rollenspiel für 1–6 Spieler an einem Tisch.
 - **Fernseher/Laptop** = Spielbrett (Karte, Figuren, Erzähltext, QR-Code zum Beitreten)
 - **Handys** = persönliche Controller (Charakter, Aktionen, Würfel)
 - **Dungeon Master** = zuerst ein geskripteter Erzähler, später eine KI
@@ -282,7 +282,7 @@ Auswahl beim Start auf dem TV, zusammen mit der Geschichte:
 Umsetzung:
 - **Geschichten-Format** (`src/dm/stories/<id>.json`): Akte → Szenen. Jede Szene hat `pflicht: true|false`, `dauer_min`, `mindestDauer` (`kurz|mittel|lang`), Ziel, Ort/Raum-Module, NPCs, Begegnungen, Hinweise, Übergänge
 - Beim Start stellt ein **Planer** anhand der gewählten Dauer die Szenenliste zusammen und skaliert Dungeon-Größe und Anzahl der Kämpfe
-- **Begegnungen skalieren** auch mit der Spielerzahl (1–4) nach den SRD-Richtwerten für Schwierigkeit
+- **Begegnungen skalieren** auch mit der Spielerzahl (1–6, auf Wunsch des Nutzers von 4 erhöht) nach den SRD-Richtwerten für Schwierigkeit
 - **Tempo-Wächter:** Der Host misst die echte Spielzeit. Läuft die Gruppe hinter dem Plan, werden optionale Szenen übersprungen; ist sie schneller, kommen welche dazu. Die KI (A8) bekommt im Kontext `zeit_bisher`, `zeit_ziel`, `verbleibende_szenen` und die Anweisung, das Tempo entsprechend zu steuern
 - Dezente **Fortschrittsanzeige** auf dem TV („Kapitel 2 von 3“), keine Uhr, die Druck macht
 - „Lang“ bietet nach der Hälfte einen Speicherpunkt an (in Teil A im `localStorage` des TV)

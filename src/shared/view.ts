@@ -5,6 +5,7 @@
 import type { PlayerAction } from "./events";
 import type { Creature, GridPos } from "./game";
 import type { DollLook } from "./doll";
+import type { Narration } from "./story";
 
 export interface ExplainedLine {
   text: string;
@@ -40,7 +41,7 @@ export interface MiniMap {
   reachable: GridPos[];
 }
 
-export type ActionGroup = "attack" | "spell" | "item" | "ability" | "look" | "free" | "end";
+export type ActionGroup = "story" | "attack" | "spell" | "item" | "ability" | "look" | "free" | "end";
 
 export interface ActionChoice {
   id: string;
@@ -96,6 +97,19 @@ export interface PlayerView {
   /** Set when this phone has to roll now. */
   pendingRoll?: RollPrompt;
   beginnerMode: boolean;
+  story?: StoryView;
+}
+
+export interface StoryView {
+  title: string;
+  /** "Kapitel 2 von 3 · Die Reise" */
+  chapter: string;
+  scene: string;
+  goal: string;
+  narration: Narration[];
+  /** Story decisions anyone may take (group "story"). */
+  choices: ActionChoice[];
+  clues: { text: string }[];
 }
 
 export interface RollPrompt {

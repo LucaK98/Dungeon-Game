@@ -2572,5 +2572,31 @@
       "bewegung",
       "zug"
     ]
+  },
+  "gegenstand:drachenlanze": {
+    "titel": "Drachenlanze",
+    "kurz": "Eine magische Lanze: Einmal pro Kampf trifft sie einen Drachen doppelt so hart.",
+    "lang": "Der Einsiedler Wendelin hat sie euch gegeben. Wer sie trägt, macht beim ersten Treffer gegen einen Drachen in jedem Kampf doppelten Schaden. Das passiert automatisch, du musst nichts extra tun.",
+    "siehe_auch": [
+      "schaden",
+      "monster:red-dragon-wyrmling"
+    ]
+  },
+  "hinweis": {
+    "titel": "Hinweise",
+    "kurz": "Was ihr über das Geheimnis der Geschichte herausgefunden habt.",
+    "lang": "In jeder Geschichte steckt ein Geheimnis, und bei jedem Spiel ist es ein anderes. Hinweise helfen euch, es zu erraten. Manche Hinweise sind falsche Fährten! Alle gefundenen Hinweise stehen im Tab „Hinweise“ auf eurem Handy. Am Ende erfahrt ihr, was wirklich geschah.",
+    "siehe_auch": [
+      "freie_aktion"
+    ]
+  },
+  "entscheidung": {
+    "titel": "Entscheidung",
+    "kurz": "Die Gruppe wählt, wie es weitergeht.",
+    "lang": "Manchmal bietet die Geschichte mehrere Wege an: kämpfen, reden oder tricksen. Besprecht euch am Tisch! Wer zuerst auf dem Handy wählt, entscheidet für alle. Manche Wege verlangen eine Probe.",
+    "siehe_auch": [
+      "probe",
+      "fertigkeit"
+    ]
   }
 }

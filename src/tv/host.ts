@@ -75,6 +75,25 @@ export class GameHost {
     return `${base}#/play?room=${this.lobby.room}${this.net === "local" ? "" : `&net=${this.net}`}`;
   }
 
+  setStory(story: LobbyState["story"]): void {
+    this.lobby.story = story;
+    this.changed();
+  }
+
+  /** Back to the lobby after a game (players stay, all "not ready"). */
+  backToLobby(): void {
+    this.lobby.phase = "lobby";
+    for (const p of this.lobby.players) p.ready = false;
+    this.changed();
+  }
+
+  /** Restores the players of a saved game; they rejoin with their stored IDs. */
+  restorePlayers(players: LobbyPlayer[]): void {
+    this.lobby.players = players.map((p) => ({ ...p, connected: this.lobby.players.some((q) => q.id === p.id && q.connected) }));
+    this.lobby.phase = "playing";
+    this.changed();
+  }
+
   canStart(): boolean {
     const active = this.lobby.players.filter((p) => p.connected);
     return active.length > 0 && active.every((p) => p.profile && p.ready);

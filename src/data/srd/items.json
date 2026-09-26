@@ -19,5 +19,9 @@
   {
     "id": "healers-kit",
     "kind": "gear"
+  },
+  {
+    "id": "drachenlanze",
+    "kind": "gear"
   }
 ]

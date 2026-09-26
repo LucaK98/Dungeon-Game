@@ -18,7 +18,7 @@ function playerCard(p: LobbyPlayer | undefined, index: number): HTMLElement {
   return h(
     "div",
     { class: `tv-slot${p.ready ? " ready" : ""}${p.connected ? "" : " offline"}`, style: prof ? `--player:${prof.color}` : "" },
-    prof ? dollCanvas(prof.look, 5, "tv-slot-figure") : h("div", { class: "tv-slot-figure placeholder" }, "…"),
+    prof ? dollCanvas(prof.look, 4, "tv-slot-figure") : h("div", { class: "tv-slot-figure placeholder" }, "…"),
     h("div", { class: "tv-slot-name" }, prof?.name ?? "Neuer Spieler"),
     prof ? h("div", { class: "tv-slot-class" }, `${nameOf("classes", prof.classId)} · ${nameOf("races", prof.raceId)}`) : null,
     h("div", { class: "tv-slot-status" }, status),
@@ -50,7 +50,15 @@ export function renderLobby(root: HTMLElement, host: GameHost, onStart: () => vo
       h("div", { class: "tv-code" }, host.lobby.room),
       h("div", { class: "tv-url" }, url),
     ),
-    h("section", { class: "tv-players" }, h("h2", {}, "Eure Heldengruppe"), slots, hint, start),
+    h(
+      "section",
+      { class: "tv-players" },
+      host.lobby.story ? h("p", { class: "tv-story" }, `📖 ${host.lobby.story.title} · ${{ kurz: "Kurz", mittel: "Mittel", lang: "Lang" }[host.lobby.story.duration]}`) : null,
+      h("h2", {}, "Eure Heldengruppe"),
+      slots,
+      hint,
+      start,
+    ),
   );
   root.append(screen);
 
@@ -60,7 +68,7 @@ export function renderLobby(root: HTMLElement, host: GameHost, onStart: () => vo
     const waiting = active.filter((p) => !p.ready).length;
     hint.textContent =
       active.length === 0
-        ? "Noch niemand da. 1 bis 4 Leute können mitspielen."
+        ? `Noch niemand da. 1 bis ${MAX_PLAYERS} Leute können mitspielen.`
         : waiting > 0
           ? `Warte auf ${waiting} ${waiting === 1 ? "Spieler" : "Spieler"} …`
           : "Alle bereit! Los geht's.";

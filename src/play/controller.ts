@@ -16,9 +16,10 @@ import { closeSheet, explainedLine, helpButton, maybeHint, openHelp, showSheet }
 import { minimapView } from "./minimap";
 import { ABILITY_GLOSSAR } from "../engine/core";
 
-type Tab = "action" | "sheet" | "inventory";
+type Tab = "action" | "sheet" | "inventory" | "clues";
 
 const GROUP_TITLES: Record<ActionGroup, string> = {
+  story: "📖 Entscheidung",
   attack: "⚔️ Angreifen",
   spell: "✨ Zaubern",
   item: "🎒 Gegenstände",
@@ -228,8 +229,59 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     return b;
   }
 
-  function renderActionTab(v: PlayerView): HTMLElement[] {
+  function renderStory(v: PlayerView): HTMLElement[] {
+    const st = v.story;
+    if (!st) return [];
     const out: HTMLElement[] = [];
+    const last = st.narration.slice(-3);
+    out.push(
+      h(
+        "section",
+        { class: "card st-card" },
+        h("div", { class: "st-chapter" }, st.chapter),
+        h("strong", { class: "st-scene" }, st.scene),
+        h("div", { class: "st-goal" }, `🎯 Ziel: ${st.goal}`),
+        ...last.map((l) =>
+          h(
+            "p",
+            { class: l.npc ? "st-line npc" : "st-line" },
+            l.npc ? h("strong", {}, `${l.npc}: `) : "",
+            l.text,
+            l.tip && v.beginnerMode ? h("span", { class: "st-tip", dataset: { help: l.tip.key } }, `💡 ${l.tip.text}`) : "",
+          ),
+        ),
+      ),
+    );
+    if (st.choices.length) {
+      out.push(
+        h(
+          "section",
+          { class: "group story-choices" },
+          h("div", { class: "group-head static" }, h("span", {}, "📖 Wie geht es weiter?"), h("span", { class: "muted" }, "Besprecht euch!")),
+          h("div", { class: "group-body" }, ...st.choices.map(choiceButton)),
+        ),
+      );
+    }
+    return out;
+  }
+
+  function renderCluesTab(v: PlayerView): HTMLElement[] {
+    const clues = v.story?.clues ?? [];
+    return [
+      h(
+        "section",
+        { class: "card" },
+        h("div", { class: "card-title", dataset: { help: "hinweis" } }, "🔎 Eure Hinweise"),
+        clues.length
+          ? h("ol", { class: "clue-list" }, ...clues.map((c) => h("li", {}, c.text)))
+          : h("p", { class: "muted" }, "Noch keine Hinweise. Redet mit Leuten, seht euch um und besiegt Gegner – dann findet ihr heraus, was hinter der Geschichte steckt."),
+        h("p", { class: "muted small" }, "Achtung: Nicht jeder Hinweis stimmt. Am Ende erfahrt ihr, was wirklich geschah."),
+      ),
+    ];
+  }
+
+  function renderActionTab(v: PlayerView): HTMLElement[] {
+    const out: HTMLElement[] = [...renderStory(v)];
     const map = minimapView(v.minimap, (to) => send({ kind: "move", to }));
     out.push(
       h(
@@ -416,7 +468,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       });
       return b;
     };
-    tabs.replaceChildren(mk("action", "⚔️ Aktion"), mk("sheet", "📋 Charakter"), mk("inventory", "🎒 Inventar"));
+    tabs.replaceChildren(mk("action", "⚔️ Aktion"), mk("sheet", "📋 Figur"), mk("inventory", "🎒 Taschen"), mk("clues", `🔎 Hinweise${view?.story?.clues.length ? ` (${view.story.clues.length})` : ""}`));
   }
 
   function render(): void {
@@ -426,7 +478,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     renderStatus(view);
     renderTabs();
     const scroll = window.scrollY;
-    body.replaceChildren(...(tab === "action" ? renderActionTab(view) : tab === "sheet" ? renderSheetTab(me) : renderInventoryTab(me, view)));
+    body.replaceChildren(...(tab === "action" ? renderActionTab(view) : tab === "sheet" ? renderSheetTab(me) : tab === "inventory" ? renderInventoryTab(me, view) : renderCluesTab(view)));
     window.scrollTo(0, scroll);
     const pid = playerId();
     if (view.mode === "combat") maybeHint(pid, "first_fight", view.beginnerMode, body);

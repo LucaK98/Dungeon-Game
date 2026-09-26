@@ -4,7 +4,7 @@
  */
 import { perform, type ActionOutcome, type CombatAction } from "../engine/actions";
 import { inRange } from "../engine/attack";
-import { applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, heal, isActive, nextTurn, newTurn, startCombat } from "../engine/combat";
+import { applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, heal, isActive, nextTurn, newTurn, squaresOf, startCombat } from "../engine/combat";
 import { savingThrow, skillCheck, sumParts } from "../engine/core";
 import { getSpell } from "../engine/data";
 import { averageOf, parseDice, rollDice } from "../engine/dice";
@@ -15,13 +15,27 @@ import { findPath } from "../engine/grid";
 import { nameOf } from "../engine/names";
 import type { Rng } from "../engine/rng";
 import { maxTargets, validateCast } from "../engine/spells";
-import { isWalkable, revealAround } from "../map/walk";
+import { isWalkable, partyStartSpots, revealAround } from "../map/walk";
 import type { PlayerAction } from "../shared/events";
 import type { Creature, GridPos } from "../shared/game";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
-import type { ActionChoice, MiniMap, OrderEntry, PlayerView, RollOutcome, RollPrompt } from "../shared/view";
+import type { ActionChoice, MiniMap, OrderEntry, PlayerView, RollOutcome, RollPrompt, StoryView } from "../shared/view";
+import type { MonsterGroup, Narration } from "../shared/story";
+import type { CheckResult } from "../shared/game";
+import type { SkillId } from "../shared/rules";
+import type { DungeonMap } from "../shared/map";
+import { createCharacter } from "../engine/creatures";
+import { scaleGroup } from "../dm/planner";
+import { getModule, moduleExits } from "../map/modules";
 import type { GameSession } from "./session";
+
+export interface StoryChoiceOffer {
+  id: string;
+  label: string;
+  detail: string;
+  recommended?: boolean;
+}
 
 const LOG_SIZE = 40;
 const MINIMAP_W = 13;
@@ -44,6 +58,9 @@ export interface GameEvents {
   roomRevealed(name: string): void;
   lines(lines: ExplainedLine[]): void;
   combat(started: boolean): void;
+  narration(lines: Narration[]): void;
+  /** A new map was loaded (next scene): the board must rebuild. */
+  mapChanged(): void;
 }
 
 export interface ControllerOptions {
@@ -62,6 +79,20 @@ export class GameController {
   mode: "explore" | "combat" = "explore";
   private monsterTimer: ReturnType<typeof setTimeout> | undefined;
   private destroyed = false;
+  // Story hooks (A6): the director awaits these.
+  storyView: StoryView | undefined;
+  private storyChoices: StoryChoiceOffer[] = [];
+  private choiceWaiter: ((choice: { id: string; playerId: PlayerId }) => void) | undefined;
+  private fightWaiter: ((winner: "party" | "enemy") => void) | undefined;
+  private waiters: { pred: () => boolean; resolve: () => void }[] = [];
+  /** Free text from a phone goes to the DM. */
+  onFreeText: ((playerId: PlayerId, hero: Creature, text: string) => void) | undefined;
+  /** Items used and chests opened (tutorial step "use_item"). */
+  itemUses = 0;
+  /** Training fight: nobody dies. */
+  training = false;
+  private narrationLog: Narration[] = [];
+  private lanceUsed = new Set<string>();
 
   constructor(
     readonly session: GameSession,
@@ -194,6 +225,7 @@ export class GameController {
     if (!enemies.length) return false;
     this.pending = undefined;
     this.mode = "combat";
+    this.lanceUsed.clear();
     const ids = [...this.heroes().filter((h) => !h.dead).map((h) => h.id), ...enemies.map((e) => e.id)];
     const combat = startCombat(this.rng, this.battle, ids);
     const lines: ExplainedLine[] = [
@@ -239,7 +271,11 @@ export class GameController {
     this.addLog(lines);
     this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: this.heroes()[0]!.id, title: winner === "party" ? "Sieg!" : "Niederlage", sides: 20, dice: [], kept: 0, lines, success: winner === "party" });
     this.emit("combat", false);
+    this.training = false;
     this.start();
+    const waiter = this.fightWaiter;
+    this.fightWaiter = undefined;
+    waiter?.(winner === "party" ? "party" : "enemy");
     return true;
   }
 
@@ -283,6 +319,20 @@ export class GameController {
     }
     const hero = this.heroOf(playerId);
     if (!hero) return;
+    if (action.kind === "story_choice") {
+      const offer = this.storyChoices.find((c) => c.id === action.choiceId);
+      if (!offer || !this.choiceWaiter) {
+        this.sendTo(playerId, { type: "action_error", reason: "Diese Entscheidung ist nicht mehr offen." });
+        return;
+      }
+      const resolve = this.choiceWaiter;
+      this.choiceWaiter = undefined;
+      this.storyChoices = [];
+      this.addLog([{ text: `${hero.name} entscheidet: ${offer.label}`, glossarKeys: ["entscheidung"] }]);
+      resolve({ id: offer.id, playerId });
+      this.broadcast();
+      return;
+    }
     if (action.kind === "roll") {
       if (!this.pending || this.pending.playerId !== playerId || this.pending.prompt.id !== action.rollId) return;
       const pending = this.pending;
@@ -310,6 +360,7 @@ export class GameController {
         return;
       case "free_text":
         this.addLog([{ text: `${hero.name} versucht: „${action.text.slice(0, 140)}“`, glossarKeys: ["freie_aktion"] }]);
+        this.onFreeText?.(playerId, hero, action.text.slice(0, 300));
         this.broadcast();
         return;
       case "interact":
@@ -321,10 +372,20 @@ export class GameController {
       default: {
         const engineAction = this.toEngineAction(action);
         if (!engineAction) return;
+        // Drachenlanze: once per fight, double damage against a dragon.
+        if (engineAction.type === "attack") {
+          const target = this.battle.creatures[engineAction.targetId];
+          const hasLance = hero.pc?.inventory.some((i) => i.itemId === "drachenlanze" && i.qty > 0);
+          if (hasLance && target?.creatureType === "dragon" && !this.lanceUsed.has(hero.id)) {
+            engineAction.dragonSlayer = true;
+            this.lanceUsed.add(hero.id);
+          }
+        }
         const prompt = this.promptFor(hero, action);
         const run = () => {
           const outcome = perform(this.rng, this.battle, hero.id, engineAction);
           if (!outcome.ok) return { error: outcome.reason };
+          if (engineAction.type === "use-item") this.itemUses++;
           return this.outcomeToRoll(hero, prompt?.title ?? "", prompt?.sides ?? 20, outcome);
         };
         if (prompt) this.ask(playerId, hero, prompt, run);
@@ -557,6 +618,7 @@ export class GameController {
     }
     const lines: ExplainedLine[] = [];
     if (o.kind === "chest" && o.state !== "open") {
+      this.itemUses++;
       o.state = "open";
       o.frame = "chest.open";
       if (this.rng.next() < 0.5) {
@@ -620,8 +682,12 @@ export class GameController {
   }
 
   broadcast(): void {
+    if (this.training) for (const h of this.heroes()) if (h.hp === 0 && !h.dead) h.stable = true;
     for (const hero of this.heroes()) if (hero.playerId) this.sendView(hero.playerId);
     this.emit("changed");
+    const ready = this.waiters.filter((w) => w.pred());
+    this.waiters = this.waiters.filter((w) => !ready.includes(w));
+    ready.forEach((w) => w.resolve());
   }
 
   sendView(playerId: PlayerId): void {
@@ -665,6 +731,7 @@ export class GameController {
       beginnerMode: this.beginner.get(playerId) ?? true,
     };
     if (this.pending?.playerId === playerId) view.pendingRoll = this.pending.prompt;
+    if (this.storyView) view.story = { ...this.storyView, narration: this.narrationLog.slice(-4), choices: this.storyChoiceView() };
     return view;
   }
 
@@ -728,16 +795,11 @@ export class GameController {
     const turn = this.battle.combat?.turn;
     const steps = Math.floor((turn?.movementLeftFt ?? 0) / 5) - (hasCondition(me, "prone") ? Math.ceil(me.speedFt / 10) : 0);
     if (!me.pos || steps <= 0) return [];
-    const occupied = new Set(
-      Object.values(this.battle.creatures)
-        .filter((c) => c.id !== me.id && c.pos && !c.dead)
-        .map((c) => `${c.pos!.x},${c.pos!.y}`),
-    );
-    const enemies = new Set(
-      Object.values(this.battle.creatures)
-        .filter((c) => c.side !== me.side && c.pos && !c.dead)
-        .map((c) => `${c.pos!.x},${c.pos!.y}`),
-    );
+    // Large creatures cover several squares.
+    const cover = (list: Creature[]) => new Set(list.flatMap((c) => squaresOf(c).map((p) => `${p.x},${p.y}`)));
+    const others = Object.values(this.battle.creatures).filter((c) => c.id !== me.id && c.pos && !c.dead);
+    const occupied = cover(others);
+    const enemies = cover(others.filter((c) => c.side !== me.side));
     const seen = new Map<string, number>([[`${me.pos.x},${me.pos.y}`, 0]]);
     let frontier: GridPos[] = [me.pos];
     const out: GridPos[] = [];
@@ -759,6 +821,207 @@ export class GameController {
       frontier = next;
     }
     return out;
+  }
+
+  // ---------------------------------------------------------------- story primitives (A6)
+
+  /** Narrator lines: log, phones, TV text box. */
+  narrate(lines: Narration[]): void {
+    if (!lines.length) return;
+    this.narrationLog.push(...lines);
+    if (this.narrationLog.length > 30) this.narrationLog.splice(0, this.narrationLog.length - 30);
+    this.addLog(lines.map((l) => ({ text: l.npc ? `${l.npc}: ${l.text}` : `📖 ${l.text}`, glossarKeys: l.tip ? [l.tip.key] : [] })));
+    this.sendAll({ type: "narration", lines });
+    this.emit("narration", lines);
+    this.broadcast();
+  }
+
+  setStoryView(view: StoryView | undefined): void {
+    this.storyView = view;
+    this.broadcast();
+  }
+
+  private storyChoiceView(): ActionChoice[] {
+    return this.storyChoices.map((c) => ({
+      id: `story:${c.id}`,
+      group: "story" as const,
+      label: c.label,
+      detail: c.detail,
+      glossarKey: "entscheidung",
+      cost: "free" as const,
+      enabled: !this.pending && this.mode === "explore",
+      ...(this.pending ? { reason: "Erst würfeln!" } : this.mode !== "explore" ? { reason: "Erst den Kampf beenden." } : {}),
+      recommended: !!c.recommended,
+      action: { kind: "story_choice" as const, choiceId: c.id },
+    }));
+  }
+
+  /** Offers story choices to all phones; resolves with the first pick and who made it. */
+  choose(offers: StoryChoiceOffer[]): Promise<{ id: string; playerId: PlayerId }> {
+    this.storyChoices = offers;
+    return new Promise((resolve) => {
+      this.choiceWaiter = resolve;
+      this.broadcast();
+    });
+  }
+
+  /** Resolves once `pred` is true after some state change. */
+  waitFor(pred: () => boolean): Promise<void> {
+    if (pred()) return Promise.resolve();
+    return new Promise((resolve) => this.waiters.push({ pred, resolve }));
+  }
+
+  /** A skill check for one hero; resolves when the phone has rolled. */
+  check(hero: Creature, skill: SkillId, dc: number, title: string): Promise<CheckResult> {
+    return new Promise((resolve) => {
+      const playerId = hero.playerId!;
+      const run = (): RollOutcome => {
+        const result = skillCheck(this.rng, hero, skill, dc);
+        const lines = explainCheck(this.battle, hero.id, result);
+        queueMicrotask(() => resolve(result));
+        return { id: `o${++this.rollCounter}`, creatureId: hero.id, playerId, title, sides: 20, dice: result.roll.rolls, kept: result.roll.natural, lines, success: result.success };
+      };
+      const tryAsk = () => {
+        if (this.pending) {
+          // Another roll is open: wait until it is done.
+          this.waiters.push({ pred: () => !this.pending, resolve: tryAsk });
+          return;
+        }
+        this.ask(playerId, hero, { title: `${title} (${nameOf("skills", skill)}, SG ${dc})`, sides: 20, glossarKey: `fertigkeit:${skill}` }, run);
+      };
+      tryAsk();
+    });
+  }
+
+  /** Spawns monsters in the heroes' current room and starts a fight. Resolves with the winner. */
+  fight(groups: MonsterGroup[], opts: { training?: boolean; allies?: { monster: string; name: string }[] } = {}): Promise<{ winner: "party" | "enemy"; spawned: Creature[] }> {
+    const players = this.heroes().length;
+    const spawned: Creature[] = [];
+    const lead = this.heroes().find((h) => isActive(h) && h.pos) ?? this.heroes()[0]!;
+    const roomIndex = lead.pos ? (this.map.roomOf[cellIndex(this.map, lead.pos.x, lead.pos.y)] ?? -1) : -1;
+    const room = this.map.rooms[roomIndex >= 0 ? roomIndex : this.map.rooms.length - 1]!;
+    const taken = (p: GridPos) => Object.values(this.battle.creatures).some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
+    const freeSpots = (preferred: GridPos[]): GridPos[] => {
+      const out = preferred.filter((p) => isWalkable(this.map, p) && !taken(p));
+      for (let y = room.y + 1; y < room.y + room.h - 1; y++) {
+        for (let x = room.x + 1; x < room.x + room.w - 1; x++) {
+          const p = { x, y };
+          if (isWalkable(this.map, p) && !taken(p) && !out.some((q) => q.x === x && q.y === y) && distanceFt(lead, lead, p) >= 15) out.push(p);
+        }
+      }
+      return out;
+    };
+    for (const g of groups) {
+      const count = scaleGroup(g, players);
+      const spots = freeSpots(g.boss ? [...room.spots.boss, ...room.spots.monster] : room.spots.monster);
+      for (let i = 0; i < count && spots.length; i++) {
+        const pos = spots.shift()!;
+        const m = createMonster(g.monster, `m${++this.rollCounter}`, { name: count > 1 ? `${g.name ?? nameOf("monsters", g.monster)} ${i + 1}` : (g.name ?? nameOf("monsters", g.monster)) });
+        m.pos = pos;
+        this.battle.creatures[m.id] = m;
+        spawned.push(m);
+      }
+    }
+    for (const a of opts.allies ?? []) {
+      const pos = freeSpots(room.spots.party)[0];
+      if (!pos) continue;
+      const ally = createMonster(a.monster, `ally${++this.rollCounter}`, { name: a.name, side: "party" });
+      ally.pos = pos;
+      this.battle.creatures[ally.id] = ally;
+    }
+    // Everyone involved sees the monsters.
+    for (const m of spawned) this.map.explored[cellIndex(this.map, m.pos!.x, m.pos!.y)] = true;
+    this.training = !!opts.training;
+    return new Promise((resolve) => {
+      if (!spawned.length) {
+        resolve({ winner: "party", spawned });
+        return;
+      }
+      this.fightWaiter = (winner) => resolve({ winner, spawned });
+      this.emit("changed");
+      if (this.mode === "combat") return;
+      // Start the fight even if the monsters stand a bit further away.
+      this.forceCombat([...spawned.map((m) => m.id), ...Object.values(this.battle.creatures).filter((c) => c.side === "party" && c.kind === "monster" && !c.dead).map((c) => c.id)]);
+    });
+  }
+
+  private forceCombat(extraIds: string[]): void {
+    this.pending = undefined;
+    this.mode = "combat";
+    this.lanceUsed.clear();
+    const ids = [...this.heroes().filter((h) => !h.dead).map((h) => h.id), ...extraIds];
+    const combat = startCombat(this.rng, this.battle, [...new Set(ids)]);
+    const lines: ExplainedLine[] = [
+      { text: "⚔️ Kampf! Alle würfeln Initiative. Wer am höchsten würfelt, ist zuerst dran.", glossarKeys: ["initiative"] },
+      ...combat.order.map((e) => explainInitiative(this.battle, e)),
+    ];
+    this.addLog(lines);
+    this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: combat.order[0]!.creatureId, title: "Kampf!", sides: 20, dice: [], kept: 0, lines });
+    this.emit("combat", true);
+    const first = this.active();
+    if (first && !isActive(first)) {
+      this.endTurn();
+      return;
+    }
+    this.announceTurn();
+    this.broadcast();
+    this.maybeRunMonster();
+  }
+
+  /** Loads the map of the next scene: heroes on the start spots, NPCs placed, fog reset. */
+  loadMap(map: DungeonMap, npcs: { name: string; monster: string; room: number; id: string }[]): void {
+    if (this.monsterTimer) clearTimeout(this.monsterTimer);
+    this.pending = undefined;
+    this.session.map = map;
+    for (const c of Object.values(this.battle.creatures)) if (c.kind === "monster") delete this.battle.creatures[c.id];
+    const start = map.rooms[0]!;
+    const exit = moduleExits(getModule(start.moduleId))[0]?.cells[0] ?? { x: 1, y: 1 };
+    const heroSpots = partyStartSpots(map, this.heroes().length, { x: start.x + exit.x, y: start.y + exit.y });
+    this.heroes().forEach((h, i) => {
+      h.pos = heroSpots[i] ?? heroSpots[0];
+      h.effects = [];
+      h.conditions = h.conditions.filter((c) => c.id !== "prone" && c.id !== "unconscious");
+    });
+    for (const npc of npcs) {
+      const room = map.rooms[Math.min(npc.room, map.rooms.length - 1)]!;
+      const pos = [...room.spots.npc, ...room.spots.boss, ...room.spots.monster].find((p) => !Object.values(this.battle.creatures).some((c) => c.pos?.x === p.x && c.pos?.y === p.y));
+      if (!pos) continue;
+      const c = createMonster(npc.monster, `npc-${npc.id}`, { name: npc.name, side: "neutral" });
+      c.pos = pos;
+      this.battle.creatures[c.id] = c;
+    }
+    for (const h of this.heroes()) if (h.pos) revealAround(this.map, h.pos);
+    this.mode = "explore";
+    delete this.battle.combat;
+    this.emit("mapChanged");
+    this.start();
+  }
+
+  /** Milestone levelling: rebuild the heroes on a higher level, keeping their things. */
+  levelUp(level: number): boolean {
+    let changed = false;
+    for (const h of this.heroes()) {
+      if (!h.pc || h.pc.level >= level) continue;
+      const next = createCharacter({ id: h.id, name: h.name, classId: h.pc.classId, raceId: h.pc.raceId, level });
+      next.playerId = h.playerId;
+      next.appearance = h.appearance;
+      next.pos = h.pos;
+      // Keep found items (potions, gold, the lance).
+      for (const item of h.pc.inventory) {
+        const own = next.pc!.inventory.find((i) => i.itemId === item.itemId);
+        if (own) own.qty = Math.max(own.qty, item.qty);
+        else next.pc!.inventory.push({ ...item });
+      }
+      this.battle.creatures[h.id] = next;
+      changed = true;
+    }
+    if (changed) this.broadcast();
+    return changed;
+  }
+
+  /** Gives an item to one hero (or all). */
+  giveItem(itemId: string, qty: number, to?: Creature): void {
+    for (const h of to ? [to] : this.heroes()) this.addItem(h, itemId, qty);
   }
 
   // ---------------------------------------------------------------- choices

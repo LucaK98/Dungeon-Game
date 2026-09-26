@@ -63,3 +63,24 @@ export function revealAround(map: DungeonMap, p: GridPos, radius = 3): number[] 
   }
   return newRooms;
 }
+
+/**
+ * Start squares for `count` heroes in the first room: the module's party marks,
+ * then free squares closest to the room's first exit (where the heroes come in).
+ */
+export function partyStartSpots(map: DungeonMap, count: number, entry: GridPos): GridPos[] {
+  const start = map.rooms[0]!;
+  const npcSpots = new Set(map.rooms.flatMap((r) => r.spots.npc).map((p) => `${p.x},${p.y}`));
+  const spots = start.spots.party.filter((p) => !npcSpots.has(`${p.x},${p.y}`));
+  if (spots.length >= count) return spots.slice(0, count);
+  const free: GridPos[] = [];
+  for (let y = start.y; y < start.y + start.h; y++) {
+    for (let x = start.x; x < start.x + start.w; x++) {
+      const key = `${x},${y}`;
+      if (isWalkable(map, { x, y }) && map.roomOf[cellIndex(map, x, y)] === 0 && !npcSpots.has(key) && !spots.some((q) => q.x === x && q.y === y)) free.push({ x, y });
+    }
+  }
+  const d = (p: GridPos) => Math.max(Math.abs(p.x - entry.x), Math.abs(p.y - entry.y));
+  free.sort((a, b) => d(a) - d(b));
+  return [...spots, ...free].slice(0, count);
+}

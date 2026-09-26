@@ -151,7 +151,8 @@
     "torch": "Fackel",
     "rope-hempen-50-feet": "Seil (15 m)",
     "healers-kit": "Heilerausrüstung",
-    "gold": "Goldmünzen"
+    "gold": "Goldmünzen",
+    "drachenlanze": "Drachenlanze"
   },
   "spells": {
     "fire-bolt": "Feuerpfeil",

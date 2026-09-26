@@ -1,5 +1,6 @@
 import type { CharacterProfile, LobbyState } from "./lobby";
 import type { SkillId } from "./rules";
+import type { Narration } from "./story";
 import type { Ability, PlayerId } from "./types";
 import type { PlayerView, RollOutcome, RollPrompt } from "./view";
 
@@ -26,6 +27,7 @@ export type PlayerAction =
   | { kind: "free_text"; text: string }
   | { kind: "roll"; rollId: string }
   | { kind: "end_turn" }
+  | { kind: "story_choice"; choiceId: string }
   | { kind: "set_beginner_mode"; on: boolean };
 
 export interface RollRequest {
@@ -42,7 +44,7 @@ export type GameEvent =
   | { type: "request_roll"; prompt: RollPrompt }
   | { type: "roll_result"; result: RollOutcome }
   | { type: "action_error"; reason: string }
-  | { type: "narration"; text: string; npc?: { name: string; text: string } }
+  | { type: "narration"; lines: Narration[] }
   | { type: "clue_found"; clueId: string }
   | { type: "secret_message"; text: string }
   // Lobby (A2)

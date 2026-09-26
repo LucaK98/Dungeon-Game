@@ -1,0 +1,98 @@
+/**
+ * The scripted Dungeon Master: tells the story from the JSON and decides with fixed rules
+ * (twist at the marked step, an event when the group is quick or things were too easy,
+ * the ending by a simple table).
+ */
+import type { DmContext, DmResponse, DmTrigger, DungeonMaster } from "../shared/dm";
+import type { Ending, Narration, Story } from "../shared/story";
+import { sceneById } from "./planner";
+
+export function narrationText(lines: Narration[]): string {
+  return lines.map((l) => (l.npc ? `${l.npc}: ${l.text}` : l.text)).join(" ");
+}
+
+function respond(script: Narration[], extra: Partial<DmResponse> = {}): DmResponse {
+  return { narration: narrationText(script), script, next: "await_action", ...extra };
+}
+
+/** Normalizes text for keyword matching ("Ich biete ihm Brot an" → words). */
+function words(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-zäöüß ]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+export function pickEnding(story: Story, truth: string, flags: string[]): Ending {
+  const has = (f: string) => flags.includes(f);
+  return (
+    story.endings.find(
+      (e) =>
+        (!e.truths || e.truths.includes(truth)) &&
+        (e.requires ?? []).every(has) &&
+        !(e.unless ?? []).some(has),
+    ) ?? story.endings[story.endings.length - 1]!
+  );
+}
+
+export class ScriptedDM implements DungeonMaster {
+  constructor(private story: Story) {}
+
+  async respond(ctx: DmContext, trigger: DmTrigger): Promise<DmResponse> {
+    const scene = sceneById(this.story, ctx.sceneId);
+    switch (trigger.kind) {
+      case "scene_start":
+        return respond(scene.travel ? [{ text: scene.travel }] : []);
+
+      case "step_start": {
+        const step = scene.steps.find((s) => s.id === ctx.stepId);
+        if (!step) return respond([]);
+        if (step.twist && !ctx.twistRevealed) {
+          const truth = this.story.truths.find((t) => t.id === ctx.truth)!;
+          return respond([...(step.enter ?? []), ...truth.reveal], { reveal_twist: true });
+        }
+        return respond(step.enter ?? []);
+      }
+
+      case "step_done": {
+        const step = scene.steps.find((s) => s.id === ctx.stepId);
+        return respond(step?.done ?? []);
+      }
+
+      case "free_text": {
+        const said = words(trigger.text);
+        const hit = (scene.keywords ?? []).find((k) => k.words.some((w) => said.some((s) => s.startsWith(w))));
+        if (hit) {
+          return respond(hit.response, {
+            ...(hit.set ? { set_flags: hit.set } : {}),
+            ...(hit.clue ? { reveal_clue: hit.clue } : {}),
+          });
+        }
+        // Without an AI the narrator can only acknowledge the idea and point at the buttons.
+        return respond([
+          { text: `${trigger.heroName} versucht es: „${trigger.text.slice(0, 80)}“ – doch nichts Besonderes geschieht.` },
+          { text: "Vielleicht hilft eine der Möglichkeiten auf dem Handy weiter." },
+        ]);
+      }
+
+      case "scene_end": {
+        // Improvised event: after the big fight, if it was too easy, or if the group is well ahead of time.
+        const events = this.story.events ?? [];
+        const unused = events.filter((e) => !ctx.eventsUsed.includes(e.id));
+        const last = ctx.sceneIndex === ctx.sceneCount - 1;
+        const tooEasy = last && ctx.hardship < 0.5;
+        const ahead = ctx.minutesPlanned > 0 && ctx.minutesPlayed < ctx.minutesPlanned * 0.6 && ctx.sceneIndex >= 2;
+        if (unused.length && (tooEasy || ahead)) {
+          return respond([], { trigger_event: unused[0]!.id });
+        }
+        return respond([]);
+      }
+
+      case "story_end": {
+        const ending = pickEnding(this.story, ctx.truth, ctx.flags);
+        return respond(ending.text, { choose_ending: ending.id, next: "end_scene" });
+      }
+    }
+  }
+}

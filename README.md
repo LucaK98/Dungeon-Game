@@ -1,6 +1,6 @@
 # Couch-Dungeon
 
-Fantasy-Rollenspiel für 1–4 Spieler an einem Tisch. Der Fernseher (oder Laptop) ist das Spielbrett, die Handys sind die Controller. Gemacht für komplette Rollenspiel-Anfänger.
+Fantasy-Rollenspiel für 1–6 Spieler an einem Tisch. Der Fernseher (oder Laptop) ist das Spielbrett, die Handys sind die Controller. Gemacht für komplette Rollenspiel-Anfänger.
 
 Kompatibel mit den Regeln der 5. Edition (SRD 5.1). Den kompletten Projektplan findest du in [`CLAUDE.md`](CLAUDE.md).
 
@@ -20,7 +20,9 @@ Dann im Browser öffnen:
 | `http://localhost:5173/#/tv` | Spielbrett (Fernseher/Laptop) |
 | `http://localhost:5173/#/play?room=ABCD` | Controller (Handy) |
 
-Zum Testen am Rechner: 1 Tab mit `#/tv`, 2–4 Tabs mit `#/play` in der Handy-Ansicht der DevTools.
+Zum Testen am Rechner: 1 Tab mit `#/tv`, 2–6 Tabs mit `#/play` in der Handy-Ansicht der DevTools.
+
+Ablauf am Fernseher: Titel → (Wie spielt man das?) → Geschichte → Spieldauer → Lobby → Abenteuer → „Was wirklich geschah“.
 
 Mit `?net=local|peer|supabase` wird die Verbindungsart gewählt (Standard: `local`).
 

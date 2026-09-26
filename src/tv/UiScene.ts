@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { dollFrames } from "../shared/doll";
+import type { Narration } from "../shared/story";
 import type { OrderEntry, RollOutcome } from "../shared/view";
+import { speak } from "./speech";
 import { assetUrl } from "../ui/atlas";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "./DungeonScene";
 
@@ -13,6 +15,10 @@ export class UiScene extends Phaser.Scene {
   private turnBox!: Phaser.GameObjects.Graphics;
   private rollBox!: Phaser.GameObjects.Container;
   private orderBar!: Phaser.GameObjects.Container;
+  private chapter!: Phaser.GameObjects.Text;
+  private narrationBox!: Phaser.GameObjects.Container;
+  private queue: Narration[] = [];
+  private telling = false;
 
   constructor() {
     super({ key: "ui", active: true });
@@ -31,12 +37,21 @@ export class UiScene extends Phaser.Scene {
     this.turnBox = this.add.graphics();
     this.turnText = this.add.text(40, BOARD_HEIGHT - 70, "", { fontFamily: FONT, fontSize: "44px", color: "#fff", stroke: "#000", strokeThickness: 8 }).setOrigin(0, 0.5);
     this.rollBox = this.add.container(BOARD_WIDTH - 40, 40);
+    this.chapter = this.add.text(24, 20, "", { fontFamily: FONT, fontSize: "26px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 });
+    this.narrationBox = this.add.container(0, 0).setAlpha(0);
 
     const onRoom = (name: string) => this.showBanner(name);
     const onTurn = (name: string, color?: string) => this.showTurn(name, color);
     const onRoll = (r: RollOutcome) => this.showRoll(r);
     const onOrder = (entries: OrderEntry[]) => this.showOrder(entries);
     const onCombat = (started: boolean) => started && this.showBanner("⚔️ Kampf!");
+    const onNarration = (lines: Narration[]) => {
+      this.queue.push(...lines);
+      if (!this.telling) void this.tell();
+    };
+    const onChapter = (text: string) => this.chapter.setText(text);
+    this.game.events.on("narration", onNarration);
+    this.game.events.on("chapter", onChapter);
     this.game.events.on("room-name", onRoom);
     this.game.events.on("turn", onTurn);
     this.game.events.on("roll", onRoll);
@@ -50,6 +65,70 @@ export class UiScene extends Phaser.Scene {
       this.game.events.off("roll", onRoll);
       this.game.events.off("order", onOrder);
       this.game.events.off("combat", onCombat);
+      this.game.events.off("narration", onNarration);
+      this.game.events.off("chapter", onChapter);
+    });
+  }
+
+  /** Tells the queued narration line by line with a typewriter effect (and reads it aloud). */
+  private async tell(): Promise<void> {
+    this.telling = true;
+    while (this.queue.length) {
+      const line = this.queue.shift()!;
+      await this.showLine(line);
+    }
+    this.telling = false;
+    this.tweens.add({ targets: this.narrationBox, alpha: 0, delay: 4000, duration: 800 });
+  }
+
+  private showLine(line: Narration): Promise<void> {
+    const box = this.narrationBox;
+    box.removeAll(true);
+    this.tweens.killTweensOf(box);
+    box.setAlpha(1);
+    const width = 1180;
+    const x = (BOARD_WIDTH - width) / 2 + 180;
+    const speaker = line.npc ? this.add.text(x + 30, 0, line.npc, { fontFamily: FONT, fontSize: "30px", color: "#e0a526", fontStyle: "bold" }) : undefined;
+    const text = this.add.text(x + 30, 0, "", { fontFamily: FONT, fontSize: "34px", color: "#f3e9d2", wordWrap: { width: width - 60 }, lineSpacing: 8, fontStyle: line.npc ? "italic" : "normal" });
+    // Measure the full height first.
+    text.setText(line.text);
+    const tipText = line.tip ? this.add.text(x + 30, 0, `💡 ${line.tip.text}`, { fontFamily: FONT, fontSize: "26px", color: "#1b1208", wordWrap: { width: width - 90 }, lineSpacing: 6 }) : undefined;
+    const bodyH = (speaker ? 42 : 0) + text.height + (tipText ? tipText.height + 40 : 0);
+    const top = BOARD_HEIGHT - 150 - bodyH;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0d0b09, 0.9).fillRoundedRect(x, top - 20, width, bodyH + 40, 18);
+    bg.lineStyle(3, 0x5a4d42, 1).strokeRoundedRect(x, top - 20, width, bodyH + 40, 18);
+    box.add(bg);
+    let y = top;
+    if (speaker) {
+      speaker.setY(y);
+      box.add(speaker);
+      y += 42;
+    }
+    text.setY(y);
+    box.add(text);
+    y += text.height + 20;
+    if (tipText) {
+      const tipBg = this.add.graphics();
+      tipBg.fillStyle(0xe0a526, 1).fillRoundedRect(x + 18, y - 6, width - 36, tipText.height + 16, 12);
+      tipText.setY(y + 2);
+      box.add([tipBg, tipText]);
+    }
+    const full = text.text;
+    text.setText("");
+    return new Promise((resolve) => {
+      let i = 0;
+      const typing = this.time.addEvent({
+        delay: 24,
+        loop: true,
+        callback: () => {
+          i = Math.min(full.length, i + 2);
+          text.setText(full.slice(0, i));
+          if (i >= full.length) typing.remove();
+        },
+      });
+      const minTime = new Promise<void>((r) => this.time.delayedCall(1800 + full.length * 45 + (line.tip ? 2500 : 0), () => r()));
+      void Promise.all([minTime, speak(line.text, !!line.npc)]).then(() => resolve());
     });
   }
 
@@ -70,24 +149,27 @@ export class UiScene extends Phaser.Scene {
   /** Initiative bar on the left edge: portraits in turn order, the active one highlighted. */
   private showOrder(entries: OrderEntry[]): void {
     this.orderBar.removeAll(true);
-    const row = 92;
-    const visible = entries.slice(0, 9);
+    // Up to 6 heroes plus their foes: rows shrink so everything fits on the screen.
+    const visible = entries.slice(0, 14);
+    const row = Math.min(92, Math.floor((BOARD_HEIGHT - 290) / Math.max(1, visible.length)));
+    const scale = row / 92;
     visible.forEach((e, i) => {
       const y = i * row;
       const bg = this.add.graphics();
       const edge = e.active ? 0xe0a526 : e.enemy ? 0x8a2a2a : e.color ? Phaser.Display.Color.HexStringToColor(e.color).color : 0x5a4d42;
-      bg.fillStyle(0x14110f, e.active ? 0.95 : 0.8).fillRoundedRect(0, y, e.active ? 320 : 290, row - 10, 14);
-      bg.lineStyle(e.active ? 5 : 3, edge, 1).strokeRoundedRect(0, y, e.active ? 320 : 290, row - 10, 14);
+      bg.fillStyle(0x14110f, e.active ? 0.95 : 0.8).fillRoundedRect(0, y, e.active ? 320 : 290, row - 6, 12);
+      bg.lineStyle(e.active ? 5 : 3, edge, 1).strokeRoundedRect(0, y, e.active ? 320 : 290, row - 6, 12);
       this.orderBar.add(bg);
       const frames = e.look ? dollFrames(e.look) : e.monsterId ? [`monster.${e.monsterId}`] : [];
-      for (const f of frames) this.orderBar.add(this.add.image(44, y + 41, "tiles", f).setScale(2));
-      const name = this.add.text(88, y + 12, e.name, { fontFamily: FONT, fontSize: "26px", color: e.health <= 0 ? "#8d8172" : "#f3e9d2", fontStyle: e.active ? "bold" : "normal" });
+      for (const f of frames) this.orderBar.add(this.add.image(44, y + (row - 6) / 2, "tiles", f).setScale(2 * scale));
+      const name = this.add.text(88, y + 8 * scale, e.name, { fontFamily: FONT, fontSize: `${Math.round(26 * Math.max(0.75, scale))}px`, color: e.health <= 0 ? "#8d8172" : "#f3e9d2", fontStyle: e.active ? "bold" : "normal" });
       this.orderBar.add(name);
-      if (e.initiative !== undefined) this.orderBar.add(this.add.text(e.active ? 300 : 270, y + 12, String(e.initiative), { fontFamily: FONT, fontSize: "24px", color: "#b3a58a" }).setOrigin(1, 0));
+      if (e.initiative !== undefined) this.orderBar.add(this.add.text(e.active ? 300 : 270, y + 8 * scale, String(e.initiative), { fontFamily: FONT, fontSize: `${Math.round(24 * Math.max(0.75, scale))}px`, color: "#b3a58a" }).setOrigin(1, 0));
       const hp = this.add.graphics();
-      hp.fillStyle(0x3a2f27, 1).fillRect(88, y + 54, 180, 12);
+      const hpY = y + row - 6 - 20 * Math.max(0.6, scale);
+      hp.fillStyle(0x3a2f27, 1).fillRect(88, hpY, 180, 10);
       const pct = Math.max(0, Math.min(1, e.health));
-      hp.fillStyle(pct > 0.5 ? 0x4caf50 : pct > 0.25 ? 0xe0b030 : 0xe04040, 1).fillRect(88, y + 54, 180 * pct, 12);
+      hp.fillStyle(pct > 0.5 ? 0x4caf50 : pct > 0.25 ? 0xe0b030 : 0xe04040, 1).fillRect(88, hpY, 180 * pct, 10);
       this.orderBar.add(hp);
     });
   }

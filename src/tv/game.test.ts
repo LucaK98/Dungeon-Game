@@ -93,3 +93,17 @@ describe("game controller", () => {
     expect(inv.some((i) => i.itemId === "gold") || (inv.find((i) => i.itemId === "potion-of-healing")?.qty ?? 0) > 1).toBe(true);
   });
 });
+
+describe("six players", () => {
+  it("gives every hero its own start square", () => {
+    const rng = seededRng(2);
+    const classes = ["fighter", "paladin", "wizard", "rogue", "cleric", "fighter"];
+    const session = createSession(rng, {
+      players: classes.map((c, i) => ({ playerId: `p${i}`, profile: { name: `H${i}`, classId: c, raceId: "human", look: defaultLook(c, "human"), color: "#fff" } })),
+      plan: { path: ["bruecke", "gang_gerade"] },
+    });
+    const spots = session.partyIds.map((id) => JSON.stringify(session.battle.creatures[id]!.pos));
+    expect(new Set(spots).size).toBe(6);
+    expect(spots.every((s) => s !== undefined)).toBe(true);
+  });
+});

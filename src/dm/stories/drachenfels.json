@@ -1,0 +1,1761 @@
+{
+ "id": "drachenfels",
+ "title": "Der Drache vom Drachenfels",
+ "subtitle": "Eine Ritter-Queste",
+ "description": "Ihr werdet auf Burg Rheineck zu Rittern geschlagen – da verschleppt ein Drache die Prinzessin. Ein klassisches Abenteuer mit Burg, Oger und Drache. Beginnt mit einer Einführung in alle Regeln.",
+ "recommended": true,
+ "cover": [
+  "monster.red-dragon-wyrmling",
+  "statue.dragon",
+  "wall.castle.0"
+ ],
+ "intro": [
+  {
+   "text": "Hoch über dem Rhein thront Burg Rheineck. Banner flattern im Wind, Trompeten schallen über den Hof."
+  },
+  {
+   "text": "Heute ist ein großer Tag: König Ortwin will euch zu Rittern seines Ordens schlagen."
+  },
+  {
+   "text": "Doch über dem Siebengebirge ziehen seit Wochen Rauchsäulen auf. Man flüstert von einem Drachen …"
+  }
+ ],
+ "truths": [
+  {
+   "id": "A",
+   "title": "Der Verräter",
+   "summary": "König Ortwin hat dem Drachen einst ein Ei gestohlen, um mit einem gezähmten Drachen Kriege zu gewinnen. Der Drache wollte nur sein Junges zurück – die Prinzessin nahm er als Pfand.",
+   "reveal": [
+    {
+     "text": "Der Drache hebt den Kopf. Seine Stimme grollt wie ferner Donner:"
+    },
+    {
+     "text": "„Euer König hat mir mein Ei gestohlen. Ich will nur mein Kind zurück. Die Prinzessin ist mein Pfand.“",
+     "npc": "Glutschwinge"
+    },
+    {
+     "text": "Plötzlich ist alles anders. Kampf – oder Frieden?"
+    }
+   ]
+  },
+  {
+   "id": "B",
+   "title": "Die Prinzessin",
+   "summary": "Adelheid wurde nicht entführt. Sie ist eine Drachenblütige und floh freiwillig vor der Heirat mit dem grausamen Grafen Rotbart. Rotbart ritt der Gruppe mit Söldnern hinterher.",
+   "reveal": [
+    {
+     "text": "Hinter dem Drachen tritt Prinzessin Adelheid hervor – ohne Ketten, ohne Angst."
+    },
+    {
+     "text": "„Bitte! Er hat mich nicht entführt. Ich bin geflohen – vor Graf Rotbart. Lieber lebe ich bei den Drachen als mit ihm.“",
+     "npc": "Prinzessin Adelheid"
+    },
+    {
+     "text": "Da hallen Hufschläge durch den Stollen. Rotbart ist euch gefolgt …"
+    }
+   ]
+  },
+  {
+   "id": "C",
+   "title": "Der Fluch",
+   "summary": "Der Drache ist Prinz Konrad, der verfluchte Bruder des Königs. Der Einsiedler kannte den Gegenfluch. Wer den Drachen tötet, tötet den Prinzen.",
+   "reveal": [
+    {
+     "text": "Der Drache hält inne. In seinen Augen glimmt etwas Menschliches."
+    },
+    {
+     "text": "„Bruder … Ortwin … hilf mir …“, grollt er. Die Prinzessin schreit: „Onkel Konrad?!“"
+    },
+    {
+     "text": "Der Drache ist der verschwundene Prinz. Wer ihn tötet, tötet einen Menschen."
+    }
+   ]
+  },
+  {
+   "id": "D",
+   "title": "Der schwarze Ritter",
+   "summary": "Hofmagier Morgrim steuerte den Drachen mit einem Amulett, um den Thron an sich zu reißen. Der schwarze Ritter Dietmar war sein Handlanger und ritt scheinbar freundlich mit.",
+   "reveal": [
+    {
+     "text": "Um den Hals des Drachen glüht ein Amulett mit einem Rabenzeichen. Seine Augen sind leer, als träume er."
+    },
+    {
+     "text": "Hinter euch klirrt Stahl. Ritter Dietmar zieht sein Schwert – gegen euch!"
+    },
+    {
+     "text": "„Morgrim lässt grüßen“, sagt er kalt. „Der Drache gehorcht dem Amulett. Und ihr werdet hier sterben.“",
+     "npc": "Ritter Dietmar"
+    }
+   ]
+  }
+ ],
+ "clues": [
+  {
+   "id": "schuppe",
+   "text": "An der Brust des Drachen fehlt eine Schuppe. Dort ist er verwundbar.",
+   "truth": null
+  },
+  {
+   "id": "a_turnier",
+   "text": "Kuno: In der Schatzkammer gibt es einen Raum, den nur der König betreten darf. Nachts knistert es dort, wie von Glut.",
+   "truth": "A"
+  },
+  {
+   "id": "b_turnier",
+   "text": "Kuno: Die Prinzessin wollte Graf Rotbart nie heiraten. Sie hat geweint, als der König es verkündete.",
+   "truth": "B"
+  },
+  {
+   "id": "c_turnier",
+   "text": "Kuno: Prinz Konrad, der Bruder des Königs, verschwand vor drei Jahren – kurz bevor der Drache zum ersten Mal gesehen wurde.",
+   "truth": "C"
+  },
+  {
+   "id": "d_turnier",
+   "text": "Kuno: Hofmagier Morgrim war in der Nacht vor dem Angriff nicht in der Burg. Niemand weiß, wo er war.",
+   "truth": "D"
+  },
+  {
+   "id": "a_tjost",
+   "text": "Der schwarze Ritter murmelt: „Der König ist nicht so ehrenhaft, wie ihr glaubt. Fragt nach seiner Schatzkammer.“",
+   "truth": "A"
+  },
+  {
+   "id": "b_tjost",
+   "text": "Ritter Dietmar: „Adelheid hat mir geschrieben, sie wolle frei sein. Frei von allem hier.“",
+   "truth": "B"
+  },
+  {
+   "id": "c_tjost",
+   "text": "Ritter Dietmar: „Konrad war mein Freund. Er stritt mit dem König, dann war er fort.“",
+   "truth": "C"
+  },
+  {
+   "id": "d_tjost",
+   "text": "Unter Dietmars Rüstung blitzt ein Rabenamulett auf – das Zeichen des Hofmagiers Morgrim.",
+   "truth": "D"
+  },
+  {
+   "id": "a_wald",
+   "text": "Bei den Räubern liegt ein Brief mit dem Siegel des Königs: „Das Ei bleibt verwahrt. Kein Wort zu niemandem.“",
+   "truth": "A"
+  },
+  {
+   "id": "b_wald",
+   "text": "Ein Räuber lacht: „Graf Rotbart zahlt gut für jeden, der die Prinzessin zurückbringt – tot oder lebendig.“",
+   "truth": "B"
+  },
+  {
+   "id": "c_wald",
+   "text": "Die Räuber haben einen alten Steckbrief: „Prinz Konrad, verschwunden. Belohnung.“ Jemand hat einen Drachen daneben gekritzelt.",
+   "truth": "C"
+  },
+  {
+   "id": "d_wald",
+   "text": "Die Räuber tragen Rabenfedern am Hut. „Unser Auftraggeber hat's mit Raben“, grinst einer.",
+   "truth": "D"
+  },
+  {
+   "id": "a_dorf",
+   "text": "Ein alter Bauer: „Der Drache hat nicht wahllos gebrannt. Er kreiste über der Straße nach Rheineck und brüllte, als suche er etwas.“",
+   "truth": "A"
+  },
+  {
+   "id": "b_dorf",
+   "text": "Ein Kind erzählt: Die Prinzessin hat dem Drachen zugewinkt, bevor er sie packte.",
+   "truth": "B"
+  },
+  {
+   "id": "c_dorf",
+   "text": "Die Kräuterfrau: „Der Drache hat nur einen Stall verschont – den, in dem einst Prinz Konrads Pferd stand.“",
+   "truth": "C"
+  },
+  {
+   "id": "d_dorf",
+   "text": "Auf dem Dorfplatz liegt ein zerbrochenes Siegel mit einem Raben – dem Zeichen von Hofmagier Morgrim.",
+   "truth": "D"
+  },
+  {
+   "id": "a_einsiedler",
+   "text": "Der Einsiedler: „Drachen greifen Menschen nur an, wenn man ihnen das Liebste nimmt: ihre Brut.“",
+   "truth": "A"
+  },
+  {
+   "id": "b_einsiedler",
+   "text": "Der Einsiedler: „Die Prinzessin war letzten Sommer hier. Sie fragte nach dem Drachenblut in ihrer Familie.“",
+   "truth": "B"
+  },
+  {
+   "id": "c_einsiedler",
+   "text": "Der Einsiedler betrachtet eine Drachenschuppe: „Dieser Drache war einmal ein Mensch. Ein Fluch liegt auf ihm.“",
+   "truth": "C"
+  },
+  {
+   "id": "d_einsiedler",
+   "text": "Der Einsiedler: „Der Drache wird gelenkt wie eine Marionette. Sucht nach einem Amulett.“",
+   "truth": "D"
+  },
+  {
+   "id": "a_stollen",
+   "text": "Kobold-Kritzeleien an der Stollenwand zeigen einen Mann mit Krone, der ein Ei davonträgt.",
+   "truth": "A"
+  },
+  {
+   "id": "b_stollen",
+   "text": "Ein verletzter Kobold faucht: „Die Menschenfrau kam freiwillig! Sie hat uns Brot gegeben.“",
+   "truth": "B"
+  },
+  {
+   "id": "c_stollen",
+   "text": "In einer Nische liegt ein Siegelring mit Prinz Konrads Wappen – verbogen, als hätte eine Klaue ihn getragen.",
+   "truth": "C"
+  },
+  {
+   "id": "d_stollen",
+   "text": "Ein Kobold trägt einen Rabenanhänger: „Der Rabenmann bezahlt uns. Er sagt, der Drache gehorcht ihm.“",
+   "truth": "D"
+  },
+  {
+   "id": "geruecht_ritter",
+   "text": "Der Oger brummt, er habe den schwarzen Ritter nachts allein im Wald reiten sehen.",
+   "truth": null,
+   "falseLeadFor": [
+    "D"
+   ]
+  },
+  {
+   "id": "geruecht_koenig",
+   "text": "Eine Dorfbewohnerin schimpft: „Der König hat uns im Stich gelassen. Dem geht's nur um sein Gold.“",
+   "truth": null,
+   "falseLeadFor": [
+    "A"
+   ]
+  }
+ ],
+ "npcs": [
+  {
+   "id": "ortwin",
+   "name": "König Ortwin",
+   "monster": "noble",
+   "description": "Ein alter König mit grauem Bart und müden Augen.",
+   "secretGoal": "Er will sein Geheimnis wahren, koste es, was es wolle."
+  },
+  {
+   "id": "dietmar",
+   "name": "Ritter Dietmar",
+   "monster": "knight",
+   "description": "Der schwarze Ritter, schweigsam und stark.",
+   "secretGoal": "Je nach Wahrheit: Freund der Prinzessin – oder Morgrims Handlanger."
+  },
+  {
+   "id": "kuno",
+   "name": "Knappe Kuno",
+   "monster": "guard",
+   "description": "Ein junger Knappe, der gern redet."
+  },
+  {
+   "id": "brakk",
+   "name": "Oger Brakk",
+   "monster": "ogre",
+   "description": "Ein riesiger, hungriger Oger mit einer Keule so groß wie ein Baum.",
+   "secretGoal": "Er will nur etwas zu essen. Der Drache hat ihn aus seiner Höhle vertrieben."
+  },
+  {
+   "id": "grete",
+   "name": "Grete",
+   "monster": "commoner",
+   "description": "Eine Bäuerin, die alles verloren hat."
+  },
+  {
+   "id": "wendelin",
+   "name": "Einsiedler Wendelin",
+   "monster": "priest",
+   "description": "Ein uralter Mann mit weißem Bart, der im Wald lebt."
+  },
+  {
+   "id": "rotbart",
+   "name": "Graf Rotbart",
+   "monster": "veteran",
+   "description": "Ein grausamer Graf mit rotem Bart.",
+   "secretGoal": "Er will die Prinzessin heiraten – für ihr Erbe."
+  },
+  {
+   "id": "oger_mutter",
+   "name": "Mutter Grumpa",
+   "monster": "ogre",
+   "description": "Brakks Mutter, noch größer und noch hungriger."
+  }
+ ],
+ "acts": [
+  {
+   "id": "akt1",
+   "title": "Der Ritterschlag",
+   "level": 1,
+   "scenes": [
+    {
+     "id": "ritterschlag",
+     "title": "Ritterschlag auf Burg Rheineck",
+     "rooms": [
+      "burghof"
+     ],
+     "pflicht": true,
+     "dauer_min": 8,
+     "mindestDauer": "kurz",
+     "ziel": "Zu Rittern geschlagen werden",
+     "npcs": [
+      {
+       "npc": "ortwin"
+      }
+     ],
+     "steps": [
+      {
+       "id": "hingehen",
+       "kind": "reach",
+       "target": "ortwin",
+       "enter": [
+        {
+         "text": "Der Burghof glänzt in der Sonne. König Ortwin wartet am Brunnen auf euch."
+        },
+        {
+         "text": "„Tretet vor, junge Helden!“",
+         "npc": "König Ortwin"
+        },
+        {
+         "text": "Geht zum König.",
+         "tip": {
+          "key": "bewegung",
+          "text": "Wer dran ist, tippt auf dem Handy ein helles Feld der Karte an. So läuft die Figur dorthin. Danach „Zug beenden“."
+         }
+        }
+       ],
+       "done": [
+        {
+         "text": "Ihr steht vor dem König. Der ganze Hof hält den Atem an."
+        }
+       ]
+      },
+      {
+       "id": "schwur",
+       "kind": "check",
+       "check": {
+        "skill": "persuasion",
+        "dc": 10,
+        "who": "each",
+        "title": "Der Ritterschwur",
+        "success": {
+         "narration": [
+          {
+           "text": "Deine Stimme ist fest und klar. Der König nickt anerkennend."
+          }
+         ]
+        },
+        "failure": {
+         "narration": [
+          {
+           "text": "Deine Stimme zittert ein wenig – doch der König lächelt: „Mut zeigt sich im Handeln, nicht im Reden.“"
+          }
+         ]
+        }
+       },
+       "enter": [
+        {
+         "text": "„Schwört, das Land zu schützen und den Schwachen zu helfen!“",
+         "npc": "König Ortwin"
+        },
+        {
+         "text": "Jeder von euch spricht den Schwur.",
+         "tip": {
+          "key": "probe",
+          "text": "Das ist eine Probe: Du würfelst einen W20 und rechnest dein Charisma dazu. Erreichst du 10, gelingt der Schwur. Keine Sorge, hier kann nichts schiefgehen."
+         }
+        }
+       ],
+       "done": [
+        {
+         "text": "Der König legt euch nacheinander das Schwert auf die Schulter. „Erhebt euch, Ritter von Rheineck!“",
+         "npc": "König Ortwin"
+        }
+       ]
+      },
+      {
+       "id": "ratte",
+       "kind": "fight",
+       "fight": [
+        {
+         "monster": "rat",
+         "count": 1,
+         "name": "Freche Ratte"
+        }
+       ],
+       "enter": [
+        {
+         "text": "Da quiekt es! Eine fette Ratte springt aus dem Brunnen und schnappt nach den Stiefeln der Königin."
+        },
+        {
+         "text": "„Na, meine neuen Ritter? Zeigt, was ihr könnt!“",
+         "npc": "König Ortwin",
+         "tip": {
+          "key": "initiative",
+          "text": "Ein Kampf beginnt: Alle würfeln Initiative, die Reihenfolge seht ihr am Rand. Wer dran ist, läuft zur Ratte und greift an. Die Rechnung erklärt jeden Wurf."
+         }
+        }
+       ],
+       "done": [
+        {
+         "text": "Die Ratte flieht quiekend in den Brunnen – oder liegt still. Der Hof lacht und applaudiert."
+        }
+       ]
+      },
+      {
+       "id": "vorraete",
+       "kind": "use_item",
+       "enter": [
+        {
+         "text": "Der Schmied hat euch eine Truhe mit Vorräten hingestellt."
+        },
+        {
+         "text": "„Nehmt, was ihr braucht, junge Ritter!“",
+         "npc": "Schmied Hagen",
+         "tip": {
+          "key": "truhe",
+          "text": "Stell dich direkt neben die Truhe und tippe unter „Umgebung“ auf „Truhe öffnen“. Heiltränke kannst du später im Kampf trinken."
+         }
+        }
+       ],
+       "done": [
+        {
+         "text": "Gut ausgerüstet steht ihr im Hof. Ein feierlicher Tag."
+        }
+       ]
+      },
+      {
+       "id": "drache",
+       "kind": "narrate",
+       "enter": [
+        {
+         "text": "Plötzlich verdunkelt sich der Himmel. Ein Brüllen zerreißt die Luft!"
+        },
+        {
+         "text": "Ein roter Drache stürzt herab, packt Prinzessin Adelheid mit seinen Klauen – und verschwindet Richtung Drachenfels."
+        },
+        {
+         "text": "„Adelheid! Meine Tochter!“ Der König sinkt auf die Knie. „Ritter, holt sie zurück. Ich flehe euch an!“",
+         "npc": "König Ortwin"
+        },
+        {
+         "text": "Neben dem König steht der schwarze Ritter Dietmar und schweigt. Hofmagier Morgrim streicht über seinen Raben."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "turnierplatz",
+     "title": "Übung auf dem Turnierplatz",
+     "rooms": [
+      "turnierplatz"
+     ],
+     "pflicht": false,
+     "dauer_min": 15,
+     "mindestDauer": "mittel",
+     "ziel": "Sich im Übungskampf beweisen",
+     "npcs": [
+      {
+       "npc": "kuno"
+      }
+     ],
+     "travel": "Vor der Reise wollen die Ritter ihre Klingen erproben.",
+     "clues": [
+      {
+       "id": "turnier",
+       "byTruth": {
+        "A": "a_turnier",
+        "B": "b_turnier",
+        "C": "c_turnier",
+        "D": "d_turnier"
+       }
+      }
+     ],
+     "steps": [
+      {
+       "id": "uebung",
+       "kind": "fight",
+       "fight": [
+        {
+         "monster": "guard",
+         "count": 1,
+         "name": "Knappe Kuno",
+         "training": true
+        },
+        {
+         "monster": "commoner",
+         "count": 1,
+         "name": "Strohpuppe",
+         "training": true,
+         "perExtraPlayer": 1
+        }
+       ],
+       "enter": [
+        {
+         "text": "Auf dem Turnierplatz stehen Strohpuppen. Knappe Kuno grinst: „Bevor ihr loszieht – zeigt mir, was ihr könnt!“",
+         "npc": "Knappe Kuno",
+         "tip": {
+          "key": "ruestungsklasse",
+          "text": "Ein Übungskampf: Niemand wird ernsthaft verletzt. Achte auf die Rüstungsklasse (RK) der Gegner – so hoch musst du mindestens würfeln."
+         }
+        }
+       ],
+       "done": [
+        {
+         "text": "„Nicht schlecht!“, keucht Kuno und reibt sich den Kopf. Dann senkt er die Stimme …",
+         "npc": "Knappe Kuno"
+        }
+       ],
+       "clue": "turnier"
+      }
+     ]
+    },
+    {
+     "id": "tjost",
+     "title": "Tjost gegen den schwarzen Ritter",
+     "rooms": [
+      "turnierplatz"
+     ],
+     "pflicht": false,
+     "dauer_min": 20,
+     "mindestDauer": "lang",
+     "ziel": "Den schwarzen Ritter im Lanzenstechen herausfordern",
+     "npcs": [
+      {
+       "npc": "dietmar"
+      }
+     ],
+     "clues": [
+      {
+       "id": "tjost",
+       "byTruth": {
+        "A": "a_tjost",
+        "B": "b_tjost",
+        "C": "c_tjost",
+        "D": "d_tjost"
+       }
+      }
+     ],
+     "steps": [
+      {
+       "id": "herausforderung",
+       "kind": "choice",
+       "enter": [
+        {
+         "text": "Ritter Dietmar sitzt schon im Sattel. „Wer von euch wagt ein Lanzenstechen mit mir?“",
+         "npc": "Ritter Dietmar"
+        }
+       ],
+       "choices": [
+        {
+         "id": "antreten",
+         "label": "Antreten!",
+         "detail": "Athletik gegen SG 14",
+         "check": {
+          "skill": "athletics",
+          "dc": 14,
+          "success": {
+           "narration": [
+            {
+             "text": "Krachend splittert Dietmars Lanze an deinem Schild. Er fällt aus dem Sattel – und lacht."
+            },
+            {
+             "text": "Beim Aufstehen raunt er dir etwas zu …"
+            }
+           ],
+           "set": [
+            "tjost_gewonnen"
+           ],
+           "clue": "tjost"
+          },
+          "failure": {
+           "narration": [
+            {
+             "text": "Du landest im Staub. Dietmar reicht dir die Hand und zieht dich hoch – dabei raunt er dir etwas zu …"
+            }
+           ],
+           "clue": "tjost"
+          }
+         }
+        },
+        {
+         "id": "ablehnen",
+         "label": "Höflich ablehnen",
+         "detail": "Stattdessen mit ihm reden",
+         "outcome": {
+          "narration": [
+           {
+            "text": "„Weise“, sagt Dietmar und steigt ab. Beim Abschied raunt er euch etwas zu …"
+           }
+          ],
+          "clue": "tjost"
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "akt2",
+   "title": "Die Reise",
+   "level": 2,
+   "scenes": [
+    {
+     "id": "raeuber",
+     "title": "Die Räuberbande im Wald",
+     "rooms": [
+      "waldweg"
+     ],
+     "pflicht": false,
+     "dauer_min": 15,
+     "mindestDauer": "mittel",
+     "ziel": "Den Hinterhalt überstehen",
+     "travel": "Der Weg zum Drachenfels führt durch einen dunklen Wald.",
+     "clues": [
+      {
+       "id": "wald",
+       "byTruth": {
+        "A": "a_wald",
+        "B": "b_wald",
+        "C": "c_wald",
+        "D": "d_wald"
+       }
+      }
+     ],
+     "steps": [
+      {
+       "id": "hinterhalt",
+       "kind": "fight",
+       "fight": [
+        {
+         "monster": "bandit",
+         "count": 2,
+         "perExtraPlayer": 1,
+         "name": "Räuber"
+        }
+       ],
+       "enter": [
+        {
+         "text": "Zweige knacken. Plötzlich springen Räuber aus dem Unterholz!"
+        },
+        {
+         "text": "„Her mit dem Gold, ihr Blechbüchsen!“",
+         "npc": "Räuberhauptmann"
+        }
+       ],
+       "done": [
+        {
+         "text": "Die letzten Räuber fliehen. In ihrem Lager findet ihr etwas Seltsames …"
+        }
+       ],
+       "clue": "wald"
+      }
+     ]
+    },
+    {
+     "id": "bruecke",
+     "title": "Die Brücke am Wolfsbach",
+     "rooms": [
+      "bruecke"
+     ],
+     "pflicht": true,
+     "dauer_min": 7,
+     "mindestDauer": "kurz",
+     "ziel": "Über die Brücke kommen",
+     "npcs": [
+      {
+       "npc": "brakk"
+      }
+     ],
+     "travel": "Der Wolfsbach rauscht. Nur eine alte Steinbrücke führt hinüber.",
+     "clues": [
+      {
+       "id": "geruecht",
+       "byTruth": {
+        "A": "geruecht_ritter",
+        "B": "geruecht_ritter",
+        "C": "geruecht_ritter",
+        "D": "geruecht_ritter"
+       }
+      }
+     ],
+     "keywords": [
+      {
+       "words": [
+        "essen",
+        "brot",
+        "bier",
+        "hunger",
+        "futter"
+       ],
+       "response": [
+        {
+         "text": "Der Oger schnuppert. „Essen? Brakk mag Essen!“ Seine Augen leuchten.",
+         "npc": "Oger Brakk"
+        }
+       ],
+       "set": [
+        "oger_hungrig"
+       ]
+      }
+     ],
+     "steps": [
+      {
+       "id": "oger",
+       "kind": "choice",
+       "enter": [
+        {
+         "text": "Auf der Brücke steht ein riesiger Oger mit einer Keule. „Halt! Brückenzoll! Oder Brakk macht euch platt!“",
+         "npc": "Oger Brakk"
+        },
+        {
+         "text": "Ihr könnt kämpfen – aber vielleicht gibt es klügere Wege.",
+         "tip": {
+          "key": "fertigkeit",
+          "text": "Nicht jeder Gegner muss besiegt werden. Reden, Lügen oder Bestechen sind Proben auf Fertigkeiten wie Überzeugen oder Täuschen."
+         }
+        }
+       ],
+       "choices": [
+        {
+         "id": "fragen",
+         "label": "Fragen, was los ist",
+         "detail": "Motiv erkennen gegen SG 10",
+         "unless": [
+          "oger_gefragt"
+         ],
+         "check": {
+          "skill": "insight",
+          "dc": 10,
+          "success": {
+           "narration": [
+            {
+             "text": "Du siehst genau hin: Der Oger ist abgemagert und hat Brandwunden."
+            },
+            {
+             "text": "„Drache hat Brakks Höhle verbrannt. Brakk hat Hunger“, murmelt er.",
+             "npc": "Oger Brakk"
+            }
+           ],
+           "set": [
+            "oger_gefragt",
+            "oger_hungrig"
+           ],
+           "clue": "geruecht",
+           "goto": "oger"
+          },
+          "failure": {
+           "narration": [
+            {
+             "text": "„Nicht reden! Zoll zahlen!“, brüllt der Oger.",
+             "npc": "Oger Brakk"
+            }
+           ],
+           "set": [
+            "oger_gefragt"
+           ],
+           "goto": "oger"
+          }
+         }
+        },
+        {
+         "id": "bestechen",
+         "label": "Essen und Gold anbieten",
+         "detail": "Überzeugen gegen SG 12",
+         "check": {
+          "skill": "persuasion",
+          "dc": 12,
+          "success": {
+           "narration": [
+            {
+             "text": "Der Oger schlingt euer Brot herunter und strahlt. „Ihr gute Menschen! Brakk hilft euch gegen Drache!“",
+             "npc": "Oger Brakk"
+            }
+           ],
+           "set": [
+            "oger_verbuendet"
+           ],
+           "gold": -10,
+           "endScene": true
+          },
+          "failure": {
+           "narration": [
+            {
+             "text": "„Zu wenig!“, brüllt der Oger und schwingt die Keule!",
+             "npc": "Oger Brakk"
+            }
+           ],
+           "fight": [
+            {
+             "monster": "ogre",
+             "count": 1,
+             "name": "Oger Brakk",
+             "boss": true
+            }
+           ],
+           "set": [
+            "oger_bekaempft"
+           ],
+           "endScene": true
+          }
+         }
+        },
+        {
+         "id": "ueberlisten",
+         "label": "Den Oger überlisten",
+         "detail": "Täuschen gegen SG 13",
+         "check": {
+          "skill": "deception",
+          "dc": 13,
+          "success": {
+           "narration": [
+            {
+             "text": "„Hinter uns kommt der Drache!“ Der Oger kreischt und springt in den Bach. Ihr lauft über die Brücke."
+            }
+           ],
+           "set": [
+            "oger_ueberlistet"
+           ],
+           "endScene": true
+          },
+          "failure": {
+           "narration": [
+            {
+             "text": "Der Oger kratzt sich am Kopf … und durchschaut euch. „Brakk nicht dumm!“",
+             "npc": "Oger Brakk"
+            }
+           ],
+           "fight": [
+            {
+             "monster": "ogre",
+             "count": 1,
+             "name": "Oger Brakk",
+             "boss": true
+            }
+           ],
+           "set": [
+            "oger_bekaempft"
+           ],
+           "endScene": true
+          }
+         }
+        },
+        {
+         "id": "kaempfen",
+         "label": "Kämpfen!",
+         "detail": "Der Oger ist stark – seid vorsichtig",
+         "outcome": {
+          "narration": [
+           {
+            "text": "Ihr zieht die Waffen. Der Oger brüllt vor Freude."
+           }
+          ],
+          "fight": [
+           {
+            "monster": "ogre",
+            "count": 1,
+            "name": "Oger Brakk",
+            "boss": true
+           }
+          ],
+          "set": [
+           "oger_bekaempft"
+          ],
+          "endScene": true
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "dorf",
+     "title": "Das verbrannte Dorf",
+     "rooms": [
+      "verbranntes_dorf"
+     ],
+     "pflicht": true,
+     "dauer_min": 6,
+     "mindestDauer": "kurz",
+     "ziel": "Den Überlebenden helfen und Hinweise sammeln",
+     "npcs": [
+      {
+       "npc": "grete"
+      }
+     ],
+     "travel": "Rauch liegt über dem Tal. Das Dorf am Fuß des Drachenfels brennt noch.",
+     "clues": [
+      {
+       "id": "dorf",
+       "byTruth": {
+        "A": "a_dorf",
+        "B": "b_dorf",
+        "C": "c_dorf",
+        "D": "d_dorf"
+       }
+      },
+      {
+       "id": "schuppe",
+       "byTruth": {
+        "A": "schuppe",
+        "B": "schuppe",
+        "C": "schuppe",
+        "D": "schuppe"
+       }
+      },
+      {
+       "id": "koenig_geruecht",
+       "byTruth": {
+        "A": "geruecht_koenig",
+        "B": "geruecht_koenig",
+        "C": "geruecht_koenig",
+        "D": "geruecht_koenig"
+       }
+      }
+     ],
+     "steps": [
+      {
+       "id": "hingehen",
+       "kind": "reach",
+       "target": "grete",
+       "enter": [
+        {
+         "text": "Verkohlte Balken, weinende Kinder. Eine Frau winkt euch verzweifelt zu."
+        }
+       ]
+      },
+      {
+       "id": "helfen",
+       "kind": "check",
+       "check": {
+        "skill": "medicine",
+        "dc": 12,
+        "who": "one",
+        "title": "Die Verletzten versorgen",
+        "success": {
+         "narration": [
+          {
+           "text": "Ihr verbindet Wunden und kühlt Verbrennungen. Die Dorfleute danken euch unter Tränen."
+          }
+         ],
+         "set": [
+          "dorf_geholfen"
+         ]
+        },
+        "failure": {
+         "narration": [
+          {
+           "text": "Ihr tut, was ihr könnt. Es ist nicht viel – aber die Leute sind dankbar, dass jemand kommt."
+          }
+         ]
+        }
+       },
+       "enter": [
+        {
+         "text": "„Bitte, helft uns! Viele sind verletzt!“",
+         "npc": "Grete",
+         "tip": {
+          "key": "fertigkeit:medicine",
+          "text": "Heilkunde: Wer darin geübt ist (★ im Charakterbogen), hat bessere Chancen. Einer von euch würfelt für die Gruppe."
+         }
+        }
+       ]
+      },
+      {
+       "id": "erzaehlen",
+       "kind": "narrate",
+       "enter": [
+        {
+         "text": "Grete erzählt, was sie gesehen hat. Andere Dorfleute kommen dazu.",
+         "npc": "Grete"
+        }
+       ],
+       "clues": [
+        "dorf",
+        "schuppe",
+        "koenig_geruecht"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "oger_hoehle",
+     "title": "Die Höhle der Oger-Mutter",
+     "rooms": [
+      "hoehle"
+     ],
+     "pflicht": false,
+     "dauer_min": 25,
+     "mindestDauer": "lang",
+     "ziel": "An der Oger-Mutter vorbeikommen",
+     "npcs": [
+      {
+       "npc": "oger_mutter"
+      }
+     ],
+     "travel": "Ein Umweg führt durch eine Höhle. Es riecht nach Oger.",
+     "steps": [
+      {
+       "id": "grumpa",
+       "kind": "choice",
+       "enter": [
+        {
+         "text": "In der Höhle schnarcht eine gewaltige Ogerin. Sie öffnet ein Auge. „Wer stört Grumpa?“",
+         "npc": "Mutter Grumpa"
+        }
+       ],
+       "choices": [
+        {
+         "id": "brakk",
+         "label": "Grüße von Brakk ausrichten",
+         "detail": "Brakk ist euer Freund",
+         "requires": [
+          "oger_verbuendet"
+         ],
+         "outcome": {
+          "narration": [
+           {
+            "text": "„Mein Brakk hat Freunde?“ Die Ogerin weint vor Rührung und schenkt euch Heiltränke.",
+            "npc": "Mutter Grumpa"
+           }
+          ],
+          "item": {
+           "id": "potion-of-healing",
+           "qty": 1
+          },
+          "endScene": true
+         }
+        },
+        {
+         "id": "schleichen",
+         "label": "Vorbeischleichen",
+         "detail": "Heimlichkeit gegen SG 13",
+         "check": {
+          "skill": "stealth",
+          "dc": 13,
+          "success": {
+           "narration": [
+            {
+             "text": "Auf Zehenspitzen huscht ihr vorbei. Die Ogerin schnarcht weiter."
+            }
+           ],
+           "endScene": true
+          },
+          "failure": {
+           "narration": [
+            {
+             "text": "Ein Stein poltert. „DIEBE!“, brüllt Grumpa.",
+             "npc": "Mutter Grumpa"
+            }
+           ],
+           "fight": [
+            {
+             "monster": "ogre",
+             "count": 1,
+             "name": "Mutter Grumpa",
+             "boss": true
+            }
+           ],
+           "endScene": true
+          }
+         }
+        },
+        {
+         "id": "reden",
+         "label": "Freundlich reden",
+         "detail": "Überzeugen gegen SG 14",
+         "check": {
+          "skill": "persuasion",
+          "dc": 14,
+          "success": {
+           "narration": [
+            {
+             "text": "Ihr lobt ihre Höhle und ihren Kochtopf. Grumpa kichert und winkt euch durch.",
+             "npc": "Mutter Grumpa"
+            }
+           ],
+           "endScene": true
+          },
+          "failure": {
+           "narration": [
+            {
+             "text": "„Schmeichler! Grumpa hat Hunger!“",
+             "npc": "Mutter Grumpa"
+            }
+           ],
+           "fight": [
+            {
+             "monster": "ogre",
+             "count": 1,
+             "name": "Mutter Grumpa",
+             "boss": true
+            }
+           ],
+           "endScene": true
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "einsiedler",
+     "title": "Der Einsiedler im Wald",
+     "rooms": [
+      "waldweg",
+      "schrein"
+     ],
+     "pflicht": true,
+     "dauer_min": 6,
+     "mindestDauer": "kurz",
+     "ziel": "Die Drachenlanze erhalten",
+     "npcs": [
+      {
+       "npc": "wendelin",
+       "room": 1
+      }
+     ],
+     "travel": "Die Dorfleute schicken euch zu einem Einsiedler. Er soll alles über Drachen wissen.",
+     "savePoint": true,
+     "clues": [
+      {
+       "id": "einsiedler",
+       "byTruth": {
+        "A": "a_einsiedler",
+        "B": "b_einsiedler",
+        "C": "c_einsiedler",
+        "D": "d_einsiedler"
+       }
+      }
+     ],
+     "steps": [
+      {
+       "id": "hingehen",
+       "kind": "reach",
+       "target": "wendelin",
+       "enter": [
+        {
+         "text": "Tief im Wald steht ein kleiner Schrein. Ein uralter Mann sitzt davor und scheint auf euch zu warten."
+        }
+       ]
+      },
+      {
+       "id": "pruefung",
+       "kind": "check",
+       "check": {
+        "skill": "religion",
+        "dc": 12,
+        "who": "one",
+        "title": "Die Prüfung des Einsiedlers",
+        "success": {
+         "narration": [
+          {
+           "text": "„Ihr habt ein reines Herz. Nehmt die Drachenlanze. Einmal pro Kampf trifft sie einen Drachen doppelt so hart.“",
+           "npc": "Einsiedler Wendelin"
+          }
+         ],
+         "item": {
+          "id": "drachenlanze",
+          "qty": 1
+         },
+         "set": [
+          "drachenlanze"
+         ]
+        },
+        "failure": {
+         "narration": [
+          {
+           "text": "„Euer Wissen ist dünn. Doch die Zeit drängt.“ Der Alte berührt euch – ein brennender Schmerz, dann gibt er euch die Lanze.",
+           "npc": "Einsiedler Wendelin"
+          }
+         ],
+         "item": {
+          "id": "drachenlanze",
+          "qty": 1
+         },
+         "set": [
+          "drachenlanze"
+         ],
+         "damage": "1d4"
+        }
+       },
+       "enter": [
+        {
+         "text": "„Wer die Drachenlanze tragen will, muss eine Frage beantworten: Was fürchtet ein Drache mehr als jede Klinge?“",
+         "npc": "Einsiedler Wendelin",
+         "tip": {
+          "key": "fertigkeit:religion",
+          "text": "Eine Probe auf Religion: Wissen über Götter und alte Legenden. Einer von euch würfelt."
+         }
+        }
+       ]
+      },
+      {
+       "id": "rat",
+       "kind": "narrate",
+       "enter": [
+        {
+         "text": "Bevor ihr geht, sagt der Einsiedler noch etwas.",
+         "npc": "Einsiedler Wendelin"
+        }
+       ],
+       "clues": [
+        "einsiedler"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "akt3",
+   "title": "Der Drachenfels",
+   "level": 3,
+   "scenes": [
+    {
+     "id": "stollen",
+     "title": "Kobolde im Drachenfels",
+     "rooms": [
+      "hoehlenstollen",
+      "treppe"
+     ],
+     "extraRooms": {
+      "mittel": [
+       "hoehle"
+      ],
+      "lang": [
+       "gang_knick",
+       "hoehle"
+      ]
+     },
+     "pflicht": true,
+     "dauer_min": 8,
+     "mindestDauer": "kurz",
+     "ziel": "Durch die Stollen zum Hort gelangen",
+     "travel": "Der Eingang zum Drachenfels gähnt schwarz im Fels. Es riecht nach Schwefel.",
+     "clues": [
+      {
+       "id": "stollen",
+       "byTruth": {
+        "A": "a_stollen",
+        "B": "b_stollen",
+        "C": "c_stollen",
+        "D": "d_stollen"
+       }
+      }
+     ],
+     "steps": [
+      {
+       "id": "kobolde",
+       "kind": "fight",
+       "fight": [
+        {
+         "monster": "kobold",
+         "count": 3,
+         "perExtraPlayer": 1,
+         "name": "Kobold"
+        }
+       ],
+       "enter": [
+        {
+         "text": "Im Fackelschein blitzen kleine Augen. Kobolde – die Diener des Drachen!"
+        },
+        {
+         "text": "„Eindringlinge! Für Glutschwinge!“",
+         "npc": "Kobold",
+         "tip": {
+          "key": "falle",
+          "text": "In den Stollen gibt es Fallen. Mit „Umsehen“ findest du sie, bevor jemand drauftritt."
+         }
+        }
+       ],
+       "done": [
+        {
+         "text": "Der letzte Kobold wirft seine Waffe weg. Bei ihm findet ihr etwas …"
+        }
+       ],
+       "clue": "stollen"
+      },
+      {
+       "id": "weiter",
+       "kind": "reach",
+       "target": "exit",
+       "enter": [
+        {
+         "text": "Tiefer im Berg glüht es rot. Eine Treppe führt hinab.",
+         "tip": {
+          "key": "bewegung",
+          "text": "Lauft bis zur Treppe am Ende der Stollen."
+         }
+        }
+       ],
+       "done": [
+        {
+         "text": "Hitze schlägt euch entgegen. Unten schläft etwas Großes."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "hort",
+     "title": "Der Hort des Drachen",
+     "rooms": [
+      "drachenhort"
+     ],
+     "pflicht": true,
+     "dauer_min": 10,
+     "mindestDauer": "kurz",
+     "ziel": "Die Prinzessin retten",
+     "npcs": [
+      {
+       "npc": "dietmar"
+      }
+     ],
+     "travel": "Ihr steigt hinab in den glühenden Hort.",
+     "steps": [
+      {
+       "id": "erwachen",
+       "kind": "narrate",
+       "twist": true,
+       "enter": [
+        {
+         "text": "Gold, so weit das Auge reicht. Darauf liegt ein roter Drache: Glutschwinge. Neben ihm – Prinzessin Adelheid."
+        },
+        {
+         "text": "Der Drache öffnet ein glühendes Auge …"
+        }
+       ]
+      },
+      {
+       "id": "entscheidung",
+       "kind": "choice",
+       "choices": [
+        {
+         "id": "angriff",
+         "label": "Angreifen!",
+         "detail": "Für die Prinzessin!",
+         "outcome": {
+          "narration": [
+           {
+            "text": "Ihr hebt die Waffen. Der Drache brüllt, dass die Höhle bebt!"
+           }
+          ],
+          "fight": [
+           {
+            "monster": "red-dragon-wyrmling",
+            "count": 1,
+            "name": "Glutschwinge",
+            "boss": true
+           },
+           {
+            "monster": "kobold",
+            "count": 0,
+            "perExtraPlayer": 1,
+            "name": "Kobold"
+           }
+          ],
+          "goto": "schatz"
+         }
+        },
+        {
+         "id": "frieden",
+         "label": "Frieden anbieten: das Ei zurückbringen",
+         "detail": "Überzeugen gegen SG 14",
+         "truths": [
+          "A"
+         ],
+         "check": {
+          "skill": "persuasion",
+          "dc": 14,
+          "success": {
+           "narration": [
+            {
+             "text": "„Ihr schwört es bei eurer Ritterehre?“ Der Drache senkt den Kopf. Die Prinzessin ist frei."
+            },
+            {
+             "text": "„Bringt mir mein Kind – und niemand muss mehr brennen.“",
+             "npc": "Glutschwinge"
+            }
+           ],
+           "set": [
+            "frieden"
+           ],
+           "goto": "schatz"
+          },
+          "failure": {
+           "narration": [
+            {
+             "text": "„Lügen! Wie euer König!“ Der Drache speit Feuer!",
+             "npc": "Glutschwinge"
+            }
+           ],
+           "fight": [
+            {
+             "monster": "red-dragon-wyrmling",
+             "count": 1,
+             "name": "Glutschwinge",
+             "boss": true
+            }
+           ],
+           "goto": "schatz"
+          }
+         }
+        },
+        {
+         "id": "adelheid",
+         "label": "Adelheid beschützen",
+         "detail": "Stellt euch gegen Graf Rotbart",
+         "truths": [
+          "B"
+         ],
+         "outcome": {
+          "narration": [
+           {
+            "text": "Ihr stellt euch vor die Prinzessin. Graf Rotbart und seine Söldner stürmen herein!"
+           },
+           {
+            "text": "„Aus dem Weg, Ritter! Sie gehört mir!“",
+            "npc": "Graf Rotbart"
+           }
+          ],
+          "fight": [
+           {
+            "monster": "veteran",
+            "count": 1,
+            "name": "Graf Rotbart",
+            "boss": true
+           },
+           {
+            "monster": "thug",
+            "count": 1,
+            "perExtraPlayer": 1,
+            "name": "Söldner"
+           }
+          ],
+          "set": [
+           "adelheid_frei"
+          ],
+          "goto": "schatz"
+         }
+        },
+        {
+         "id": "fluch",
+         "label": "Den Fluch brechen",
+         "detail": "Drachenlanze an die fehlende Schuppe – Religion gegen SG 13",
+         "truths": [
+          "C"
+         ],
+         "requires": [
+          "drachenlanze"
+         ],
+         "check": {
+          "skill": "religion",
+          "dc": 13,
+          "success": {
+           "narration": [
+            {
+             "text": "Ihr sprecht die Worte des Einsiedlers und berührt die nackte Stelle mit der Lanze. Licht bricht hervor!"
+            },
+            {
+             "text": "Wo der Drache lag, kniet ein erschöpfter Mann: Prinz Konrad. „Danke … ihr habt mich erlöst.“",
+             "npc": "Prinz Konrad"
+            }
+           ],
+           "set": [
+            "fluch_gebrochen"
+           ],
+           "goto": "schatz"
+          },
+          "failure": {
+           "narration": [
+            {
+             "text": "Die Worte verhallen. Der Fluch ist zu stark – der Drache tobt vor Schmerz!"
+            }
+           ],
+           "fight": [
+            {
+             "monster": "red-dragon-wyrmling",
+             "count": 1,
+             "name": "Glutschwinge",
+             "boss": true
+            }
+           ],
+           "goto": "schatz"
+          }
+         }
+        },
+        {
+         "id": "amulett",
+         "label": "Das Amulett zerstören",
+         "detail": "Kämpft gegen Dietmar, dann zerschlagt das Amulett",
+         "truths": [
+          "D"
+         ],
+         "outcome": {
+          "narration": [
+           {
+            "text": "Dietmar greift an! Wenn ihr ihn besiegt, könnt ihr das Amulett zerschlagen."
+           }
+          ],
+          "fight": [
+           {
+            "monster": "knight",
+            "count": 1,
+            "name": "Ritter Dietmar",
+            "boss": true
+           },
+           {
+            "monster": "kobold",
+            "count": 1,
+            "perExtraPlayer": 1,
+            "name": "Kobold"
+           }
+          ],
+          "set": [
+           "amulett_zerstoert"
+          ],
+          "goto": "schatz"
+         }
+        }
+       ]
+      },
+      {
+       "id": "schatz",
+       "kind": "choice",
+       "enter": [
+        {
+         "text": "Es ist vorbei. Die Prinzessin ist in Sicherheit. Vor euch glänzt der Drachenschatz."
+        }
+       ],
+       "choices": [
+        {
+         "id": "koenig",
+         "label": "Den Schatz dem König bringen",
+         "detail": "Wie es sich für Ritter gehört",
+         "outcome": {
+          "narration": [
+           {
+            "text": "Ihr beladet eure Pferde mit Gold für die Schatzkammer des Königs."
+           }
+          ],
+          "set": [
+           "schatz_koenig"
+          ],
+          "endScene": true
+         }
+        },
+        {
+         "id": "dorf",
+         "label": "Den Schatz an das Dorf verteilen",
+         "detail": "Die Dorfleute haben alles verloren",
+         "outcome": {
+          "narration": [
+           {
+            "text": "Ihr bringt das Gold ins verbrannte Dorf. Grete weint vor Glück."
+           }
+          ],
+          "set": [
+           "schatz_dorf"
+          ],
+          "endScene": true
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "endings": [
+  {
+   "id": "scheitern",
+   "title": "Eine zweite Chance",
+   "kind": "scheitern",
+   "requires": [
+    "niederlage_boss"
+   ],
+   "text": [
+    {
+     "text": "Ihr erwacht in Gretes Hütte, verbrannt und erschöpft. Das Dorf hat euch aus dem Berg gezogen."
+    },
+    {
+     "text": "Die Prinzessin ist noch dort. Die Geschichte ist nicht zu Ende – versucht es noch einmal!"
+    }
+   ]
+  },
+  {
+   "id": "frieden",
+   "title": "Frieden mit dem Drachen",
+   "kind": "friedlich",
+   "requires": [
+    "frieden"
+   ],
+   "truths": [
+    "A"
+   ],
+   "text": [
+    {
+     "text": "Ihr holt das Ei aus der geheimen Kammer des Königs. Ortwin wird vor dem ganzen Hof zur Rede gestellt."
+    },
+    {
+     "text": "Glutschwinge fliegt mit seinem Jungen davon. Nie wieder brennt ein Dorf im Siebengebirge."
+    }
+   ]
+  },
+  {
+   "id": "erloesung",
+   "title": "Der verlorene Prinz",
+   "kind": "friedlich",
+   "requires": [
+    "fluch_gebrochen"
+   ],
+   "truths": [
+    "C"
+   ],
+   "text": [
+    {
+     "text": "Prinz Konrad kehrt heim. Die Brüder fallen sich in die Arme."
+    },
+    {
+     "text": "Man erzählt sich noch lange von den Rittern, die einen Drachen nicht erschlugen, sondern erlösten."
+    }
+   ]
+  },
+  {
+   "id": "freiheit",
+   "title": "Die freie Prinzessin",
+   "kind": "friedlich",
+   "requires": [
+    "adelheid_frei"
+   ],
+   "truths": [
+    "B"
+   ],
+   "text": [
+    {
+     "text": "Graf Rotbart ist besiegt. Adelheid bleibt bei den Drachen, frei und glücklich."
+    },
+    {
+     "text": "Dem König bringt ihr ihren Brief: „Vater, ich bin in Sicherheit. Verzeih mir.“"
+    }
+   ]
+  },
+  {
+   "id": "rabe",
+   "title": "Der Sturz des Raben",
+   "kind": "sieg",
+   "requires": [
+    "amulett_zerstoert"
+   ],
+   "truths": [
+    "D"
+   ],
+   "text": [
+    {
+     "text": "Das Amulett zerspringt. Der Drache erwacht wie aus einem langen Traum und fliegt davon."
+    },
+    {
+     "text": "Hofmagier Morgrim wird in Ketten gelegt. Der Thron ist sicher – dank euch."
+    }
+   ]
+  },
+  {
+   "id": "bittersuess",
+   "title": "Ein bitterer Sieg",
+   "kind": "bittersuess",
+   "requires": [
+    "drache_tot"
+   ],
+   "truths": [
+    "C"
+   ],
+   "text": [
+    {
+     "text": "Der Drache fällt. Im Tod verwandelt er sich zurück: Prinz Konrad."
+    },
+    {
+     "text": "König Ortwin hat seine Tochter zurück – und seinen Bruder verloren."
+    }
+   ]
+  },
+  {
+   "id": "sieg_dorf",
+   "title": "Die Helden des Volkes",
+   "kind": "sieg",
+   "requires": [
+    "drache_tot",
+    "schatz_dorf"
+   ],
+   "text": [
+    {
+     "text": "Der Drache ist besiegt, das Dorf wird prächtiger wieder aufgebaut als je zuvor."
+    },
+    {
+     "text": "Über euch singt man noch in hundert Jahren Lieder."
+    }
+   ]
+  },
+  {
+   "id": "sieg_koenig",
+   "title": "Ruhm und Ehre",
+   "kind": "sieg",
+   "requires": [
+    "drache_tot"
+   ],
+   "text": [
+    {
+     "text": "Der Drache ist besiegt. Der König ehrt euch mit einem großen Fest."
+    },
+    {
+     "text": "Die Prinzessin ist gerettet, der Schatz liegt in Rheineck. Ihr seid wahre Ritter."
+    }
+   ]
+  },
+  {
+   "id": "sieg",
+   "title": "Die Prinzessin ist frei",
+   "kind": "sieg",
+   "text": [
+    {
+     "text": "Mit der Prinzessin kehrt ihr nach Rheineck zurück. Glocken läuten im ganzen Land."
+    }
+   ]
+  }
+ ],
+ "events": [
+  {
+   "id": "ueberfall_rueckweg",
+   "title": "Überfall auf dem Rückweg",
+   "narration": [
+    {
+     "text": "Auf dem Rückweg, in einer engen Schlucht: Wölfe! Sie haben den Geruch des Drachenbluts gewittert."
+    }
+   ],
+   "fight": [
+    {
+     "monster": "wolf",
+     "count": 2,
+     "perExtraPlayer": 1,
+     "name": "Wolf"
+    }
+   ]
+  }
+ ],
+ "allies": [
+  {
+   "flag": "oger_verbuendet",
+   "npc": "brakk",
+   "scene": "hort"
+  }
+ ]
+}

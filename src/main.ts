@@ -32,7 +32,7 @@ function renderHome(): void {
   app.innerHTML = `
     <main class="home">
       <h1>Couch-Dungeon</h1>
-      <p>Ein Fantasy-Abenteuer für 1–4 Spieler. Der Fernseher ist das Spielbrett, eure Handys sind die Controller.</p>
+      <p>Ein Fantasy-Abenteuer für 1–6 Spieler. Der Fernseher ist das Spielbrett, eure Handys sind die Controller.</p>
       <a class="big-button" href="#/tv">📺 Spielbrett öffnen<small>Auf dem Fernseher oder Laptop</small></a>
       <a class="big-button" href="#/play">📱 Mitspielen<small>Auf dem Handy – oder einfach den QR-Code am Fernseher scannen</small></a>
     </main>`;

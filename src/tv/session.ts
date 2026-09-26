@@ -8,7 +8,8 @@ import type { Battle, Creature, GridPos } from "../shared/game";
 import type { CharacterProfile } from "../shared/lobby";
 import type { DungeonMap } from "../shared/map";
 import { generateWithRetries, randomPlan, type DungeonPlan } from "../map/generate";
-import { revealAround } from "../map/walk";
+import { partyStartSpots, revealAround } from "../map/walk";
+import { getModule, moduleExits } from "../map/modules";
 
 export interface GameSession {
   map: DungeonMap;
@@ -31,6 +32,8 @@ export interface SessionOptions {
   players: { playerId: string; profile: CharacterProfile }[];
   level?: number;
   plan?: DungeonPlan;
+  /** Story games place their own monsters. */
+  noMonsters?: boolean;
 }
 
 export function createSession(rng: Rng, opts: SessionOptions): GameSession {
@@ -39,6 +42,8 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
   const start = map.rooms[0]!;
   const partyIds: string[] = [];
 
+  const exit = moduleExits(getModule(start.moduleId))[0]?.cells[0] ?? { x: 1, y: 1 };
+  const spots = partyStartSpots(map, opts.players.length, { x: start.x + exit.x, y: start.y + exit.y });
   opts.players.forEach(({ playerId, profile }, i) => {
     const c = createCharacter({
       id: `hero-${i + 1}`,
@@ -49,7 +54,7 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
     });
     c.playerId = playerId;
     c.appearance = { look: profile.look, color: profile.color };
-    c.pos = start.spots.party[i] ?? start.spots.party[0];
+    c.pos = spots[i] ?? spots[0];
     battle.creatures[c.id] = c;
     partyIds.push(c.id);
   });
@@ -62,7 +67,7 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
     return c;
   };
   map.rooms.forEach((room, index) => {
-    if (index === 0) return;
+    if (index === 0 || opts.noMonsters) return;
     if (room.spots.boss.length) {
       spawn(BOSSES[rng.int(0, BOSSES.length - 1)]!, room.spots.boss[0]!);
     }

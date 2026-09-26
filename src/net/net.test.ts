@@ -29,7 +29,7 @@ describe("host and client", () => {
     const got: string[] = [];
     a.onEvent((e) => got.push(`a:${e.type}`));
     b.onEvent((e) => got.push(`b:${e.type}`));
-    net.host.send({ type: "narration", text: "Hallo" });
+    net.host.send({ type: "narration", lines: [{ text: "Hallo" }] });
     net.host.send({ type: "secret_message", text: "psst" }, "b");
     expect(got).toEqual(["a:narration", "b:narration", "b:secret_message"]);
   });

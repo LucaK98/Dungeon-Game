@@ -76,7 +76,7 @@ body.is-tv { overflow: hidden; }
 .tv-url { font-size: 1.8vh; color: var(--muted); word-break: break-all; max-width: 90%; }
 .tv-players { display: flex; flex-direction: column; justify-content: center; gap: 3vh; }
 .tv-players h2 { font-size: 5vh; margin: 0; }
-.tv-slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.5vh; }
+.tv-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2vh; }
 .tv-slot {
   --player: #5a4d42;
   background: var(--panel);
@@ -84,20 +84,20 @@ body.is-tv { overflow: hidden; }
   border: 0.6vh solid var(--player);
   padding: 2vh;
   display: grid;
-  grid-template-columns: 17vh 1fr;
-  grid-template-rows: auto auto 1fr;
-  column-gap: 2vh;
-  align-items: center;
-  min-height: 22vh;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  text-align: center;
+  row-gap: 0.6vh;
+  min-height: 24vh;
 }
 .tv-slot.empty { border-style: dashed; opacity: 0.55; }
 .tv-slot.offline { opacity: 0.5; }
 .tv-slot.ready { box-shadow: 0 0 3vh color-mix(in srgb, var(--player) 50%, transparent); }
-.tv-slot-figure { grid-row: 1 / span 3; width: 17vh; height: 17vh; image-rendering: pixelated; }
+.tv-slot-figure { width: 12vh; height: 12vh; image-rendering: pixelated; }
 .tv-slot-figure.placeholder { display: grid; place-items: center; font-size: 8vh; color: var(--muted); }
-.tv-slot-name { font-size: 4vh; font-weight: 700; }
+.tv-slot-name { font-size: 3.4vh; font-weight: 700; }
 .tv-slot-class { font-size: 2.6vh; color: var(--muted); }
-.tv-slot-status { font-size: 2.8vh; align-self: start; }
+.tv-slot-status { font-size: 2.4vh; }
 .tv-hint { font-size: 3vh; margin: 0; color: var(--muted); }
 .tv-start {
   font-size: 4vh;
@@ -415,3 +415,83 @@ body.tip-mode::after {
 .order-entry.enemy { border-color: #8a2a2a; }
 .order-entry.active { background: var(--accent); color: #1b1208; font-weight: 800; }
 .order-entry.down { opacity: 0.4; text-decoration: line-through; }
+
+/* ---------------------------------------------------------------- story (phone) */
+
+.st-card { border-left: 5px solid var(--accent); }
+.st-chapter { color: var(--muted); font-size: 0.85rem; }
+.st-scene { font-size: 1.15rem; }
+.st-goal { color: #d8f5d0; font-weight: 600; }
+.st-line { margin: 0; line-height: 1.45; }
+.st-line.npc { font-style: italic; }
+.st-tip { display: block; margin-top: 6px; background: #3b2d10; border-radius: 8px; padding: 6px 10px; font-style: normal; font-size: 0.92rem; }
+.group-head.static { cursor: default; background: #3b2d10; }
+.story-choices .choice-btn { border-color: var(--accent); }
+.clue-list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; line-height: 1.45; }
+.ctl-tabs { grid-template-columns: repeat(4, 1fr); }
+.tab { font-size: 0.9rem; }
+
+/* ---------------------------------------------------------------- TV screens */
+
+.tv-screen {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  padding: 4vh 5vw;
+  background: radial-gradient(circle at 50% 30%, #2b211b, var(--bg) 70%);
+  font-size: 2.4vh;
+  overflow-y: auto;
+}
+.tv-btn {
+  font-size: 3vh; font-weight: 700;
+  padding: 1.6vh 3vh; border-radius: 1.6vh;
+  border: 0.4vh solid #4a3e33; background: var(--panel); color: var(--text);
+  cursor: pointer;
+}
+.tv-btn.primary { background: var(--accent); color: #1b1208; border-color: var(--accent); }
+.tv-btn.big { font-size: 4vh; padding: 2.2vh 5vh; }
+.tv-btn.small { font-size: 2.2vh; padding: 1vh 2vh; }
+.tv-btn:focus-visible { outline: 0.6vh solid #fff; outline-offset: 0.4vh; }
+.tv-btn:disabled { opacity: 0.4; }
+.tv-row { display: flex; gap: 2vh; justify-content: center; flex-wrap: wrap; }
+.tv-col { display: flex; flex-direction: column; gap: 2vh; align-items: stretch; min-width: 40vw; }
+.title { display: flex; flex-direction: column; align-items: center; gap: 2.5vh; text-align: center; }
+.title-name { font-size: 11vh; margin: 0; color: var(--accent); letter-spacing: 0.02em; }
+.title-sub { font-size: 3vh; margin: 0; color: var(--muted); }
+.title-dragon { width: 22vh; height: 22vh; image-rendering: pixelated; }
+.credits { font-size: 1.6vh; color: var(--muted); margin-top: 2vh; }
+.slide { display: flex; flex-direction: column; align-items: center; gap: 3vh; text-align: center; max-width: 70vw; }
+.slide-icon { font-size: 16vh; }
+.slide h1 { font-size: 7vh; margin: 0; }
+.slide-text { font-size: 4vh; line-height: 1.4; margin: 0; }
+.slide-dots { display: flex; gap: 1.5vh; }
+.slide-dots .dot { width: 2vh; height: 2vh; border-radius: 50%; background: #3b322b; flex: none; }
+.slide-dots .dot.on { background: var(--accent); }
+.pick { display: flex; flex-direction: column; gap: 4vh; align-items: center; width: 100%; }
+.pick h1 { font-size: 6vh; margin: 0; text-align: center; }
+.story-grid, .duration-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(28vw, 1fr)); gap: 3vh; width: 100%; }
+.story-card, .duration-card {
+  display: flex; flex-direction: column; gap: 1.2vh; align-items: flex-start; text-align: left;
+  padding: 3vh; border-radius: 2vh; border: 0.5vh solid #4a3e33; background: var(--panel); color: var(--text); cursor: pointer; font-size: 2.4vh; line-height: 1.4;
+}
+.story-card:focus-visible, .duration-card:focus-visible, .story-card:hover, .duration-card:hover { border-color: var(--accent); outline: none; }
+.story-card h2, .duration-card h2 { font-size: 4.5vh; margin: 0; }
+.story-card p, .duration-card p { margin: 0; }
+.story-card.soon { opacity: 0.5; cursor: default; }
+.story-sub { color: var(--muted); }
+.story-cover { display: flex; gap: 1vh; }
+.cover-tile { width: 10vh; height: 10vh; image-rendering: pixelated; }
+.duration-min { font-size: 3.4vh; color: var(--accent); font-weight: 700; }
+.tv-story { font-size: 2.8vh; margin: 0; color: var(--accent); }
+.end-inner { max-width: 80vw; display: flex; flex-direction: column; gap: 2vh; align-items: center; text-align: center; }
+.end-icon { font-size: 12vh; }
+.end h1 { font-size: 7vh; margin: 0; color: var(--accent); }
+.end h2 { font-size: 4.5vh; margin: 2vh 0 0; }
+.end-text { font-size: 3vh; margin: 0; line-height: 1.4; }
+.truth { background: var(--panel); border-radius: 2vh; padding: 2vh 3vh; font-size: 2.8vh; }
+.truth strong { font-size: 3.4vh; color: var(--accent); }
+.truth p { margin: 1vh 0 0; line-height: 1.4; }
+.clue-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 3vh; text-align: left; width: 100%; }
+.clue-columns h3 { font-size: 3vh; margin: 0 0 1vh; }
+.clue { font-size: 2.2vh; margin: 0 0 1vh; line-height: 1.35; }
+.clue.false { color: #b3a58a; }
+.clue.missed { color: #8d8172; }
