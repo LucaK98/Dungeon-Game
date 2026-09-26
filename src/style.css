@@ -47,7 +47,7 @@ html, body {
 .big-button small { display: block; font-weight: 400; font-size: 0.95rem; color: var(--muted); margin-top: 4px; }
 
 .tv { position: fixed; inset: 0; background: #000; }
-.tv canvas { image-rendering: pixelated; }
+.tv canvas { image-rendering: auto; }
 
 button { font: inherit; }
 .error { color: #ff8a80; }

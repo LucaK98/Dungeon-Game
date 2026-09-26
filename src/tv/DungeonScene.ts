@@ -8,6 +8,7 @@ import type { Creature } from "../shared/game";
 import { cellIndex, type DungeonMap } from "../shared/map";
 import { THEMES } from "../map/modules";
 import { assetUrl } from "../ui/atlas";
+import { crisp, prepareTiles, RES, TILES, UP } from "./render";
 import type { GameSession } from "./session";
 
 export const BOARD_WIDTH = 1920;
@@ -61,6 +62,7 @@ export class DungeonScene extends Phaser.Scene {
     const map = this.session.map;
     this.figures.clear();
     this.torches = [];
+    prepareTiles(this);
 
     this.bakeMap(map);
     this.drawObjects(map);
@@ -68,8 +70,8 @@ export class DungeonScene extends Phaser.Scene {
     this.createLighting(map);
 
     const cam = this.cameras.main;
-    cam.setZoom(ZOOM);
-    cam.setBounds(0, 0, map.width * TILE, map.height * TILE);
+    cam.setZoom(ZOOM * RES);
+    this.applyBounds();
     cam.setBackgroundColor("#000000");
     this.focusParty(true);
 
@@ -82,28 +84,34 @@ export class DungeonScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- map
 
+  /** Tile image in world units (the texture may be upscaled). */
+  private tile(x: number, y: number, frame: string): Phaser.GameObjects.Image {
+    return this.add.image(x, y, TILES, frame).setScale(1 / UP);
+  }
+
   private bakeMap(map: DungeonMap): void {
-    const rt = this.add.renderTexture(0, 0, map.width * TILE, map.height * TILE).setOrigin(0).setDepth(0);
-    rt.beginDraw();
+    // A blitter draws thousands of static tiles cheaply; the container scales the upscaled art back to world units.
+    const blitter = this.add.blitter(0, 0, TILES);
+    this.add.container(0, 0, [blitter]).setScale(1 / UP).setDepth(0);
+    const s = TILE * UP;
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         const i = cellIndex(map, x, y);
         const frame = map.frames[i];
         if (!frame) continue;
         // Forest "walls" are trees standing on grass.
-        rt.batchDrawFrame("tiles", frame, x * TILE, y * TILE);
+        blitter.create(x * s, y * s, frame);
         const overlay = map.overlays[i];
-        if (overlay && !overlay.startsWith("torch")) rt.batchDrawFrame("tiles", overlay, x * TILE, y * TILE);
+        if (overlay && !overlay.startsWith("torch")) blitter.create(x * s, y * s, overlay);
       }
     }
-    rt.endDraw();
 
     for (const [key, overlay] of Object.entries(map.overlays)) {
       if (!overlay.startsWith("torch")) continue;
       const i = Number(key);
       const x = i % map.width;
       const y = Math.floor(i / map.width);
-      const sprite = this.add.image(x * TILE, y * TILE, "tiles", "torch.1").setOrigin(0).setDepth(1);
+      const sprite = this.tile(x * TILE, y * TILE, "torch.1").setOrigin(0).setDepth(1);
       this.torches.push({ sprite, x: x + 0.5, y: y + 0.9, phase: Math.random() * 10 });
     }
   }
@@ -113,7 +121,7 @@ export class DungeonScene extends Phaser.Scene {
       if (o.state === "hidden") continue;
       // Tall objects (trees, statues) are sorted with the figures.
       const depth = o.blocking ? 100 + o.y * 10 : 2;
-      this.add.image(o.x * TILE, o.y * TILE, "tiles", o.frame).setOrigin(0).setDepth(depth);
+      this.tile(o.x * TILE, o.y * TILE, o.frame).setOrigin(0).setDepth(depth);
     }
   }
 
@@ -130,9 +138,9 @@ export class DungeonScene extends Phaser.Scene {
     container.add(ring);
     if (c.appearance) {
       // No name labels: the coloured ring shows whose figure it is.
-      for (const frame of dollFrames(c.appearance.look)) container.add(this.add.image(0, 0, "tiles", frame));
+      for (const frame of dollFrames(c.appearance.look)) container.add(this.tile(0, 0, frame));
     } else if (c.monsterId) {
-      container.add(this.add.image(0, 0, "tiles", `monster.${c.monsterId}`));
+      container.add(this.tile(0, 0, `monster.${c.monsterId}`));
     }
     container.setScale(n);
     const figure: Figure = { container };
@@ -197,7 +205,7 @@ export class DungeonScene extends Phaser.Scene {
       const text = hit.miss ? "Daneben" : hit.heal ? `+${hit.amount}` : hit.crit ? `${hit.amount}!` : String(hit.amount);
       const color = hit.miss ? "#cfcfcf" : hit.heal ? "#6dff7a" : hit.crit ? "#ffd700" : "#ff5a4a";
       const label = this.add
-        .text(pos.x, pos.y - 18, text, { fontFamily: "system-ui, sans-serif", fontSize: hit.crit ? "44px" : "32px", fontStyle: "bold", color, stroke: "#000", strokeThickness: 6 })
+        .text(pos.x, pos.y - 18, text, crisp({ fontFamily: "system-ui, sans-serif", fontSize: hit.crit ? "44px" : "32px", fontStyle: "bold", color, stroke: "#000", strokeThickness: 6 }))
         .setOrigin(0.5)
         .setScale(0.5)
         .setDepth(6000);
@@ -214,7 +222,21 @@ export class DungeonScene extends Phaser.Scene {
   /** In combat the initiative bar takes the left edge; the map moves next to it. */
   setCombatLayout(on: boolean): void {
     const left = on ? 340 : 0;
-    this.cameras.main.setViewport(left, 0, BOARD_WIDTH - left, BOARD_HEIGHT);
+    this.cameras.main.setViewport(Math.round(left * RES), 0, Math.round((BOARD_WIDTH - left) * RES), Math.round(BOARD_HEIGHT * RES));
+    this.applyBounds();
+  }
+
+  /** Camera limits: the map edges, but a map smaller than the screen sits in the middle. */
+  private applyBounds(): void {
+    const cam = this.cameras.main;
+    const map = this.session.map;
+    const viewW = cam.width / cam.zoom;
+    const viewH = cam.height / cam.zoom;
+    const w = map.width * TILE;
+    const h = map.height * TILE;
+    const bw = Math.max(w, viewW);
+    const bh = Math.max(h, viewH);
+    cam.setBounds((w - bw) / 2, (h - bh) / 2, bw, bh);
   }
 
   focusParty(instant: boolean): void {
@@ -248,6 +270,8 @@ export class DungeonScene extends Phaser.Scene {
     this.unexploredImage = this.make.image({ key: "unexplored", add: false }).setOrigin(0).setScale(TILE);
     this.lightBrush = this.make.image({ key: "light", add: false }).setOrigin(0.5);
     this.dark = this.add.renderTexture(0, 0, map.width * TILE, map.height * TILE).setOrigin(0).setDepth(5000);
+    // Soft light edges when the board is zoomed in on big screens.
+    this.dark.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
   }
 
   private indoorCell(map: DungeonMap, i: number): boolean {

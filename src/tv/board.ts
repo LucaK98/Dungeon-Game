@@ -14,6 +14,7 @@ import type { GameHost } from "./host";
 import { clearSave, writeSave } from "./save";
 import { createSession, type GameSession } from "./session";
 import { UiScene } from "./UiScene";
+import { initRes } from "./render";
 
 export interface BoardOptions {
   seed?: number;
@@ -47,11 +48,13 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   let session = newSession();
   const scene = new DungeonScene(() => session);
 
+  // The canvas has the screen's real resolution; the scenes zoom the 1920×1080 layout onto it.
+  const res = initRes(container);
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: container,
-    width: BOARD_WIDTH,
-    height: BOARD_HEIGHT,
+    width: Math.round(BOARD_WIDTH * res),
+    height: Math.round(BOARD_HEIGHT * res),
     backgroundColor: "#000000",
     pixelArt: true,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },

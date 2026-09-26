@@ -7,6 +7,12 @@ import { SYSTEM_PROMPT } from "../dm/ai/prompt";
 import { GeminiProvider, GroqProvider, LlmError, ServerProvider, type ProviderId } from "../dm/ai/provider";
 import { aiCallsToday, countAiCall, loadAiSettings, providersFrom, saveAiSettings, type AiSettings } from "../dm/ai/settings";
 import { h } from "../ui/dom";
+import { loadGraphicsMode, saveGraphicsMode, type GraphicsMode } from "./render";
+
+const GRAPHICS: { id: GraphicsMode; label: string }[] = [
+  { id: "hd", label: "✨ HD (glatte Kanten)" },
+  { id: "pixel", label: "👾 Pixel (klassisch)" },
+];
 
 const PROVIDERS: { id: AiSettings["provider"]; label: string; detail: string }[] = [
   { id: "off", label: "📜 Drehbuch", detail: "Ohne KI. Der Erzähler folgt der Geschichte, freie Aktionen versteht er nur bei Stichworten." },
@@ -153,10 +159,26 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
       }
     });
 
+    const graphicsRow = h("div", { class: "tv-row" });
+    const renderGraphics = () => {
+      const mode = loadGraphicsMode();
+      graphicsRow.replaceChildren(
+        ...GRAPHICS.map((g) => {
+          const b = h("button", { class: `tv-btn${mode === g.id ? " primary" : ""}`, type: "button", textContent: g.label });
+          b.addEventListener("click", () => {
+            saveGraphicsMode(g.id);
+            renderGraphics();
+          });
+          return b;
+        }),
+      );
+    };
+    renderGraphics();
+
     const el = h(
       "main",
       { class: "tv-screen" },
-      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("div", { class: "tv-row" }, done)),
+      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🖼 Grafik"), graphicsRow, h("div", { class: "tv-row" }, done)),
     );
     done.addEventListener("click", () => {
       pull();

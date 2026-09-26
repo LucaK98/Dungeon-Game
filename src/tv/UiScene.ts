@@ -5,6 +5,7 @@ import type { OrderEntry, RollOutcome } from "../shared/view";
 import { speak } from "./speech";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "./DungeonScene";
 import type { AiStatus } from "../dm/ai/aidm";
+import { crisp, RES, TILES, UP } from "./render";
 
 const FONT = "system-ui, sans-serif";
 
@@ -30,6 +31,8 @@ export class UiScene extends Phaser.Scene {
   private skipLine: (() => void) | undefined;
 
   create(): void {
+    // Board pixels → screen pixels.
+    this.cameras.main.setOrigin(0, 0).setZoom(RES);
     this.orderBar = this.add.container(20, 150);
     this.banner = this.add
       // In the middle of the screen: at the top the dice card would cover it during fights.
@@ -37,11 +40,11 @@ export class UiScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0);
     this.turnBox = this.add.graphics();
-    this.turnText = this.add.text(40, BOARD_HEIGHT - 70, "", { fontFamily: FONT, fontSize: "44px", color: "#fff", stroke: "#000", strokeThickness: 8 }).setOrigin(0, 0.5);
+    this.turnText = this.add.text(40, BOARD_HEIGHT - 70, "", crisp({ fontFamily: FONT, fontSize: "44px", color: "#fff", stroke: "#000", strokeThickness: 8 })).setOrigin(0, 0.5);
     this.rollBox = this.add.container(BOARD_WIDTH - 40, 40);
-    this.chapter = this.add.text(24, 20, "", { fontFamily: FONT, fontSize: "26px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 });
+    this.chapter = this.add.text(24, 20, "", crisp({ fontFamily: FONT, fontSize: "26px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 }));
     this.narrationBox = this.add.container(0, 0).setAlpha(0);
-    this.aiBadge = this.add.text(BOARD_WIDTH - 24, BOARD_HEIGHT - 20, "", { fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 }).setOrigin(1, 1);
+    this.aiBadge = this.add.text(BOARD_WIDTH - 24, BOARD_HEIGHT - 20, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setOrigin(1, 1);
 
     const onRoom = (name: string) => this.showBanner(name);
     const onTurn = (name: string, color?: string, free?: boolean) => this.showTurn(name, color, free);
@@ -117,11 +120,11 @@ export class UiScene extends Phaser.Scene {
     box.setAlpha(1);
     const width = 1180;
     const x = (BOARD_WIDTH - width) / 2 + 180;
-    const speaker = line.npc ? this.add.text(x + 30, 0, line.npc, { fontFamily: FONT, fontSize: "30px", color: "#e0a526", fontStyle: "bold" }) : undefined;
-    const text = this.add.text(x + 30, 0, "", { fontFamily: FONT, fontSize: "34px", color: "#f3e9d2", wordWrap: { width: width - 60 }, lineSpacing: 8, fontStyle: line.npc ? "italic" : "normal" });
+    const speaker = line.npc ? this.add.text(x + 30, 0, line.npc, crisp({ fontFamily: FONT, fontSize: "30px", color: "#e0a526", fontStyle: "bold" })) : undefined;
+    const text = this.add.text(x + 30, 0, "", crisp({ fontFamily: FONT, fontSize: "34px", color: "#f3e9d2", wordWrap: { width: width - 60 }, lineSpacing: 8, fontStyle: line.npc ? "italic" : "normal" }));
     // Measure the full height first.
     text.setText(line.text);
-    const tipText = line.tip ? this.add.text(x + 30, 0, `💡 ${line.tip.text}`, { fontFamily: FONT, fontSize: "26px", color: "#1b1208", wordWrap: { width: width - 90 }, lineSpacing: 6 }) : undefined;
+    const tipText = line.tip ? this.add.text(x + 30, 0, `💡 $crisp({line.tip.text})`, { fontFamily: FONT, fontSize: "26px", color: "#1b1208", wordWrap: { width: width - 90 }, lineSpacing: 6 }) : undefined;
     const bodyH = (speaker ? 42 : 0) + text.height + (tipText ? tipText.height + 40 : 0);
     const top = BOARD_HEIGHT - 150 - bodyH;
     const bg = this.add.graphics();
@@ -208,10 +211,10 @@ export class UiScene extends Phaser.Scene {
       bg.lineStyle(e.active ? 5 : 3, edge, 1).strokeRoundedRect(0, y, e.active ? 320 : 290, row - 6, 12);
       this.orderBar.add(bg);
       const frames = e.look ? dollFrames(e.look) : e.monsterId ? [`monster.${e.monsterId}`] : [];
-      for (const f of frames) this.orderBar.add(this.add.image(44, y + (row - 6) / 2, "tiles", f).setScale(2 * scale));
-      const name = this.add.text(88, y + 8 * scale, e.name, { fontFamily: FONT, fontSize: `${Math.round(26 * Math.max(0.75, scale))}px`, color: e.health <= 0 ? "#8d8172" : "#f3e9d2", fontStyle: e.active ? "bold" : "normal" });
+      for (const f of frames) this.orderBar.add(this.add.image(44, y + (row - 6) / 2, TILES, f).setScale((2 * scale) / UP));
+      const name = this.add.text(88, y + 8 * scale, e.name, crisp({ fontFamily: FONT, fontSize: `${Math.round(26 * Math.max(0.75, scale))}px`, color: e.health <= 0 ? "#8d8172" : "#f3e9d2", fontStyle: e.active ? "bold" : "normal" }));
       this.orderBar.add(name);
-      if (e.initiative !== undefined) this.orderBar.add(this.add.text(e.active ? 300 : 270, y + 8 * scale, String(e.initiative), { fontFamily: FONT, fontSize: `${Math.round(24 * Math.max(0.75, scale))}px`, color: "#b3a58a" }).setOrigin(1, 0));
+      if (e.initiative !== undefined) this.orderBar.add(this.add.text(e.active ? 300 : 270, y + 8 * scale, String(e.initiative), crisp({ fontFamily: FONT, fontSize: `${Math.round(24 * Math.max(0.75, scale))}px`, color: "#b3a58a" })).setOrigin(1, 0));
       const hp = this.add.graphics();
       const hpY = y + row - 6 - 20 * Math.max(0.6, scale);
       hp.fillStyle(0x3a2f27, 1).fillRect(88, hpY, 180, 10);
@@ -228,14 +231,14 @@ export class UiScene extends Phaser.Scene {
     const width = 860;
     const hasDie = r.dice.length > 0;
     const left = hasDie ? 170 : 30;
-    const title = this.add.text(-width + left, 24, r.title, { fontFamily: FONT, fontSize: "36px", color: "#e0a526", fontStyle: "bold" });
-    const body = this.add.text(-width + left, 80, r.lines.map((l) => l.text).join("\n"), {
+    const title = this.add.text(-width + left, 24, r.title, crisp({ fontFamily: FONT, fontSize: "36px", color: "#e0a526", fontStyle: "bold" }));
+    const body = this.add.text(-width + left, 80, r.lines.map((l) => l.text).join("\n"), crisp({
       fontFamily: FONT,
       fontSize: "28px",
       color: "#f3e9d2",
       wordWrap: { width: width - left - 30 },
       lineSpacing: 8,
-    });
+    }));
     const height = Math.max(180, 110 + body.height);
     const bg = this.add.graphics();
     const edge = r.crit ? 0xffd700 : r.success === true ? 0x4caf50 : r.success === false ? 0xe04040 : 0x5a4d42;
@@ -247,12 +250,12 @@ export class UiScene extends Phaser.Scene {
       const die = this.add.graphics();
       die.fillStyle(r.crit ? 0xb8860b : 0x7a2e22, 1).fillRoundedRect(-width + 24, 24, 120, 120, 20);
       die.lineStyle(4, 0xf3e9d2, 1).strokeRoundedRect(-width + 24, 24, 120, 120, 20);
-      const n = this.add.text(-width + 84, 76, String(r.kept), { fontFamily: FONT, fontSize: "68px", fontStyle: "bold", color: "#fff", stroke: "#000", strokeThickness: 6 }).setOrigin(0.5);
-      const sides = this.add.text(-width + 84, 128, `W${r.sides}`, { fontFamily: FONT, fontSize: "20px", color: "#f3e9d2" }).setOrigin(0.5);
+      const n = this.add.text(-width + 84, 76, String(r.kept), crisp({ fontFamily: FONT, fontSize: "68px", fontStyle: "bold", color: "#fff", stroke: "#000", strokeThickness: 6 })).setOrigin(0.5);
+      const sides = this.add.text(-width + 84, 128, `W$crisp({r.sides})`, { fontFamily: FONT, fontSize: "20px", color: "#f3e9d2" }).setOrigin(0.5);
       this.rollBox.add([die, n, sides]);
       if (r.dice.length > 1) {
         const other = r.dice.find((d, i) => d !== r.kept || i > 0 && r.dice[0] === r.kept) ?? r.dice[1]!;
-        this.rollBox.add(this.add.text(-width + 84, 162, `(auch: ${other})`, { fontFamily: FONT, fontSize: "20px", color: "#b3a58a" }).setOrigin(0.5));
+        this.rollBox.add(this.add.text(-width + 84, 162, `(auch: ${other})`, crisp({ fontFamily: FONT, fontSize: "20px", color: "#b3a58a" })).setOrigin(0.5));
       }
       n.setScale(1.6);
       this.tweens.add({ targets: n, scale: 1, duration: 300, ease: "Back.easeOut" });
