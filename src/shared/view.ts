@@ -70,6 +70,8 @@ export interface TurnInfo {
   movementLeftFt: number;
   actions: number;
   bonusAction: boolean;
+  /** Free exploration: everyone may act at the same time. */
+  free?: boolean;
 }
 
 export interface OrderEntry {

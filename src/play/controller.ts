@@ -57,6 +57,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   let tab: Tab = "action";
   let dice: DiceOverlay | undefined;
   let diceFor: string | undefined;
+  /** The window showing the last result: a new roll waits until it was seen (or 2.5 s). */
+  let landed: DiceOverlay | undefined;
+  let waitingPrompt: RollPrompt | undefined;
   let wasMine = false;
   const openGroups = new Set<ActionGroup>(["attack"]);
   const closedGroups = new Set<ActionGroup>();
@@ -132,6 +135,14 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     }
     status.className = "ctl-status mine";
     const fields = Math.floor(v.turn.movementLeftFt / 5);
+    if (v.turn.free) {
+      // Exploring: no turns, everyone acts whenever they like.
+      status.replaceChildren(
+        h("strong", {}, "🧭 Freies Erkunden"),
+        h("div", { class: "budget" }, h("span", { class: "pill", dataset: { help: "bewegung" } }, `🦶 bis ${fields} Felder pro Schritt`), h("span", { class: "pill" }, "Alle gleichzeitig")),
+      );
+      return;
+    }
     status.replaceChildren(
       h("strong", {}, "🎯 Du bist dran!"),
       h(
@@ -573,11 +584,23 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       render();
     },
     requestRoll(prompt) {
-      if (diceFor === prompt.id) return;
-      dice?.close();
-      diceFor = prompt.id;
-      dice = showRollPrompt(prompt, () => send({ kind: "roll", rollId: prompt.id }));
-      if (view) maybeHint(playerId(), "first_roll", view.beginnerMode, document.querySelector(".dice-panel") ?? body);
+      if (diceFor === prompt.id || waitingPrompt?.id === prompt.id) return;
+      const show = () => {
+        if (waitingPrompt?.id !== prompt.id) return;
+        waitingPrompt = undefined;
+        landed?.close();
+        landed = undefined;
+        dice?.close();
+        diceFor = prompt.id;
+        dice = showRollPrompt(prompt, () => send({ kind: "roll", rollId: prompt.id }));
+        if (view) maybeHint(playerId(), "first_roll", view.beginnerMode, document.querySelector(".dice-panel") ?? body);
+      };
+      waitingPrompt = prompt;
+      // Let the player see the result of the previous roll first.
+      if (landed?.isOpen()) {
+        landed.onClosed(show);
+        setTimeout(show, 2500);
+      } else show();
     },
     rulesAnswer(question, answer) {
       showRulesAnswer(question, answer);
@@ -604,6 +627,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     rollResult(result) {
       if (dice && result.playerId === playerId()) {
         dice.land(result);
+        landed = dice;
         dice = undefined;
         diceFor = undefined;
       }

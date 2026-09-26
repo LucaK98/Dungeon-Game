@@ -20,7 +20,7 @@ import type { PlayerAction } from "../shared/events";
 import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
 import { glossaryAnswer } from "../dm/rules-help";
-import type { Creature, GridPos } from "../shared/game";
+import type { Creature, GridPos, TurnState } from "../shared/game";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
 import type { ActionChoice, MiniMap, OrderEntry, PlayerView, RollOutcome, RollPrompt, StoryView } from "../shared/view";
@@ -57,7 +57,7 @@ export interface GameEvents {
   /** State changed: redraw the board. */
   changed(): void;
   roll(outcome: RollOutcome): void;
-  turn(name: string, color: string | undefined): void;
+  turn(name: string, color: string | undefined, free?: boolean): void;
   roomRevealed(name: string): void;
   lines(lines: ExplainedLine[]): void;
   combat(started: boolean): void;
@@ -71,6 +71,8 @@ export interface ControllerOptions {
   monsterDelayMs?: number;
   /** Demo: heroes fight on their own, too. */
   autoHeroes?: boolean;
+  /** Old behaviour: heroes explore in turns as well (default: everyone at the same time). */
+  turnBasedExplore?: boolean;
 }
 
 export class GameController {
@@ -344,6 +346,36 @@ export class GameController {
             lines.push(`👁️ ${actor.name} entdeckt einen verborgenen Teil der Umgebung.`);
           }
           break;
+        case "exposed":
+          addEffect(actor, "distracted", 99, actor.id);
+          lines.push(`😬 Rückschlag: ${actor.name} gibt sich eine Blöße – der nächste Angriff auf ${actor.name} hat Vorteil.`);
+          break;
+        case "fall":
+          if (this.mode === "combat" && addCondition(actor, { id: "prone" })) lines.push(`🤕 Rückschlag: ${actor.name} stolpert und liegt am Boden.`);
+          break;
+        case "fumble":
+          addEffect(actor, "hampered", 2, actor.id);
+          lines.push(`🤦 Rückschlag: ${actor.name} behindert sich selbst – eigene Angriffe haben Nachteil bis nach dem nächsten Zug.`);
+          break;
+        case "hurt": {
+          const roll = rollDice(this.rng, parseDice(e.severity === "mittel" ? "1d6" : "1d4"));
+          const dmg = Math.min(roll.total, Math.max(0, actor.hp - 1));
+          if (dmg > 0) applyDamage(this.rng, actor, dmg);
+          lines.push(`🩸 Rückschlag: ${actor.name} verletzt sich und verliert ${dmg} Trefferpunkte.`);
+          break;
+        }
+        case "lose_gold": {
+          const amount = Math.min(this.partyGold(), rollDice(this.rng, parseDice("1d6")).total);
+          if (amount > 0 && this.spendGold(amount)) lines.push(`💸 Rückschlag: Die Gruppe verliert ${amount} Gold.`);
+          break;
+        }
+        case "enrage": {
+          const t = enemy(e.target);
+          if (!t) break;
+          addEffect(t, "enraged", 99, actor.id);
+          lines.push(`😡 Rückschlag: ${t.name} wird wütend – Vorteil auf den nächsten Angriff.`);
+          break;
+        }
         case "cost": {
           const roll = rollDice(this.rng, parseDice("1d4"));
           const dmg = Math.min(roll.total, Math.max(0, actor.hp - 1));
@@ -379,6 +411,47 @@ export class GameController {
     return c ? this.battle.creatures[c.order[c.turnIndex]!.creatureId] : undefined;
   }
 
+  // ---------------------------------------------------------------- free exploration
+
+  /** Outside fights everyone may act at the same time; the TV handles actions in arrival order. */
+  get freeExplore(): boolean {
+    return this.mode === "explore" && !this.opts.turnBasedExplore;
+  }
+
+  /** May this hero act right now? */
+  private isMine(c: Creature): boolean {
+    if (this.freeExplore) return isActive(c);
+    return this.active()?.id === c.id;
+  }
+
+  /** The turn budget of this hero right now (in free exploration everyone has a fresh one). */
+  private turnFor(c: Creature): TurnState | undefined {
+    const combat = this.battle.combat;
+    if (!combat) return undefined;
+    if (combat.turn.creatureId === c.id) return combat.turn;
+    return this.freeExplore ? newTurn(c) : combat.turn;
+  }
+
+  /** Free exploration: this hero acts now, with fresh movement for this action. */
+  private takeExploreTurn(hero: Creature): void {
+    const combat = this.battle.combat;
+    if (!combat) return;
+    const idx = combat.order.findIndex((o) => o.creatureId === hero.id);
+    if (idx < 0) return;
+    combat.turnIndex = idx;
+    combat.turn = newTurn(hero);
+  }
+
+  /** Actions that arrived while someone else was rolling: handled right after, in order. */
+  private deferred: { playerId: PlayerId; action: PlayerAction }[] = [];
+
+  private flushDeferred(): void {
+    while (this.deferred.length && !this.pending) {
+      const next = this.deferred.shift()!;
+      this.handle(next.playerId, next.action);
+    }
+  }
+
   // ---------------------------------------------------------------- turns
 
   /** Exploration: the heroes take turns in party order. */
@@ -397,6 +470,10 @@ export class GameController {
   }
 
   announceTurn(): void {
+    if (this.freeExplore) {
+      this.emit("turn", "Freies Erkunden – alle gleichzeitig", undefined, true);
+      return;
+    }
     const c = this.active();
     if (!c) return;
     this.emit("turn", c.name, c.appearance?.color ?? (c.side === "enemy" ? "#b03030" : undefined));
@@ -604,10 +681,19 @@ export class GameController {
       const pending = this.pending;
       this.pending = undefined;
       const result = pending.run();
+      queueMicrotask(() => this.flushDeferred());
       if ("error" in result) this.sendTo(playerId, { type: "action_error", reason: result.error });
       else this.publishRoll(result);
       this.afterAction();
       return;
+    }
+    if (this.freeExplore && isActive(hero) && this.active()?.id !== hero.id) {
+      // Someone else is rolling: this action waits and then runs (nothing is lost or cut off).
+      if (this.pending) {
+        if (this.deferred.length < 12) this.deferred.push({ playerId, action });
+        return;
+      }
+      this.takeExploreTurn(hero);
     }
     if (this.active()?.id !== hero.id) {
       this.sendTo(playerId, { type: "action_error", reason: `${this.active()?.name ?? "Jemand anderes"} ist gerade dran.` });
@@ -747,6 +833,11 @@ export class GameController {
     if (this.checkWinner()) return;
     if (this.checkCombatStart()) return;
     // Revealed rooms from spells like fire bolt don't exist, but death and moves change the board.
+    // Free exploration has no turns to pass on – just show everyone the new state.
+    if (this.freeExplore) {
+      this.broadcast();
+      return;
+    }
     const turn = this.battle.combat?.turn;
     const c = this.active();
     // Nothing left to do → next turn automatically.
@@ -1002,8 +1093,9 @@ export class GameController {
     const me = this.heroOf(playerId);
     if (!me) return undefined;
     const active = this.active();
-    const turn = this.battle.combat?.turn;
-    const mine = active?.id === me.id;
+    const turn = this.turnFor(me);
+    const mine = this.isMine(me);
+    const free = this.freeExplore;
     const roomIndex = me.pos ? (this.map.roomOf[cellIndex(this.map, me.pos.x, me.pos.y)] ?? -1) : -1;
     const order = this.orderEntries();
     const view: PlayerView = {
@@ -1011,10 +1103,11 @@ export class GameController {
       mode: this.mode,
       round: this.battle.combat?.round ?? 1,
       turn: {
-        activeId: active?.id ?? "",
-        activeName: active?.name ?? "",
-        ...(active?.appearance ? { activeColor: active.appearance.color } : {}),
+        activeId: free ? me.id : (active?.id ?? ""),
+        activeName: free ? "Alle" : (active?.name ?? ""),
+        ...(!free && active?.appearance ? { activeColor: active.appearance.color } : {}),
         mine,
+        ...(free ? { free: true } : {}),
         movementLeftFt: mine ? (turn?.movementLeftFt ?? 0) : 0,
         actions: mine ? (turn?.actions ?? 0) + (turn?.attacksLeft ?? 0) : 0,
         bonusAction: mine ? (turn?.bonusAction ?? false) : false,
@@ -1089,7 +1182,7 @@ export class GameController {
 
   /** Squares reachable with the movement left (8 directions, around creatures and obstacles). */
   reachable(me: Creature): GridPos[] {
-    const turn = this.battle.combat?.turn;
+    const turn = this.turnFor(me);
     const steps = Math.floor((turn?.movementLeftFt ?? 0) / 5) - (hasCondition(me, "prone") ? Math.ceil(me.speedFt / 10) : 0);
     if (!me.pos || steps <= 0) return [];
     // Large creatures cover several squares.
@@ -1339,7 +1432,7 @@ export class GameController {
 
   private choicesFor(me: Creature, mine: boolean, beginnerMode: boolean): ActionChoice[] {
     const pc = me.pc!;
-    const turn = this.battle.combat?.turn;
+    const turn = this.turnFor(me);
     const hasAction = mine && ((turn?.actions ?? 0) > 0 || (turn?.attacksLeft ?? 0) > 0);
     const hasBonus = mine && !!turn?.bonusAction;
     const notMine = mine ? undefined : "Warte, bis du dran bist.";
@@ -1533,7 +1626,7 @@ export class GameController {
     } else {
       choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: "Beschreibe, was du tun willst", glossarKey: "freie_aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "free_text", text: "" } });
     }
-    choices.push({ id: "end", group: "end", label: "Zug beenden", detail: "Der Nächste ist dran", glossarKey: "zug_beenden", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "end_turn" } });
+    if (!this.freeExplore) choices.push({ id: "end", group: "end", label: "Zug beenden", detail: "Der Nächste ist dran", glossarKey: "zug_beenden", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "end_turn" } });
 
     if (beginnerMode && mine) this.recommend(me, choices);
     return choices;

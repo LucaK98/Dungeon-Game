@@ -24,6 +24,9 @@ export interface DiceOverlay {
   /** The TV sent the result for this roll. */
   land(result: RollOutcome): void;
   close(): void;
+  isOpen(): boolean;
+  /** Called once when the window closes (tap on "Weiter" or close()). */
+  onClosed(cb: () => void): void;
 }
 
 /** Shows the roll screen. `onRoll` is called when the player taps the die. */
@@ -38,6 +41,7 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
   document.body.append(overlay);
 
   let rolling: ReturnType<typeof setInterval> | undefined;
+  const closedCbs: (() => void)[] = [];
   let rolled = false;
   let pendingResult: RollOutcome | undefined;
   let started = 0;
@@ -81,7 +85,16 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
     },
     close() {
       if (rolling) clearInterval(rolling);
+      if (!overlay.isConnected) return;
       overlay.remove();
+      closedCbs.splice(0).forEach((cb) => cb());
+    },
+    isOpen() {
+      return overlay.isConnected;
+    },
+    onClosed(cb) {
+      if (overlay.isConnected) closedCbs.push(cb);
+      else cb();
     },
   };
   done.addEventListener("click", api.close);

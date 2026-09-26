@@ -150,17 +150,21 @@ describe("effect toolbox (rules)", () => {
 });
 
 describe("degrees of success", () => {
-  it("allows 1 effect, 2 on a big success, a price on a near miss, nothing on a clear miss", () => {
+  it("allows 1 effect, 2 on a big success, a price on a near miss, a setback on a clear miss", () => {
     expect(rollAllowance(roll(13))).toEqual({ max: 1, cost: false });
     expect(rollAllowance(roll(18))).toEqual({ max: 2, cost: false });
     expect(rollAllowance(roll(11))).toEqual({ max: 1, cost: true });
-    expect(rollAllowance(roll(9))).toEqual({ max: 0, cost: false });
+    expect(rollAllowance(roll(9))).toEqual({ max: 1, cost: false });
     const c = ctx(bandits);
     const two = [{ kind: "distract" as const, target: "m1" }, { kind: "prone" as const, target: "m2" }];
     expect(filterEffects(two, c, roll(18))).toHaveLength(2);
     expect(filterEffects(two, c, roll(14))).toHaveLength(1);
     expect(filterEffects(two, c, roll(12))).toEqual([{ kind: "distract", target: "m1" }, { kind: "cost" }]);
+    // Clear miss: good effects are dropped, only a setback is allowed.
     expect(filterEffects(two, c, roll(5))).toEqual([]);
+    expect(filterEffects([{ kind: "distract", target: "m1" }, { kind: "exposed" }], c, roll(5))).toEqual([{ kind: "exposed" }]);
+    // …and setbacks never happen on a success.
+    expect(filterEffects([{ kind: "exposed" }], c, roll(15))).toEqual([]);
     // Without a roll only helping and cover.
     expect(filterEffects([{ kind: "flee" }, { kind: "cover" }], c, free("x"))).toEqual([{ kind: "cover" }]);
     // Fight effects only in a fight.
@@ -249,5 +253,56 @@ describe("free actions (AI answers are checked)", () => {
   it("returns ideas for the idea button", () => {
     const res = coerceAiAnswer({ ideas: ["Ich schmeichle dem Oger", "Ich werfe Brot über die Brücke", "Ich singe ein Lied", "a", "b"] }, STORY, ctx(), { kind: "suggest", playerId: "p1", heroName: "Pip" }, base);
     expect(res.ideas).toHaveLength(4);
+  });
+});
+
+describe("setbacks: something always happens", () => {
+  it("the rules carry out every setback", async () => {
+    const { game, hero } = await gameInFight([{ monster: "bandit", count: 3, name: "Räuber" }]);
+    const battle = game.session.battle;
+    const enemy = battle.creatures[game.enemiesInFight()[0]!.id]!;
+    game.applyEffects([{ kind: "exposed" }], hero);
+    expect(attackReasons(battle, enemy, hero, enemy.attacks[0]!).some((r) => r.glossarKey === "abgelenkt")).toBe(true);
+    game.applyEffects([{ kind: "fumble" }], hero);
+    expect(attackReasons(battle, hero, enemy, hero.attacks[0]!).some((r) => r.glossarKey === "behindert")).toBe(true);
+    game.applyEffects([{ kind: "enrage", target: enemy.id }], hero);
+    expect(attackReasons(battle, enemy, hero, enemy.attacks[0]!).some((r) => r.glossarKey === "wuetend" && r.effect === "advantage")).toBe(true);
+    game.applyEffects([{ kind: "fall" }], hero);
+    expect(hero.conditions.some((c) => c.id === "prone")).toBe(true);
+    game.giveItem("gold", 10, hero);
+    const gold = game.partyGold();
+    game.applyEffects([{ kind: "lose_gold" }], hero);
+    expect(game.partyGold()).toBeLessThan(gold);
+    hero.hp = 3;
+    game.applyEffects([{ kind: "hurt", severity: "mittel" }], hero);
+    expect(hero.hp).toBeGreaterThanOrEqual(1);
+    expect(hero.hp).toBeLessThan(3);
+    game.destroy();
+  });
+
+  it("the scripted narrator picks a fitting setback for a clear miss", async () => {
+    const dm = new ScriptedDM(STORY);
+    const cases: [string, string, string][] = [
+      ["Ich stoße Räuber 1 um", "athletics", "fall"],
+      ["Ich werfe Räuber 2 Sand in die Augen", "sleight-of-hand", "fumble"],
+      ["Ich biete den Räubern Gold an", "persuasion", "lose_gold"],
+      ["Ich brülle sie an und verjage sie", "intimidation", "enrage"],
+      ["Ich mache Räuber 2 schöne Augen", "persuasion", "exposed"],
+    ];
+    for (const [text, skill, kind] of cases) {
+      const res = await dm.respond(ctx(bandits), { ...roll(4, 13, text), skill });
+      expect(res.effects?.[0]?.kind, text).toBe(kind);
+      expect(res.narration).toMatch(/schief/);
+    }
+    const search = await dm.respond(ctx(), { ...roll(3, 12, "Ich durchsuche die Kisten"), skill: "investigation" });
+    expect(search.effects?.[0]).toEqual({ kind: "hurt", severity: "leicht" });
+  });
+
+  it("the AI may only use setbacks on a clear miss", () => {
+    const base = { narration: "", next: "await_action" as const };
+    const miss = coerceAiAnswer({ narration: "Der Räuber lacht!", effects: [{ name: "wuetend", target: "m1" }, { name: "bestechen", target: "alle" }] }, STORY, ctx(bandits), roll(4), base);
+    expect(miss.effects).toEqual([{ kind: "enrage", target: "m1" }]);
+    const win = coerceAiAnswer({ narration: "x", effects: [{ name: "wuetend", target: "m1" }] }, STORY, ctx(bandits), roll(15), base);
+    expect(win.effects).toBeUndefined();
   });
 });

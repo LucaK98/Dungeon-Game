@@ -101,8 +101,9 @@ export function scriptedRollResult(ctx: DmContext, trigger: Extract<DmTrigger, {
   const margin = trigger.total - trigger.dc;
   const hero = trigger.heroName;
   const nearMiss = !trigger.success && margin >= -2;
-  const intro = trigger.success ? (margin >= 5 ? "Großartig geschafft!" : "Geschafft!") : nearMiss ? "Knapp! Es klappt – aber nicht ohne Preis." : "Leider nicht.";
-  if (!rule || (!trigger.success && !nearMiss)) return respond([line(`${intro} ${trigger.success ? `${hero} gelingt es.` : `${hero} versucht es, aber es klappt nicht.`}`)]);
+  const intro = trigger.success ? (margin >= 5 ? "Großartig geschafft!" : "Geschafft!") : nearMiss ? "Knapp! Es klappt – aber nicht ohne Preis." : "Das geht schief!";
+  if (!rule) return respond([line(`${intro} ${trigger.success ? `${hero} gelingt es.` : `${hero} versucht es, aber es klappt nicht.`}`)]);
+  if (!trigger.success && !nearMiss) return setback(rule.intent, ctx, trigger);
 
   const enemies = ctx.combat?.enemies ?? [];
   const named = mentioned(trigger.text, enemies);
@@ -156,6 +157,42 @@ export function scriptedRollResult(ctx: DmContext, trigger: Extract<DmTrigger, {
   }
   if (rule.intent === "befriend") return respond([line(trigger.success ? `${intro} Das kommt gut an.` : intro)]);
   return respond([line(intro)], { effects });
+}
+
+/** A clearly failed attempt: something goes wrong, fitting to what was tried. */
+function setback(intent: Intent, ctx: DmContext, trigger: Extract<DmTrigger, { kind: "roll_result" }>): DmResponse {
+  const hero = trigger.heroName;
+  const enemies = ctx.combat?.enemies ?? [];
+  const named = mentioned(trigger.text, enemies) ?? enemies[0];
+  const gold = (ctx.gold ?? 0) > 0;
+  const pick = (): [string, DmEffect | undefined] => {
+    switch (intent) {
+      case "push":
+        return [`${hero} rutscht aus und landet selbst auf dem Boden!`, { kind: "fall" }];
+      case "blind":
+        return [`Der Wind dreht – ${hero} bekommt den Sand selbst in die Augen!`, { kind: "fumble" }];
+      case "hazard":
+        return [`Das geht nach hinten los – ${hero} klemmt sich die Finger und verletzt sich!`, { kind: "hurt", severity: "mittel" }];
+      case "bribe":
+        return gold ? [`${named?.name ?? "Der Gegner"} schnappt sich das Gold – und kämpft trotzdem weiter!`, { kind: "lose_gold" }] : [`${named?.name ?? "Der Gegner"} lacht nur.`, named ? { kind: "enrage", target: named.id } : undefined];
+      case "surrender":
+      case "scare":
+        return [`${named?.name ?? "Der Gegner"} lacht ${hero} aus und greift jetzt erst recht an!`, named ? { kind: "enrage", target: named.id } : undefined];
+      case "charm":
+      case "trick":
+        return [`${named?.name ?? "Der Gegner"} fällt nicht darauf herein – und ${hero} steht plötzlich ungeschützt da!`, { kind: "exposed" }];
+      case "search":
+        return [`Autsch! ${hero} greift in etwas Spitzes.`, { kind: "hurt", severity: "leicht" }];
+      case "door":
+        return [`Das Schloss schnappt zu – ${hero} klemmt sich die Finger.`, { kind: "hurt", severity: "leicht" }];
+      case "reveal":
+        return [`${hero} rutscht beim Klettern ab und schürft sich auf.`, { kind: "hurt", severity: "leicht" }];
+      default:
+        return [`${hero} versucht es, aber es klappt nicht.`, undefined];
+    }
+  };
+  const [text, effect] = pick();
+  return respond([line(`Das geht schief! ${text}`)], effect ? { effects: [effect] } : {});
 }
 
 /** "Was könnte ich tun?" without AI: ideas that the keywords above understand. */

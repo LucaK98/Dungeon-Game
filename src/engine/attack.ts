@@ -101,6 +101,7 @@ export function attackReasons(battle: Battle, attacker: Creature, target: Creatu
   if (hasEffect(target, "distracted")) r.push(advantage("Ziel ist abgelenkt", "abgelenkt"));
   if (hasEffect(attacker, "helped")) r.push(advantage("Ein Freund hilft dir", "helfen"));
   if (hasEffect(attacker, "hampered")) r.push(disadvantage("Du bist behindert (entwaffnet, geblendet …)", "behindert"));
+  if (hasEffect(attacker, "enraged")) r.push(advantage("Wütend: greift mit voller Wucht an", "wuetend"));
 
   if (ranged) {
     const enemyNear = Object.values(battle.creatures).some(
@@ -168,7 +169,7 @@ export function resolveAttack(
 
   // Guiding bolt's light is used up by the next attack.
   target.effects = target.effects.filter((e) => e.id !== "guiding-bolt" && e.id !== "distracted");
-  attacker.effects = attacker.effects.filter((e) => e.id !== "helped");
+  attacker.effects = attacker.effects.filter((e) => e.id !== "helped" && e.id !== "enraged");
 
   let crit = roll.natural >= critThreshold(attacker);
   const fumble = roll.natural === 1;

@@ -79,7 +79,9 @@ export type EffectId =
   /** Disarmed, blinded, tangled up: its attacks have disadvantage. */
   | "hampered"
   /** Behind cover: +2 armour class. */
-  | "cover";
+  | "cover"
+  /** Angered by a failed trick: advantage on its next attack. */
+  | "enraged";
 
 export interface ActiveEffect {
   id: EffectId;

@@ -9,7 +9,7 @@ import type { Ending, Scene, Story } from "../../shared/story";
 import { actOf, sceneById } from "../planner";
 import { pickEnding } from "../scripted";
 import { canFlee } from "../combat-tricks";
-import { allowedEffectNames, BRIBE_PER_ENEMY, EFFECT_HELP } from "../effects";
+import { allowedEffectNames, BRIBE_PER_ENEMY, EFFECT_HELP, isClearMiss, SETBACK_HELP } from "../effects";
 import { resolveClue } from "../validate";
 
 export { canFlee };
@@ -29,7 +29,7 @@ So erzählst du:
 - Freie Aktionen sollen sich frei anfühlen: Belohne kreative Ideen! Bestechen, überreden, betören und verführen (charmant und familienfreundlich), einschüchtern, austricksen, die Umgebung nutzen – alles ist erlaubt.
 - Was wirklich passiert, bestimmen die EFFEKTE (Liste im Kontext). Das Programm führt sie aus: Schaden, Gold, Trefferpunkte, Kampfende. Erzähle genau das, was deine Effekte bewirken – nicht mehr. Ohne Effekt passiert spielerisch nichts, das Programm rechnet nichts.
 - Im Kampf entscheidet über normale Treffer nur das Programm (Knöpfe „Angreifen“ und „Zaubern“). Will ein Held einfach angreifen, sag ihm freundlich, dass er dafür „⚔️ Angreifen“ nutzt. Erfinde keinen Schaden außer über den Effekt „umgebung“.
-- Proben und Erfolgsgrade: Tricks brauchen eine Probe (nur „helfen“ und „deckung“ gehen ohne). Ist die Probe gelungen, wähle 1 Effekt, bei großem Erfolg (5 über dem SG) bis zu 2. Knapp verfehlt (1–2 darunter) heißt „Ja, aber“: 1 Effekt, doch der Held zahlt einen kleinen Preis (das Programm zieht ihm ein paar Trefferpunkte ab) – erzähle beides. Klar verfehlt: kein Effekt, aber eine lustige oder spannende Folge.
+- Proben und Erfolgsgrade: Tricks brauchen eine Probe (nur „helfen“ und „deckung“ gehen ohne). Ist die Probe gelungen, wähle 1 Effekt, bei großem Erfolg (5 über dem SG) bis zu 2. Knapp verfehlt (1–2 darunter) heißt „Ja, aber“: 1 Effekt, doch der Held zahlt einen kleinen Preis (das Programm zieht ihm ein paar Trefferpunkte ab) – erzähle beides. Klar verfehlt: Es geht etwas schief! Wähle dann genau 1 Rückschlag aus der Liste (Blöße, hinfallen, Patzer, wütender Gegner, verletzt, Gold verloren) und erzähle ihn lebendig. Freie Aktionen haben IMMER Folgen – gute oder schlechte.
 - Anführer und Endgegner lassen sich nicht bestechen, betören, umstoßen oder verjagen – ablenken und die Umgebung wirken aber.
 - Nebenfiguren merken sich, wie man sie behandelt: Mit npc_attitude (−2 bis +2) veränderst du ihre Haltung. Freundliche Figuren machen spätere Proben in ihrer Szene leichter, feindliche schwerer.
 - Greife die CHRONIK auf: Erinnere an frühere Taten der Helden, wenn es passt.
@@ -120,7 +120,7 @@ export function buildPrompt(story: Story, ctx: DmContext, trigger: DmTrigger, sc
       : "",
     story.npcs.length ? `FIGUREN-IDS (für npc_attitude): ${story.npcs.map((n) => `${n.id} = ${n.name}`).join(", ")}` : "",
     allowedEffectNames(ctx, trigger).length
-      ? `EFFEKTE (Name: Wirkung): ${allowedEffectNames(ctx, trigger).map((n) => `${n}: ${EFFECT_HELP[n]!.text}`).join(" | ")}. Ziele: Gegner-id aus KAMPF, Helden-id aus HELDEN-IDS, oder „alle“.`
+      ? `${isClearMiss(trigger) ? "RÜCKSCHLÄGE (wähle genau einen)" : "EFFEKTE"} (Name: Wirkung): ${allowedEffectNames(ctx, trigger).map((n) => `${n}: ${(EFFECT_HELP[n] ?? SETBACK_HELP[n])!.text}`).join(" | ")}. Ziele: Gegner-id aus KAMPF, Helden-id aus HELDEN-IDS, oder „alle“.`
       : "",
     `HELDEN-IDS: ${ctx.players.map((p) => `${p.id} = ${p.name}`).join(", ")}`,
     `ZEIT: ${Math.round(ctx.minutesPlayed)} von geplant ${Math.round(ctx.minutesPlanned)} Minuten bis Ende dieser Szene`,

@@ -101,7 +101,14 @@ export type DmEffect =
   | { kind: "open_door" }
   | { kind: "reveal" }
   // "yes, but": the acting hero pays a small price (1W4 damage, never knocked out)
-  | { kind: "cost" };
+  | { kind: "cost" }
+  // setbacks after a clearly failed attempt
+  | { kind: "exposed" }
+  | { kind: "fall" }
+  | { kind: "fumble" }
+  | { kind: "hurt"; severity: "leicht" | "mittel" }
+  | { kind: "lose_gold" }
+  | { kind: "enrage"; target: string };
 
 export interface DungeonMaster {
   respond(ctx: DmContext, trigger: DmTrigger): Promise<DmResponse>;

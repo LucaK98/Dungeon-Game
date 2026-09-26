@@ -7,7 +7,7 @@
  *   no roll      → only "helfen" or "deckung" (no dice needed)
  *   success      → 1 effect, 2 if the roll beat the DC by 5 or more
  *   near miss    → (missed by 1–2) 1 effect, but the hero pays a price ("ja, aber")
- *   clear miss   → nothing happens
+ *   clear miss   → a setback: something goes wrong (never nothing at all)
  */
 import type { DmContext, DmEffect, DmTrigger } from "../shared/dm";
 import { canFlee } from "./combat-tricks";
@@ -34,11 +34,32 @@ export const EFFECT_HELP: Record<string, { combat: boolean; text: string }> = {
   entdecken: { combat: false, text: "ein verborgener Teil der Umgebung wird sichtbar" },
 };
 
+/** Setbacks for a clearly failed attempt ("Rückschläge"). */
+export const SETBACK_HELP: Record<string, { combat: boolean | "both"; text: string }> = {
+  blosse: { combat: true, text: "der Held gibt sich eine Blöße: der nächste Angriff auf ihn hat Vorteil" },
+  hinfallen: { combat: true, text: "der Held fällt selbst hin (liegt am Boden)" },
+  patzer: { combat: true, text: "der Held behindert sich selbst: seine Angriffe haben bis nach seinem nächsten Zug Nachteil" },
+  wuetend: { combat: true, text: "ein Gegner wird wütend: Vorteil auf seinen nächsten Angriff" },
+  verletzt: { combat: "both", text: "der Held verletzt sich (leicht 1W4, mittel 1W6 Schaden, nie bewusstlos)" },
+  gold_verloren: { combat: "both", text: "die Gruppe verliert 1W6 Gold" },
+};
+
 const NO_ROLL = new Set(["helfen", "deckung"]);
+
+/** A clearly failed roll: only setbacks are allowed. */
+export function isClearMiss(trigger: DmTrigger): boolean {
+  return trigger.kind === "roll_result" && !trigger.success && trigger.total - trigger.dc < -2;
+}
 
 /** Effect names the DM may use for this trigger (for the AI schema). */
 export function allowedEffectNames(ctx: DmContext, trigger: DmTrigger): string[] {
   const fighting = !!ctx.combat?.enemies.length;
+  if (isClearMiss(trigger)) {
+    return Object.entries(SETBACK_HELP)
+      .filter(([, e]) => e.combat === "both" || e.combat === fighting)
+      .map(([name]) => name)
+      .filter((name) => name !== "gold_verloren" || (ctx.gold ?? 0) > 0);
+  }
   const names = Object.entries(EFFECT_HELP)
     .filter(([, e]) => e.combat === fighting)
     .map(([name]) => name)
@@ -56,7 +77,7 @@ export function rollAllowance(trigger: DmTrigger): { max: number; cost: boolean 
   const margin = trigger.total - trigger.dc;
   if (trigger.success) return { max: margin >= 5 ? 2 : 1, cost: false };
   if (margin >= -2) return { max: 1, cost: true };
-  return { max: 0, cost: false };
+  return { max: 1, cost: false }; // one setback
 }
 
 /** Name + target from the AI → a DmEffect (or undefined if it makes no sense). */
@@ -105,12 +126,28 @@ export function effectFromName(name: string, target: string | undefined, ctx: Dm
       return { kind: "open_door" };
     case "entdecken":
       return { kind: "reveal" };
+    case "blosse":
+      return { kind: "exposed" };
+    case "hinfallen":
+      return { kind: "fall" };
+    case "patzer":
+      return { kind: "fumble" };
+    case "verletzt":
+      return { kind: "hurt", severity: severity === "mittel" || severity === "schwer" ? "mittel" : "leicht" };
+    case "gold_verloren":
+      return (ctx.gold ?? 0) > 0 ? { kind: "lose_gold" } : undefined;
+    case "wuetend": {
+      const t = enemy ?? enemies[0];
+      return t ? { kind: "enrage", target: t.id } : undefined;
+    }
     default:
       return undefined;
   }
 }
 
-const COMBAT_KINDS = new Set<DmEffect["kind"]>(["distract", "prone", "hamper", "help", "cover", "hazard", "flee", "pacify"]);
+const COMBAT_KINDS = new Set<DmEffect["kind"]>(["distract", "prone", "hamper", "help", "cover", "hazard", "flee", "pacify", "exposed", "fall", "fumble", "enrage"]);
+const SETBACK_KINDS = new Set<DmEffect["kind"]>(["exposed", "fall", "fumble", "hurt", "lose_gold", "enrage"]);
+const BOTH_KINDS = new Set<DmEffect["kind"]>(["help", "hurt", "lose_gold"]);
 const NO_ROLL_KINDS = new Set<DmEffect["kind"]>(["help", "cover"]);
 
 /** Final check of a DM answer's effects against the roll and the situation. */
@@ -118,9 +155,12 @@ export function filterEffects(effects: DmEffect[] | undefined, ctx: DmContext, t
   const { max, cost } = rollAllowance(trigger);
   if (!max) return [];
   const fighting = !!ctx.combat?.enemies.length;
+  const miss = isClearMiss(trigger);
   const ok = (effects ?? [])
     .filter((e) => e.kind !== "cost")
-    .filter((e) => (e.kind === "help" ? true : COMBAT_KINDS.has(e.kind) === fighting))
+    // Clear miss: only setbacks. Otherwise: no setbacks.
+    .filter((e) => SETBACK_KINDS.has(e.kind) === miss)
+    .filter((e) => (BOTH_KINDS.has(e.kind) ? true : COMBAT_KINDS.has(e.kind) === fighting))
     .filter((e) => trigger.kind !== "free_text" || NO_ROLL_KINDS.has(e.kind))
     .filter((e) => e.kind !== "flee" || canFlee(ctx))
     .slice(0, max);

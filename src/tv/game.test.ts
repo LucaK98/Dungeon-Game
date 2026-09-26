@@ -5,7 +5,7 @@ import type { GameEvent } from "../shared/events";
 import { GameController } from "./game";
 import { createSession } from "./session";
 
-function setup(seed = 4) {
+function setup(seed = 4, opts: { free?: boolean } = {}) {
   const rng = seededRng(seed);
   const session = createSession(rng, {
     players: [
@@ -15,11 +15,58 @@ function setup(seed = 4) {
     plan: { path: ["burghof", "gang_gerade", "wachstube"] },
   });
   const sent: { to: string | "all"; event: GameEvent }[] = [];
-  const game = new GameController(session, rng, (to, event) => sent.push({ to, event }), (event) => sent.push({ to: "all", event }));
+  const game = new GameController(session, rng, (to, event) => sent.push({ to, event }), (event) => sent.push({ to: "all", event }), { turnBasedExplore: !opts.free });
   game.start();
   const last = (to: string, type: GameEvent["type"]) => [...sent].reverse().find((s) => s.to === to && s.event.type === type)?.event;
   return { game, session, sent, last };
 }
+
+describe("free exploration (everyone at the same time)", () => {
+  it("lets every hero act without waiting for a turn", () => {
+    const { last } = setup(4, { free: true });
+    const v1 = last("p1", "state_update");
+    const v2 = last("p2", "state_update");
+    expect(v1?.type === "state_update" && v1.state.turn.mine && v1.state.turn.free).toBe(true);
+    expect(v2?.type === "state_update" && v2.state.turn.mine && v2.state.turn.free).toBe(true);
+    expect(v2?.type === "state_update" && v2.state.choices.some((c) => c.id === "end")).toBe(false);
+  });
+
+  it("handles moves of different players one after another, none is cut off", () => {
+    const { game, last } = setup(4, { free: true });
+    const reach = (pid: string) => {
+      const v = last(pid, "state_update");
+      return v?.type === "state_update" ? v.state.minimap.reachable : [];
+    };
+    const p1 = game.heroOf("p1")!;
+    const p2 = game.heroOf("p2")!;
+    const to2 = reach("p2").find((q) => q.x !== p2.pos!.x || q.y !== p2.pos!.y)!;
+    game.handle("p2", { kind: "move", to: to2 });
+    expect(p2.pos).toEqual(to2);
+    const to1 = reach("p1").find((q) => (q.x !== p1.pos!.x || q.y !== p1.pos!.y) && (q.x !== to2.x || q.y !== to2.y))!;
+    game.handle("p1", { kind: "move", to: to1 });
+    expect(p1.pos).toEqual(to1);
+    // p2 can go on right away, with fresh movement.
+    const again = reach("p2").find((q) => q.x !== p2.pos!.x || q.y !== p2.pos!.y)!;
+    game.handle("p2", { kind: "move", to: again });
+    expect(p2.pos).toEqual(again);
+  });
+
+  it("queues an action while someone else is rolling and runs it afterwards", async () => {
+    const { game, last } = setup(4, { free: true });
+    game.handle("p1", { kind: "check", skill: "perception" });
+    const roll = last("p1", "request_roll");
+    expect(roll).toBeDefined();
+    const p2 = game.heroOf("p2")!;
+    const v2 = last("p2", "state_update");
+    const to = (v2?.type === "state_update" ? v2.state.minimap.reachable : []).find((q) => q.x !== p2.pos!.x || q.y !== p2.pos!.y)!;
+    const before = { ...p2.pos! };
+    game.handle("p2", { kind: "move", to });
+    expect(p2.pos).toEqual(before); // waits
+    game.handle("p1", { kind: "roll", rollId: roll!.type === "request_roll" ? roll!.prompt.id : "" });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(p2.pos).toEqual(to); // done right after the roll
+  });
+});
 
 describe("game controller", () => {
   it("sends every phone its own view and starts with the first hero", () => {

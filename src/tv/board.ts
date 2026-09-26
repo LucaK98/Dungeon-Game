@@ -78,7 +78,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         game.events.emit("order", c.mode === "combat" ? c.orderEntries() : []);
         if (c.storyView) game.events.emit("chapter", c.storyView.chapter);
       },
-      turn: (name, color) => game.events.emit("turn", name, color),
+      turn: (name, color, free) => game.events.emit("turn", name, color, free),
       roll: (r) => {
         game.events.emit("roll", r);
         if (scene.sys.isActive() && r.hits?.length) scene.showHits(r.hits);

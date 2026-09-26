@@ -44,7 +44,7 @@ export class UiScene extends Phaser.Scene {
     this.aiBadge = this.add.text(BOARD_WIDTH - 24, BOARD_HEIGHT - 20, "", { fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 }).setOrigin(1, 1);
 
     const onRoom = (name: string) => this.showBanner(name);
-    const onTurn = (name: string, color?: string) => this.showTurn(name, color);
+    const onTurn = (name: string, color?: string, free?: boolean) => this.showTurn(name, color, free);
     const onRoll = (r: RollOutcome) => this.showRoll(r);
     const onOrder = (entries: OrderEntry[]) => this.showOrder(entries);
     const onCombat = (started: boolean) => started && this.showBanner("⚔️ Kampf!");
@@ -185,8 +185,8 @@ export class UiScene extends Phaser.Scene {
     this.tweens.add({ targets: this.banner, alpha: 0, delay: 2500, duration: 1200 });
   }
 
-  private showTurn(name: string, color?: string): void {
-    this.turnText.setText(`▶ ${name} ist dran`);
+  private showTurn(name: string, color?: string, free?: boolean): void {
+    this.turnText.setText(free ? `🧭 ${name}` : `▶ ${name} ist dran`);
     const w = this.turnText.width + 60;
     this.turnBox.clear();
     this.turnBox.fillStyle(0x000000, 0.65).fillRoundedRect(20, BOARD_HEIGHT - 110, w, 80, 16);

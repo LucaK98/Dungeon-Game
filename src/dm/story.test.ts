@@ -70,6 +70,8 @@ async function playStory(opts: { story?: Story; seed: number; duration: "kurz" |
   const director = new Director(story, state, game, opts.dm ?? new ScriptedDM(story), rng, { duration: opts.duration, ...(opts.slow ? { now: () => clock } : {}), onEnd: (r) => (result = r) });
   const run = director.run();
   let guard = 0;
+  const visited = new Set<string>();
+  let visitedMap: unknown;
   while (!result && guard++ < 20000) {
     await new Promise((r) => setTimeout(r, 0));
     // A slow table: every move takes a minute and a half.
@@ -127,7 +129,20 @@ async function playStory(opts: { story?: Story; seed: number; duration: "kurz" |
     if (game.mode === "combat") goals = creatures.filter((c) => c.side === "enemy" && !c.dead && c.pos).map((c) => c.pos!);
     else {
       const closedChests = map.objects.filter((o) => o.kind === "chest" && o.state !== "open");
-      const npcs = creatures.filter((c) => c.side === "neutral" && c.pos).map((c) => c.pos!);
+      // Visit every character once (no walking back and forth between two of them).
+      if (visitedMap !== map) {
+        visitedMap = map;
+        visited.clear();
+      }
+      for (const c of creatures) if (c.side === "neutral" && c.pos && game.heroes().some((h) => h.pos && Math.max(Math.abs(h.pos.x - c.pos!.x), Math.abs(h.pos.y - c.pos!.y)) <= 1)) visited.add(c.id);
+      // Like a player reading "Ziel: …" on the phone: the current step's target comes first.
+      const dir = director as unknown as { scene?: import("../shared/story").Scene; stepId?: string };
+      const step = dir.scene?.steps.find((st) => st.id === dir.stepId);
+      const target = step?.kind === "reach" && step.target && step.target !== "exit" ? creatures.find((c) => c.id === `npc-${step.target}`) : undefined;
+      const npcs = [
+        ...(target?.pos ? [target.pos] : []),
+        ...creatures.filter((c) => c.side === "neutral" && c.pos && c !== target && !visited.has(c.id)).map((c) => c.pos!),
+      ];
       const lastRoom = map.rooms[map.rooms.length - 1]!;
       goals = [...npcs, ...closedChests.map((o) => ({ x: o.x, y: o.y })), { x: lastRoom.x + Math.floor(lastRoom.w / 2), y: lastRoom.y + Math.floor(lastRoom.h / 2) }];
       // Go to the next goal in the list that isn't reached yet.

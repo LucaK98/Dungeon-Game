@@ -2664,5 +2664,14 @@
       "ruestungsklasse",
       "freie_aktion"
     ]
+  },
+  "wuetend": {
+    "titel": "Wütend",
+    "kurz": "Ein verärgerter Gegner schlägt härter zu.",
+    "lang": "Geht ein Trick gründlich schief – eine Bestechung wird ausgelacht, eine Drohung verpufft –, wird der Gegner wütend: Sein nächster Angriff hat Vorteil. Freie Aktionen haben immer Folgen, gute wie schlechte.",
+    "siehe_auch": [
+      "vorteil",
+      "freie_aktion"
+    ]
   }
 }
