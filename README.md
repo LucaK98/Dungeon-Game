@@ -24,12 +24,12 @@ Zum Testen am Rechner: 1 Tab mit `#/tv`, 2–6 Tabs mit `#/play` in der Handy-An
 
 Ablauf am Fernseher: Titel → (Wie spielt man das?) → Geschichte → Spieldauer → Lobby → Abenteuer → „Was wirklich geschah“.
 
-Mit `?net=local|peer|supabase` wird die Verbindungsart gewählt. Standard: `local` auf `localhost` (mehrere Tabs auf einem Rechner), sonst `peer`.
+Mit `?net=local|peer|supabase` wird die Verbindungsart gewählt. Standard: `local` auf `localhost` (mehrere Tabs auf einem Rechner), sonst `supabase`.
 
-### Mit echten Handys spielen (`peer`)
+### Mit echten Handys spielen (`supabase`, Ersatz: `peer`)
 
 1. Das Spiel auf GitHub Pages öffnen (siehe „Veröffentlichen“) und am Fernseher `#/tv` aufrufen.
-2. Handys scannen den QR-Code. Alle Geräte brauchen Internet: Der kostenlose PeerJS-Server stellt nur den Kontakt her, danach reden Fernseher und Handys direkt miteinander (WebRTC). Ein Konto ist nicht nötig.
+2. Handys scannen den QR-Code oder geben den Code ein. Alle Geräte brauchen Internet: Fernseher und Handys verbinden sich über Supabase Realtime (normale Websocket-Verbindung, funktioniert in jedem WLAN und im Mobilnetz). Mit `&net=peer` geht es alternativ direkt von Gerät zu Gerät über PeerJS – das scheitert aber oft an Routern und Mobilfunknetzen.
 3. Bricht die Verbindung ab, verbindet sich das Handy von selbst neu.
 
 **Wenn ein Handy hängt:** Browser/Tab einfach schließen und das Spiel neu öffnen (QR-Code oder gleiche Adresse). Das Handy bekommt seinen Platz und seine Figur zurück – auch mitten im Kampf, auch wenn gerade ein Wurf offen ist. Hat das Handy seine Daten verloren (privater Tab, anderer Browser, anderes Handy), zeigt es „Wer bist du?“ mit allen Helden, deren Handy gerade fehlt – antippen, weiter geht's. Das alte Fenster zeigt dann „Das Spiel ist woanders offen“.

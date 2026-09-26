@@ -2,6 +2,7 @@ import type { NetKind, Transport } from "../shared/transport";
 import type { PlayerId, PlayerInfo } from "../shared/types";
 import { LocalTransport } from "./local";
 import { PeerTransport } from "./peer";
+import { SupabaseTransport } from "./supabase";
 
 /** A transport plus the phone-side extras every implementation offers. */
 export interface GameTransport extends Transport {
@@ -16,8 +17,6 @@ export function createTransport(kind: NetKind, newPlayerId?: () => PlayerId): Ga
     case "peer":
       return new PeerTransport(newPlayerId);
     case "supabase":
-      // SupabaseTransport arrives in B1.
-      console.warn(`Transport "${kind}" gibt es noch nicht, nutze "peer".`);
-      return new PeerTransport(newPlayerId);
+      return new SupabaseTransport(newPlayerId);
   }
 }

@@ -11,10 +11,10 @@ export type Route =
  *   #/tv            → board
  *   #/play?room=ABCD → phone
  * `?net=local|peer|supabase` picks the transport. Without it: `local` on this computer
- * (localhost, several tabs), `peer` everywhere else (real TV + phones).
+ * (localhost, several tabs), `supabase` everywhere else (real TV + phones).
  */
 export function defaultNet(hostname: string): NetKind {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "" ? "local" : "peer";
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "" ? "local" : "supabase";
 }
 
 export function parseRoute(hash: string, fallbackNet: NetKind = "local"): Route {

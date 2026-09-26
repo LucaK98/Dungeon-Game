@@ -21,7 +21,7 @@ describe("parseRoute", () => {
   it("ignores unknown transports", () => {
     expect(parseRoute("#/tv", "peer")).toEqual({ view: "tv", net: "peer", demo: false });
     expect(defaultNet("localhost")).toBe("local");
-    expect(defaultNet("lucak98.github.io")).toBe("peer");
+    expect(defaultNet("lucak98.github.io")).toBe("supabase");
     expect(parseRoute("#/tv?net=carrier-pigeon")).toEqual({ view: "tv", net: "local", demo: false });
   });
 });

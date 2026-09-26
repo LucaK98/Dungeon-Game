@@ -15,6 +15,7 @@
     "import:assets": "tsx scripts/import-assets.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "peerjs": "^1.5.5",
     "phaser": "^3.90.0",
     "qrcode": "^1.5.4"

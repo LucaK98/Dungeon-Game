@@ -18,6 +18,7 @@ SRD-Daten im JSON-Format: [5e-bits/5e-database](https://github.com/5e-bits/5e-da
 - [Phaser](https://phaser.io) (MIT)
 - [Vite](https://vite.dev) (MIT)
 - [Vitest](https://vitest.dev) (MIT)
+- [supabase-js](https://github.com/supabase/supabase-js) (MIT) und Supabase Realtime
 - [PeerJS](https://peerjs.com) (MIT) und der öffentliche PeerJS-Vermittlungsserver
 - [node-qrcode](https://github.com/soldair/node-qrcode) (MIT)
 - [pngjs](https://github.com/pngjs/pngjs) (MIT, nur für das Import-Skript)
