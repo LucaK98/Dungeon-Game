@@ -4,8 +4,8 @@
  */
 import { perform, type ActionOutcome, type CombatAction } from "../engine/actions";
 import { inRange } from "../engine/attack";
-import { addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, squaresOf, startCombat } from "../engine/combat";
-import { savingThrow, skillCheck, sumParts } from "../engine/core";
+import { addCondition, addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, squaresOf, startCombat } from "../engine/combat";
+import { advantage, savingThrow, skillCheck, sumParts } from "../engine/core";
 import { getSpell } from "../engine/data";
 import { averageOf, parseDice, rollDice } from "../engine/dice";
 import { explainCheck, explainDamage, explainDeathSave, explainHp, explainInitiative, explainOutcome, type ExplainedLine } from "../engine/explain";
@@ -17,6 +17,8 @@ import type { Rng } from "../engine/rng";
 import { maxTargets, validateCast } from "../engine/spells";
 import { isWalkable, partyStartSpots, revealAround } from "../map/walk";
 import type { PlayerAction } from "../shared/events";
+import type { DmEffect } from "../shared/dm";
+import { BRIBE_PER_ENEMY } from "../dm/effects";
 import type { Creature, GridPos } from "../shared/game";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
@@ -87,10 +89,16 @@ export class GameController {
   /** Monsters spawned as bosses (they never flee from a trick). */
   private bossIds = new Set<string>();
   /** The last enemies ran away instead of being beaten (changes the victory text). */
-  private enemiesFled = false;
+  private victoryNote: string | undefined;
+  /** Free-action finds and first aid are limited per map. */
+  private findsThisMap = 0;
+  private firstAidThisMap = new Set<string>();
   private waiters: { pred: () => boolean; resolve: () => void }[] = [];
   /** Free text from a phone goes to the DM. */
   onFreeText: ((playerId: PlayerId, hero: Creature, text: string) => void) | undefined;
+  /** Asks the game master for free-action ideas (set by the Director). */
+  onSuggest: ((playerId: PlayerId, hero: Creature) => Promise<string[]>) | undefined;
+  private lastSuggest = new Map<PlayerId, number>();
   /** Items used and chests opened (tutorial step "use_item"). */
   itemUses = 0;
   /** Training fight: nobody dies. */
@@ -158,14 +166,194 @@ export class GameController {
   enemiesFlee(): string[] {
     const fleeing = this.enemiesInFight().filter((e) => !e.boss);
     if (!fleeing.length || fleeing.length !== this.enemiesInFight().length) return [];
-    for (const e of fleeing) delete this.battle.creatures[e.id];
-    this.addLog([{ text: `🏃 ${fleeing.map((e) => e.name).join(", ")} ${fleeing.length > 1 ? "fliehen" : "flieht"}!`, glossarKeys: [] }]);
+    const lines = this.fleeLines();
+    this.addLog(lines.map((text) => ({ text, glossarKeys: [] })));
     // End the fight first, then redraw (the order still lists the creatures that just left).
-    this.enemiesFled = true;
     this.checkWinner();
     this.emit("changed");
     this.broadcast();
     return fleeing.map((e) => e.name);
+  }
+
+  /** All ordinary enemies run away (only if no boss is in the fight). */
+  private fleeLines(): string[] {
+    const fleeing = this.enemiesInFight().filter((e) => !e.boss);
+    if (!fleeing.length || fleeing.length !== this.enemiesInFight().length) return [];
+    for (const e of fleeing) delete this.battle.creatures[e.id];
+    this.victoryNote = "Die Gegner sind geflohen.";
+    return [`🏃 ${fleeing.map((e) => e.name).join(", ")} ${fleeing.length > 1 ? "fliehen" : "flieht"}!`];
+  }
+
+  /** Gold of the whole group. */
+  partyGold(): number {
+    return this.heroes().reduce((sum, h) => sum + (h.pc?.inventory.find((i) => i.itemId === "gold")?.qty ?? 0), 0);
+  }
+
+  private spendGold(amount: number): boolean {
+    if (this.partyGold() < amount) return false;
+    let owed = amount;
+    for (const h of this.heroes()) {
+      const gold = h.pc?.inventory.find((i) => i.itemId === "gold");
+      if (!gold || owed <= 0) continue;
+      const pay = Math.min(gold.qty, owed);
+      gold.qty -= pay;
+      owed -= pay;
+    }
+    return true;
+  }
+
+  private heroByRef(ref: string): Creature | undefined {
+    return this.heroes().find((h) => h.playerId === ref || h.id === ref);
+  }
+
+  /** Objects near a hero, in words (for the game master's ideas). */
+  surroundings(hero: Creature): { name: string; objects: string[] } | undefined {
+    if (!hero.pos) return undefined;
+    const map = this.map;
+    const roomIndex = map.roomOf[cellIndex(map, hero.pos.x, hero.pos.y)] ?? -1;
+    const room = roomIndex >= 0 ? map.rooms[roomIndex] : undefined;
+    const NAMES: Record<string, string> = {
+      chest: "Truhe", door: "Tür", fountain: "Brunnen", statue: "Statue", altar: "Altar", column: "Säule", throne: "Thron",
+      boulder: "Felsbrocken", box: "Kisten und Fässer", tree: "Bäume", trap: "", gold: "Goldmünzen am Boden", potion: "ein Fläschchen am Boden",
+      item: "etwas Glänzendes am Boden", "stairs-down": "Treppe nach unten", "stairs-up": "Treppe nach oben",
+    };
+    const near = map.objects.filter((o) => Math.max(Math.abs(o.x - hero.pos!.x), Math.abs(o.y - hero.pos!.y)) <= 8 && (o.kind !== "trap" || o.state === "found"));
+    const objects = [...new Set(near.map((o) => NAMES[o.kind] ?? o.kind).filter(Boolean))];
+    const around = [...Array(9).keys()].map((k) => ({ x: hero.pos!.x + (k % 3) - 1, y: hero.pos!.y + Math.floor(k / 3) - 1 }));
+    if (around.some((p) => ["water", "deep"].includes(map.cells[cellIndex(map, p.x, p.y)] ?? ""))) objects.push("Wasser");
+    if (Object.keys(map.overlays).some((k) => map.overlays[Number(k)]?.startsWith("torch"))) objects.push("Fackeln an den Wänden");
+    return { name: room?.name ?? "ein Gang", objects };
+  }
+
+  /**
+   * Carries out the effects of a free action (already checked by src/dm/effects.ts).
+   * Returns the log lines; ends the fight if no enemy is left standing.
+   */
+  applyEffects(effects: DmEffect[], actor: Creature): string[] {
+    const lines: string[] = [];
+    const enemy = (id: string) => {
+      const c = this.battle.creatures[id];
+      return c && c.side === "enemy" && isActive(c) ? c : undefined;
+    };
+    for (const e of effects) {
+      switch (e.kind) {
+        case "distract": {
+          const t = enemy(e.target);
+          if (!t) break;
+          addEffect(t, "distracted", 99, actor.id);
+          lines.push(`🎭 ${t.name} ist abgelenkt: Der nächste Angriff auf ${t.name} hat Vorteil.`);
+          break;
+        }
+        case "prone": {
+          const t = enemy(e.target);
+          if (!t || this.bossIds.has(t.id) || !["tiny", "small", "medium"].includes(t.size)) break;
+          if (addCondition(t, { id: "prone" })) lines.push(`🤸 ${t.name} liegt am Boden: Nahkampfangriffe auf ${t.name} haben Vorteil.`);
+          break;
+        }
+        case "hamper": {
+          const t = enemy(e.target);
+          if (!t || this.bossIds.has(t.id)) break;
+          addEffect(t, "hampered", 2, actor.id);
+          lines.push(`🫣 ${t.name} ist behindert: Seine Angriffe haben bis nach seinem nächsten Zug Nachteil.`);
+          break;
+        }
+        case "help": {
+          const h = this.heroByRef(e.target);
+          if (!h || h.id === actor.id) break;
+          addEffect(h, "helped", 99, actor.id);
+          lines.push(`🤝 ${actor.name} hilft ${h.name}: Vorteil auf den nächsten Wurf.`);
+          break;
+        }
+        case "cover":
+          addEffect(actor, "cover", 1, actor.id);
+          lines.push(`🛡️ ${actor.name} geht in Deckung: +2 Rüstungsklasse bis zum nächsten Zug.`);
+          break;
+        case "hazard": {
+          const t = enemy(e.target);
+          if (!t) break;
+          const dice = e.severity === "schwer" ? "3d6" : e.severity === "mittel" ? "2d6" : "1d6";
+          const roll = rollDice(this.rng, parseDice(dice));
+          applyDamage(this.rng, t, roll.total);
+          lines.push(`💥 ${t.name} wird getroffen: 🎲 ${roll.dice.join(" + ")} = ${roll.total} Schaden${t.dead ? ` – ${t.name} ist besiegt!` : "."}`);
+          break;
+        }
+        case "flee":
+          lines.push(...this.fleeLines());
+          break;
+        case "pacify": {
+          const targets = e.target === "all" ? this.enemiesInFight().filter((x) => !x.boss).map((x) => x.id) : [e.target];
+          const cs = targets.map(enemy).filter((c): c is Creature => !!c && !this.bossIds.has(c.id));
+          if (!cs.length) break;
+          if (e.how === "bestechen" && !this.spendGold(cs.length * BRIBE_PER_ENEMY)) break;
+          for (const c of cs) {
+            c.side = "neutral";
+            c.effects = [];
+          }
+          const names = cs.map((c) => c.name).join(", ");
+          const many = cs.length > 1;
+          if (e.how === "bestechen") lines.push(`💰 ${names} ${many ? "nehmen" : "nimmt"} ${cs.length * BRIBE_PER_ENEMY} Gold und ${many ? "kämpfen" : "kämpft"} nicht mehr.`);
+          else if (e.how === "betoeren") lines.push(`💘 ${names} ${many ? "sind" : "ist"} ganz betört und ${many ? "legen" : "legt"} die Waffen nieder.`);
+          else lines.push(`🏳️ ${names} ${many ? "geben" : "gibt"} auf.`);
+          this.victoryNote = e.how === "bestechen" ? "Die Gegner haben sich kaufen lassen." : e.how === "betoeren" ? "Die Gegner sind betört." : "Die Gegner haben aufgegeben.";
+          break;
+        }
+        case "find": {
+          if (this.findsThisMap >= 2) break;
+          this.findsThisMap++;
+          if (e.item === "gold") {
+            const amount = rollDice(this.rng, parseDice("2d6")).total;
+            this.addItem(actor, "gold", amount);
+            lines.push(`🪙 ${actor.name} findet ${amount} Goldmünzen.`);
+          } else if (e.item === "trank") {
+            this.addItem(actor, "potion-of-healing", 1);
+            lines.push(`🧪 ${actor.name} findet einen Heiltrank.`);
+          } else {
+            this.addItem(actor, "torch", 1);
+            lines.push(`🔥 ${actor.name} findet eine Fackel.`);
+          }
+          break;
+        }
+        case "first_aid": {
+          const h = this.heroByRef(e.target);
+          if (!h || this.firstAidThisMap.has(h.id) || h.dead) break;
+          this.firstAidThisMap.add(h.id);
+          const roll = rollDice(this.rng, parseDice("1d4+1"));
+          heal(h, roll.total);
+          lines.push(`🩹 ${h.name} wird verarztet: +${roll.total} Trefferpunkte.`);
+          break;
+        }
+        case "open_door": {
+          const door = this.map.objects
+            .filter((o) => o.kind === "door" && o.state === "closed" && actor.pos && Math.max(Math.abs(o.x - actor.pos.x), Math.abs(o.y - actor.pos.y)) <= 3)
+            .sort((a, b) => Math.abs(a.x - actor.pos!.x) + Math.abs(a.y - actor.pos!.y) - (Math.abs(b.x - actor.pos!.x) + Math.abs(b.y - actor.pos!.y)))[0];
+          if (!door) break;
+          door.state = "open";
+          door.frame = "door.open";
+          door.blocking = false;
+          lines.push(`🚪 Die Tür springt auf.`);
+          break;
+        }
+        case "reveal":
+          if (actor.pos) {
+            revealAround(this.map, actor.pos, 8);
+            this.emit("mapChanged");
+            lines.push(`👁️ ${actor.name} entdeckt einen verborgenen Teil der Umgebung.`);
+          }
+          break;
+        case "cost": {
+          const roll = rollDice(this.rng, parseDice("1d4"));
+          const dmg = Math.min(roll.total, Math.max(0, actor.hp - 1));
+          if (dmg > 0) applyDamage(this.rng, actor, dmg);
+          lines.push(`⚠️ Ja, aber: ${actor.name} bezahlt einen Preis und verliert ${dmg} Trefferpunkte.`);
+          break;
+        }
+      }
+    }
+    if (lines.length) this.addLog(lines.map((text) => ({ text, glossarKeys: [] })));
+    this.checkWinner();
+    this.emit("changed");
+    this.broadcast();
+    return lines;
   }
 
   /** Another phone took over this player's hero (the old phone lost its ID). */
@@ -305,8 +493,8 @@ export class GameController {
     endCombat(this.battle);
     const lines: ExplainedLine[] = [];
     if (winner === "party") {
-      lines.push({ text: this.enemiesFled ? "🏆 Sieg! Die Gegner sind geflohen." : "🏆 Sieg! Alle Gegner sind besiegt.", glossarKeys: [] });
-      this.enemiesFled = false;
+      lines.push({ text: `🏆 Sieg! ${this.victoryNote ?? "Alle Gegner sind besiegt."}`, glossarKeys: [] });
+      this.victoryNote = undefined;
     } else {
       lines.push({ text: "💀 Die Helden sind gefallen … doch das Schicksal gibt ihnen eine zweite Chance.", glossarKeys: [] });
     }
@@ -342,6 +530,11 @@ export class GameController {
   private runMonster(id: string): void {
     if (this.destroyed || this.active()?.id !== id) return;
     const monster = this.battle.creatures[id]!;
+    // Charmed, bribed or surrendered: stays out of the fight.
+    if (monster.side === "neutral") {
+      this.endTurn();
+      return;
+    }
     const outcomes = runAutoTurn(this.rng, this.battle, id, { walkable: (p) => isWalkable(this.map, p) });
     for (const o of outcomes) {
       if (!o.ok) continue;
@@ -383,6 +576,14 @@ export class GameController {
       this.broadcast();
       return;
     }
+    if (action.kind === "suggest") {
+      // Anyone may ask for ideas, at most every 15 seconds (AI calls are limited).
+      const now = Date.now();
+      if (now - (this.lastSuggest.get(playerId) ?? 0) < 15000) return;
+      this.lastSuggest.set(playerId, now);
+      void (this.onSuggest?.(playerId, hero) ?? Promise.resolve([])).then((ideas) => this.sendTo(playerId, { type: "suggestions", ideas }));
+      return;
+    }
     if (action.kind === "roll") {
       if (!this.pending || this.pending.playerId !== playerId || this.pending.prompt.id !== action.rollId) return;
       const pending = this.pending;
@@ -412,11 +613,21 @@ export class GameController {
       case "move":
         this.move(playerId, hero, action.to);
         return;
-      case "free_text":
+      case "free_text": {
+        // In a fight a free action is a real action (tricks would be too strong otherwise).
+        const turn = this.mode === "combat" ? this.battle.combat?.turn : undefined;
+        if (turn) {
+          if (turn.actions < 1) {
+            this.sendTo(playerId, { type: "action_error", reason: "Deine Aktion ist schon verbraucht. Im Kampf kostet eine freie Aktion deine Aktion." });
+            return;
+          }
+          turn.actions -= 1;
+        }
         this.addLog([{ text: `${hero.name} versucht: „${action.text.slice(0, 140)}“`, glossarKeys: ["freie_aktion"] }]);
         this.onFreeText?.(playerId, hero, action.text.slice(0, 300));
         this.broadcast();
         return;
+      }
       case "interact":
         this.interact(playerId, hero, action.objectId);
         return;
@@ -947,7 +1158,10 @@ export class GameController {
     return new Promise((resolve) => {
       const playerId = hero.playerId!;
       const run = (): RollOutcome => {
-        const result = skillCheck(this.rng, hero, skill, dc);
+        // A friend's help: advantage on this check (used up).
+        const helped = hasEffect(hero, "helped");
+        if (helped) hero.effects = hero.effects.filter((e) => e.id !== "helped");
+        const result = skillCheck(this.rng, hero, skill, dc, helped ? { reasons: [advantage("Ein Freund hilft dir", "helfen")] } : {});
         const lines = explainCheck(this.battle, hero.id, result);
         queueMicrotask(() => resolve(result));
         return { id: `o${++this.rollCounter}`, creatureId: hero.id, playerId, title, sides: 20, dice: result.roll.rolls, kept: result.roll.natural, lines, success: result.success };
@@ -1045,6 +1259,8 @@ export class GameController {
     if (this.monsterTimer) clearTimeout(this.monsterTimer);
     this.pending = undefined;
     this.session.map = map;
+    this.findsThisMap = 0;
+    this.firstAidThisMap.clear();
     for (const c of Object.values(this.battle.creatures)) if (c.kind === "monster") delete this.battle.creatures[c.id];
     const start = map.rooms[0]!;
     const exit = moduleExits(getModule(start.moduleId))[0]?.cells[0] ?? { x: 1, y: 1 };
@@ -1296,7 +1512,12 @@ export class GameController {
         choices.push({ id: `door:${o.id}`, group: "look", label: o.state === "open" ? "Tür schließen" : "Tür öffnen", detail: "Direkt neben dir · kostet nichts", glossarKey: "aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
       }
     }
-    choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: "Beschreibe, was du tun willst", glossarKey: "freie_aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "free_text", text: "" } });
+    if (this.mode === "combat") {
+      const reason = costReason("action");
+      choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: "Ein Trick: ablenken, umstoßen, bestechen, betören … · kostet deine Aktion", glossarKey: "freie_aktion", cost: "action", enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "free_text", text: "" } });
+    } else {
+      choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: "Beschreibe, was du tun willst", glossarKey: "freie_aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "free_text", text: "" } });
+    }
     choices.push({ id: "end", group: "end", label: "Zug beenden", detail: "Der Nächste ist dran", glossarKey: "zug_beenden", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "end_turn" } });
 
     if (beginnerMode && mine) this.recommend(me, choices);

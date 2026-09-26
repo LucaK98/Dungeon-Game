@@ -8,12 +8,13 @@
  * `validateResponse` in the Director. Any failure → the scripted answer, the game goes on.
  */
 import { getSkill } from "../../engine/data";
-import type { DmContext, DmResponse, DmTrigger, DungeonMaster } from "../../shared/dm";
+import type { DmContext, DmEffect, DmResponse, DmTrigger, DungeonMaster } from "../../shared/dm";
+import { allowedEffectNames, effectFromName } from "../effects";
 import { SKILL_IDS, type SkillId } from "../../shared/rules";
 import type { Narration, Story } from "../../shared/story";
 import { sceneById } from "../planner";
 import { ScriptedDM } from "../scripted";
-import { allowedClues, allowedFlags, buildPrompt, canFlee, eligibleEndings, responseSchema, SYSTEM_PROMPT } from "./prompt";
+import { allowedClues, allowedFlags, buildPrompt, eligibleEndings, responseSchema, SYSTEM_PROMPT } from "./prompt";
 import { LlmError, type LlmProvider } from "./provider";
 
 export type AiStatus = { kind: "ok"; model: string } | { kind: "thinking" } | { kind: "pause"; reason: string };
@@ -30,7 +31,7 @@ export interface AiDmOptions {
 }
 
 /** Which moments go to the AI. Everything else is told by the script (saves free-tier calls). */
-const AI_TRIGGERS: DmTrigger["kind"][] = ["scene_start", "free_text", "roll_result", "story_end"];
+const AI_TRIGGERS: DmTrigger["kind"][] = ["scene_start", "free_text", "roll_result", "story_end", "suggest"];
 
 const str = (v: unknown, max: number): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
@@ -39,7 +40,7 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
   if (typeof raw !== "object" || raw === null) throw new LlmError("bad_json", "Antwort ist kein Objekt.");
   const o = raw as Record<string, unknown>;
   const narration = str(o.narration, 1200);
-  if (!narration) throw new LlmError("bad_json", "Antwort ohne Erzähltext.");
+  if (!narration && trigger.kind !== "suggest") throw new LlmError("bad_json", "Antwort ohne Erzähltext.");
   const script: Narration[] = [{ text: narration }];
   const out: DmResponse = { narration, script, next: "await_action" };
   const npcName = str(o.npc_name, 40);
@@ -64,14 +65,24 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
     const flags = Array.isArray(o.set_flags) ? o.set_flags.filter((f): f is string => typeof f === "string" && ok.includes(f)) : [];
     if (flags.length && earned) out.set_flags = flags.slice(0, 3);
   }
-  if (trigger.kind === "roll_result" && trigger.success && ctx.combat?.enemies.length) {
-    const effect = str(o.combat_effect, 20);
-    const target = str(o.combat_target, 40);
-    if (effect === "flucht" && canFlee(ctx)) out.combat_effect = { kind: "flee" };
-    if (effect === "ablenken") {
-      const enemy = ctx.combat.enemies.find((e) => e.id === target) ?? ctx.combat.enemies[0]!;
-      out.combat_effect = { kind: "distract", target: enemy.id };
+  if (trigger.kind === "free_text" || trigger.kind === "roll_result") {
+    // Effects from the toolbox; the Director checks them once more against the roll (filterEffects).
+    const allowed = allowedEffectNames(ctx, trigger);
+    const raw = Array.isArray(o.effects) ? (o.effects as unknown[]) : [];
+    const effects = raw
+      .map((e) => (typeof e === "object" && e ? (e as Record<string, unknown>) : {}))
+      .filter((e) => allowed.includes(str(e.name, 30)))
+      .map((e) => effectFromName(str(e.name, 30), str(e.target, 60) || undefined, ctx, str(e.severity, 10)))
+      .filter((e): e is DmEffect => !!e);
+    if (effects.length) out.effects = effects.slice(0, 2);
+    const att = o.npc_attitude as { npc?: unknown; change?: unknown } | undefined;
+    const change = Math.round(Number(att?.change));
+    if (att && typeof att.npc === "string" && story.npcs.some((n) => n.id === att.npc) && change && Math.abs(change) <= 2) {
+      out.npc_attitude = { npc: att.npc, change };
     }
+  }
+  if (trigger.kind === "suggest") {
+    out.ideas = (Array.isArray(o.ideas) ? o.ideas : []).filter((i): i is string => typeof i === "string").map((i) => i.slice(0, 90)).slice(0, 4);
   }
   if (trigger.kind === "scene_start") {
     // Keep the scripted beginner tips; the AI replaces only the plain text.

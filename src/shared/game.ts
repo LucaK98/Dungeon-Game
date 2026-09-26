@@ -73,7 +73,13 @@ export type EffectId =
   /** Carries a burning torch: bright light around (night scenes). */
   | "torch"
   /** Tricked by a free action: the next attack against it has advantage. */
-  | "distracted";
+  | "distracted"
+  /** A friend helps: advantage on the next attack or check. */
+  | "helped"
+  /** Disarmed, blinded, tangled up: its attacks have disadvantage. */
+  | "hampered"
+  /** Behind cover: +2 armour class. */
+  | "cover";
 
 export interface ActiveEffect {
   id: EffectId;

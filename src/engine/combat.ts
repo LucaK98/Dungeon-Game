@@ -91,6 +91,7 @@ export function isActive(c: Creature): boolean {
 export function acParts(c: Creature): BreakdownPart[] {
   const parts = [...c.baseAc];
   if (hasEffect(c, "shield-of-faith")) parts.push({ label: "Schild des Glaubens", value: 2, glossarKey: "zauber:shield-of-faith" });
+  if (hasEffect(c, "cover")) parts.push({ label: "Deckung", value: 2, glossarKey: "deckung" });
   return parts;
 }
 

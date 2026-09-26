@@ -2553,9 +2553,13 @@
   "freie_aktion": {
     "titel": "Freie Aktion",
     "kurz": "Beschreibe mit eigenen Worten, was deine Figur tun will.",
-    "lang": "Nicht alles steht als Knopf zur Verfügung. Mit der freien Aktion schreibst du einfach auf, was du versuchen möchtest, zum Beispiel „Ich rede mit dem Oger“ oder „Ich suche nach einem geheimen Hebel“. Der Spielleiter entscheidet dann, was passiert und ob du dafür würfeln musst.",
+    "lang": "Du kannst jederzeit etwas Eigenes versuchen: reden, bestechen, schmeicheln, betören, einschüchtern, austricksen, Sachen aus der Umgebung benutzen, den Raum durchsuchen oder Freunde verarzten. Der Spielleiter entscheidet, ob eine Probe nötig ist. Gelingt sie, passiert wirklich etwas: Gegner werden abgelenkt, fallen um, lassen sich bestechen (5 Gold pro Gegner) oder geben auf, ihr findet Gold oder heilt Wunden. Klappt es knapp nicht, geht es trotzdem – aber mit einem kleinen Preis. Mit großem Erfolg passiert sogar noch mehr. Im Kampf kostet eine freie Aktion deine Aktion; normale Angriffe machst du über „⚔️ Angreifen“. Tipp: Auf dem Handy gibt es 🎤 zum Sprechen und 💡 für Ideen.",
     "siehe_auch": [
+      "abgelenkt",
       "aktion",
+      "behindert",
+      "deckung",
+      "helfen",
       "probe"
     ]
   },
@@ -2631,6 +2635,33 @@
     "beispiel": "Pip wirft dem Räuber Sand in die Augen (Täuschen, geschafft). Brunhild greift den Räuber danach mit Vorteil an.",
     "siehe_auch": [
       "vorteil",
+      "freie_aktion"
+    ]
+  },
+  "helfen": {
+    "titel": "Helfen",
+    "kurz": "Ein Freund gibt dir Vorteil.",
+    "lang": "Mit einer freien Aktion kannst du einem anderen Helden helfen: „Ich helfe Brunhild beim Klettern“ oder „Ich lenke den Oger ab, damit Pip zuschlagen kann“. Dann hat dieser Held bei seinem nächsten Wurf Vorteil. Helfen braucht keine Probe, kostet im Kampf aber deine Aktion.",
+    "siehe_auch": [
+      "vorteil",
+      "freie_aktion"
+    ]
+  },
+  "behindert": {
+    "titel": "Behindert",
+    "kurz": "Entwaffnet, geblendet oder verheddert.",
+    "lang": "Wer Sand in die Augen bekommt, seine Waffe verliert oder sich in einem Netz verheddert, ist behindert: Seine Angriffe haben Nachteil – bis nach seinem nächsten Zug. Das klappt mit einer freien Aktion und einer gelungenen Probe, aber nicht bei Anführern und Endgegnern.",
+    "siehe_auch": [
+      "nachteil",
+      "freie_aktion"
+    ]
+  },
+  "deckung": {
+    "titel": "Deckung",
+    "kurz": "Hinter etwas verstecken: +2 Rüstungsklasse.",
+    "lang": "Duckst du dich hinter ein Fass, eine Säule oder einen Felsen, bist du schwerer zu treffen: +2 auf deine Rüstungsklasse bis zu deinem nächsten Zug. Das geht mit einer freien Aktion ohne Probe (im Kampf kostet es deine Aktion).",
+    "siehe_auch": [
+      "ruestungsklasse",
       "freie_aktion"
     ]
   }

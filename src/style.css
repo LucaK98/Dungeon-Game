@@ -518,3 +518,12 @@ body.tip-mode::after {
 .lab-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin: 12px 0; }
 .lab-card { background: #1b1714; border: 1px solid #5a4d42; border-radius: 12px; padding: 12px; }
 .lab-card pre, .lab-prompt { white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow: auto; }
+
+/* Free action sheet: voice input, ideas, cost */
+.free-tools { display: flex; gap: 8px; margin: 8px 0; }
+.free-tools .btn { flex: 1; }
+.free-tools .recording { background: #8b1e1e; color: #fff; }
+.idea-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.idea-chip { text-align: left; padding: 10px 12px; border-radius: 12px; border: 1px solid #5a4d42; background: #221d18; color: #f3e9d2; font-size: 1rem; }
+.idea-chip:active { background: #3a3027; }
+.free-cost { font-size: 0.9rem; margin: 4px 0 6px; }

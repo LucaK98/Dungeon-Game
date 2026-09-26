@@ -25,6 +25,8 @@ export type PlayerAction =
   | { kind: "check"; skill: SkillId }
   | { kind: "interact"; objectId: string }
   | { kind: "free_text"; text: string }
+  /** "Was könnte ich tun?" – asks the game master for ideas (answered with "suggestions"). */
+  | { kind: "suggest" }
   | { kind: "roll"; rollId: string }
   | { kind: "end_turn" }
   | { kind: "story_choice"; choiceId: string }
@@ -51,6 +53,8 @@ export type GameEvent =
   | { type: "lobby_profile"; profile: CharacterProfile | null; ready: boolean }
   | { type: "lobby_state"; lobby: LobbyState }
   | { type: "join_rejected"; reason: string }
+  /** TV → one phone: ideas for a free action. */
+  | { type: "suggestions"; ideas: string[] }
   /** TV → unknown phone during the game: heroes whose phone is gone and can be taken over. */
   | { type: "seat_offer"; seats: SeatOffer[] }
   /** Phone → TV: "I am this hero" (phone lost its stored ID, e.g. private tab or other browser). */

@@ -35,6 +35,15 @@ export interface Controller {
   requestRoll(prompt: RollPrompt): void;
   rollResult(result: RollOutcome): void;
   error(reason: string): void;
+  /** Ideas from the game master for the free-action sheet. */
+  suggestions(ideas: string[]): void;
+}
+
+/** Browser speech recognition (Chrome/Safari/Edge), if available. */
+type SpeechRec = { lang: string; interimResults: boolean; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onend: (() => void) | null; onerror: (() => void) | null; start(): void; stop(): void };
+function speechRecognition(): (new () => SpeechRec) | undefined {
+  const w = window as unknown as { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition;
 }
 
 function signed(n: number): string {
@@ -204,16 +213,75 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     showSheet(`${c.label}: Ziel wählen`, note, h("div", { class: "targets" }, ...buttons), pick.max > 1 ? confirm : null);
   }
 
+  let ideasBox: HTMLElement | undefined;
+  let ideaInput: HTMLTextAreaElement | undefined;
+
   function freeText(): void {
-    const input = h("textarea", { class: "text-input", rows: 3, placeholder: "z. B. Ich rede mit dem Oger und biete ihm Brot an." });
+    const fighting = view?.mode === "combat";
+    const input = h("textarea", {
+      class: "text-input",
+      rows: 3,
+      placeholder: fighting ? "z. B. Ich werfe dem Räuber Sand in die Augen." : "z. B. Ich biete dem Oger Brot an, damit er uns vorbeilässt.",
+    }) as HTMLTextAreaElement;
     const go = h("button", { class: "btn primary big", type: "button", textContent: "Absenden" });
     go.addEventListener("click", () => {
       const text = input.value.trim();
       if (!text) return;
       closeSheet();
+      ideasBox = undefined;
       send({ kind: "free_text", text });
     });
-    showSheet("Freie Aktion", h("p", { class: "lead" }, "Beschreibe mit eigenen Worten, was deine Figur tun will."), input, go);
+    const tools = h("div", { class: "free-tools" });
+    // 🎤 Speak instead of type.
+    const Rec = speechRecognition();
+    if (Rec) {
+      const mic = h("button", { class: "btn secondary", type: "button", textContent: "🎤 Sprechen" });
+      let rec: SpeechRec | undefined;
+      mic.addEventListener("click", () => {
+        if (rec) {
+          rec.stop();
+          return;
+        }
+        rec = new Rec();
+        rec.lang = "de-DE";
+        rec.interimResults = false;
+        rec.onresult = (e) => {
+          const said = Array.from(e.results).map((r) => r[0]?.transcript ?? "").join(" ").trim();
+          if (said) input.value = input.value ? `${input.value} ${said}` : said;
+        };
+        const done = () => {
+          rec = undefined;
+          mic.textContent = "🎤 Sprechen";
+          mic.classList.remove("recording");
+        };
+        rec.onend = done;
+        rec.onerror = done;
+        mic.textContent = "⏹ Fertig";
+        mic.classList.add("recording");
+        rec.start();
+      });
+      tools.append(mic);
+    }
+    // 💡 Ideas from the game master.
+    const ideas = h("button", { class: "btn secondary", type: "button", textContent: "💡 Ideen" });
+    const box = h("div", { class: "idea-list" });
+    ideas.addEventListener("click", () => {
+      ideas.disabled = true;
+      box.replaceChildren(h("p", { class: "lead" }, "Der Spielleiter überlegt …"));
+      send({ kind: "suggest" });
+      setTimeout(() => (ideas.disabled = false), 15000);
+    });
+    tools.append(ideas);
+    ideasBox = box;
+    ideaInput = input;
+    const cost = h(
+      "p",
+      { class: "lead free-cost" },
+      fighting
+        ? "⚔️ Im Kampf kostet das deine Aktion. Gute Tricks: ablenken, umstoßen, Sand werfen, bestechen, betören, einschüchtern, Fässer werfen."
+        : "Reden, suchen, verarzten, bestechen, schmeicheln – beschreibe es einfach. Oft entscheidet eine Probe.",
+    );
+    showSheet("Freie Aktion", h("p", { class: "lead" }, "Beschreibe mit eigenen Worten, was deine Figur tun will."), cost, input, tools, box, go);
     queueMicrotask(() => input.focus());
   }
 
@@ -507,6 +575,25 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       diceFor = prompt.id;
       dice = showRollPrompt(prompt, () => send({ kind: "roll", rollId: prompt.id }));
       if (view) maybeHint(playerId(), "first_roll", view.beginnerMode, document.querySelector(".dice-panel") ?? body);
+    },
+    suggestions(ideas) {
+      const box = ideasBox;
+      const input = ideaInput;
+      if (!box || !input || !box.isConnected) return;
+      if (!ideas.length) {
+        box.replaceChildren(h("p", { class: "lead" }, "Gerade fällt dem Spielleiter nichts ein. Probier es einfach aus!"));
+        return;
+      }
+      box.replaceChildren(
+        ...ideas.map((idea) => {
+          const chip = h("button", { class: "idea-chip", type: "button", textContent: idea });
+          chip.addEventListener("click", () => {
+            input.value = idea;
+            input.focus();
+          });
+          return chip;
+        }),
+      );
     },
     rollResult(result) {
       if (dice && result.playerId === playerId()) {

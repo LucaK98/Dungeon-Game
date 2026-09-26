@@ -9,6 +9,7 @@ import type { Ending, Scene, Story } from "../../shared/story";
 import { actOf, sceneById } from "../planner";
 import { pickEnding } from "../scripted";
 import { canFlee } from "../combat-tricks";
+import { allowedEffectNames, BRIBE_PER_ENEMY, EFFECT_HELP } from "../effects";
 import { resolveClue } from "../validate";
 
 export { canFlee };
@@ -25,8 +26,14 @@ So erzählst du:
 - Nach einer Probe erzählst du, was aus dem Erfolg oder Misserfolg folgt. Misserfolge sind nie das Ende, sondern machen die Lage nur schwieriger oder lustiger.
 - Nichtspielerfiguren sprechen über npc_name und npc_text, in ihrer eigenen Art.
 - Tempo: Liegt die Gruppe hinter der geplanten Zeit, erzähle knapper und führe sie zum Ziel. Liegt sie gut in der Zeit, darfst du ausschmücken.
-- Im Kampf entscheidet nur das Programm über Treffer, Schaden und Besiegen (über die Knöpfe „Angreifen“ und „Zaubern“ auf dem Handy). Erzähle NIE, dass ein Gegner getroffen, verletzt, besiegt wird oder flieht – es sei denn, du setzt combat_effect. Will ein Held mit einer freien Aktion einfach angreifen, sag ihm freundlich, dass er dafür „⚔️ Angreifen“ auf dem Handy nutzt, und verlange keine Probe.
-- Tricks im Kampf (ablenken, täuschen, einschüchtern, zum Aufgeben überreden) brauchen immer eine Probe. Nur wenn sie gelingt, wählst du combat_effect: „ablenken“ mit einem Ziel (der nächste Angriff auf dieses Ziel hat Vorteil) oder „flucht“ (alle Gegner rennen davon, der Kampf ist vorbei – nur erlaubt, wenn im Kontext „Flucht möglich: ja“ steht). Erzähle genau das, was der Effekt bewirkt, nicht mehr.
+- Freie Aktionen sollen sich frei anfühlen: Belohne kreative Ideen! Bestechen, überreden, betören und verführen (charmant und familienfreundlich), einschüchtern, austricksen, die Umgebung nutzen – alles ist erlaubt.
+- Was wirklich passiert, bestimmen die EFFEKTE (Liste im Kontext). Das Programm führt sie aus: Schaden, Gold, Trefferpunkte, Kampfende. Erzähle genau das, was deine Effekte bewirken – nicht mehr. Ohne Effekt passiert spielerisch nichts, das Programm rechnet nichts.
+- Im Kampf entscheidet über normale Treffer nur das Programm (Knöpfe „Angreifen“ und „Zaubern“). Will ein Held einfach angreifen, sag ihm freundlich, dass er dafür „⚔️ Angreifen“ nutzt. Erfinde keinen Schaden außer über den Effekt „umgebung“.
+- Proben und Erfolgsgrade: Tricks brauchen eine Probe (nur „helfen“ und „deckung“ gehen ohne). Ist die Probe gelungen, wähle 1 Effekt, bei großem Erfolg (5 über dem SG) bis zu 2. Knapp verfehlt (1–2 darunter) heißt „Ja, aber“: 1 Effekt, doch der Held zahlt einen kleinen Preis (das Programm zieht ihm ein paar Trefferpunkte ab) – erzähle beides. Klar verfehlt: kein Effekt, aber eine lustige oder spannende Folge.
+- Anführer und Endgegner lassen sich nicht bestechen, betören, umstoßen oder verjagen – ablenken und die Umgebung wirken aber.
+- Nebenfiguren merken sich, wie man sie behandelt: Mit npc_attitude (−2 bis +2) veränderst du ihre Haltung. Freundliche Figuren machen spätere Proben in ihrer Szene leichter, feindliche schwerer.
+- Greife die CHRONIK auf: Erinnere an frühere Taten der Helden, wenn es passt.
+- Nutze die UMGEBUNG: Baue Gegenstände aus dem Raum in deine Beschreibungen und Vorschläge ein.
 - Antworte nur mit dem verlangten JSON.`;
 
 /** Flags the AI may set in this scene: the ones the story's keyword reactions could set, with their meaning. */
@@ -65,8 +72,13 @@ function triggerText(t: DmTrigger): string {
       return "Eine neue Szene beginnt. Erzähle stimmungsvoll, wo die Helden ankommen und was sie sehen, und mach das Ziel der Szene deutlich.";
     case "free_text":
       return `${t.heroName} möchte etwas Eigenes tun: „${t.text}“. Entscheide, was passiert (bei unsicherem Ausgang: Probe verlangen).`;
-    case "roll_result":
-      return `${t.heroName} hat für „${t.text}“ eine Probe auf ${nameOf("skills", t.skill)} (SG ${t.dc}) gewürfelt: ${t.total} → ${t.success ? "ERFOLG" : "MISSERFOLG"}. Erzähle die Folgen.`;
+    case "roll_result": {
+      const margin = t.total - t.dc;
+      const grade = t.success ? (margin >= 5 ? "GROSSER ERFOLG (bis zu 2 Effekte)" : "ERFOLG (1 Effekt)") : margin >= -2 ? "KNAPP VERFEHLT – Ja, aber (1 Effekt mit Preis)" : "MISSERFOLG (kein Effekt)";
+      return `${t.heroName} hat für „${t.text}“ eine Probe auf ${nameOf("skills", t.skill)} (SG ${t.dc}) gewürfelt: ${t.total} → ${grade}. Wähle passende Effekte und erzähle die Folgen.`;
+    }
+    case "suggest":
+      return `${t.heroName} fragt: „Was könnte ich jetzt tun?“ Schlage 3 kurze, kreative Ideen für freie Aktionen vor (Ich-Form, je höchstens 8 Wörter), die zur Lage, zur Umgebung und zu den Figuren passen. narration darf leer bleiben.`;
     case "story_end":
       return "Das Abenteuer ist zu Ende. Wähle das passende Ende (ending) und erzähle einen kurzen Ausklang, der auf das zurückblickt, was die Helden erlebt haben.";
     default:
@@ -96,6 +108,17 @@ export function buildPrompt(story: Story, ctx: DmContext, trigger: DmTrigger, sc
     ctx.combat
       ? `KAMPF LÄUFT. Gegner: ${ctx.combat.enemies.map((e) => `${e.id} = ${e.name} (${e.hp}/${e.maxHp} TP${e.boss ? ", Anführer" : ""})`).join("; ")}. Flucht möglich: ${canFlee(ctx) ? "ja" : "nein"}`
       : "",
+    ctx.room ? `UMGEBUNG: ${ctx.room.name}${ctx.room.objects.length ? ` – ${ctx.room.objects.join(", ")}` : ""}` : "",
+    `GOLD DER GRUPPE: ${ctx.gold ?? 0} (Bestechung kostet ${BRIBE_PER_ENEMY} Gold pro Gegner)`,
+    ctx.chronicle?.length ? `CHRONIK (frühere Taten): ${ctx.chronicle.join(" | ")}` : "",
+    Object.keys(ctx.attitudes ?? {}).length
+      ? `HALTUNG DER FIGUREN: ${Object.entries(ctx.attitudes!).map(([id, v]) => `${story.npcs.find((n) => n.id === id)?.name ?? id} ${v > 0 ? "+" : ""}${v}`).join(", ")}`
+      : "",
+    story.npcs.length ? `FIGUREN-IDS (für npc_attitude): ${story.npcs.map((n) => `${n.id} = ${n.name}`).join(", ")}` : "",
+    allowedEffectNames(ctx, trigger).length
+      ? `EFFEKTE (Name: Wirkung): ${allowedEffectNames(ctx, trigger).map((n) => `${n}: ${EFFECT_HELP[n]!.text}`).join(" | ")}. Ziele: Gegner-id aus KAMPF, Helden-id aus HELDEN-IDS, oder „alle“.`
+      : "",
+    `HELDEN-IDS: ${ctx.players.map((p) => `${p.id} = ${p.name}`).join(", ")}`,
     `ZEIT: ${Math.round(ctx.minutesPlayed)} von geplant ${Math.round(ctx.minutesPlanned)} Minuten bis Ende dieser Szene`,
     trigger.kind === "story_end" ? `MÖGLICHE ENDEN: ${eligibleEndings(story, ctx).map((e) => `${e.id} (${e.title})`).join(", ")}` : "",
     `DREHBUCH-VORSCHLAG (Inhalt beibehalten, frei formulieren): ${scripted.narration || "–"}`,
@@ -123,10 +146,30 @@ export function responseSchema(story: Story, ctx: DmContext, trigger: DmTrigger)
     const flags = allowedFlags(scene);
     if (flags.length) properties.set_flags = { type: "ARRAY", items: S("Merker", { enum: flags.map((f) => f.flag) }) };
   }
-  if (trigger.kind === "roll_result" && trigger.success && ctx.combat?.enemies.length) {
-    properties.combat_effect = S("Wirkung des gelungenen Tricks im Kampf", { enum: ["keiner", "ablenken", ...(canFlee(ctx) ? ["flucht"] : [])] });
-    properties.combat_target = S("id des abgelenkten Gegners (nur bei ablenken)", { enum: ctx.combat.enemies.map((e) => e.id) });
+  const effectNames = allowedEffectNames(ctx, trigger);
+  if (effectNames.length) {
+    properties.effects = {
+      type: "ARRAY",
+      description: "Echte Wirkungen der freien Aktion (leer lassen, wenn nichts passiert)",
+      items: {
+        type: "OBJECT",
+        properties: {
+          name: S("Effekt", { enum: effectNames }),
+          target: S("Ziel: Gegner-id, Helden-id oder alle (leer, wenn nicht nötig)"),
+          severity: S("nur bei umgebung", { enum: ["leicht", "mittel", "schwer"] }),
+        },
+        required: ["name"],
+      },
+    };
   }
+  if ((trigger.kind === "free_text" || trigger.kind === "roll_result") && story.npcs.length) {
+    properties.npc_attitude = {
+      type: "OBJECT",
+      description: "Nur wenn eine Figur ihre Haltung ändert",
+      properties: { npc: S("Figuren-id", { enum: story.npcs.map((n) => n.id) }), change: { type: "INTEGER", description: "−2 bis +2" } },
+    };
+  }
+  if (trigger.kind === "suggest") properties.ideas = { type: "ARRAY", items: S("Idee in Ich-Form") };
   if (trigger.kind === "story_end") properties.ending = S("id des Endes", { enum: eligibleEndings(story, ctx).map((e) => e.id) });
-  return { type: "OBJECT", properties, required: ["narration"] };
+  return { type: "OBJECT", properties, required: trigger.kind === "suggest" ? ["ideas"] : ["narration"] };
 }

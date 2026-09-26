@@ -5,8 +5,7 @@
  */
 import type { DmContext, DmResponse, DmTrigger, DungeonMaster } from "../shared/dm";
 import type { Ending, Narration, Story } from "../shared/story";
-import { getSkill } from "../engine/data";
-import { canFlee } from "./combat-tricks";
+import { intentOf, scriptedFreeText, scriptedIdeas, scriptedRollResult } from "./free-actions";
 import { sceneById } from "./planner";
 
 export function narrationText(lines: Narration[]): string {
@@ -38,31 +37,6 @@ export function pickEnding(story: Story, truth: string, flags: string[]): Ending
   );
 }
 
-const ATTACK_WORDS = /greif|schlag|hau |haue|stech|schieß|schiess|angriff|attack|töte|kämpf/;
-const SCARE_WORDS = /einschücht|droh|brüll|erschreck|verjag|verscheuch/;
-const TRICK_WORDS = /ablenk|täusch|trick|bluff|verwirr|lock|list|werf.*sand|stolper/;
-
-/** Free actions during a fight: attacks go through the buttons, tricks get a roll and a real effect. */
-function combatFreeText(text: string, hero: string, playerId: string): DmResponse {
-  const t = text.toLowerCase();
-  if (SCARE_WORDS.test(t) || TRICK_WORDS.test(t)) {
-    const skill = SCARE_WORDS.test(t) ? "intimidation" : "deception";
-    return respond([{ text: `${hero} versucht es mit einem Trick. Gelingt die Probe?` }], {
-      request_roll: { playerId, ability: getSkill(skill).ability, skill, dc: 13 },
-      next: "await_roll",
-    });
-  }
-  if (ATTACK_WORDS.test(t)) {
-    return respond([
-      {
-        text: `${hero} will angreifen – dafür gibt es den Knopf „⚔️ Angreifen“ auf dem Handy. Nur so wird der Schaden richtig ausgewürfelt.`,
-        tip: { key: "angriffswurf", text: "Freie Aktionen eignen sich im Kampf für Tricks: ablenken, täuschen oder einschüchtern." },
-      },
-    ]);
-  }
-  return respond([{ text: `${hero} versucht: „${text.slice(0, 80)}“ – doch mitten im Kampf bewirkt das nichts.` }, { text: "Im Kampf helfen Tricks wie Ablenken, Täuschen oder Einschüchtern." }]);
-}
-
 export class ScriptedDM implements DungeonMaster {
   constructor(private story: Story) {}
 
@@ -89,13 +63,20 @@ export class ScriptedDM implements DungeonMaster {
 
       case "free_text": {
         const said = words(trigger.text);
-        if (ctx.combat?.enemies.length) return combatFreeText(trigger.text, trigger.heroName, trigger.playerId);
         const hit = (scene.keywords ?? []).find((k) => k.words.some((w) => said.some((s) => s.startsWith(w))));
         if (hit) {
           return respond(hit.response, {
             ...(hit.set ? { set_flags: hit.set } : {}),
             ...(hit.clue ? { reveal_clue: hit.clue } : {}),
           });
+        }
+        const known = scriptedFreeText(ctx, trigger);
+        if (known) return known;
+        if (ctx.combat?.enemies.length) {
+          return respond([
+            { text: `${trigger.heroName} versucht: „${trigger.text.slice(0, 80)}“ – doch mitten im Kampf bewirkt das nichts.` },
+            { text: "Probiert Tricks wie Sand werfen, umstoßen, bestechen, betören oder einschüchtern – oder tippt auf „💡 Ideen“." },
+          ]);
         }
         // Without an AI the narrator can only acknowledge the idea and point at the buttons.
         return respond([
@@ -104,21 +85,20 @@ export class ScriptedDM implements DungeonMaster {
         ]);
       }
 
-      case "roll_result":
-        if (ctx.combat?.enemies.length && trigger.success) {
-          if (trigger.skill === "intimidation" && canFlee(ctx)) {
-            return respond([{ text: `${trigger.heroName} brüllt so furchterregend, dass die Gegner Hals über Kopf davonlaufen!` }], { combat_effect: { kind: "flee" } });
-          }
-          const target = ctx.combat.enemies[0]!;
-          return respond([{ text: `Der Trick gelingt! ${target.name} ist abgelenkt – der nächste Angriff auf ${target.name} hat Vorteil.` }], {
-            combat_effect: { kind: "distract", target: target.id },
-          });
+      case "roll_result": {
+        const res = scriptedRollResult(ctx, trigger);
+        // Gifts and kind words win a character of this scene over.
+        const fighting = !!ctx.combat?.enemies.length;
+        if (trigger.success && !fighting && intentOf(trigger.text, false)?.intent === "befriend") {
+          const said = trigger.text.toLowerCase();
+          const npc = (scene.npcs ?? []).map((n) => this.story.npcs.find((x) => x.id === n.npc)!).find((n) => said.includes(n.name.toLowerCase().split(" ").pop()!));
+          if (npc) res.npc_attitude = { npc: npc.id, change: 1 };
         }
-        return respond([
-          trigger.success
-            ? { text: `Geschafft! ${trigger.heroName} gelingt es.` }
-            : { text: `Leider nicht. ${trigger.heroName} versucht es, aber es klappt nicht.` },
-        ]);
+        return res;
+      }
+
+      case "suggest":
+        return { ...respond([]), ideas: scriptedIdeas(ctx) };
 
       case "scene_end": {
         // Improvised event: after the big fight, if it was too easy, or if the group is well ahead of time.

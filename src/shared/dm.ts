@@ -29,6 +29,14 @@ export interface DmContext {
   hardship: number;
   /** Set while a fight is running: the enemies still standing. */
   combat?: { enemies: { id: string; name: string; hp: number; maxHp: number; boss: boolean }[] };
+  /** Where the acting hero stands and what is around (for ideas with the surroundings). */
+  room?: { name: string; objects: string[] };
+  /** Gold of the whole group (bribes cost gold). */
+  gold?: number;
+  /** Short memory of notable deeds, newest last. */
+  chronicle?: string[];
+  /** Attitude of story characters towards the group, −3 (hostile) … +3 (friendly). */
+  attitudes?: Record<string, number>;
   eventsUsed: string[];
 }
 
@@ -40,6 +48,8 @@ export type DmTrigger =
   | { kind: "free_text"; text: string; playerId: PlayerId; heroName: string }
   /** The roll the DM asked for after a free action is done. */
   | { kind: "roll_result"; text: string; playerId: PlayerId; heroName: string; skill: string; dc: number; total: number; success: boolean }
+  /** A player asks "Was könnte ich tun?" – answered with a few ideas, nothing happens yet. */
+  | { kind: "suggest"; playerId: PlayerId; heroName: string }
   | { kind: "scene_end" }
   | { kind: "story_end" };
 
@@ -60,14 +70,34 @@ export interface DmResponse {
   trigger_event?: string;
   choose_ending?: string | null;
   set_flags?: string[];
-  /**
-   * Effect of a successful trick in a fight (free action + roll). Applied by the code:
-   * "distract" gives advantage on the next attack against one enemy, "flee" makes all
-   * ordinary enemies run away (never bosses).
-   */
-  combat_effect?: { kind: "distract"; target: string } | { kind: "flee" };
+  /** Real consequences of a free action, applied by the code (see src/dm/effects.ts). */
+  effects?: DmEffect[];
+  /** Answer to "suggest": short ideas for free actions. */
+  ideas?: string[];
   next: DmNext;
 }
+
+/**
+ * What a free action can really do. The DM (AI or script) picks, the code checks and applies.
+ * Targets are creature ids (enemies in a fight, heroes for help/first aid).
+ */
+export type DmEffect =
+  // in a fight
+  | { kind: "distract"; target: string }
+  | { kind: "prone"; target: string }
+  | { kind: "hamper"; target: string }
+  | { kind: "help"; target: string }
+  | { kind: "cover" }
+  | { kind: "hazard"; target: string; severity: "leicht" | "mittel" | "schwer" }
+  | { kind: "flee" }
+  | { kind: "pacify"; target: string; how: "ergeben" | "bestechen" | "betoeren" }
+  // outside a fight
+  | { kind: "find"; item: "gold" | "trank" | "fackel" }
+  | { kind: "first_aid"; target: string }
+  | { kind: "open_door" }
+  | { kind: "reveal" }
+  // "yes, but": the acting hero pays a small price (1W4 damage, never knocked out)
+  | { kind: "cost" };
 
 export interface DungeonMaster {
   respond(ctx: DmContext, trigger: DmTrigger): Promise<DmResponse>;

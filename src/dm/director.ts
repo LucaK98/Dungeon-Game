@@ -18,6 +18,7 @@ import type { GameController } from "../tv/game";
 import { actOf, planScenes, plannedMinutes, sceneById, sceneRooms, tempoCheck } from "./planner";
 import { pickEnding } from "./scripted";
 import { resolveClue, validateResponse } from "./validate";
+import { filterEffects } from "./effects";
 import { SKILL_IDS, type SkillId } from "../shared/rules";
 
 export interface StoryState {
@@ -34,6 +35,10 @@ export interface StoryState {
   /** Minutes played before this session (after loading a save). */
   minutesBefore: number;
   ending?: string;
+  /** Short memory of notable free actions, newest last (for the game master). */
+  chronicle?: string[];
+  /** Attitude of story characters towards the group, −3 … +3. */
+  attitudes?: Record<string, number>;
 }
 
 export interface StoryResult {
@@ -76,6 +81,8 @@ export class Director {
   private scene!: Scene;
   private stepId: string | undefined;
   private lowestHpRatio = 1;
+  /** Surroundings of the hero doing a free action (for the DM's ideas). */
+  private actingRoom: { name: string; objects: string[] } | undefined;
   finished = false;
 
   constructor(
@@ -89,6 +96,7 @@ export class Director {
     this.now = opts.now ?? Date.now;
     this.startedAt = this.now();
     game.onFreeText = (playerId, hero, text) => void this.freeText(playerId, hero, text);
+    game.onSuggest = (playerId, hero) => this.suggest(playerId, hero);
   }
 
   // ---------------------------------------------------------------- helpers
@@ -129,6 +137,10 @@ export class Director {
       hardship,
       eventsUsed: [...this.state.eventsUsed],
       ...(this.game.mode === "combat" ? { combat: { enemies: this.game.enemiesInFight() } } : {}),
+      gold: this.game.partyGold(),
+      chronicle: [...(this.state.chronicle ?? [])],
+      attitudes: { ...(this.state.attitudes ?? {}) },
+      ...(this.actingRoom ? { room: this.actingRoom } : {}),
     };
   }
 
@@ -147,6 +159,13 @@ export class Director {
     if (response.reveal_twist) this.state.twistRevealed = true;
     this.set(response.set_flags);
     if (response.reveal_clue) this.addClue(response.reveal_clue);
+    if (response.npc_attitude) {
+      const { npc, change } = response.npc_attitude;
+      const atts = (this.state.attitudes ??= {});
+      atts[npc] = Math.max(-3, Math.min(3, (atts[npc] ?? 0) + change));
+      const name = this.story.npcs.find((n) => n.id === npc)?.name ?? npc;
+      if (change) this.game.narrate([{ text: change > 0 ? `💚 ${name} mag euch jetzt mehr.` : `💢 ${name} traut euch weniger.` }]);
+    }
     return response;
   }
 
@@ -277,7 +296,8 @@ export class Director {
         if (c.who === "each") {
           let anySuccess = false;
           for (const hero of this.heroes().filter(isActive)) {
-            const r = await this.game.check(hero, c.skill, c.dc, `${c.title}: ${hero.name}`);
+            const adj = this.attitudeDc(c.dc, `${c.title}: ${hero.name}`);
+            const r = await this.game.check(hero, c.skill, adj.dc, adj.title);
             anySuccess ||= r.success;
             this.game.narrate(r.success ? c.success.narration : c.failure.narration);
           }
@@ -285,7 +305,8 @@ export class Director {
           result = await this.applyOutcome({ ...o, narration: [] });
         } else {
           const hero = await this.pickRoller(c.skill, c.title);
-          const r = await this.game.check(hero, c.skill, c.dc, c.title);
+          const adj = this.attitudeDc(c.dc, c.title);
+          const r = await this.game.check(hero, c.skill, adj.dc, adj.title);
           result = await this.applyOutcome(r.success ? c.success : c.failure, hero);
         }
         break;
@@ -341,7 +362,8 @@ export class Director {
     const chooser = this.heroOfPlayer(pick.playerId);
     if (choice.check) {
       const hero = chooser && isActive(chooser) ? chooser : await this.pickRoller(choice.check.skill, choice.label);
-      const r = await this.game.check(hero, choice.check.skill, choice.check.dc, choice.label);
+      const adj = this.attitudeDc(choice.check.dc, choice.label);
+      const r = await this.game.check(hero, choice.check.skill, adj.dc, adj.title);
       return this.applyOutcome(r.success ? choice.check.success : choice.check.failure, hero);
     }
     return this.applyOutcome(choice.outcome ?? { narration: [] }, chooser);
@@ -447,17 +469,62 @@ export class Director {
 
   private async freeText(playerId: PlayerId, hero: Creature, text: string): Promise<void> {
     if (!this.scene || this.finished) return;
-    const res = await this.askDm({ kind: "free_text", text, playerId, heroName: hero.name });
+    this.actingRoom = this.game.surroundings(hero);
+    const trigger = { kind: "free_text" as const, text, playerId, heroName: hero.name };
+    const res = await this.askDm(trigger);
+    // Effects without a roll (helping, taking cover).
+    this.applyEffects(res.effects, trigger, hero);
     const roll = res.request_roll;
-    if (!roll?.skill || !SKILL_IDS.includes(roll.skill as SkillId) || this.finished) return;
+    if (!roll?.skill || !SKILL_IDS.includes(roll.skill as SkillId) || this.finished) {
+      if (!res.effects?.length) this.remember(`${hero.name}: ${text}`);
+      return;
+    }
     // The DM wants a roll for this idea: the same hero rolls, then the DM tells what follows.
     const skill = roll.skill as SkillId;
     const r = await this.game.check(hero, skill, roll.dc, "Freie Aktion");
-    const after = await this.askDm({ kind: "roll_result", text, playerId, heroName: hero.name, skill, dc: roll.dc, total: r.total, success: r.success });
-    // A trick in a fight has a real effect – decided by the DM, carried out by the rules.
-    const effect = r.success ? after.combat_effect : undefined;
-    if (effect?.kind === "distract") this.game.distract(effect.target, hero.name);
-    if (effect?.kind === "flee") this.game.enemiesFlee();
+    const result = { kind: "roll_result" as const, text, playerId, heroName: hero.name, skill, dc: roll.dc, total: r.total, success: r.success };
+    const after = await this.askDm(result);
+    // Real consequences – decided by the DM, checked and carried out by the rules.
+    this.applyEffects(after.effects, result, hero);
+    const margin = r.total - roll.dc;
+    this.remember(`${hero.name}: ${text} → ${r.success ? (margin >= 5 ? "großartig geschafft" : "geschafft") : margin >= -2 ? "knapp, mit Preis" : "misslungen"}`);
+    this.actingRoom = undefined;
+  }
+
+  private applyEffects(effects: DmResponse["effects"], trigger: DmTrigger, hero: Creature): void {
+    const ok = filterEffects(effects, this.ctx(), trigger);
+    if (ok.length) this.game.applyEffects(ok, hero);
+  }
+
+  private remember(entry: string): void {
+    const list = (this.state.chronicle ??= []);
+    list.push(entry.slice(0, 140));
+    if (list.length > 8) list.splice(0, list.length - 8);
+  }
+
+  /** "Was könnte ich tun?" – a few ideas for this hero, sent only to their phone. */
+  async suggest(playerId: PlayerId, hero: Creature): Promise<string[]> {
+    if (!this.scene || this.finished) return [];
+    this.actingRoom = this.game.surroundings(hero);
+    const trigger: DmTrigger = { kind: "suggest", playerId, heroName: hero.name };
+    let ideas: string[] = [];
+    try {
+      ideas = (await this.dm.respond(this.ctx(), trigger)).ideas ?? [];
+    } catch {
+      ideas = [];
+    }
+    this.actingRoom = undefined;
+    return ideas.filter((i) => typeof i === "string" && i.trim()).map((i) => i.trim().slice(0, 90)).slice(0, 4);
+  }
+
+  /** Friendly characters make checks in their scene easier, hostile ones harder. */
+  private attitudeDc(dc: number, title: string): { dc: number; title: string } {
+    const ids = (this.scene.npcs ?? []).map((n) => n.npc);
+    const values = ids.map((id) => this.state.attitudes?.[id] ?? 0).filter((v) => v !== 0);
+    if (!values.length) return { dc, title };
+    const shift = Math.max(-3, Math.min(3, Math.round(values.reduce((a, b) => a + b, 0) / values.length)));
+    if (!shift) return { dc, title };
+    return { dc: dc - shift, title: `${title} (${shift > 0 ? "leichter" : "schwerer"}: ${shift > 0 ? "man mag euch" : "man misstraut euch"})` };
   }
 
   private async finish(): Promise<StoryResult> {
