@@ -387,6 +387,7 @@ Ziel: KI-DM **ohne Backend und ohne Kosten**, über den kostenlosen Gemini-Tarif
   - Key nur im `localStorage` des TV-Geräts, **nie im Repo, nie an Handys schicken**
   - Aufruf direkt aus dem Browser des TV (Gemini unterstützt das)
   - Hinweis in der UI: „Nur auf eigenen Geräten verwenden“
+  - **Key-Format:** Google vergibt neue Keys im Format `AQ.…` (ältere: `AIza…`). Keine Präfix-Prüfung einbauen; Key per HTTP-Header `x-goog-api-key` senden, nicht als URL-Parameter
 - **Mit den Gratis-Limits haushalten:**
   - Nur **ein** KI-Aufruf pro Spieleraktion, keine Aufrufe für Dinge, die der Code allein kann (Bewegung, Standardangriffe im Kampf)
   - Kampfrunden erzählt der Code mit Textbausteinen; die KI nur bei Kampfbeginn, -ende und besonderen Aktionen
