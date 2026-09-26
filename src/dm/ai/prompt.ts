@@ -77,6 +77,10 @@ function triggerText(t: DmTrigger): string {
       const grade = t.success ? (margin >= 5 ? "GROSSER ERFOLG (bis zu 2 Effekte)" : "ERFOLG (1 Effekt)") : margin >= -2 ? "KNAPP VERFEHLT – Ja, aber (1 Effekt mit Preis)" : "MISSERFOLG (kein Effekt)";
       return `${t.heroName} hat für „${t.text}“ eine Probe auf ${nameOf("skills", t.skill)} (SG ${t.dc}) gewürfelt: ${t.total} → ${grade}. Wähle passende Effekte und erzähle die Folgen.`;
     }
+    case "rules_question":
+      return `REGELFRAGE von ${t.heroName} (${t.hero}): „${t.question}“
+PASSENDE REGELN AUS DEM GLOSSAR: ${t.glossary.map((g) => `${g.title}: ${g.text}`).join(" || ") || "keine gefunden"}
+Antworte in answer kurz (2–4 Sätze), freundlich und für Einsteiger verständlich, nur mit Regeln aus dem Glossar oder aus dem Spielstand. Erfinde keine Regeln. Sag konkret, was der Held jetzt tun kann. narration darf leer bleiben.`;
     case "suggest":
       return `${t.heroName} fragt: „Was könnte ich jetzt tun?“ Schlage 3 kurze, kreative Ideen für freie Aktionen vor (Ich-Form, je höchstens 8 Wörter), die zur Lage, zur Umgebung und zu den Figuren passen. narration darf leer bleiben.`;
     case "story_end":
@@ -170,6 +174,7 @@ export function responseSchema(story: Story, ctx: DmContext, trigger: DmTrigger)
     };
   }
   if (trigger.kind === "suggest") properties.ideas = { type: "ARRAY", items: S("Idee in Ich-Form") };
+  if (trigger.kind === "rules_question") properties.answer = S("Antwort auf die Regelfrage, 2–4 Sätze");
   if (trigger.kind === "story_end") properties.ending = S("id des Endes", { enum: eligibleEndings(story, ctx).map((e) => e.id) });
-  return { type: "OBJECT", properties, required: trigger.kind === "suggest" ? ["ideas"] : ["narration"] };
+  return { type: "OBJECT", properties, required: trigger.kind === "suggest" ? ["ideas"] : trigger.kind === "rules_question" ? ["answer"] : ["narration"] };
 }

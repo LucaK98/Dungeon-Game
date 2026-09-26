@@ -12,7 +12,7 @@ import type { ActionChoice, ActionGroup, PlayerView, RollOutcome, RollPrompt } f
 import { dollCanvas } from "../ui/atlas";
 import { h } from "../ui/dom";
 import { showRollPrompt, type DiceOverlay } from "./dice";
-import { closeSheet, explainedLine, helpButton, maybeHint, openHelp, showSheet } from "./help";
+import { closeSheet, explainedLine, helpButton, maybeHint, openHelp, showRulesAnswer, showSheet } from "./help";
 import { minimapView } from "./minimap";
 import { ABILITY_GLOSSAR } from "../engine/core";
 
@@ -37,6 +37,8 @@ export interface Controller {
   error(reason: string): void;
   /** Ideas from the game master for the free-action sheet. */
   suggestions(ideas: string[]): void;
+  /** Answer to "Frag den Spielleiter". */
+  rulesAnswer(question: string, answer: string): void;
 }
 
 /** Browser speech recognition (Chrome/Safari/Edge), if available. */
@@ -70,6 +72,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   const help = helpButton({
     view: () => view,
     setBeginnerMode: (on) => send({ kind: "set_beginner_mode", on }),
+    askRules: (question) => send({ kind: "ask_rules", question }),
   });
 
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -575,6 +578,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       diceFor = prompt.id;
       dice = showRollPrompt(prompt, () => send({ kind: "roll", rollId: prompt.id }));
       if (view) maybeHint(playerId(), "first_roll", view.beginnerMode, document.querySelector(".dice-panel") ?? body);
+    },
+    rulesAnswer(question, answer) {
+      showRulesAnswer(question, answer);
     },
     suggestions(ideas) {
       const box = ideasBox;

@@ -27,6 +27,8 @@ export type PlayerAction =
   | { kind: "free_text"; text: string }
   /** "Was könnte ich tun?" – asks the game master for ideas (answered with "suggestions"). */
   | { kind: "suggest" }
+  /** "Frag den Spielleiter": a rules question (answered with "rules_answer", only to this phone). */
+  | { kind: "ask_rules"; question: string }
   | { kind: "roll"; rollId: string }
   | { kind: "end_turn" }
   | { kind: "story_choice"; choiceId: string }
@@ -55,6 +57,8 @@ export type GameEvent =
   | { type: "join_rejected"; reason: string }
   /** TV → one phone: ideas for a free action. */
   | { type: "suggestions"; ideas: string[] }
+  /** TV → one phone: the game master's answer to a rules question. */
+  | { type: "rules_answer"; question: string; answer: string }
   /** TV → unknown phone during the game: heroes whose phone is gone and can be taken over. */
   | { type: "seat_offer"; seats: SeatOffer[] }
   /** Phone → TV: "I am this hero" (phone lost its stored ID, e.g. private tab or other browser). */

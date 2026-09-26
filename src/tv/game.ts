@@ -19,6 +19,7 @@ import { isWalkable, partyStartSpots, revealAround } from "../map/walk";
 import type { PlayerAction } from "../shared/events";
 import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
+import { glossaryAnswer } from "../dm/rules-help";
 import type { Creature, GridPos } from "../shared/game";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
@@ -99,6 +100,9 @@ export class GameController {
   /** Asks the game master for free-action ideas (set by the Director). */
   onSuggest: ((playerId: PlayerId, hero: Creature) => Promise<string[]>) | undefined;
   private lastSuggest = new Map<PlayerId, number>();
+  /** Answers a rules question (set by the Director; without story the glossary answers). */
+  onAskRules: ((playerId: PlayerId, hero: Creature, question: string) => Promise<string>) | undefined;
+  private lastRules = new Map<PlayerId, number>();
   /** Items used and chests opened (tutorial step "use_item"). */
   itemUses = 0;
   /** Training fight: nobody dies. */
@@ -574,6 +578,17 @@ export class GameController {
       this.addLog([{ text: `${hero.name} entscheidet: ${offer.label}`, glossarKeys: ["entscheidung"] }]);
       resolve({ id: offer.id, playerId });
       this.broadcast();
+      return;
+    }
+    if (action.kind === "ask_rules") {
+      const now = Date.now();
+      const question = action.question.trim().slice(0, 300);
+      if (!question || now - (this.lastRules.get(playerId) ?? 0) < 6000) return;
+      this.lastRules.set(playerId, now);
+      const ask = this.onAskRules ?? (async (_p: PlayerId, _h: Creature, q: string) => glossaryAnswer(q));
+      void ask(playerId, hero, question)
+        .catch(() => glossaryAnswer(question))
+        .then((answer) => this.sendTo(playerId, { type: "rules_answer", question, answer }));
       return;
     }
     if (action.kind === "suggest") {

@@ -156,6 +156,28 @@ document.addEventListener(
 export interface HelpContext {
   view(): PlayerView | undefined;
   setBeginnerMode(on: boolean): void;
+  /** "Frag den Spielleiter" (only in a running game). */
+  askRules?(question: string): void;
+}
+
+/** The game master's answer to a rules question. */
+export function showRulesAnswer(question: string, answer: string): void {
+  showSheet("🧙 Der Spielleiter antwortet", h("p", { class: "lead" }, `„${question}“`), h("p", { class: "help-short" }, answer));
+}
+
+function askSheet(ask: (q: string) => void): void {
+  const input = h("textarea", { class: "text-input", rows: 3, placeholder: "z. B. Kann ich zweimal angreifen? Was bringt Deckung?" }) as HTMLTextAreaElement;
+  const go = h("button", { class: "btn primary big", type: "button", textContent: "Fragen" });
+  const wait = h("p", { class: "lead" });
+  go.addEventListener("click", () => {
+    const q = input.value.trim();
+    if (!q) return;
+    go.disabled = true;
+    wait.textContent = "Der Spielleiter blättert im Regelbuch …";
+    ask(q);
+  });
+  showSheet("🧙 Frag den Spielleiter", h("p", { class: "lead" }, "Stell eine Regelfrage. Die Antwort bekommst nur du."), input, go, wait);
+  queueMicrotask(() => input.focus());
 }
 
 export function helpButton(ctx: HelpContext): HTMLElement {
@@ -197,9 +219,11 @@ function openMenu(ctx: HelpContext): void {
   const view = ctx.view();
   const beginner = h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: view?.beginnerMode ?? true }), h("span", {}, "Anfängermodus: Tipps und Empfehlungen zeigen"));
   beginner.querySelector("input")!.addEventListener("change", (e) => ctx.setBeginnerMode((e.target as HTMLInputElement).checked));
+  const askBtn = ctx.askRules ? h("button", { class: "btn secondary", type: "button", textContent: "🧙 Frag den Spielleiter" }) : null;
+  askBtn?.addEventListener("click", () => askSheet((q) => ctx.askRules!(q)));
   const how = h("button", { class: "btn secondary", type: "button", textContent: "📖 Wie spielt man das?" });
   how.addEventListener("click", () => showSheet("Wie spielt man das?", ...HOW_TO_PLAY.map((t) => h("p", { class: "help-short" }, t))));
-  showSheet("Hilfe", tip, what, how, h("div", { class: "field" }, search, results), beginner);
+  showSheet("Hilfe", tip, what, askBtn, how, h("div", { class: "field" }, search, results), beginner);
   queueMicrotask(() => search.blur());
 }
 

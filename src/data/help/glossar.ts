@@ -33,3 +33,24 @@ export function searchGlossar(query: string, limit = 20): { key: string; entry: 
   }
   return scored.sort((a, b) => b.score - a.score || a.entry.titel.localeCompare(b.entry.titel)).slice(0, limit);
 }
+
+const STOP = new Set(["kann", "ich", "wie", "was", "wann", "warum", "wenn", "darf", "muss", "eine", "einen", "einem", "einer", "der", "die", "das", "den", "dem", "und", "oder", "mit", "mich", "mir", "man", "bei", "auf", "für", "ist", "sind", "habe", "hat", "noch", "auch", "nicht", "mein", "meine", "meinen", "gibt", "funktioniert", "bedeutet", "heißt"]);
+
+/** Glossary entries that best fit a question in plain words ("Wie funktioniert Deckung?"). */
+export function glossarForQuestion(question: string, limit = 4): { key: string; entry: GlossarEntry }[] {
+  const words = question
+    .toLowerCase()
+    .replace(/[^a-zäöüß0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !STOP.has(w))
+    .map((w) => (w.length > 5 ? w.slice(0, w.length - 1) : w)); // "Angriffe" also finds "Angriff"
+  if (!words.length) return [];
+  const scored = Object.entries(GLOSSAR).map(([key, entry]) => {
+    const t = entry.titel.toLowerCase();
+    const k = entry.kurz.toLowerCase();
+    const l = entry.lang.toLowerCase();
+    const score = words.reduce((sum, w) => sum + (t.includes(w) ? 6 : 0) + (k.includes(w) ? 2 : 0) + (l.includes(w) ? 1 : 0), 0);
+    return { key, entry, score };
+  });
+  return scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score).slice(0, limit);
+}

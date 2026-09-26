@@ -5,6 +5,7 @@
  */
 import type { DmContext, DmResponse, DmTrigger, DungeonMaster } from "../shared/dm";
 import type { Ending, Narration, Story } from "../shared/story";
+import { glossaryAnswer } from "./rules-help";
 import { intentOf, scriptedFreeText, scriptedIdeas, scriptedRollResult } from "./free-actions";
 import { sceneById } from "./planner";
 
@@ -99,6 +100,11 @@ export class ScriptedDM implements DungeonMaster {
 
       case "suggest":
         return { ...respond([]), ideas: scriptedIdeas(ctx) };
+
+      case "rules_question": {
+        const best = trigger.glossary[0];
+        return { ...respond([]), answer: best ? `${best.title}: ${best.text}` : glossaryAnswer(trigger.question) };
+      }
 
       case "scene_end": {
         // Improvised event: after the big fight, if it was too easy, or if the group is well ahead of time.

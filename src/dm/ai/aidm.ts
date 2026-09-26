@@ -31,7 +31,7 @@ export interface AiDmOptions {
 }
 
 /** Which moments go to the AI. Everything else is told by the script (saves free-tier calls). */
-const AI_TRIGGERS: DmTrigger["kind"][] = ["scene_start", "free_text", "roll_result", "story_end", "suggest"];
+const AI_TRIGGERS: DmTrigger["kind"][] = ["scene_start", "free_text", "roll_result", "story_end", "suggest", "rules_question"];
 
 const str = (v: unknown, max: number): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
@@ -40,7 +40,7 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
   if (typeof raw !== "object" || raw === null) throw new LlmError("bad_json", "Antwort ist kein Objekt.");
   const o = raw as Record<string, unknown>;
   const narration = str(o.narration, 1200);
-  if (!narration && trigger.kind !== "suggest") throw new LlmError("bad_json", "Antwort ohne Erzähltext.");
+  if (!narration && trigger.kind !== "suggest" && trigger.kind !== "rules_question") throw new LlmError("bad_json", "Antwort ohne Erzähltext.");
   const script: Narration[] = [{ text: narration }];
   const out: DmResponse = { narration, script, next: "await_action" };
   const npcName = str(o.npc_name, 40);
@@ -80,6 +80,11 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
     if (att && typeof att.npc === "string" && story.npcs.some((n) => n.id === att.npc) && change && Math.abs(change) <= 2) {
       out.npc_attitude = { npc: att.npc, change };
     }
+  }
+  if (trigger.kind === "rules_question") {
+    const answer = str(o.answer, 900);
+    if (!answer) throw new LlmError("bad_json", "Antwort ohne Text.");
+    out.answer = answer;
   }
   if (trigger.kind === "suggest") {
     out.ideas = (Array.isArray(o.ideas) ? o.ideas : []).filter((i): i is string => typeof i === "string").map((i) => i.slice(0, 90)).slice(0, 4);

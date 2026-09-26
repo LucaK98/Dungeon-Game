@@ -48,6 +48,8 @@ export type DmTrigger =
   | { kind: "free_text"; text: string; playerId: PlayerId; heroName: string }
   /** The roll the DM asked for after a free action is done. */
   | { kind: "roll_result"; text: string; playerId: PlayerId; heroName: string; skill: string; dc: number; total: number; success: boolean }
+  /** "Frag den Spielleiter": a rules question from one player, answered only to them. */
+  | { kind: "rules_question"; question: string; playerId: PlayerId; heroName: string; glossary: { title: string; text: string }[]; hero: string }
   /** A player asks "Was könnte ich tun?" – answered with a few ideas, nothing happens yet. */
   | { kind: "suggest"; playerId: PlayerId; heroName: string }
   | { kind: "scene_end" }
@@ -74,6 +76,8 @@ export interface DmResponse {
   effects?: DmEffect[];
   /** Answer to "suggest": short ideas for free actions. */
   ideas?: string[];
+  /** Answer to "rules_question". */
+  answer?: string;
   next: DmNext;
 }
 

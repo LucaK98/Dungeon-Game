@@ -19,6 +19,7 @@ import { actOf, planScenes, plannedMinutes, sceneById, sceneRooms, tempoCheck } 
 import { pickEnding } from "./scripted";
 import { resolveClue, validateResponse } from "./validate";
 import { filterEffects } from "./effects";
+import { glossaryAnswer, glossaryExcerpt, heroSummary } from "./rules-help";
 import { SKILL_IDS, type SkillId } from "../shared/rules";
 
 export interface StoryState {
@@ -97,6 +98,7 @@ export class Director {
     this.startedAt = this.now();
     game.onFreeText = (playerId, hero, text) => void this.freeText(playerId, hero, text);
     game.onSuggest = (playerId, hero) => this.suggest(playerId, hero);
+    game.onAskRules = (playerId, hero, question) => this.askRules(playerId, hero, question);
   }
 
   // ---------------------------------------------------------------- helpers
@@ -515,6 +517,19 @@ export class Director {
     }
     this.actingRoom = undefined;
     return ideas.filter((i) => typeof i === "string" && i.trim()).map((i) => i.trim().slice(0, 90)).slice(0, 4);
+  }
+
+  /** "Frag den Spielleiter": answer a rules question for one player (never changes the game). */
+  async askRules(playerId: PlayerId, hero: Creature, question: string): Promise<string> {
+    const turn = this.game.mode === "combat" && this.game.active()?.id === hero.id ? this.game.session.battle.combat?.turn : undefined;
+    const trigger: DmTrigger = { kind: "rules_question", question, playerId, heroName: hero.name, glossary: glossaryExcerpt(question), hero: heroSummary(hero, turn) };
+    try {
+      const res = await this.dm.respond(this.ctx(), trigger);
+      if (res.answer?.trim()) return res.answer.trim().slice(0, 900);
+    } catch {
+      // fall back to the glossary
+    }
+    return glossaryAnswer(question);
   }
 
   /** Friendly characters make checks in their scene easier, hostile ones harder. */

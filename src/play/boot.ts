@@ -136,6 +136,8 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
         controller?.requestRoll(e.prompt);
       } else if (e.type === "roll_result") {
         controller?.rollResult(e.result);
+      } else if (e.type === "rules_answer") {
+        controller?.rulesAnswer(e.question, e.answer);
       } else if (e.type === "suggestions") {
         controller?.suggestions(e.ideas);
       } else if (e.type === "action_error") {
