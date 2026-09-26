@@ -104,7 +104,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     if (opts.story) {
       const { story, duration } = opts.story;
       const state = opts.resume ? structuredClone(opts.resume.state) : newStoryState(story, rng, duration);
-      const providers = providersFrom(loadAiSettings());
+      const providers = providersFrom(loadAiSettings(), host.lobby.room);
       let aiStatus: AiStatus | undefined = providers ? { kind: "ok", model: providers[0]!.model } : undefined;
       const showAi = () => game.events.emit("ai-status", aiStatus);
       const dm = providers

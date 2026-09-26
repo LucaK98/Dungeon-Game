@@ -50,6 +50,13 @@ Testmodus ohne Handys: `#/tv?demo` startet direkt mit vier Beispiel-Helden. Auf 
 
 Ohne KI erzählt das Drehbuch. Mit KI erzählt die Spielleitung frei, spielt die Nebenfiguren, reagiert auf **Freie Aktionen** (z. B. „Ich biete der Wache ein Goldstück an“), verlangt dafür passende Proben und wählt am Ende den Ausklang. Regeln, Zahlen, Kämpfe und die Geschichte selbst bleiben im Code.
 
+**Empfohlen: Server-KI** – der Schlüssel liegt nur auf dem Supabase-Server (Edge Function `dm`, Code in `supabase/functions/dm`), kein Gerät braucht ihn:
+1. Im Supabase-Dashboard → *Edge Functions* → *Secrets* den Eintrag `GEMINI_API_KEY` mit dem Gemini-Schlüssel anlegen (optional `GEMINI_MODEL`, `GEMINI_FALLBACK_MODEL`).
+2. Am Fernseher: **⚙️ Einstellungen → 🌐 Server-KI** → **Server testen** → Speichern.
+
+Die Funktion prüft Herkunft (nur diese Seite), Größe und ein Limit pro Raum (60 Aufrufe in 10 Minuten).
+
+**Alternativ: eigener Schlüssel auf dem Fernseher**
 1. Kostenlosen Schlüssel in [Google AI Studio](https://aistudio.google.com) erstellen.
 2. Am Fernseher: **⚙️ Einstellungen → Gemini** → Schlüssel einfügen → **Verbindung testen** → Speichern.
 3. Modell und Ausweich-Modell sind frei wählbar (Standard `gemini-flash-latest`, bei Limit `gemini-flash-lite-latest`), weil Google die Gratis-Modelle regelmäßig wechselt. „Verbindung testen“ füllt die Liste mit den Modellen, die der Schlüssel nutzen darf.

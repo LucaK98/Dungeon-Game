@@ -4,12 +4,13 @@
  * and never ends up in the repo. No format check: Gemini keys may start with "AQ." too.
  */
 import { SYSTEM_PROMPT } from "../dm/ai/prompt";
-import { GeminiProvider, GroqProvider, LlmError, type ProviderId } from "../dm/ai/provider";
-import { aiCallsToday, countAiCall, loadAiSettings, saveAiSettings, type AiSettings } from "../dm/ai/settings";
+import { GeminiProvider, GroqProvider, LlmError, ServerProvider, type ProviderId } from "../dm/ai/provider";
+import { aiCallsToday, countAiCall, loadAiSettings, providersFrom, saveAiSettings, type AiSettings } from "../dm/ai/settings";
 import { h } from "../ui/dom";
 
 const PROVIDERS: { id: AiSettings["provider"]; label: string; detail: string }[] = [
   { id: "off", label: "📜 Drehbuch", detail: "Ohne KI. Der Erzähler folgt der Geschichte, freie Aktionen versteht er nur bei Stichworten." },
+  { id: "server", label: "🌐 Server-KI", detail: "Empfohlen: Kein Schlüssel auf diesem Gerät nötig. Die KI läuft über euren Supabase-Server, der Gemini-Schlüssel liegt dort sicher als Geheimnis." },
   { id: "gemini", label: "🧠 Gemini (Google)", detail: "Kostenloser Schlüssel aus Google AI Studio (aistudio.google.com). Die KI erzählt frei und reagiert auf eure Ideen." },
   { id: "groq", label: "⚡ Groq", detail: "Ersatz-Anbieter mit Gratis-Stufe (console.groq.com)." },
 ];
@@ -41,12 +42,41 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
       h("label", {}, "Ausweich-Modell (wenn das Gratis-Limit erreicht ist)", fallbackInput),
       models,
       h("div", { class: "tv-row" }, test, clearKey),
-      status,
       h("p", { class: "settings-warn" }, "🔒 Nur auf eigenen Geräten verwenden. Der Schlüssel bleibt nur auf diesem Gerät gespeichert und wird nie an die Handys geschickt."),
     );
 
-    // The key field shows the key of the chosen provider.
-    const current = (): ProviderId | undefined => (s.provider === "off" ? undefined : s.provider);
+    // The key field shows the key of the chosen provider (the server needs none).
+    const current = (): Exclude<ProviderId, "server"> | undefined => (s.provider === "off" || s.provider === "server" ? undefined : s.provider);
+    const serverPart = h(
+      "div",
+      { class: "settings-ai" },
+      h("div", { class: "tv-row" }, h("button", { class: "tv-btn", type: "button", textContent: "🔌 Server testen", onclick: () => void testServer() })),
+      h("p", { class: "settings-warn" }, "Einmalig einrichten: Im Supabase-Dashboard unter Edge Functions → Secrets den Eintrag GEMINI_API_KEY mit eurem Gemini-Schlüssel anlegen."),
+    );
+    const testServer = async () => {
+      status.textContent = "Teste den Server …";
+      const provider = providersFrom({ ...s, provider: "server" }, "TEST")![0] as ServerProvider;
+      try {
+        if (!(await provider.ping())) {
+          status.textContent = "❌ Der Server ist erreichbar, aber dort ist noch kein GEMINI_API_KEY hinterlegt.";
+          return;
+        }
+        const started = performance.now();
+        countAiCall();
+        renderCalls();
+        const answer = (await provider.complete({
+          system: SYSTEM_PROMPT,
+          prompt: "Begrüße die Heldengruppe in einem Satz zu ihrem ersten Abenteuer.",
+          schema: { type: "OBJECT", properties: { narration: { type: "STRING" } }, required: ["narration"] },
+          maxTokens: 512,
+        })) as { narration?: string };
+        const secs = ((performance.now() - started) / 1000).toFixed(1).replace(".", ",");
+        status.textContent = `✅ Server-KI antwortet in ${secs} s: „${answer.narration ?? "…"}“`;
+        saveAiSettings(s);
+      } catch (err) {
+        status.textContent = `❌ ${err instanceof LlmError ? err.message : String(err)}`;
+      }
+    };
     const pull = () => {
       const p = current();
       if (!p) return;
@@ -71,6 +101,7 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
       );
       const p = current();
       aiPart.hidden = !p;
+      serverPart.hidden = s.provider !== "server";
       if (p) {
         keyInput.value = s.keys[p] ?? "";
         modelInput.value = s.models[p];
@@ -125,7 +156,7 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     const el = h(
       "main",
       { class: "tv-screen" },
-      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, aiPart, calls, h("div", { class: "tv-row" }, done)),
+      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("div", { class: "tv-row" }, done)),
     );
     done.addEventListener("click", () => {
       pull();

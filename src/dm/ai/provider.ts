@@ -31,7 +31,7 @@ export interface LlmProvider {
   complete(req: LlmRequest): Promise<unknown>;
 }
 
-export type ProviderId = "gemini" | "groq";
+export type ProviderId = "gemini" | "groq" | "server";
 
 type Fetch = typeof fetch;
 
@@ -123,6 +123,57 @@ export class GeminiProvider implements LlmProvider {
         .filter((m) => m.supportedGenerationMethods?.includes("generateContent") && /gemini/i.test(m.name))
         .map((m) => m.name.replace(/^models\//, ""));
     });
+  }
+}
+
+/**
+ * The AI on the server (Supabase Edge Function "dm", see supabase/functions/dm). The Gemini key
+ * lives there as a secret; the TV only sends the prompt. The function also does the Flash-Lite fallback.
+ */
+export class ServerProvider implements LlmProvider {
+  readonly id = "server" as const;
+  readonly model = "server";
+  constructor(
+    private url: string,
+    private anonKey: string,
+    private room: string,
+    private fetchFn: Fetch = (...a) => fetch(...a),
+    private timeoutMs = 25000,
+  ) {}
+
+  private async call(body: Record<string, unknown>, signal: AbortSignal): Promise<{ ok?: boolean; text?: string; configured?: boolean; error?: string }> {
+    const res = await this.fetchFn(this.url, {
+      method: "POST",
+      headers: { "content-type": "application/json", apikey: this.anonKey, authorization: `Bearer ${this.anonKey}` },
+      body: JSON.stringify(body),
+      signal,
+    });
+    const text = await res.text();
+    let data: { ok?: boolean; text?: string; configured?: boolean; error?: string } = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // not JSON (gateway error)
+    }
+    if (res.ok) return data;
+    if (res.status === 429 || data.error === "limit") throw new LlmError("limit", "Das KI-Limit ist gerade erreicht.");
+    if (data.error === "not_configured") throw new LlmError("auth", "Auf dem Server ist noch kein Gemini-Schlüssel hinterlegt.");
+    if (data.error === "auth") throw new LlmError("auth", "Der Gemini-Schlüssel auf dem Server wurde abgelehnt.");
+    if (res.status === 401 || res.status === 403) throw new LlmError("auth", "Der Server hat die Anfrage abgelehnt.");
+    throw new LlmError("other", "Der KI-Server hat gerade Probleme.");
+  }
+
+  async complete(req: LlmRequest): Promise<unknown> {
+    return withTimeout(this.timeoutMs, async (signal) => {
+      const data = await this.call({ mode: "complete", room: this.room, system: req.system, prompt: req.prompt, schema: req.schema, maxTokens: req.maxTokens ?? 2048 }, signal);
+      if (!data.text) throw new LlmError("bad_json", "Leere Antwort.");
+      return parseJson(data.text);
+    });
+  }
+
+  /** Is the function reachable, and is a key stored there? */
+  async ping(): Promise<boolean> {
+    return withTimeout(this.timeoutMs, async (signal) => !!(await this.call({ mode: "ping" }, signal)).configured);
   }
 }
 

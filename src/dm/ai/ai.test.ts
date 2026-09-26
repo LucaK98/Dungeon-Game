@@ -118,3 +118,29 @@ describe("AiDM", () => {
     expect(calls).toEqual([]);
   });
 });
+
+describe("Server provider (Supabase Edge Function)", () => {
+  const reply = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+
+  it("sends the prompt with the public key and returns the parsed answer", async () => {
+    let seen: { url: string; headers: Record<string, string>; body: Record<string, unknown> } | undefined;
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      seen = { url, headers: init.headers as Record<string, string>, body: JSON.parse(init.body as string) };
+      return new Response(JSON.stringify({ ok: true, model: "gemini-flash-latest", text: '{"narration":"Hallo"}' }), { status: 200 });
+    }) as typeof fetch;
+    const { ServerProvider } = await import("./provider");
+    const p = new ServerProvider("https://x.supabase.co/functions/v1/dm", "anon-jwt", "ABCD", fetchFn);
+    expect(await p.complete({ system: "s", prompt: "p", schema: { type: "OBJECT" } })).toEqual({ narration: "Hallo" });
+    expect(seen!.headers.authorization).toBe("Bearer anon-jwt");
+    expect(seen!.body.room).toBe("ABCD");
+    expect(JSON.stringify(seen!.body)).not.toContain("AQ.");
+  });
+
+  it("maps server errors to limit / missing key", async () => {
+    const { ServerProvider } = await import("./provider");
+    await expect(new ServerProvider("u", "k", "R", reply(429, { error: "limit" })).complete({ system: "", prompt: "p", schema: {} })).rejects.toMatchObject({ kind: "limit" });
+    await expect(new ServerProvider("u", "k", "R", reply(503, { error: "not_configured" })).complete({ system: "", prompt: "p", schema: {} })).rejects.toMatchObject({ kind: "auth" });
+    expect(await new ServerProvider("u", "k", "R", reply(200, { ok: true, configured: false })).ping()).toBe(false);
+    expect(await new ServerProvider("u", "k", "R", reply(200, { ok: true, configured: true })).ping()).toBe(true);
+  });
+});

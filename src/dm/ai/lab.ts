@@ -10,7 +10,8 @@ import { ScriptedDM } from "../scripted";
 import { STORIES } from "../stories";
 import { AiDM } from "./aidm";
 import { buildPrompt } from "./prompt";
-import { GeminiProvider, GroqProvider, type LlmProvider } from "./provider";
+import { DM_FUNCTION_URL, SUPABASE_ANON_JWT } from "../../net/supabase";
+import { GeminiProvider, GroqProvider, ServerProvider, type LlmProvider } from "./provider";
 import { countAiCall, loadAiSettings } from "./settings";
 
 function candidates(): LlmProvider[] {
@@ -21,6 +22,7 @@ function candidates(): LlmProvider[] {
   };
   if (s.keys.gemini) add((m) => new GeminiProvider(s.keys.gemini!, m), [s.models.gemini, s.fallbackModels.gemini]);
   if (s.keys.groq) add((m) => new GroqProvider(s.keys.groq!, m), [s.models.groq, s.fallbackModels.groq]);
+  out.push(new ServerProvider(DM_FUNCTION_URL, SUPABASE_ANON_JWT, "LAB"));
   return out;
 }
 

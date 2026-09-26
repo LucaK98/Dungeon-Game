@@ -2,7 +2,8 @@
  * AI settings of this TV. Stored only in this device's localStorage – never in the repo,
  * never sent to phones. "Nur auf eigenen Geräten verwenden."
  */
-import { GeminiProvider, GroqProvider, type LlmProvider, type ProviderId } from "./provider";
+import { DM_FUNCTION_URL, SUPABASE_ANON_JWT } from "../../net/supabase";
+import { GeminiProvider, GroqProvider, ServerProvider, type LlmProvider, type ProviderId } from "./provider";
 
 export interface AiSettings {
   /** "off" = scripted narrator only. */
@@ -20,8 +21,8 @@ const CALLS = "couch-dungeon.aiCalls";
 export const DEFAULT_SETTINGS: AiSettings = {
   provider: "off",
   keys: {},
-  models: { gemini: "gemini-flash-latest", groq: "llama-3.3-70b-versatile" },
-  fallbackModels: { gemini: "gemini-flash-lite-latest", groq: "llama-3.1-8b-instant" },
+  models: { gemini: "gemini-flash-latest", groq: "llama-3.3-70b-versatile", server: "server" },
+  fallbackModels: { gemini: "gemini-flash-lite-latest", groq: "llama-3.1-8b-instant", server: "" },
 };
 
 function storage(): Storage | undefined {
@@ -57,8 +58,10 @@ export function saveAiSettings(s: AiSettings): void {
 }
 
 /** Main and fallback provider for the current settings, or undefined if the AI is off / has no key. */
-export function providersFrom(s: AiSettings): LlmProvider[] | undefined {
+export function providersFrom(s: AiSettings, room = ""): LlmProvider[] | undefined {
   if (s.provider === "off") return undefined;
+  // The server holds the key itself and does the fallback model.
+  if (s.provider === "server") return [new ServerProvider(DM_FUNCTION_URL, SUPABASE_ANON_JWT, room)];
   const key = s.keys[s.provider]?.trim();
   if (!key) return undefined;
   const make = (model: string) => (s.provider === "gemini" ? new GeminiProvider(key, model) : new GroqProvider(key, model));

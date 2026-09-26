@@ -503,7 +503,7 @@ body.tip-mode::after {
 
 /* TV settings (AI game master) */
 .settings { max-width: 1100px; text-align: left; }
-.settings-providers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5vh; }
+.settings-providers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5vh; }
 .story-card.provider.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
 .settings-ai { display: flex; flex-direction: column; gap: 1.4vh; margin-top: 2vh; }
 .settings-ai label { display: flex; flex-direction: column; gap: 0.6vh; font-size: 2.2vh; }
@@ -527,3 +527,11 @@ body.tip-mode::after {
 .idea-chip { text-align: left; padding: 10px 12px; border-radius: 12px; border: 1px solid #5a4d42; background: #221d18; color: #f3e9d2; font-size: 1rem; }
 .idea-chip:active { background: #3a3027; }
 .free-cost { font-size: 0.9rem; margin: 4px 0 6px; }
+.settings .story-card.provider { padding: 1.2vh 1.8vh; }
+.settings .story-card.provider h2 { font-size: 2.8vh; margin: 0 0 0.6vh; }
+.settings .story-card.provider p { font-size: 1.8vh; margin: 0; }
+.settings h1 { font-size: 4vh; margin: 0 0 1.5vh; }
+/* Centre TV screens, but never cut off the top when they are taller than the screen. */
+.tv-screen { align-items: flex-start; }
+.tv-screen > * { margin-top: auto; margin-bottom: auto; }
+.settings-ai[hidden] { display: none; }
