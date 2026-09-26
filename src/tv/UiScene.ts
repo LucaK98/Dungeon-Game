@@ -36,7 +36,7 @@ export class UiScene extends Phaser.Scene {
     this.orderBar = this.add.container(20, 150);
     this.banner = this.add
       // In the middle of the screen: at the top the dice card would cover it during fights.
-      .text(BOARD_WIDTH / 2, BOARD_HEIGHT * 0.42, "", { fontFamily: FONT, fontSize: "64px", color: "#f3e9d2", stroke: "#000", strokeThickness: 12 })
+      .text(BOARD_WIDTH / 2, BOARD_HEIGHT * 0.42, "", crisp({ fontFamily: FONT, fontSize: "64px", color: "#f3e9d2", stroke: "#000", strokeThickness: 12 }))
       .setOrigin(0.5)
       .setAlpha(0);
     this.turnBox = this.add.graphics();
@@ -124,7 +124,7 @@ export class UiScene extends Phaser.Scene {
     const text = this.add.text(x + 30, 0, "", crisp({ fontFamily: FONT, fontSize: "34px", color: "#f3e9d2", wordWrap: { width: width - 60 }, lineSpacing: 8, fontStyle: line.npc ? "italic" : "normal" }));
     // Measure the full height first.
     text.setText(line.text);
-    const tipText = line.tip ? this.add.text(x + 30, 0, `💡 $crisp({line.tip.text})`, { fontFamily: FONT, fontSize: "26px", color: "#1b1208", wordWrap: { width: width - 90 }, lineSpacing: 6 }) : undefined;
+    const tipText = line.tip ? this.add.text(x + 30, 0, `💡 ${line.tip.text}`, crisp({ fontFamily: FONT, fontSize: "26px", color: "#1b1208", wordWrap: { width: width - 90 }, lineSpacing: 6 })) : undefined;
     const bodyH = (speaker ? 42 : 0) + text.height + (tipText ? tipText.height + 40 : 0);
     const top = BOARD_HEIGHT - 150 - bodyH;
     const bg = this.add.graphics();
@@ -251,7 +251,7 @@ export class UiScene extends Phaser.Scene {
       die.fillStyle(r.crit ? 0xb8860b : 0x7a2e22, 1).fillRoundedRect(-width + 24, 24, 120, 120, 20);
       die.lineStyle(4, 0xf3e9d2, 1).strokeRoundedRect(-width + 24, 24, 120, 120, 20);
       const n = this.add.text(-width + 84, 76, String(r.kept), crisp({ fontFamily: FONT, fontSize: "68px", fontStyle: "bold", color: "#fff", stroke: "#000", strokeThickness: 6 })).setOrigin(0.5);
-      const sides = this.add.text(-width + 84, 128, `W$crisp({r.sides})`, { fontFamily: FONT, fontSize: "20px", color: "#f3e9d2" }).setOrigin(0.5);
+      const sides = this.add.text(-width + 84, 128, `W${r.sides}`, crisp({ fontFamily: FONT, fontSize: "20px", color: "#f3e9d2" })).setOrigin(0.5);
       this.rollBox.add([die, n, sides]);
       if (r.dice.length > 1) {
         const other = r.dice.find((d, i) => d !== r.kept || i > 0 && r.dice[0] === r.kept) ?? r.dice[1]!;
