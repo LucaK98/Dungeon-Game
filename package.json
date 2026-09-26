@@ -11,13 +11,18 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "import:srd": "tsx scripts/import-srd.ts",
-    "simulate": "tsx scripts/simulate-combat.ts"
+    "simulate": "tsx scripts/simulate-combat.ts",
+    "import:assets": "tsx scripts/import-assets.ts"
   },
   "dependencies": {
-    "phaser": "^3.90.0"
+    "phaser": "^3.90.0",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",
+    "@types/pngjs": "^6.0.5",
+    "@types/qrcode": "^1.5.6",
+    "pngjs": "^7.0.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",

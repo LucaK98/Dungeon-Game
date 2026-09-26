@@ -12,6 +12,8 @@ export interface PlayerInfo {
   raceId?: string;
   color?: string;
   ready?: boolean;
+  /** False while the device is gone (closed tab, lost Wi-Fi). */
+  connected?: boolean;
 }
 
 export type Ability = "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA";

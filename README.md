@@ -33,6 +33,7 @@ Mit `?net=local|peer|supabase` wird die Verbindungsart gewählt (Standard: `loca
 | `npm run preview` | Den Build lokal ansehen |
 | `npm test` | Tests (Vitest) |
 | `npm run simulate` | Simulierter Kampf in der Konsole mit allen Würfen erklärt (`-- --seed 7 --level 3 --enemies ogre,wolf`) |
+| `npm run import:assets` | Grafiken aus dem DCSS-Tileset neu zusammenstellen (schreibt `public/assets/`) |
 | `npm run import:srd` | SRD-Daten neu aus `5e-bits/5e-database` laden (schreibt `src/data/srd/`) |
 
 ## Veröffentlichen

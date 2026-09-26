@@ -10,10 +10,13 @@ SRD-Daten im JSON-Format: [5e-bits/5e-database](https://github.com/5e-bits/5e-da
 
 ## Grafik
 
-Wird ab Phase A3 ergänzt. Geplant: [Dungeon Crawl Stone Soup Tiles](https://github.com/Snowdrama/CC0-Dungeon-Pack) (CC0).
+- **Dungeon Crawl Stone Soup Tiles** (CC0) – https://opengameart.org/content/dungeon-crawl-32x32-tiles und https://opengameart.org/content/dungeon-crawl-32x32-tiles-supplemental, als Einzeldateien aus [Snowdrama/CC0-Dungeon-Pack](https://github.com/Snowdrama/CC0-Dungeon-Pack). Projekt: https://github.com/crawl/crawl
+  Wir verwenden nur eine Auswahl (`scripts/assets/selection.ts`), zusammengefasst in `public/assets/atlas.png`. Die Herkunft jedes Tiles steht in `public/assets/tileset.json`.
 
 ## Software
 
 - [Phaser](https://phaser.io) (MIT)
 - [Vite](https://vite.dev) (MIT)
 - [Vitest](https://vitest.dev) (MIT)
+- [node-qrcode](https://github.com/soldair/node-qrcode) (MIT)
+- [pngjs](https://github.com/pngjs/pngjs) (MIT, nur für das Import-Skript)

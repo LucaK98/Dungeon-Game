@@ -1,22 +1,40 @@
-import Phaser from "phaser";
 import type { Route } from "../shared/route";
-import { BOARD_HEIGHT, BOARD_WIDTH, BoardScene } from "./BoardScene";
+import { h } from "../ui/dom";
+import { GameHost } from "./host";
+import { renderLobby } from "./lobby-view";
 
-export function startTv(root: HTMLElement, _route: Extract<Route, { view: "tv" }>): () => void {
-  const container = document.createElement("div");
-  container.className = "tv";
-  root.append(container);
+export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>): () => void {
+  document.body.classList.add("is-tv");
+  let stopView: (() => void) | undefined;
+  let host: GameHost | undefined;
+  let closed = false;
 
-  const game = new Phaser.Game({
-    type: Phaser.AUTO,
-    parent: container,
-    width: BOARD_WIDTH,
-    height: BOARD_HEIGHT,
-    backgroundColor: "#14110f",
-    pixelArt: true,
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: [BoardScene],
+  const showBoard = async () => {
+    stopView?.();
+    const { startBoard } = await import("./board");
+    stopView = startBoard(root, host!);
+  };
+
+  void GameHost.start(route.net).then((started) => {
+    if (closed) {
+      started.transport.close();
+      return;
+    }
+    host = started;
+    if (host.lobby.phase === "playing") void showBoard();
+    else
+      stopView = renderLobby(root, host, () => {
+        host!.startGame();
+        void showBoard();
+      });
+  }).catch((err: unknown) => {
+    root.append(h("p", { class: "error" }, `Das Spielbrett konnte nicht starten: ${String(err)}`));
   });
 
-  return () => game.destroy(true);
+  return () => {
+    closed = true;
+    stopView?.();
+    host?.transport.close();
+    document.body.classList.remove("is-tv");
+  };
 }

@@ -1,3 +1,4 @@
+import type { CharacterProfile, LobbyState } from "./lobby";
 import type { Ability, BreakdownPart, PlayerId } from "./types";
 
 /** Anything a phone can ask the host to do. Extended in A4/A5. */
@@ -31,6 +32,10 @@ export type GameEvent =
   | { type: "roll_result"; result: RollResult }
   | { type: "narration"; text: string; npc?: { name: string; text: string } }
   | { type: "clue_found"; clueId: string }
-  | { type: "secret_message"; text: string };
+  | { type: "secret_message"; text: string }
+  // Lobby (A2)
+  | { type: "lobby_profile"; profile: CharacterProfile | null; ready: boolean }
+  | { type: "lobby_state"; lobby: LobbyState }
+  | { type: "join_rejected"; reason: string };
 
 export type GameEventType = GameEvent["type"];

@@ -1,0 +1,912 @@
+{
+ "name": "Dungeon Crawl Stone Soup (CC0)",
+ "tileSize": 32,
+ "image": "atlas.png",
+ "atlas": "atlas.json",
+ "frames": {
+  "doll.base.dwarf_1": {
+   "frame": "doll.base.dwarf_1",
+   "x": 0,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/base/dwarf_male.png"
+  },
+  "doll.base.dwarf_2": {
+   "frame": "doll.base.dwarf_2",
+   "x": 33,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/base/dwarf_female.png"
+  },
+  "doll.base.elf_1": {
+   "frame": "doll.base.elf_1",
+   "x": 66,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/base/elf_male.png"
+  },
+  "doll.base.elf_2": {
+   "frame": "doll.base.elf_2",
+   "x": 99,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/base/elf_female.png"
+  },
+  "doll.base.halfling_1": {
+   "frame": "doll.base.halfling_1",
+   "x": 132,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/base/halfling_male.png"
+  },
+  "doll.base.halfling_2": {
+   "frame": "doll.base.halfling_2",
+   "x": 165,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/base/halfling_female.png"
+  },
+  "doll.base.human_1": {
+   "frame": "doll.base.human_1",
+   "x": 198,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/base/human_male.png"
+  },
+  "doll.base.human_2": {
+   "frame": "doll.base.human_2",
+   "x": 231,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/base/human_female.png"
+  },
+  "doll.beard.long_black": {
+   "frame": "doll.beard.long_black",
+   "x": 264,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/beard/long_black.png"
+  },
+  "doll.beard.long_red": {
+   "frame": "doll.beard.long_red",
+   "x": 297,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/beard/long_red.png"
+  },
+  "doll.beard.long_white": {
+   "frame": "doll.beard.long_white",
+   "x": 330,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/beard/long_white.png"
+  },
+  "doll.beard.short_black": {
+   "frame": "doll.beard.short_black",
+   "x": 363,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/beard/short_black.png"
+  },
+  "doll.beard.short_red": {
+   "frame": "doll.beard.short_red",
+   "x": 396,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/beard/short_red.png"
+  },
+  "doll.beard.short_white": {
+   "frame": "doll.beard.short_white",
+   "x": 429,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/beard/short_white.png"
+  },
+  "doll.beard.short_yellow": {
+   "frame": "doll.beard.short_yellow",
+   "x": 462,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/beard/short_yellow.png"
+  },
+  "doll.body.chainmail": {
+   "frame": "doll.body.chainmail",
+   "x": 495,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/chainmail.png"
+  },
+  "doll.body.half_plate": {
+   "frame": "doll.body.half_plate",
+   "x": 528,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/half_plate.png"
+  },
+  "doll.body.jacket": {
+   "frame": "doll.body.jacket",
+   "x": 561,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/jacket_stud.png"
+  },
+  "doll.body.leather": {
+   "frame": "doll.body.leather",
+   "x": 594,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/leather_armor.png"
+  },
+  "doll.body.leather_green": {
+   "frame": "doll.body.leather_green",
+   "x": 627,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/leather_green.png"
+  },
+  "doll.body.plate": {
+   "frame": "doll.body.plate",
+   "x": 660,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/plate.png"
+  },
+  "doll.body.robe_blue": {
+   "frame": "doll.body.robe_blue",
+   "x": 693,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/robe_blue.png"
+  },
+  "doll.body.robe_green": {
+   "frame": "doll.body.robe_green",
+   "x": 726,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/robe_green.png"
+  },
+  "doll.body.robe_purple": {
+   "frame": "doll.body.robe_purple",
+   "x": 759,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/robe_purple.png"
+  },
+  "doll.body.robe_red": {
+   "frame": "doll.body.robe_red",
+   "x": 792,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/robe_red.png"
+  },
+  "doll.body.robe_white": {
+   "frame": "doll.body.robe_white",
+   "x": 825,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/robe_white.png"
+  },
+  "doll.body.scalemail": {
+   "frame": "doll.body.scalemail",
+   "x": 858,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/scalemail.png"
+  },
+  "doll.body.shirt": {
+   "frame": "doll.body.shirt",
+   "x": 891,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/body/shirt_white_1.png"
+  },
+  "doll.boots.brown": {
+   "frame": "doll.boots.brown",
+   "x": 924,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/boots/middle_brown.png"
+  },
+  "doll.boots.gray": {
+   "frame": "doll.boots.gray",
+   "x": 957,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/boots/middle_gray.png"
+  },
+  "doll.boots.short": {
+   "frame": "doll.boots.short",
+   "x": 990,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "player/boots/short_brown.png"
+  },
+  "doll.cloak.black": {
+   "frame": "doll.cloak.black",
+   "x": 0,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/cloak/black.png"
+  },
+  "doll.cloak.blue": {
+   "frame": "doll.cloak.blue",
+   "x": 33,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/cloak/blue.png"
+  },
+  "doll.cloak.green": {
+   "frame": "doll.cloak.green",
+   "x": 66,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/cloak/green.png"
+  },
+  "doll.cloak.red": {
+   "frame": "doll.cloak.red",
+   "x": 99,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/cloak/red.png"
+  },
+  "doll.cloak.white": {
+   "frame": "doll.cloak.white",
+   "x": 132,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/cloak/white.png"
+  },
+  "doll.cloak.yellow": {
+   "frame": "doll.cloak.yellow",
+   "x": 165,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/cloak/yellow.png"
+  },
+  "doll.hair.brown": {
+   "frame": "doll.hair.brown",
+   "x": 198,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/brown_1.png"
+  },
+  "doll.hair.knot": {
+   "frame": "doll.hair.knot",
+   "x": 231,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/knot_red.png"
+  },
+  "doll.hair.long_black": {
+   "frame": "doll.hair.long_black",
+   "x": 264,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/long_black.png"
+  },
+  "doll.hair.long_red": {
+   "frame": "doll.hair.long_red",
+   "x": 297,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/long_red.png"
+  },
+  "doll.hair.long_white": {
+   "frame": "doll.hair.long_white",
+   "x": 330,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/long_white.png"
+  },
+  "doll.hair.long_yellow": {
+   "frame": "doll.hair.long_yellow",
+   "x": 363,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/long_yellow.png"
+  },
+  "doll.hair.pigtails": {
+   "frame": "doll.hair.pigtails",
+   "x": 396,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/pigtails_brown.png"
+  },
+  "doll.hair.ponytail": {
+   "frame": "doll.hair.ponytail",
+   "x": 429,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/ponytail_yellow.png"
+  },
+  "doll.hair.short_black": {
+   "frame": "doll.hair.short_black",
+   "x": 462,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/short_black.png"
+  },
+  "doll.hair.short_red": {
+   "frame": "doll.hair.short_red",
+   "x": 495,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/short_red.png"
+  },
+  "doll.hair.short_white": {
+   "frame": "doll.hair.short_white",
+   "x": 528,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/short_white.png"
+  },
+  "doll.hair.short_yellow": {
+   "frame": "doll.hair.short_yellow",
+   "x": 561,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/hair/short_yellow.png"
+  },
+  "doll.head.crown": {
+   "frame": "doll.head.crown",
+   "x": 594,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/head/crown_gold_1.png"
+  },
+  "doll.head.helm": {
+   "frame": "doll.head.helm",
+   "x": 627,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/head/helm_plume.png"
+  },
+  "doll.head.hood": {
+   "frame": "doll.head.hood",
+   "x": 660,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/head/hood_green.png"
+  },
+  "doll.head.hood_red": {
+   "frame": "doll.head.hood_red",
+   "x": 693,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/head/hood_red.png"
+  },
+  "doll.head.iron": {
+   "frame": "doll.head.iron",
+   "x": 726,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/head/iron_1.png"
+  },
+  "doll.head.viking": {
+   "frame": "doll.head.viking",
+   "x": 759,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/head/viking_brown_1.png"
+  },
+  "doll.head.wizard": {
+   "frame": "doll.head.wizard",
+   "x": 792,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/head/wizard_blue.png"
+  },
+  "doll.head.wizard_red": {
+   "frame": "doll.head.wizard_red",
+   "x": 825,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/head/wizard_red.png"
+  },
+  "doll.legs.armor": {
+   "frame": "doll.legs.armor",
+   "x": 858,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/legs/leg_armor_0.png"
+  },
+  "doll.legs.black": {
+   "frame": "doll.legs.black",
+   "x": 891,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/legs/pants_black.png"
+  },
+  "doll.legs.blue": {
+   "frame": "doll.legs.blue",
+   "x": 924,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/legs/pants_blue.png"
+  },
+  "doll.legs.brown": {
+   "frame": "doll.legs.brown",
+   "x": 957,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/legs/pants_brown.png"
+  },
+  "doll.legs.metal": {
+   "frame": "doll.legs.metal",
+   "x": 990,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "player/legs/metal_gray.png"
+  },
+  "doll.shield.buckler": {
+   "frame": "doll.shield.buckler",
+   "x": 0,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_left/buckler_round_2.png"
+  },
+  "doll.shield.holy": {
+   "frame": "doll.shield.holy",
+   "x": 33,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_left/shield_holy.png"
+  },
+  "doll.shield.kite": {
+   "frame": "doll.shield.kite",
+   "x": 66,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_left/shield_kite_1.png"
+  },
+  "doll.shield.knight": {
+   "frame": "doll.shield.knight",
+   "x": 99,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_left/shield_knight_blue.png"
+  },
+  "doll.shield.round": {
+   "frame": "doll.shield.round",
+   "x": 132,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_left/shield_round_1.png"
+  },
+  "doll.weapon.axe": {
+   "frame": "doll.weapon.axe",
+   "x": 165,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/hand_axe.png"
+  },
+  "doll.weapon.battleaxe": {
+   "frame": "doll.weapon.battleaxe",
+   "x": 198,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/battleaxe.png"
+  },
+  "doll.weapon.bow": {
+   "frame": "doll.weapon.bow",
+   "x": 231,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/bow.png"
+  },
+  "doll.weapon.crossbow": {
+   "frame": "doll.weapon.crossbow",
+   "x": 264,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/crossbow.png"
+  },
+  "doll.weapon.dagger": {
+   "frame": "doll.weapon.dagger",
+   "x": 297,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/dagger.png"
+  },
+  "doll.weapon.greatsword": {
+   "frame": "doll.weapon.greatsword",
+   "x": 330,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/great_sword.png"
+  },
+  "doll.weapon.hammer": {
+   "frame": "doll.weapon.hammer",
+   "x": 363,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/hammer.png"
+  },
+  "doll.weapon.longsword": {
+   "frame": "doll.weapon.longsword",
+   "x": 396,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/long_sword.png"
+  },
+  "doll.weapon.mace": {
+   "frame": "doll.weapon.mace",
+   "x": 429,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/mace.png"
+  },
+  "doll.weapon.magestaff": {
+   "frame": "doll.weapon.magestaff",
+   "x": 462,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/staff_mage.png"
+  },
+  "doll.weapon.rapier": {
+   "frame": "doll.weapon.rapier",
+   "x": 495,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/rapier.png"
+  },
+  "doll.weapon.shortsword": {
+   "frame": "doll.weapon.shortsword",
+   "x": 528,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/short_sword.png"
+  },
+  "doll.weapon.spear": {
+   "frame": "doll.weapon.spear",
+   "x": 561,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/spear.png"
+  },
+  "doll.weapon.staff": {
+   "frame": "doll.weapon.staff",
+   "x": 594,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "player/hand_right/quarterstaff.png"
+  },
+  "monster.bandit": {
+   "frame": "monster.bandit",
+   "x": 627,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/unique/harold.png"
+  },
+  "monster.bandit-captain": {
+   "frame": "monster.bandit-captain",
+   "x": 660,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/unique/frances.png"
+  },
+  "monster.commoner": {
+   "frame": "monster.commoner",
+   "x": 693,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/human.png"
+  },
+  "monster.cult-fanatic": {
+   "frame": "monster.cult-fanatic",
+   "x": 726,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/enchantress_human.png"
+  },
+  "monster.cultist": {
+   "frame": "monster.cultist",
+   "x": 759,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/necromancer.png"
+  },
+  "monster.dire-wolf": {
+   "frame": "monster.dire-wolf",
+   "x": 792,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/animals/war_dog.png"
+  },
+  "monster.ghost": {
+   "frame": "monster.ghost",
+   "x": 825,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/undead/ghost.png"
+  },
+  "monster.ghoul": {
+   "frame": "monster.ghoul",
+   "x": 858,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/undead/ghoul.png"
+  },
+  "monster.giant-rat": {
+   "frame": "monster.giant-rat",
+   "x": 891,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/animals/grey_rat.png"
+  },
+  "monster.giant-spider": {
+   "frame": "monster.giant-spider",
+   "x": 924,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/animals/wolf_spider.png"
+  },
+  "monster.goblin": {
+   "frame": "monster.goblin",
+   "x": 957,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/goblin.png"
+  },
+  "monster.green-hag": {
+   "frame": "monster.green-hag",
+   "x": 990,
+   "y": 66,
+   "w": 32,
+   "h": 32,
+   "source": "monster/unique/agnes.png"
+  },
+  "monster.guard": {
+   "frame": "monster.guard",
+   "x": 0,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/holy/paladin.png"
+  },
+  "monster.knight": {
+   "frame": "monster.knight",
+   "x": 33,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/death_knight.png"
+  },
+  "monster.kobold": {
+   "frame": "monster.kobold",
+   "x": 66,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/kobold.png"
+  },
+  "monster.mage": {
+   "frame": "monster.mage",
+   "x": 99,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/unique/eustachio.png"
+  },
+  "monster.noble": {
+   "frame": "monster.noble",
+   "x": 132,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/unique/boris.png"
+  },
+  "monster.ogre": {
+   "frame": "monster.ogre",
+   "x": 165,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/ogre.png"
+  },
+  "monster.priest": {
+   "frame": "monster.priest",
+   "x": 198,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/unique/francis.png"
+  },
+  "monster.rat": {
+   "frame": "monster.rat",
+   "x": 231,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/animals/rat.png"
+  },
+  "monster.red-dragon-wyrmling": {
+   "frame": "monster.red-dragon-wyrmling",
+   "x": 264,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/fire_drake.png"
+  },
+  "monster.scout": {
+   "frame": "monster.scout",
+   "x": 297,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/elf.png"
+  },
+  "monster.skeleton": {
+   "frame": "monster.skeleton",
+   "x": 330,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/undead/skeletal_warrior.png"
+  },
+  "monster.specter": {
+   "frame": "monster.specter",
+   "x": 363,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/undead/silent_spectre.png"
+  },
+  "monster.spy": {
+   "frame": "monster.spy",
+   "x": 396,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/unique/donald.png"
+  },
+  "monster.swarm-of-bats": {
+   "frame": "monster.swarm-of-bats",
+   "x": 429,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/animals/bat.png"
+  },
+  "monster.swarm-of-rats": {
+   "frame": "monster.swarm-of-rats",
+   "x": 462,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/animals/orange_rat.png"
+  },
+  "monster.thug": {
+   "frame": "monster.thug",
+   "x": 495,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/unique/edmund.png"
+  },
+  "monster.veteran": {
+   "frame": "monster.veteran",
+   "x": 528,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/unique/frederick.png"
+  },
+  "monster.werewolf-hybrid": {
+   "frame": "monster.werewolf-hybrid",
+   "x": 561,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/gnoll.png"
+  },
+  "monster.wolf": {
+   "frame": "monster.wolf",
+   "x": 594,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/animals/wolf.png"
+  },
+  "monster.zombie": {
+   "frame": "monster.zombie",
+   "x": 627,
+   "y": 99,
+   "w": 32,
+   "h": 32,
+   "source": "monster/undead/zombies/zombie_small.png"
+  }
+ }
+}
