@@ -7,10 +7,12 @@ import type { PlayerId, PlayerInfo } from "../shared/types";
 
 export type Wire =
   /** Phone → host: join and heartbeat. `instance` is new on every page load. */
-  | { t: "hello"; player: PlayerInfo; instance: string }
+  | { t: "hello"; player: PlayerInfo; instance: string; claim?: boolean }
   | { t: "bye"; playerId: PlayerId; instance: string }
   /** Host → phone: this ID is in use by another open tab, pick a new one. */
   | { t: "id-taken"; instance: string }
+  /** Host → phone: this seat was taken over by a newer page of the same player (reopened app). */
+  | { t: "replaced"; instance: string }
   /** Host → all: who is here. */
   | { t: "presence"; players: PlayerInfo[] }
   /** Host → all: the TV (re)started, please say hello. */

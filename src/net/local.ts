@@ -18,6 +18,7 @@ export class LocalTransport implements Transport {
   private eventHandlers: ((e: GameEvent, from: PlayerId | "host") => void)[] = [];
   private presenceHandlers: ((players: PlayerInfo[]) => void)[] = [];
   private connectionHandlers: ((connected: boolean) => void)[] = [];
+  private replacedHandlers: (() => void)[] = [];
 
   constructor(private newPlayerId: () => PlayerId = () => crypto.randomUUID()) {}
 
@@ -41,12 +42,14 @@ export class LocalTransport implements Transport {
     return code;
   }
 
-  async joinRoom(code: RoomCode, player: PlayerInfo): Promise<void> {
+  async joinRoom(code: RoomCode, player: PlayerInfo, opts: { claim?: boolean } = {}): Promise<void> {
     const channel = this.open(code, (msg) => this.client?.receive(msg));
     const client = new ClientCore((msg) => channel.postMessage(msg), player, this.newPlayerId);
     this.eventHandlers.forEach((h) => client.onEvent(h));
     this.presenceHandlers.forEach((h) => client.onPresence(h));
     this.connectionHandlers.forEach((h) => client.onConnection(h));
+    this.replacedHandlers.forEach((h) => client.onReplaced(h));
+    client.claim = !!opts.claim;
     this.client = client;
     await client.join();
   }
@@ -74,6 +77,11 @@ export class LocalTransport implements Transport {
   onConnection(handler: (connected: boolean) => void): void {
     this.connectionHandlers.push(handler);
     this.client?.onConnection(handler);
+  }
+
+  onReplaced(handler: () => void): void {
+    this.replacedHandlers.push(handler);
+    this.client?.onReplaced(handler);
   }
 
   updatePlayer(patch: Partial<PlayerInfo>): void {

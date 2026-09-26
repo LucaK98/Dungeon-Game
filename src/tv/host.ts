@@ -4,7 +4,7 @@
  */
 import { createTransport, type GameTransport } from "../net";
 import { defaultLook } from "../shared/doll";
-import type { GameEvent } from "../shared/events";
+import type { GameEvent, SeatOffer } from "../shared/events";
 import { MAX_PLAYERS, type LobbyPlayer, type LobbyState } from "../shared/lobby";
 import { sanitizeProfile } from "./profile";
 import type { NetKind } from "../shared/transport";
@@ -33,6 +33,7 @@ function save(key: string, value: unknown): void {
 export class GameHost {
   private listeners: ((lobby: LobbyState) => void)[] = [];
   private eventListeners: ((e: GameEvent, from: PlayerId) => void)[] = [];
+  private seatListeners: ((oldId: PlayerId, newId: PlayerId) => void)[] = [];
 
   private constructor(
     readonly transport: GameTransport,
@@ -70,9 +71,21 @@ export class GameHost {
     this.eventListeners.push(listener);
   }
 
+  /** A phone took over the hero of a player whose phone is gone (see `take_seat`). */
+  onSeatMoved(listener: (oldId: PlayerId, newId: PlayerId) => void): void {
+    this.seatListeners.push(listener);
+  }
+
+  /** Heroes whose phone is offline; a new phone may take them over during the game. */
+  freeSeats(): SeatOffer[] {
+    return this.lobby.players
+      .filter((p) => !p.connected && p.profile)
+      .map((p) => ({ id: p.id, name: p.profile!.name, classId: p.profile!.classId, color: p.profile!.color }));
+  }
+
   joinUrl(): string {
     const base = `${location.origin}${location.pathname}`;
-    return `${base}#/play?room=${this.lobby.room}${this.net === "local" ? "" : `&net=${this.net}`}`;
+    return `${base}#/play?room=${this.lobby.room}&net=${this.net}`;
   }
 
   setStory(story: LobbyState["story"]): void {
@@ -135,6 +148,11 @@ export class GameHost {
         known.connected = info.connected !== false;
       } else if (info.connected !== false) {
         const seats = this.lobby.players.length;
+        const free = this.lobby.phase === "playing" ? this.freeSeats() : [];
+        if (free.length) {
+          this.transport.send({ type: "seat_offer", seats: free }, info.id);
+          continue;
+        }
         if (this.lobby.phase !== "lobby" || seats >= MAX_PLAYERS) {
           const reason = this.lobby.phase !== "lobby" ? "Das Spiel läuft schon." : `Es können höchstens ${MAX_PLAYERS} Leute mitspielen.`;
           this.transport.send({ type: "join_rejected", reason }, info.id);
@@ -147,6 +165,10 @@ export class GameHost {
   }
 
   private onEvent(e: GameEvent, from: PlayerId): void {
+    if (e.type === "take_seat") {
+      this.takeSeat(e.seatId, from);
+      return;
+    }
     const p = this.player(from);
     if (!p) return;
     if (e.type === "lobby_profile") {
@@ -158,6 +180,21 @@ export class GameHost {
       return;
     }
     for (const l of this.eventListeners) l(e, from);
+  }
+
+  private takeSeat(seatId: PlayerId, newId: PlayerId): void {
+    const seat = this.player(seatId);
+    if (this.lobby.phase !== "playing" || this.player(newId) || !seat || seat.connected || !seat.profile) {
+      // Somebody else was faster (or the hero is back online): offer what is left.
+      const free = this.freeSeats();
+      if (free.length) this.transport.send({ type: "seat_offer", seats: free }, newId);
+      else this.transport.send({ type: "join_rejected", reason: "Diese Figur ist schon wieder besetzt." }, newId);
+      return;
+    }
+    seat.id = newId;
+    seat.connected = true;
+    for (const l of this.seatListeners) l(seatId, newId);
+    this.changed();
   }
 
   private changed(): void {

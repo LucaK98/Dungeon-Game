@@ -1,11 +1,13 @@
 import { createTransport, type GameTransport } from "../net";
+import { nameOf } from "../engine/names";
+import type { SeatOffer } from "../shared/events";
 import type { LobbyState } from "../shared/lobby";
 import { isValidRoomCode, normalizeRoomCode, ROOM_CODE_LENGTH } from "../shared/room";
 import type { Route } from "../shared/route";
 import { h } from "../ui/dom";
 import { createController, type Controller } from "./controller";
 import { createCharacterView, draftFromProfile, loadDraft, newDraft, profileOf, type CreateView } from "./create";
-import { newPlayerId, playerId } from "./identity";
+import { idFromThisTab, newPlayerId, playerId } from "./identity";
 
 export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play" }>): () => void {
   document.body.classList.add("is-phone");
@@ -19,6 +21,7 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
   let createView: CreateView | undefined;
   let lobby: LobbyState | undefined;
   let controller: Controller | undefined;
+  let choosingSeat = false;
 
   const show = (...nodes: Node[]) => content.replaceChildren(...nodes);
 
@@ -37,7 +40,7 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
       go.disabled = !isValidRoomCode(input.value);
     });
     const submit = () => {
-      if (isValidRoomCode(input.value)) location.hash = `#/play?room=${input.value}${route.net === "local" ? "" : `&net=${route.net}`}`;
+      if (isValidRoomCode(input.value)) location.hash = `#/play?room=${input.value}&net=${route.net}`;
     };
     go.addEventListener("click", submit);
     input.addEventListener("keydown", (e) => {
@@ -57,11 +60,33 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
     queueMicrotask(() => input.focus());
   }
 
+  /** The game runs already and this phone is unknown (lost its ID): let it take over an offline hero. */
+  function showSeatOffer(t: GameTransport, seats: SeatOffer[]): void {
+    const buttons = seats.map((s) => {
+      const b = h("button", { class: "btn seat-btn", type: "button" }, h("span", { class: "seat-dot", style: `background:${s.color}` }), `${s.name} (${nameOf("classes", s.classId)})`);
+      b.addEventListener("click", () => {
+        buttons.forEach((x) => (x.disabled = true));
+        t.send({ type: "take_seat", seatId: s.id });
+      });
+      return b;
+    });
+    show(
+      h(
+        "main",
+        { class: "play" },
+        h("h1", {}, "Wer bist du?"),
+        h("p", {}, "Das Abenteuer läuft schon. Diese Helden warten auf ihr Handy – tippe auf deine Figur, dann geht es für dich weiter."),
+        h("div", { class: "seat-list" }, ...buttons),
+      ),
+    );
+  }
+
   function renderLobby(): void {
     if (!transport || !lobby) return;
     const me = transport.player!.id;
     if (lobby.phase === "playing") {
       createView = undefined;
+      if (choosingSeat) return;
       if (!controller) {
         const t = transport;
         controller = createController(
@@ -89,7 +114,11 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
       if (e.type === "lobby_state") {
         lobby = e.lobby;
         renderLobby();
+      } else if (e.type === "seat_offer") {
+        choosingSeat = true;
+        showSeatOffer(t, e.seats);
       } else if (e.type === "state_update") {
+        choosingSeat = false;
         if (!controller) {
           lobby = lobby ? { ...lobby, phase: "playing" } : lobby;
           renderLobby();
@@ -108,8 +137,16 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
       }
     });
     t.onConnection?.((connected) => (banner.hidden = connected));
+    t.onReplaced?.(() => {
+      const again = h("button", { class: "btn primary", type: "button", textContent: "Hier weiterspielen" });
+      again.addEventListener("click", () => location.reload());
+      show(h("main", { class: "play" }, h("h1", {}, "Das Spiel ist woanders offen"), h("p", {}, "Du hast das Spiel in einem anderen Fenster oder Tab neu geöffnet. Dort geht es weiter – deine Figur ist nicht verloren."), again));
+    });
     try {
-      await t.joinRoom(room, { id: playerId(), name: loadDraft()?.name ?? "" });
+      // Same tab (reload) or a real phone: this is our seat, take it back even if the TV still sees the old page.
+      // Several tabs on one computer (local testing) instead get their own seats.
+      const claim = idFromThisTab() || route.net !== "local";
+      await t.joinRoom(room, { id: playerId(), name: loadDraft()?.name ?? "" }, { claim });
       // Tell the TV what we already have; it answers with the lobby state.
       const draft = loadDraft();
       t.send({ type: "lobby_profile", profile: draft ? profileOf(draft) : null, ready: draft?.ready ?? false });

@@ -132,6 +132,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   host.onPlayerEvent((e, from) => {
     if (e.type === "player_action") controller?.handle(from, e.action);
   });
+  host.onSeatMoved((oldId, newId) => controller?.reassignPlayer(oldId, newId));
   // A phone that (re)connects gets its view again.
   const offLobby = host.onChange(() => controller?.broadcast());
 

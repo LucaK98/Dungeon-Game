@@ -17,6 +17,8 @@ export class HostCore {
   private eventHandlers: ((e: GameEvent, from: PlayerId | "host") => void)[] = [];
   private presenceHandlers: ((players: PlayerInfo[]) => void)[] = [];
   private timer: ReturnType<typeof setInterval> | undefined;
+  /** Pages that lost their seat to a newer page; their late hellos are ignored. */
+  private replaced = new Set<string>();
 
   /** `post` sends a wire message to one player (to) or everyone. */
   constructor(private post: (msg: Wire, to?: PlayerId) => void, private now: () => number = Date.now) {}
@@ -33,14 +35,22 @@ export class HostCore {
   receive(msg: Wire): void {
     switch (msg.t) {
       case "hello": {
+        if (this.replaced.has(msg.instance)) return;
         const known = this.players.get(msg.player.id);
         const alive = known && known.info.connected && this.now() - known.lastSeen < TIMEOUT_MS;
         if (known && alive && known.instance !== msg.instance) {
-          // Two open tabs with the same stored ID: the newcomer must pick another one.
-          this.post({ t: "id-taken", instance: msg.instance });
-          return;
+          if (msg.claim) {
+            // The same player reopened the game (app closed without saying goodbye): the new page gets the seat.
+            this.replaced.add(known.instance);
+            this.post({ t: "replaced", instance: known.instance });
+          } else {
+            // Two open tabs with the same stored ID on one computer: the newcomer must pick another one.
+            this.post({ t: "id-taken", instance: msg.instance });
+            return;
+          }
         }
-        const changed = !known || !known.info.connected || known.info.name !== msg.player.name;
+        // A takeover counts as a change so the game re-sends everything to the new page.
+        const changed = !known || !known.info.connected || known.info.name !== msg.player.name || known.instance !== msg.instance;
         this.players.set(msg.player.id, {
           info: { ...msg.player, connected: true },
           instance: msg.instance,

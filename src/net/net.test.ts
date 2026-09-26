@@ -57,6 +57,29 @@ describe("host and client", () => {
     expect(net.host.list()).toHaveLength(1);
   });
 
+  it("lets a reopened phone take its seat over from a page that vanished without goodbye", async () => {
+    const net = network();
+    net.host.start();
+    const old = net.connect("p");
+    await old.join();
+    let replaced = false;
+    old.onReplaced(() => (replaced = true));
+    // The app was killed: no "bye". The reopened page claims the seat.
+    const again = net.connect("p");
+    again.claim = true;
+    await again.join();
+    expect(again.player.id).toBe("p");
+    expect(replaced).toBe(true);
+    expect(net.host.list()).toHaveLength(1);
+    // The old page stays quiet and cannot take the seat back.
+    const got: string[] = [];
+    again.onEvent((e) => got.push(e.type));
+    old.updatePlayer({ name: "alt" });
+    net.host.send({ type: "secret_message", text: "hi" }, "p");
+    expect(got).toEqual(["secret_message"]);
+    expect(net.host.list()[0]!.name).toBe("p");
+  });
+
   it("marks silent phones as disconnected", async () => {
     const net = network();
     net.host.start();

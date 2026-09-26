@@ -31,6 +31,16 @@ describe("game controller", () => {
     expect(v2?.type === "state_update" && v2.state.turn.activeName).toBe("Brunhild");
   });
 
+  it("hands a hero to a new phone when the old one lost its ID", () => {
+    const { game, last } = setup();
+    game.reassignPlayer("p1", "neu");
+    const v = last("neu", "state_update");
+    expect(v?.type === "state_update" && v.state.turn.mine).toBe(true);
+    expect(game.heroOf("p1")).toBeUndefined();
+    game.handle("neu", { kind: "end_turn" });
+    expect(game.active()!.name).toBe("Ilmarin");
+  });
+
   it("only lets the active player act", () => {
     const { game, last } = setup();
     game.handle("p2", { kind: "end_turn" });

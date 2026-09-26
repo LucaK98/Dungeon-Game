@@ -27,6 +27,11 @@ export function newPlayerId(): string {
   return id;
 }
 
+/** True if this very tab already played (reload, or a restored tab), not just the same browser. */
+export function idFromThisTab(): boolean {
+  return read(sessionStorage) !== null;
+}
+
 export function playerId(): string {
   const id = read(sessionStorage) ?? read(localStorage);
   if (id) {

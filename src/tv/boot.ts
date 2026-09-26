@@ -87,7 +87,14 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
       else void menu();
     })
     .catch((err: unknown) => {
-      root.append(h("p", { class: "error" }, `Das Spielbrett konnte nicht starten: ${String(err)}`));
+      const msg = err instanceof Error ? err.message : String(err);
+      const retry = h("button", { class: "tv-btn primary", type: "button", textContent: "🔄 Nochmal versuchen" });
+      retry.addEventListener("click", () => location.reload());
+      const offline = h("a", { class: "tv-btn", href: "#/tv?net=local", textContent: "💻 Ohne Handys testen (nur dieser Computer)" });
+      offline.addEventListener("click", () => setTimeout(() => location.reload()));
+      root.append(
+        h("main", { class: "tv-screen" }, h("section", { class: "pick" }, h("h1", {}, "Das Spielbrett konnte nicht starten"), h("p", { class: "slide-text" }, msg), h("div", { class: "tv-row" }, retry, offline))),
+      );
     });
 
   return () => {

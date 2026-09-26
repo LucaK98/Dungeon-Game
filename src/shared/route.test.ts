@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseRoute } from "./route";
+import { defaultNet, parseRoute } from "./route";
 
 describe("parseRoute", () => {
   it("falls back to home", () => {
@@ -19,6 +19,9 @@ describe("parseRoute", () => {
   });
 
   it("ignores unknown transports", () => {
+    expect(parseRoute("#/tv", "peer")).toEqual({ view: "tv", net: "peer", demo: false });
+    expect(defaultNet("localhost")).toBe("local");
+    expect(defaultNet("lucak98.github.io")).toBe("peer");
     expect(parseRoute("#/tv?net=carrier-pigeon")).toEqual({ view: "tv", net: "local", demo: false });
   });
 });

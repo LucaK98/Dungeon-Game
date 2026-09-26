@@ -50,6 +50,17 @@ export type GameEvent =
   // Lobby (A2)
   | { type: "lobby_profile"; profile: CharacterProfile | null; ready: boolean }
   | { type: "lobby_state"; lobby: LobbyState }
-  | { type: "join_rejected"; reason: string };
+  | { type: "join_rejected"; reason: string }
+  /** TV → unknown phone during the game: heroes whose phone is gone and can be taken over. */
+  | { type: "seat_offer"; seats: SeatOffer[] }
+  /** Phone → TV: "I am this hero" (phone lost its stored ID, e.g. private tab or other browser). */
+  | { type: "take_seat"; seatId: PlayerId };
+
+export interface SeatOffer {
+  id: PlayerId;
+  name: string;
+  classId: string;
+  color: string;
+}
 
 export type GameEventType = GameEvent["type"];

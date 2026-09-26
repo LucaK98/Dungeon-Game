@@ -9,14 +9,19 @@ export type Route =
  * Parses the hash route used on GitHub Pages:
  *   #/tv            → board
  *   #/play?room=ABCD → phone
- * `?net=local|peer|supabase` picks the transport (default: local).
+ * `?net=local|peer|supabase` picks the transport. Without it: `local` on this computer
+ * (localhost, several tabs), `peer` everywhere else (real TV + phones).
  */
-export function parseRoute(hash: string): Route {
+export function defaultNet(hostname: string): NetKind {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "" ? "local" : "peer";
+}
+
+export function parseRoute(hash: string, fallbackNet: NetKind = "local"): Route {
   const raw = hash.replace(/^#/, "");
   const [path = "", query = ""] = raw.split("?", 2);
   const params = new URLSearchParams(query);
   const netParam = params.get("net");
-  const net: NetKind = NET_KINDS.includes(netParam as NetKind) ? (netParam as NetKind) : "local";
+  const net: NetKind = NET_KINDS.includes(netParam as NetKind) ? (netParam as NetKind) : fallbackNet;
 
   switch (path.replace(/\/+$/, "")) {
     case "/tv":

@@ -129,6 +129,16 @@ export class GameController {
     return this.session.partyIds.map((id) => this.battle.creatures[id]!).filter(Boolean);
   }
 
+  /** Another phone took over this player's hero (the old phone lost its ID). */
+  reassignPlayer(oldId: PlayerId, newId: PlayerId): void {
+    for (const hero of this.heroes()) if (hero.playerId === oldId) hero.playerId = newId;
+    const beginner = this.beginner.get(oldId);
+    if (beginner !== undefined) this.beginner.set(newId, beginner);
+    this.beginner.delete(oldId);
+    if (this.pending?.playerId === oldId) this.pending.playerId = newId;
+    this.sendView(newId);
+  }
+
   heroOf(playerId: PlayerId): Creature | undefined {
     return this.heroes().find((c) => c.playerId === playerId);
   }

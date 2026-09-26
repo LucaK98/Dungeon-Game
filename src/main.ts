@@ -1,5 +1,5 @@
 import "./style.css";
-import { parseRoute } from "./shared/route";
+import { defaultNet, parseRoute } from "./shared/route";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 let teardown: (() => void) | undefined;
@@ -9,7 +9,7 @@ async function render(): Promise<void> {
   teardown = undefined;
   app.replaceChildren();
 
-  const route = parseRoute(location.hash);
+  const route = parseRoute(location.hash, defaultNet(location.hostname));
   switch (route.view) {
     case "tv": {
       // Phaser is only needed on the board, so phones never download it.

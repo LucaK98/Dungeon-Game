@@ -15,6 +15,9 @@ export class ClientCore {
   private lastHostMessage = 0;
   private connected = false;
   private joined: (() => void) | undefined;
+  private replacedHandlers: (() => void)[] = [];
+  /** Take over our seat if another page of ours still holds it (see HostCore). */
+  claim = false;
 
   constructor(
     private post: (msg: Wire) => void,
@@ -40,7 +43,9 @@ export class ClientCore {
   }
 
   stop(): void {
-    if (this.timer) clearInterval(this.timer);
+    if (!this.timer) return; // already stopped (or replaced)
+    clearInterval(this.timer);
+    this.timer = undefined;
     this.post({ t: "bye", playerId: this.player.id, instance: this.instance });
   }
 
@@ -56,6 +61,13 @@ export class ClientCore {
     switch (msg.t) {
       case "host-hello":
         this.hello();
+        return;
+      case "replaced":
+        if (msg.instance === this.instance) {
+          if (this.timer) clearInterval(this.timer);
+          this.timer = undefined;
+          for (const h of this.replacedHandlers) h();
+        }
         return;
       case "id-taken":
         if (msg.instance === this.instance) {
@@ -93,8 +105,13 @@ export class ClientCore {
     this.connectionHandlers.push(h);
   }
 
+  /** This page lost its seat to a newer page of the same player. */
+  onReplaced(h: () => void): void {
+    this.replacedHandlers.push(h);
+  }
+
   private hello(): void {
-    this.post({ t: "hello", player: this.player, instance: this.instance });
+    this.post({ t: "hello", player: this.player, instance: this.instance, ...(this.claim ? { claim: true } : {}) });
   }
 
   private tick(): void {
