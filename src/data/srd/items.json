@@ -5,6 +5,10 @@
     "heal": "2d4+2"
   },
   {
+    "id": "gold",
+    "kind": "gear"
+  },
+  {
     "id": "torch",
     "kind": "gear"
   },

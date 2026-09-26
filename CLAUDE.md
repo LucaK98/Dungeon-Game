@@ -382,6 +382,7 @@ Ziel: KI-DM **ohne Backend und ohne Kosten**, über den kostenlosen Gemini-Tarif
   interface LlmProvider { complete(req: LlmRequest): Promise<DmResponse> }
   // GeminiProvider (Standard), GroqProvider (Ersatz), ClaudeProvider (später, bezahlt)
   ```
+- **Key-Format (Hinweis vom Nutzer):** Gemini-Keys können mit `AQ.` beginnen. **Keine Formatprüfung auf `AIza`** einbauen, der Key wird im Header `x-goog-api-key` gesendet (nicht als URL-Parameter).
 - **Key-Handling (Bring your own key):**
   - Einstellungsseite auf dem TV: Anbieter wählen, API-Key einfügen, „Verbindung testen“
   - Key nur im `localStorage` des TV-Geräts, **nie im Repo, nie an Handys schicken**

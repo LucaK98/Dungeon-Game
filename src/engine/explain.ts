@@ -18,10 +18,8 @@ import type { BreakdownPart } from "../shared/types";
 import type { ActionOutcome } from "./actions";
 import { abilityName, nameOf } from "./names";
 
-export interface ExplainedLine {
-  text: string;
-  glossarKeys: string[];
-}
+export type { ExplainedLine } from "../shared/view";
+import type { ExplainedLine } from "../shared/view";
 
 const MINUS = "−";
 

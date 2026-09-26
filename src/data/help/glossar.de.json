@@ -2508,5 +2508,69 @@
       "monster:red-dragon-wyrmling",
       "w6"
     ]
+  },
+  "gegenstand:gold": {
+    "titel": "Goldmünzen",
+    "kurz": "Das Geld der Spielwelt.",
+    "lang": "Mit Gold bezahlt man Wirte, Schmiede und manchmal auch Oger. In Truhen und Drachenhorten findet man oft welches. Wie viel du hast, siehst du in deinem Inventar.",
+    "siehe_auch": [
+      "ausruestung"
+    ]
+  },
+  "umsehen": {
+    "titel": "Umsehen",
+    "kurz": "Genau hinschauen, ob etwas Verborgenes da ist.",
+    "lang": "Wenn du dich umsiehst, machst du eine Probe auf Wahrnehmung. Schaffst du sie, entdeckst du versteckte Fallen, geheime Hinweise oder lauernde Gegner im Raum. Das kostet deine Aktion.",
+    "beispiel": "🎲 11 + 3 (Wahrnehmung) = 14 gegen SG 12 → du entdeckst eine Druckplatte im Boden.",
+    "siehe_auch": [
+      "fertigkeit:perception",
+      "probe",
+      "falle"
+    ]
+  },
+  "falle": {
+    "titel": "Falle",
+    "kurz": "Eine versteckte Gefahr, z. B. eine Druckplatte, die Pfeile auslöst.",
+    "lang": "Manche Räume haben versteckte Fallen. Wer darauf tritt, muss einen Rettungswurf auf Geschicklichkeit machen, sonst nimmt er Schaden. Mit Umsehen (Wahrnehmung) kannst du Fallen vorher entdecken, dann siehst du sie auf der Karte und kannst drumherum laufen.",
+    "siehe_auch": [
+      "umsehen",
+      "rettungswurf"
+    ]
+  },
+  "truhe": {
+    "titel": "Truhe",
+    "kurz": "Ein Behälter, in dem oft etwas Nützliches liegt.",
+    "lang": "Stehst du direkt neben einer Truhe, kannst du sie öffnen. Darin finden sich Heiltränke oder Gold. Das Öffnen kostet dich nichts, du kannst danach noch eine Aktion machen.",
+    "siehe_auch": [
+      "gegenstand:potion-of-healing",
+      "gegenstand:gold"
+    ]
+  },
+  "freie_aktion": {
+    "titel": "Freie Aktion",
+    "kurz": "Beschreibe mit eigenen Worten, was deine Figur tun will.",
+    "lang": "Nicht alles steht als Knopf zur Verfügung. Mit der freien Aktion schreibst du einfach auf, was du versuchen möchtest, zum Beispiel „Ich rede mit dem Oger“ oder „Ich suche nach einem geheimen Hebel“. Der Spielleiter entscheidet dann, was passiert und ob du dafür würfeln musst.",
+    "siehe_auch": [
+      "aktion",
+      "probe"
+    ]
+  },
+  "zug_beenden": {
+    "titel": "Zug beenden",
+    "kurz": "Du bist fertig, der Nächste ist dran.",
+    "lang": "Wenn du dich bewegt und deine Aktion gemacht hast (oder nichts mehr tun möchtest), beendest du deinen Zug. Dann ist die nächste Figur an der Reihe. Übrige Bewegung verfällt.",
+    "siehe_auch": [
+      "zug",
+      "runde"
+    ]
+  },
+  "minikarte": {
+    "titel": "Karte auf dem Handy",
+    "kurz": "Tippe auf ein hell markiertes Feld, um dorthin zu laufen.",
+    "lang": "Die kleine Karte zeigt die Umgebung deiner Figur. Hell markierte Felder erreichst du in diesem Zug. Tippe darauf, und deine Figur läuft dorthin. Gegner haben einen roten Rand, deine Freunde ihre Farbe.",
+    "siehe_auch": [
+      "bewegung",
+      "zug"
+    ]
   }
 }

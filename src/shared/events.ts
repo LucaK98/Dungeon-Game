@@ -1,14 +1,32 @@
 import type { CharacterProfile, LobbyState } from "./lobby";
-import type { Ability, BreakdownPart, PlayerId } from "./types";
+import type { SkillId } from "./rules";
+import type { Ability, PlayerId } from "./types";
+import type { PlayerView, RollOutcome, RollPrompt } from "./view";
 
-/** Anything a phone can ask the host to do. Extended in A4/A5. */
+export type FeatureId =
+  | "second-wind"
+  | "action-surge"
+  | "lay-on-hands"
+  | "turn-undead"
+  | "dash"
+  | "disengage"
+  | "dodge"
+  | "hide"
+  | "stand-up";
+
+/** Anything a phone can ask the host to do. The host validates everything. */
 export type PlayerAction =
   | { kind: "move"; to: { x: number; y: number } }
-  | { kind: "attack"; targetId: string }
-  | { kind: "cast"; spellId: string; targetId?: string }
+  | { kind: "attack"; targetId: string; optionId: string; smiteSlot?: number }
+  | { kind: "cast"; spellId: string; slotLevel?: number; targetIds: string[] }
   | { kind: "use_item"; itemId: string; targetId?: string }
+  | { kind: "feature"; feature: FeatureId; targetId?: string; amount?: number; bonus?: boolean }
+  | { kind: "check"; skill: SkillId }
+  | { kind: "interact"; objectId: string }
   | { kind: "free_text"; text: string }
-  | { kind: "roll" };
+  | { kind: "roll"; rollId: string }
+  | { kind: "end_turn" }
+  | { kind: "set_beginner_mode"; on: boolean };
 
 export interface RollRequest {
   playerId: PlayerId;
@@ -17,19 +35,13 @@ export interface RollRequest {
   dc: number;
 }
 
-export interface RollResult {
-  playerId: PlayerId;
-  total: number;
-  breakdown: BreakdownPart[];
-  success?: boolean;
-}
-
 /** All network events, see "Events" in CLAUDE.md. */
 export type GameEvent =
   | { type: "player_action"; action: PlayerAction }
-  | { type: "state_update"; state: unknown }
-  | { type: "request_roll"; request: RollRequest }
-  | { type: "roll_result"; result: RollResult }
+  | { type: "state_update"; state: PlayerView }
+  | { type: "request_roll"; prompt: RollPrompt }
+  | { type: "roll_result"; result: RollOutcome }
+  | { type: "action_error"; reason: string }
   | { type: "narration"; text: string; npc?: { name: string; text: string } }
   | { type: "clue_found"; clueId: string }
   | { type: "secret_message"; text: string }

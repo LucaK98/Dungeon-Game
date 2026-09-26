@@ -481,6 +481,7 @@ async function main(): Promise<void> {
 
   const items: ItemDef[] = [
     { id: "potion-of-healing", kind: "potion", heal: "2d4+2" },
+    { id: "gold", kind: "gear" },
     ...pick(eq, ["torch", "rope-hempen-50-feet", "healers-kit"], "equipment").map(
       (e): ItemDef => ({ id: e.index, kind: "gear" }),
     ),

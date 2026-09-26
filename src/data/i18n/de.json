@@ -1,11 +1,29 @@
 {
   "abilities": {
-    "STR": { "name": "Stärke", "short": "ST" },
-    "DEX": { "name": "Geschicklichkeit", "short": "GE" },
-    "CON": { "name": "Konstitution", "short": "KO" },
-    "INT": { "name": "Intelligenz", "short": "IN" },
-    "WIS": { "name": "Weisheit", "short": "WE" },
-    "CHA": { "name": "Charisma", "short": "CH" }
+    "STR": {
+      "name": "Stärke",
+      "short": "ST"
+    },
+    "DEX": {
+      "name": "Geschicklichkeit",
+      "short": "GE"
+    },
+    "CON": {
+      "name": "Konstitution",
+      "short": "KO"
+    },
+    "INT": {
+      "name": "Intelligenz",
+      "short": "IN"
+    },
+    "WIS": {
+      "name": "Weisheit",
+      "short": "WE"
+    },
+    "CHA": {
+      "name": "Charisma",
+      "short": "CH"
+    }
   },
   "skills": {
     "acrobatics": "Akrobatik",
@@ -132,7 +150,8 @@
     "potion-of-healing": "Heiltrank",
     "torch": "Fackel",
     "rope-hempen-50-feet": "Seil (15 m)",
-    "healers-kit": "Heilerausrüstung"
+    "healers-kit": "Heilerausrüstung",
+    "gold": "Goldmünzen"
   },
   "spells": {
     "fire-bolt": "Feuerpfeil",

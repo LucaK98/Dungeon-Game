@@ -3,6 +3,7 @@ import type { LobbyState } from "../shared/lobby";
 import { isValidRoomCode, normalizeRoomCode, ROOM_CODE_LENGTH } from "../shared/room";
 import type { Route } from "../shared/route";
 import { h } from "../ui/dom";
+import { createController, type Controller } from "./controller";
 import { createCharacterView, draftFromProfile, loadDraft, newDraft, profileOf, type CreateView } from "./create";
 import { newPlayerId, playerId } from "./identity";
 
@@ -17,6 +18,7 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
   let transport: GameTransport | undefined;
   let createView: CreateView | undefined;
   let lobby: LobbyState | undefined;
+  let controller: Controller | undefined;
 
   const show = (...nodes: Node[]) => content.replaceChildren(...nodes);
 
@@ -60,7 +62,14 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
     const me = transport.player!.id;
     if (lobby.phase === "playing") {
       createView = undefined;
-      show(h("main", { class: "play" }, h("h1", {}, "Das Abenteuer beginnt!"), h("p", {}, "Schau auf den Fernseher. Die Steuerung für deine Figur erscheint hier gleich.")));
+      if (!controller) {
+        const t = transport;
+        controller = createController(
+          () => t.player!.id,
+          (action) => t.send({ type: "player_action", action }),
+        );
+        show(h("main", { class: "play" }, h("h1", {}, "Das Abenteuer beginnt!"), h("p", {}, "Schau auf den Fernseher. Deine Steuerung erscheint gleich.")));
+      }
       return;
     }
     if (!createView) {
@@ -80,6 +89,19 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
       if (e.type === "lobby_state") {
         lobby = e.lobby;
         renderLobby();
+      } else if (e.type === "state_update") {
+        if (!controller) {
+          lobby = lobby ? { ...lobby, phase: "playing" } : lobby;
+          renderLobby();
+        }
+        if (controller && content.firstChild !== controller.element) show(controller.element);
+        controller?.setView(e.state);
+      } else if (e.type === "request_roll") {
+        controller?.requestRoll(e.prompt);
+      } else if (e.type === "roll_result") {
+        controller?.rollResult(e.result);
+      } else if (e.type === "action_error") {
+        controller?.error(e.reason);
       } else if (e.type === "join_rejected") {
         t.close();
         show(h("main", { class: "play" }, h("h1", {}, "Beitreten nicht möglich"), h("p", { class: "error" }, e.reason)));

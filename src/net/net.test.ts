@@ -75,7 +75,7 @@ describe("host and client", () => {
     await a.join();
     const got: string[] = [];
     net.host.onEvent((e, from) => got.push(`${from}:${e.type}`));
-    a.send({ type: "player_action", action: { kind: "roll" } });
+    a.send({ type: "player_action", action: { kind: "end_turn" } });
     expect(got).toEqual(["a:player_action"]);
   });
 });

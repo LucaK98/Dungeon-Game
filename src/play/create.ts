@@ -11,6 +11,7 @@ import { cleanName, NAME_MAX_LENGTH, PLAYER_COLORS, type CharacterProfile, type 
 import { NAME_IDEAS } from "../shared/names";
 import { dollCanvas, drawDoll, loadAtlas } from "../ui/atlas";
 import { h } from "../ui/dom";
+import { helpButton, openHelp } from "./help";
 
 export interface Draft {
   step: number;
@@ -100,7 +101,8 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
 
   function header(title: string, lead?: string): HTMLElement {
     const dots = STEPS.map((s, i) => h("span", { class: `dot${i === draft.step ? " on" : i < draft.step ? " done" : ""}`, title: s }));
-    return h("header", { class: "wizard-head" }, h("div", { class: "dots" }, ...dots), h("h1", {}, title), lead ? h("p", { class: "lead" }, lead) : null);
+    const help = helpButton({ view: () => undefined, setBeginnerMode: () => undefined });
+    return h("header", { class: "wizard-head" }, h("div", { class: "top-row" }, h("div", { class: "dots" }, ...dots), help), h("h1", {}, title), lead ? h("p", { class: "lead" }, lead) : null);
   }
 
   function stepName(): HTMLElement[] {
@@ -139,6 +141,13 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
             h("span", { class: "facts" }, (CLASS_FACTS[id] ?? []).join(" · ")),
           ),
         );
+        const info = h("span", { class: "info", role: "button", ariaLabel: "Mehr erfahren", textContent: "ℹ️" });
+        info.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openHelp(`klasse:${id}`, true);
+        });
+        card.append(info);
+        card.dataset.help = `klasse:${id}`;
         card.addEventListener("click", () => {
           const look = defaultLook(id, race, draft.look.base.endsWith("_2") ? 2 : 1);
           commit({ classId: id, look: { ...look, hair: draft.look.hair, beard: draft.look.beard } as DollLook });
@@ -156,6 +165,13 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
         dollCanvas(defaultLook(draft.classId || "fighter", r.id), 3, "choice-figure"),
         h("div", { class: "choice-text" }, h("strong", {}, nameOf("races", r.id)), h("span", { class: "choice-kurz" }, GLOSSAR[`volk:${r.id}`]?.kurz ?? "")),
       );
+      const info = h("span", { class: "info", role: "button", ariaLabel: "Mehr erfahren", textContent: "ℹ️" });
+      info.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openHelp(`volk:${r.id}`, true);
+      });
+      card.append(info);
+      card.dataset.help = `volk:${r.id}`;
       card.addEventListener("click", () => {
         const variant = draft.look.base.endsWith("_2") ? 2 : 1;
         const look = defaultLook(draft.classId || "fighter", r.id, variant);
