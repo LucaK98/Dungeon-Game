@@ -1,0 +1,298 @@
+[
+  {
+    "id": "fire-bolt",
+    "level": 0,
+    "school": "evocation",
+    "classes": [
+      "sorcerer",
+      "wizard"
+    ],
+    "castingTime": "action",
+    "rangeFt": 120,
+    "concentration": false,
+    "durationRounds": 0,
+    "attack": "ranged",
+    "damage": {
+      "type": "fire",
+      "byCharLevel": {
+        "1": "1d10",
+        "5": "2d10",
+        "11": "3d10",
+        "17": "4d10"
+      }
+    }
+  },
+  {
+    "id": "ray-of-frost",
+    "level": 0,
+    "school": "evocation",
+    "classes": [
+      "sorcerer",
+      "wizard"
+    ],
+    "castingTime": "action",
+    "rangeFt": 60,
+    "concentration": false,
+    "durationRounds": 0,
+    "attack": "ranged",
+    "damage": {
+      "type": "cold",
+      "byCharLevel": {
+        "1": "1d8",
+        "5": "2d8",
+        "11": "3d8",
+        "17": "4d8"
+      }
+    }
+  },
+  {
+    "id": "sacred-flame",
+    "level": 0,
+    "school": "evocation",
+    "classes": [
+      "cleric"
+    ],
+    "castingTime": "action",
+    "rangeFt": 60,
+    "concentration": false,
+    "durationRounds": 0,
+    "save": {
+      "ability": "DEX",
+      "onSuccess": "none"
+    },
+    "damage": {
+      "type": "radiant",
+      "byCharLevel": {
+        "1": "1d8",
+        "5": "2d8",
+        "11": "3d8",
+        "17": "4d8"
+      }
+    }
+  },
+  {
+    "id": "magic-missile",
+    "level": 1,
+    "school": "evocation",
+    "classes": [
+      "sorcerer",
+      "wizard"
+    ],
+    "castingTime": "action",
+    "rangeFt": 120,
+    "concentration": false,
+    "durationRounds": 0,
+    "damage": {
+      "type": "force",
+      "bySlot": {
+        "1": "3d4+3",
+        "2": "4d4+4",
+        "3": "5d4+5",
+        "4": "6d4+6",
+        "5": "7d4+7",
+        "6": "8d4+8",
+        "7": "9d4+9",
+        "8": "10d4+10",
+        "9": "11d4+11"
+      }
+    }
+  },
+  {
+    "id": "burning-hands",
+    "level": 1,
+    "school": "evocation",
+    "classes": [
+      "sorcerer",
+      "wizard"
+    ],
+    "castingTime": "action",
+    "rangeFt": "self",
+    "concentration": false,
+    "durationRounds": 0,
+    "save": {
+      "ability": "DEX",
+      "onSuccess": "half"
+    },
+    "damage": {
+      "type": "fire",
+      "bySlot": {
+        "1": "3d6",
+        "2": "4d6",
+        "3": "5d6",
+        "4": "6d6",
+        "5": "7d6",
+        "6": "8d6",
+        "7": "9d6",
+        "8": "10d6",
+        "9": "11d6"
+      }
+    },
+    "area": {
+      "shape": "cone",
+      "sizeFt": 15
+    }
+  },
+  {
+    "id": "sleep",
+    "level": 1,
+    "school": "enchantment",
+    "classes": [
+      "bard",
+      "sorcerer",
+      "wizard"
+    ],
+    "castingTime": "action",
+    "rangeFt": 90,
+    "concentration": false,
+    "durationRounds": 10,
+    "hpPool": {
+      "1": "5d8"
+    },
+    "area": {
+      "shape": "sphere",
+      "sizeFt": 20
+    }
+  },
+  {
+    "id": "cure-wounds",
+    "level": 1,
+    "school": "evocation",
+    "classes": [
+      "bard",
+      "cleric",
+      "druid",
+      "paladin",
+      "ranger"
+    ],
+    "castingTime": "action",
+    "rangeFt": "touch",
+    "concentration": false,
+    "durationRounds": 0,
+    "heal": {
+      "1": "1d8+MOD",
+      "2": "2d8+MOD",
+      "3": "3d8+MOD",
+      "4": "4d8+MOD",
+      "5": "5d8+MOD",
+      "6": "6d8+MOD",
+      "7": "7d8+MOD",
+      "8": "8d8+MOD",
+      "9": "9d8+MOD"
+    }
+  },
+  {
+    "id": "healing-word",
+    "level": 1,
+    "school": "evocation",
+    "classes": [
+      "bard",
+      "cleric",
+      "druid"
+    ],
+    "castingTime": "bonus",
+    "rangeFt": 60,
+    "concentration": false,
+    "durationRounds": 0,
+    "heal": {
+      "1": "1d4+MOD",
+      "2": "2d4+MOD",
+      "3": "3d4+MOD",
+      "4": "4d4+MOD",
+      "5": "5d4+MOD",
+      "6": "6d4+MOD",
+      "7": "7d4+MOD",
+      "8": "8d4+MOD",
+      "9": "9d4+MOD"
+    }
+  },
+  {
+    "id": "bless",
+    "level": 1,
+    "school": "enchantment",
+    "classes": [
+      "cleric",
+      "paladin"
+    ],
+    "castingTime": "action",
+    "rangeFt": 30,
+    "concentration": true,
+    "durationRounds": 10
+  },
+  {
+    "id": "guiding-bolt",
+    "level": 1,
+    "school": "evocation",
+    "classes": [
+      "cleric"
+    ],
+    "castingTime": "action",
+    "rangeFt": 120,
+    "concentration": false,
+    "durationRounds": 1,
+    "attack": "ranged",
+    "damage": {
+      "type": "radiant",
+      "bySlot": {
+        "1": "4d6",
+        "2": "5d6",
+        "3": "6d6",
+        "4": "7d6",
+        "5": "8d6",
+        "6": "9d6",
+        "7": "10d6",
+        "8": "11d6",
+        "9": "12d6"
+      }
+    }
+  },
+  {
+    "id": "shield-of-faith",
+    "level": 1,
+    "school": "abjuration",
+    "classes": [
+      "cleric",
+      "paladin"
+    ],
+    "castingTime": "bonus",
+    "rangeFt": 60,
+    "concentration": true,
+    "durationRounds": 100
+  },
+  {
+    "id": "divine-favor",
+    "level": 1,
+    "school": "evocation",
+    "classes": [
+      "paladin"
+    ],
+    "castingTime": "bonus",
+    "rangeFt": "self",
+    "concentration": true,
+    "durationRounds": 10,
+    "damage": {
+      "type": "radiant",
+      "bySlot": {
+        "1": "1d4"
+      }
+    }
+  },
+  {
+    "id": "scorching-ray",
+    "level": 2,
+    "school": "evocation",
+    "classes": [
+      "sorcerer",
+      "wizard"
+    ],
+    "castingTime": "action",
+    "rangeFt": 120,
+    "concentration": false,
+    "durationRounds": 0,
+    "damage": {
+      "type": "fire",
+      "bySlot": {
+        "2": "2d6"
+      }
+    }
+  }
+]

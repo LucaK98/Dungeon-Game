@@ -1,0 +1,320 @@
+[
+  {
+    "id": "fighter",
+    "hitDie": 10,
+    "saves": [
+      "STR",
+      "CON"
+    ],
+    "armor": [
+      "light",
+      "medium",
+      "heavy",
+      "shield"
+    ],
+    "weapons": [
+      "simple",
+      "martial"
+    ],
+    "skillChoices": {
+      "count": 2,
+      "from": [
+        "acrobatics",
+        "animal-handling",
+        "athletics",
+        "history",
+        "insight",
+        "intimidation",
+        "perception",
+        "survival"
+      ]
+    },
+    "levels": [
+      {
+        "level": 1,
+        "proficiencyBonus": 2,
+        "features": [
+          "fighter-fighting-style",
+          "second-wind"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 2,
+        "proficiencyBonus": 2,
+        "features": [
+          "action-surge-1-use"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 3,
+        "proficiencyBonus": 2,
+        "features": [
+          "martial-archetype"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      }
+    ]
+  },
+  {
+    "id": "paladin",
+    "hitDie": 10,
+    "saves": [
+      "WIS",
+      "CHA"
+    ],
+    "armor": [
+      "light",
+      "medium",
+      "heavy",
+      "shield"
+    ],
+    "weapons": [
+      "simple",
+      "martial"
+    ],
+    "skillChoices": {
+      "count": 2,
+      "from": [
+        "athletics",
+        "insight",
+        "intimidation",
+        "medicine",
+        "persuasion",
+        "religion"
+      ]
+    },
+    "spellcastingAbility": "CHA",
+    "levels": [
+      {
+        "level": 1,
+        "proficiencyBonus": 2,
+        "features": [
+          "divine-sense",
+          "lay-on-hands"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 2,
+        "proficiencyBonus": 2,
+        "features": [
+          "paladin-fighting-style",
+          "spellcasting-paladin",
+          "divine-smite"
+        ],
+        "spellSlots": [
+          2
+        ],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 3,
+        "proficiencyBonus": 2,
+        "features": [
+          "divine-health",
+          "sacred-oath",
+          "oath-spells",
+          "channel-divinity"
+        ],
+        "spellSlots": [
+          3
+        ],
+        "cantripsKnown": 0
+      }
+    ]
+  },
+  {
+    "id": "wizard",
+    "hitDie": 6,
+    "saves": [
+      "INT",
+      "WIS"
+    ],
+    "armor": [],
+    "weapons": [],
+    "skillChoices": {
+      "count": 2,
+      "from": [
+        "arcana",
+        "history",
+        "insight",
+        "investigation",
+        "medicine",
+        "religion"
+      ]
+    },
+    "spellcastingAbility": "INT",
+    "levels": [
+      {
+        "level": 1,
+        "proficiencyBonus": 2,
+        "features": [
+          "spellcasting-wizard",
+          "arcane-recovery"
+        ],
+        "spellSlots": [
+          2
+        ],
+        "cantripsKnown": 3
+      },
+      {
+        "level": 2,
+        "proficiencyBonus": 2,
+        "features": [
+          "arcane-tradition"
+        ],
+        "spellSlots": [
+          3
+        ],
+        "cantripsKnown": 3
+      },
+      {
+        "level": 3,
+        "proficiencyBonus": 2,
+        "features": [],
+        "spellSlots": [
+          4,
+          2
+        ],
+        "cantripsKnown": 3
+      }
+    ]
+  },
+  {
+    "id": "rogue",
+    "hitDie": 8,
+    "saves": [
+      "DEX",
+      "INT"
+    ],
+    "armor": [
+      "light"
+    ],
+    "weapons": [
+      "simple"
+    ],
+    "skillChoices": {
+      "count": 4,
+      "from": [
+        "acrobatics",
+        "athletics",
+        "deception",
+        "insight",
+        "intimidation",
+        "investigation",
+        "perception",
+        "performance",
+        "persuasion",
+        "sleight-of-hand",
+        "stealth"
+      ]
+    },
+    "levels": [
+      {
+        "level": 1,
+        "proficiencyBonus": 2,
+        "features": [
+          "rogue-expertise-1",
+          "sneak-attack",
+          "thieves-cant"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0,
+        "sneakAttackDice": 1
+      },
+      {
+        "level": 2,
+        "proficiencyBonus": 2,
+        "features": [
+          "cunning-action"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0,
+        "sneakAttackDice": 1
+      },
+      {
+        "level": 3,
+        "proficiencyBonus": 2,
+        "features": [
+          "roguish-archetype"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0,
+        "sneakAttackDice": 2
+      }
+    ]
+  },
+  {
+    "id": "cleric",
+    "hitDie": 8,
+    "saves": [
+      "WIS",
+      "CHA"
+    ],
+    "armor": [
+      "light",
+      "medium",
+      "shield"
+    ],
+    "weapons": [
+      "simple"
+    ],
+    "skillChoices": {
+      "count": 2,
+      "from": [
+        "history",
+        "insight",
+        "medicine",
+        "persuasion",
+        "religion"
+      ]
+    },
+    "spellcastingAbility": "WIS",
+    "levels": [
+      {
+        "level": 1,
+        "proficiencyBonus": 2,
+        "features": [
+          "spellcasting-cleric",
+          "divine-domain",
+          "domain-spells-1"
+        ],
+        "spellSlots": [
+          2
+        ],
+        "cantripsKnown": 3
+      },
+      {
+        "level": 2,
+        "proficiencyBonus": 2,
+        "features": [
+          "channel-divinity-1-rest",
+          "channel-divinity-turn-undead",
+          "divine-domain-improvement-1"
+        ],
+        "spellSlots": [
+          3
+        ],
+        "cantripsKnown": 3
+      },
+      {
+        "level": 3,
+        "proficiencyBonus": 2,
+        "features": [
+          "domain-spells-2"
+        ],
+        "spellSlots": [
+          4,
+          2
+        ],
+        "cantripsKnown": 3
+      }
+    ]
+  }
+]

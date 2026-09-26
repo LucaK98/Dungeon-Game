@@ -1,0 +1,85 @@
+[
+  {
+    "id": "human",
+    "speedFt": 30,
+    "size": "medium",
+    "abilityBonuses": {
+      "STR": 1,
+      "DEX": 1,
+      "CON": 1,
+      "INT": 1,
+      "WIS": 1,
+      "CHA": 1
+    },
+    "traits": [],
+    "darkvisionFt": 0,
+    "skillProficiencies": [],
+    "resistances": []
+  },
+  {
+    "id": "elf",
+    "subrace": "high-elf",
+    "speedFt": 30,
+    "size": "medium",
+    "abilityBonuses": {
+      "DEX": 2,
+      "INT": 1
+    },
+    "traits": [
+      "darkvision",
+      "fey-ancestry",
+      "trance",
+      "keen-senses",
+      "elf-weapon-training",
+      "high-elf-cantrip",
+      "extra-language"
+    ],
+    "darkvisionFt": 60,
+    "skillProficiencies": [
+      "perception"
+    ],
+    "resistances": []
+  },
+  {
+    "id": "dwarf",
+    "subrace": "hill-dwarf",
+    "speedFt": 25,
+    "size": "medium",
+    "abilityBonuses": {
+      "CON": 2,
+      "WIS": 1
+    },
+    "traits": [
+      "darkvision",
+      "dwarven-resilience",
+      "stonecunning",
+      "dwarven-combat-training",
+      "tool-proficiency",
+      "dwarven-toughness"
+    ],
+    "darkvisionFt": 60,
+    "skillProficiencies": [],
+    "resistances": [
+      "poison"
+    ]
+  },
+  {
+    "id": "halfling",
+    "subrace": "lightfoot-halfling",
+    "speedFt": 25,
+    "size": "small",
+    "abilityBonuses": {
+      "DEX": 2,
+      "CHA": 1
+    },
+    "traits": [
+      "brave",
+      "halfling-nimbleness",
+      "lucky",
+      "naturally-stealthy"
+    ],
+    "darkvisionFt": 0,
+    "skillProficiencies": [],
+    "resistances": []
+  }
+]

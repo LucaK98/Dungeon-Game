@@ -1,0 +1,74 @@
+[
+  {
+    "id": "acrobatics",
+    "ability": "DEX"
+  },
+  {
+    "id": "animal-handling",
+    "ability": "WIS"
+  },
+  {
+    "id": "arcana",
+    "ability": "INT"
+  },
+  {
+    "id": "athletics",
+    "ability": "STR"
+  },
+  {
+    "id": "deception",
+    "ability": "CHA"
+  },
+  {
+    "id": "history",
+    "ability": "INT"
+  },
+  {
+    "id": "insight",
+    "ability": "WIS"
+  },
+  {
+    "id": "intimidation",
+    "ability": "CHA"
+  },
+  {
+    "id": "investigation",
+    "ability": "INT"
+  },
+  {
+    "id": "medicine",
+    "ability": "WIS"
+  },
+  {
+    "id": "nature",
+    "ability": "INT"
+  },
+  {
+    "id": "perception",
+    "ability": "WIS"
+  },
+  {
+    "id": "performance",
+    "ability": "CHA"
+  },
+  {
+    "id": "persuasion",
+    "ability": "CHA"
+  },
+  {
+    "id": "religion",
+    "ability": "INT"
+  },
+  {
+    "id": "sleight-of-hand",
+    "ability": "DEX"
+  },
+  {
+    "id": "stealth",
+    "ability": "DEX"
+  },
+  {
+    "id": "survival",
+    "ability": "WIS"
+  }
+]

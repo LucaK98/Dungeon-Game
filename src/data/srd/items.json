@@ -1,0 +1,19 @@
+[
+  {
+    "id": "potion-of-healing",
+    "kind": "potion",
+    "heal": "2d4+2"
+  },
+  {
+    "id": "torch",
+    "kind": "gear"
+  },
+  {
+    "id": "rope-hempen-50-feet",
+    "kind": "gear"
+  },
+  {
+    "id": "healers-kit",
+    "kind": "gear"
+  }
+]

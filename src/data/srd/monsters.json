@@ -1,0 +1,1997 @@
+[
+  {
+    "id": "rat",
+    "size": "tiny",
+    "type": "beast",
+    "ac": 10,
+    "hp": 1,
+    "hitDice": "1d4-1",
+    "speedFt": {
+      "walk": 20
+    },
+    "abilities": {
+      "STR": 2,
+      "DEX": 11,
+      "CON": 9,
+      "INT": 2,
+      "WIS": 10,
+      "CHA": 4
+    },
+    "cr": 0,
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 30,
+    "passivePerception": 10,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "bite",
+        "kind": "melee",
+        "attackBonus": 0,
+        "damage": [
+          {
+            "dice": "1",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "keen-smell"
+    ]
+  },
+  {
+    "id": "giant-rat",
+    "size": "small",
+    "type": "beast",
+    "ac": 12,
+    "hp": 7,
+    "hitDice": "2d6",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 7,
+      "DEX": 15,
+      "CON": 11,
+      "INT": 2,
+      "WIS": 10,
+      "CHA": 4
+    },
+    "cr": 0.125,
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 60,
+    "passivePerception": 10,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "bite",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d4+2",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "keen-smell",
+      "pack-tactics"
+    ]
+  },
+  {
+    "id": "swarm-of-rats",
+    "size": "medium",
+    "type": "swarm of Tiny beasts",
+    "ac": 10,
+    "hp": 24,
+    "hitDice": "7d8-7",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 9,
+      "DEX": 11,
+      "CON": 9,
+      "INT": 2,
+      "WIS": 10,
+      "CHA": 3
+    },
+    "cr": 0.25,
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 30,
+    "passivePerception": 10,
+    "resistances": [
+      "bludgeoning",
+      "piercing",
+      "slashing"
+    ],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [
+      "charmed",
+      "frightened",
+      "grappled",
+      "paralyzed",
+      "prone",
+      "restrained",
+      "stunned"
+    ],
+    "actions": [
+      {
+        "id": "bites",
+        "kind": "melee",
+        "attackBonus": 2,
+        "damage": [
+          {
+            "dice": "2d6",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 0
+      }
+    ],
+    "traits": [
+      "keen-smell",
+      "swarm"
+    ]
+  },
+  {
+    "id": "commoner",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 10,
+    "hp": 4,
+    "hitDice": "1d8",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 10,
+      "DEX": 10,
+      "CON": 10,
+      "INT": 10,
+      "WIS": 10,
+      "CHA": 10
+    },
+    "cr": 0,
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 0,
+    "passivePerception": 10,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "club",
+        "kind": "melee",
+        "attackBonus": 2,
+        "damage": [
+          {
+            "dice": "1d4",
+            "type": "bludgeoning"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": []
+  },
+  {
+    "id": "guard",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 16,
+    "hp": 11,
+    "hitDice": "2d8+2",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 13,
+      "DEX": 12,
+      "CON": 12,
+      "INT": 10,
+      "WIS": 11,
+      "CHA": 10
+    },
+    "cr": 0.125,
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "perception": 2
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 12,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "spear",
+        "kind": "melee",
+        "attackBonus": 3,
+        "damage": [
+          {
+            "dice": "1d6+1",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5,
+        "rangeFt": {
+          "normal": 20,
+          "long": 60
+        }
+      }
+    ],
+    "traits": []
+  },
+  {
+    "id": "noble",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 15,
+    "hp": 9,
+    "hitDice": "2d8",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 11,
+      "DEX": 12,
+      "CON": 11,
+      "INT": 12,
+      "WIS": 14,
+      "CHA": 16
+    },
+    "cr": 0.125,
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "deception": 5,
+      "insight": 4,
+      "persuasion": 5
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 12,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "rapier",
+        "kind": "melee",
+        "attackBonus": 3,
+        "damage": [
+          {
+            "dice": "1d8+1",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": []
+  },
+  {
+    "id": "ogre",
+    "size": "large",
+    "type": "giant",
+    "ac": 11,
+    "hp": 59,
+    "hitDice": "7d10+21",
+    "speedFt": {
+      "walk": 40
+    },
+    "abilities": {
+      "STR": 19,
+      "DEX": 8,
+      "CON": 16,
+      "INT": 5,
+      "WIS": 7,
+      "CHA": 7
+    },
+    "cr": 2,
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 60,
+    "passivePerception": 8,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "greatclub",
+        "kind": "melee",
+        "attackBonus": 6,
+        "damage": [
+          {
+            "dice": "2d8+4",
+            "type": "bludgeoning"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "javelin",
+        "kind": "melee",
+        "attackBonus": 6,
+        "damage": [
+          {
+            "dice": "2d6+4",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5,
+        "rangeFt": {
+          "normal": 30,
+          "long": 120
+        }
+      }
+    ],
+    "traits": []
+  },
+  {
+    "id": "red-dragon-wyrmling",
+    "size": "medium",
+    "type": "dragon",
+    "ac": 17,
+    "hp": 75,
+    "hitDice": "10d8+30",
+    "speedFt": {
+      "walk": 30,
+      "fly": 60,
+      "climb": 30
+    },
+    "abilities": {
+      "STR": 19,
+      "DEX": 10,
+      "CON": 17,
+      "INT": 12,
+      "WIS": 11,
+      "CHA": 15
+    },
+    "cr": 4,
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "saves": {
+      "DEX": 2,
+      "CON": 5,
+      "WIS": 2,
+      "CHA": 4
+    },
+    "skills": {
+      "perception": 4,
+      "stealth": 2
+    },
+    "darkvisionFt": 60,
+    "passivePerception": 14,
+    "resistances": [],
+    "immunities": [
+      "fire"
+    ],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "bite",
+        "kind": "melee",
+        "attackBonus": 6,
+        "damage": [
+          {
+            "dice": "1d10+4",
+            "type": "piercing"
+          },
+          {
+            "dice": "1d6",
+            "type": "fire"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "fire-breath",
+        "kind": "save",
+        "damage": [
+          {
+            "dice": "7d6",
+            "type": "fire"
+          }
+        ],
+        "save": {
+          "ability": "DEX",
+          "dc": 13,
+          "onSuccess": "half"
+        },
+        "area": {
+          "shape": "cone",
+          "sizeFt": 15
+        },
+        "recharge": 5
+      }
+    ],
+    "traits": []
+  },
+  {
+    "id": "kobold",
+    "size": "small",
+    "type": "humanoid",
+    "ac": 12,
+    "hp": 5,
+    "hitDice": "2d6-2",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 7,
+      "DEX": 15,
+      "CON": 9,
+      "INT": 8,
+      "WIS": 7,
+      "CHA": 8
+    },
+    "cr": 0.125,
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 60,
+    "passivePerception": 8,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "dagger",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d4+2",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "sling",
+        "kind": "ranged",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d4+2",
+            "type": "bludgeoning"
+          }
+        ],
+        "rangeFt": {
+          "normal": 30,
+          "long": 120
+        }
+      }
+    ],
+    "traits": [
+      "sunlight-sensitivity",
+      "pack-tactics"
+    ]
+  },
+  {
+    "id": "wolf",
+    "size": "medium",
+    "type": "beast",
+    "ac": 13,
+    "hp": 11,
+    "hitDice": "2d8+2",
+    "speedFt": {
+      "walk": 40
+    },
+    "abilities": {
+      "STR": 12,
+      "DEX": 15,
+      "CON": 12,
+      "INT": 3,
+      "WIS": 12,
+      "CHA": 6
+    },
+    "cr": 0.25,
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "perception": 3,
+      "stealth": 4
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 13,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "bite",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "2d4+2",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "keen-hearing-and-smell",
+      "pack-tactics"
+    ]
+  },
+  {
+    "id": "dire-wolf",
+    "size": "large",
+    "type": "beast",
+    "ac": 14,
+    "hp": 37,
+    "hitDice": "5d10+10",
+    "speedFt": {
+      "walk": 50
+    },
+    "abilities": {
+      "STR": 17,
+      "DEX": 15,
+      "CON": 15,
+      "INT": 3,
+      "WIS": 12,
+      "CHA": 7
+    },
+    "cr": 1,
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "perception": 3,
+      "stealth": 4
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 13,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "bite",
+        "kind": "melee",
+        "attackBonus": 5,
+        "damage": [
+          {
+            "dice": "2d6+3",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "keen-hearing-and-smell",
+      "pack-tactics"
+    ]
+  },
+  {
+    "id": "bandit",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 12,
+    "hp": 11,
+    "hitDice": "2d8+2",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 11,
+      "DEX": 12,
+      "CON": 12,
+      "INT": 10,
+      "WIS": 10,
+      "CHA": 10
+    },
+    "cr": 0.125,
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 0,
+    "passivePerception": 10,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "scimitar",
+        "kind": "melee",
+        "attackBonus": 3,
+        "damage": [
+          {
+            "dice": "1d6+1",
+            "type": "slashing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "light-crossbow",
+        "kind": "ranged",
+        "attackBonus": 3,
+        "damage": [
+          {
+            "dice": "1d8+1",
+            "type": "piercing"
+          }
+        ],
+        "rangeFt": {
+          "normal": 80,
+          "long": 320
+        }
+      }
+    ],
+    "traits": []
+  },
+  {
+    "id": "bandit-captain",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 15,
+    "hp": 65,
+    "hitDice": "10d8+20",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 15,
+      "DEX": 16,
+      "CON": 14,
+      "INT": 14,
+      "WIS": 11,
+      "CHA": 14
+    },
+    "cr": 2,
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "saves": {
+      "STR": 4,
+      "DEX": 5,
+      "WIS": 2
+    },
+    "skills": {
+      "athletics": 4,
+      "deception": 4
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 10,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "scimitar",
+        "kind": "melee",
+        "attackBonus": 5,
+        "damage": [
+          {
+            "dice": "1d6+3",
+            "type": "slashing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "dagger",
+        "kind": "melee",
+        "attackBonus": 5,
+        "damage": [
+          {
+            "dice": "1d4+3",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5,
+        "rangeFt": {
+          "normal": 20,
+          "long": 60
+        }
+      }
+    ],
+    "traits": [],
+    "multiattack": [
+      "scimitar",
+      "scimitar",
+      "dagger"
+    ]
+  },
+  {
+    "id": "thug",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 11,
+    "hp": 32,
+    "hitDice": "5d8+10",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 15,
+      "DEX": 11,
+      "CON": 14,
+      "INT": 10,
+      "WIS": 10,
+      "CHA": 11
+    },
+    "cr": 0.5,
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "intimidation": 2
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 10,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "mace",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d6+2",
+            "type": "bludgeoning"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "heavy-crossbow",
+        "kind": "ranged",
+        "attackBonus": 2,
+        "damage": [
+          {
+            "dice": "1d10",
+            "type": "piercing"
+          }
+        ],
+        "rangeFt": {
+          "normal": 100,
+          "long": 400
+        }
+      }
+    ],
+    "traits": [
+      "pack-tactics"
+    ],
+    "multiattack": [
+      "mace",
+      "mace"
+    ]
+  },
+  {
+    "id": "knight",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 18,
+    "hp": 52,
+    "hitDice": "8d8+16",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 16,
+      "DEX": 11,
+      "CON": 14,
+      "INT": 11,
+      "WIS": 11,
+      "CHA": 15
+    },
+    "cr": 3,
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "saves": {
+      "CON": 4,
+      "WIS": 2
+    },
+    "skills": {},
+    "darkvisionFt": 0,
+    "passivePerception": 10,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "greatsword",
+        "kind": "melee",
+        "attackBonus": 5,
+        "damage": [
+          {
+            "dice": "2d6+3",
+            "type": "slashing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "heavy-crossbow",
+        "kind": "ranged",
+        "attackBonus": 2,
+        "damage": [
+          {
+            "dice": "1d10",
+            "type": "piercing"
+          }
+        ],
+        "rangeFt": {
+          "normal": 100,
+          "long": 400
+        }
+      }
+    ],
+    "traits": [
+      "brave"
+    ],
+    "multiattack": [
+      "greatsword",
+      "greatsword"
+    ]
+  },
+  {
+    "id": "veteran",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 17,
+    "hp": 58,
+    "hitDice": "9d8+18",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 16,
+      "DEX": 13,
+      "CON": 14,
+      "INT": 10,
+      "WIS": 11,
+      "CHA": 10
+    },
+    "cr": 3,
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "athletics": 5,
+      "perception": 2
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 12,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "longsword",
+        "kind": "melee",
+        "attackBonus": 5,
+        "damage": [
+          {
+            "dice": "1d8+3",
+            "type": "slashing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "shortsword",
+        "kind": "melee",
+        "attackBonus": 5,
+        "damage": [
+          {
+            "dice": "1d6+3",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "heavy-crossbow",
+        "kind": "ranged",
+        "attackBonus": 3,
+        "damage": [
+          {
+            "dice": "1d10+1",
+            "type": "piercing"
+          }
+        ],
+        "rangeFt": {
+          "normal": 100,
+          "long": 400
+        }
+      }
+    ],
+    "traits": [],
+    "multiattack": [
+      "longsword",
+      "longsword"
+    ]
+  },
+  {
+    "id": "scout",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 13,
+    "hp": 16,
+    "hitDice": "3d8+3",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 11,
+      "DEX": 14,
+      "CON": 12,
+      "INT": 11,
+      "WIS": 13,
+      "CHA": 11
+    },
+    "cr": 0.5,
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "nature": 4,
+      "perception": 5,
+      "stealth": 6,
+      "survival": 5
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 15,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "shortsword",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d6+2",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "longbow",
+        "kind": "ranged",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d8+2",
+            "type": "piercing"
+          }
+        ],
+        "rangeFt": {
+          "normal": 150,
+          "long": 600
+        }
+      }
+    ],
+    "traits": [
+      "keen-hearing-and-sight"
+    ],
+    "multiattack": [
+      "shortsword",
+      "shortsword"
+    ]
+  },
+  {
+    "id": "mage",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 12,
+    "hp": 40,
+    "hitDice": "9d8",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 9,
+      "DEX": 14,
+      "CON": 11,
+      "INT": 17,
+      "WIS": 12,
+      "CHA": 11
+    },
+    "cr": 6,
+    "xp": 2300,
+    "proficiencyBonus": 3,
+    "saves": {
+      "INT": 6,
+      "WIS": 4
+    },
+    "skills": {
+      "arcana": 6,
+      "history": 6
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 11,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "dagger",
+        "kind": "melee",
+        "attackBonus": 5,
+        "damage": [
+          {
+            "dice": "1d4+2",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5,
+        "rangeFt": {
+          "normal": 20,
+          "long": 60
+        }
+      }
+    ],
+    "traits": [
+      "spellcasting"
+    ]
+  },
+  {
+    "id": "goblin",
+    "size": "small",
+    "type": "humanoid",
+    "ac": 15,
+    "hp": 7,
+    "hitDice": "2d6",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 8,
+      "DEX": 14,
+      "CON": 10,
+      "INT": 10,
+      "WIS": 8,
+      "CHA": 8
+    },
+    "cr": 0.25,
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "stealth": 6
+    },
+    "darkvisionFt": 60,
+    "passivePerception": 9,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "scimitar",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d6+2",
+            "type": "slashing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "shortbow",
+        "kind": "ranged",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d6+2",
+            "type": "piercing"
+          }
+        ],
+        "rangeFt": {
+          "normal": 80,
+          "long": 320
+        }
+      }
+    ],
+    "traits": [
+      "nimble-escape"
+    ]
+  },
+  {
+    "id": "cultist",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 12,
+    "hp": 9,
+    "hitDice": "2d8",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 11,
+      "DEX": 12,
+      "CON": 10,
+      "INT": 10,
+      "WIS": 11,
+      "CHA": 10
+    },
+    "cr": 0.125,
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "deception": 2,
+      "religion": 2
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 10,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "scimitar",
+        "kind": "melee",
+        "attackBonus": 3,
+        "damage": [
+          {
+            "dice": "1d6+1",
+            "type": "slashing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "dark-devotion"
+    ]
+  },
+  {
+    "id": "cult-fanatic",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 13,
+    "hp": 22,
+    "hitDice": "6d8-5",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 11,
+      "DEX": 14,
+      "CON": 12,
+      "INT": 10,
+      "WIS": 13,
+      "CHA": 14
+    },
+    "cr": 2,
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "deception": 4,
+      "persuasion": 4,
+      "religion": 2
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 11,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "dagger",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d4+2",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5,
+        "rangeFt": {
+          "normal": 20,
+          "long": 60
+        }
+      }
+    ],
+    "traits": [
+      "dark-devotion",
+      "spellcasting"
+    ],
+    "multiattack": [
+      "dagger",
+      "dagger"
+    ]
+  },
+  {
+    "id": "spy",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 12,
+    "hp": 27,
+    "hitDice": "6d8",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 10,
+      "DEX": 15,
+      "CON": 10,
+      "INT": 12,
+      "WIS": 14,
+      "CHA": 16
+    },
+    "cr": 1,
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "deception": 5,
+      "insight": 4,
+      "investigation": 5,
+      "perception": 6,
+      "persuasion": 5,
+      "stealth": 4
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 16,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "shortsword",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d6+2",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "hand-crossbow",
+        "kind": "ranged",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d6+2",
+            "type": "piercing"
+          }
+        ],
+        "rangeFt": {
+          "normal": 30,
+          "long": 120
+        }
+      }
+    ],
+    "traits": [
+      "cunning-action",
+      "sneak-attack"
+    ],
+    "multiattack": [
+      "shortsword",
+      "shortsword"
+    ]
+  },
+  {
+    "id": "priest",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 13,
+    "hp": 27,
+    "hitDice": "5d8+5",
+    "speedFt": {
+      "walk": 25
+    },
+    "abilities": {
+      "STR": 10,
+      "DEX": 10,
+      "CON": 12,
+      "INT": 13,
+      "WIS": 16,
+      "CHA": 13
+    },
+    "cr": 2,
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "medicine": 7,
+      "persuasion": 3,
+      "religion": 4
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 13,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "mace",
+        "kind": "melee",
+        "attackBonus": 2,
+        "damage": [
+          {
+            "dice": "1d6",
+            "type": "bludgeoning"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "divine-eminence",
+      "spellcasting"
+    ]
+  },
+  {
+    "id": "swarm-of-bats",
+    "size": "medium",
+    "type": "swarm of Tiny beasts",
+    "ac": 12,
+    "hp": 22,
+    "hitDice": "5d8",
+    "speedFt": {
+      "walk": 0,
+      "fly": 30
+    },
+    "abilities": {
+      "STR": 5,
+      "DEX": 15,
+      "CON": 10,
+      "INT": 2,
+      "WIS": 12,
+      "CHA": 4
+    },
+    "cr": 0.25,
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 0,
+    "passivePerception": 11,
+    "resistances": [
+      "bludgeoning",
+      "piercing",
+      "slashing"
+    ],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [
+      "charmed",
+      "frightened",
+      "grappled",
+      "paralyzed",
+      "prone",
+      "restrained",
+      "stunned"
+    ],
+    "actions": [
+      {
+        "id": "bites",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "2d4",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 0
+      }
+    ],
+    "traits": [
+      "echolocation",
+      "keen-hearing",
+      "swarm"
+    ]
+  },
+  {
+    "id": "werewolf-hybrid",
+    "size": "medium",
+    "type": "humanoid",
+    "ac": 12,
+    "hp": 58,
+    "hitDice": "9d8+18",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 15,
+      "DEX": 13,
+      "CON": 14,
+      "INT": 10,
+      "WIS": 11,
+      "CHA": 10
+    },
+    "cr": 3,
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "perception": 4
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 14,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": true,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "bite",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d8+2",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "claws",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "2d4+2",
+            "type": "slashing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "shapechanger",
+      "keen-hearing-and-smell"
+    ],
+    "multiattack": [
+      "bite",
+      "claws"
+    ]
+  },
+  {
+    "id": "green-hag",
+    "size": "medium",
+    "type": "fey",
+    "ac": 17,
+    "hp": 82,
+    "hitDice": "11d8+33",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 18,
+      "DEX": 12,
+      "CON": 16,
+      "INT": 13,
+      "WIS": 14,
+      "CHA": 14
+    },
+    "cr": 3,
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "arcana": 3,
+      "deception": 4,
+      "perception": 4,
+      "stealth": 3
+    },
+    "darkvisionFt": 60,
+    "passivePerception": 14,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "claws",
+        "kind": "melee",
+        "attackBonus": 6,
+        "damage": [
+          {
+            "dice": "2d8+4",
+            "type": "slashing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "amphibious",
+      "innate-spellcasting",
+      "mimicry"
+    ]
+  },
+  {
+    "id": "ghost",
+    "size": "medium",
+    "type": "undead",
+    "ac": 11,
+    "hp": 45,
+    "hitDice": "10d8",
+    "speedFt": {
+      "walk": 0,
+      "fly": 40
+    },
+    "abilities": {
+      "STR": 7,
+      "DEX": 13,
+      "CON": 10,
+      "INT": 10,
+      "WIS": 12,
+      "CHA": 17
+    },
+    "cr": 4,
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 60,
+    "passivePerception": 11,
+    "resistances": [
+      "acid",
+      "fire",
+      "lightning",
+      "thunder"
+    ],
+    "immunities": [
+      "cold",
+      "necrotic",
+      "poison"
+    ],
+    "vulnerabilities": [],
+    "resistsNonmagical": true,
+    "immuneNonmagical": false,
+    "conditionImmunities": [
+      "charmed",
+      "frightened",
+      "grappled",
+      "paralyzed",
+      "poisoned",
+      "prone",
+      "restrained"
+    ],
+    "actions": [
+      {
+        "id": "withering-touch",
+        "kind": "melee",
+        "attackBonus": 5,
+        "damage": [
+          {
+            "dice": "4d6+3",
+            "type": "necrotic"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "ethereal-sight",
+      "incorporeal-movement"
+    ]
+  },
+  {
+    "id": "specter",
+    "size": "medium",
+    "type": "undead",
+    "ac": 12,
+    "hp": 22,
+    "hitDice": "5d8",
+    "speedFt": {
+      "walk": 0,
+      "fly": 50
+    },
+    "abilities": {
+      "STR": 1,
+      "DEX": 14,
+      "CON": 11,
+      "INT": 10,
+      "WIS": 10,
+      "CHA": 11
+    },
+    "cr": 1,
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 60,
+    "passivePerception": 10,
+    "resistances": [
+      "acid",
+      "cold",
+      "fire",
+      "lightning",
+      "thunder"
+    ],
+    "immunities": [
+      "necrotic",
+      "poison"
+    ],
+    "vulnerabilities": [],
+    "resistsNonmagical": true,
+    "immuneNonmagical": false,
+    "conditionImmunities": [
+      "charmed",
+      "grappled",
+      "paralyzed",
+      "poisoned",
+      "prone",
+      "restrained",
+      "unconscious"
+    ],
+    "actions": [
+      {
+        "id": "life-drain",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "3d6",
+            "type": "necrotic"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "incorporeal-movement",
+      "sunlight-sensitivity"
+    ]
+  },
+  {
+    "id": "skeleton",
+    "size": "medium",
+    "type": "undead",
+    "ac": 13,
+    "hp": 13,
+    "hitDice": "2d8+4",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 10,
+      "DEX": 14,
+      "CON": 15,
+      "INT": 6,
+      "WIS": 8,
+      "CHA": 5
+    },
+    "cr": 0.25,
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 60,
+    "passivePerception": 9,
+    "resistances": [],
+    "immunities": [
+      "poison"
+    ],
+    "vulnerabilities": [
+      "bludgeoning"
+    ],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [
+      "poisoned"
+    ],
+    "actions": [
+      {
+        "id": "shortsword",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d6+2",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "shortbow",
+        "kind": "ranged",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1d6+2",
+            "type": "piercing"
+          }
+        ],
+        "rangeFt": {
+          "normal": 80,
+          "long": 320
+        }
+      }
+    ],
+    "traits": []
+  },
+  {
+    "id": "zombie",
+    "size": "medium",
+    "type": "undead",
+    "ac": 8,
+    "hp": 22,
+    "hitDice": "3d8+9",
+    "speedFt": {
+      "walk": 20
+    },
+    "abilities": {
+      "STR": 13,
+      "DEX": 6,
+      "CON": 16,
+      "INT": 3,
+      "WIS": 6,
+      "CHA": 5
+    },
+    "cr": 0.25,
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "saves": {
+      "WIS": 0
+    },
+    "skills": {},
+    "darkvisionFt": 60,
+    "passivePerception": 8,
+    "resistances": [],
+    "immunities": [
+      "poison"
+    ],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [
+      "poisoned"
+    ],
+    "actions": [
+      {
+        "id": "slam",
+        "kind": "melee",
+        "attackBonus": 3,
+        "damage": [
+          {
+            "dice": "1d6+1",
+            "type": "bludgeoning"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "undead-fortitude"
+    ]
+  },
+  {
+    "id": "ghoul",
+    "size": "medium",
+    "type": "undead",
+    "ac": 12,
+    "hp": 22,
+    "hitDice": "5d8",
+    "speedFt": {
+      "walk": 30
+    },
+    "abilities": {
+      "STR": 13,
+      "DEX": 15,
+      "CON": 10,
+      "INT": 7,
+      "WIS": 10,
+      "CHA": 6
+    },
+    "cr": 1,
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {},
+    "darkvisionFt": 60,
+    "passivePerception": 10,
+    "resistances": [],
+    "immunities": [
+      "poison"
+    ],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [
+      "poisoned",
+      "charmed"
+    ],
+    "actions": [
+      {
+        "id": "bite",
+        "kind": "melee",
+        "attackBonus": 2,
+        "damage": [
+          {
+            "dice": "2d6+2",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      },
+      {
+        "id": "claws",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "2d4+2",
+            "type": "slashing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": []
+  },
+  {
+    "id": "giant-spider",
+    "size": "large",
+    "type": "beast",
+    "ac": 14,
+    "hp": 26,
+    "hitDice": "4d10+4",
+    "speedFt": {
+      "walk": 30,
+      "climb": 30
+    },
+    "abilities": {
+      "STR": 14,
+      "DEX": 16,
+      "CON": 12,
+      "INT": 2,
+      "WIS": 11,
+      "CHA": 4
+    },
+    "cr": 1,
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "stealth": 7
+    },
+    "darkvisionFt": 60,
+    "passivePerception": 10,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "bite",
+        "kind": "melee",
+        "attackBonus": 5,
+        "damage": [
+          {
+            "dice": "1d8+3",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "spider-climb",
+      "web-sense",
+      "web-walker"
+    ]
+  }
+]

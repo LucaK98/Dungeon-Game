@@ -1,0 +1,52 @@
+[
+  {
+    "id": "leather-armor",
+    "category": "light",
+    "baseAc": 11,
+    "dexBonus": true,
+    "strMinimum": 0,
+    "stealthDisadvantage": false
+  },
+  {
+    "id": "studded-leather-armor",
+    "category": "light",
+    "baseAc": 12,
+    "dexBonus": true,
+    "strMinimum": 0,
+    "stealthDisadvantage": false
+  },
+  {
+    "id": "chain-shirt",
+    "category": "medium",
+    "baseAc": 13,
+    "dexBonus": true,
+    "maxDexBonus": 2,
+    "strMinimum": 0,
+    "stealthDisadvantage": false
+  },
+  {
+    "id": "scale-mail",
+    "category": "medium",
+    "baseAc": 14,
+    "dexBonus": true,
+    "maxDexBonus": 2,
+    "strMinimum": 0,
+    "stealthDisadvantage": true
+  },
+  {
+    "id": "chain-mail",
+    "category": "heavy",
+    "baseAc": 16,
+    "dexBonus": false,
+    "strMinimum": 13,
+    "stealthDisadvantage": true
+  },
+  {
+    "id": "shield",
+    "category": "shield",
+    "baseAc": 2,
+    "dexBonus": false,
+    "strMinimum": 0,
+    "stealthDisadvantage": false
+  }
+]

@@ -1,0 +1,288 @@
+[
+  {
+    "id": "club",
+    "category": "simple",
+    "ranged": false,
+    "damage": {
+      "dice": "1d4",
+      "type": "bludgeoning"
+    },
+    "properties": [
+      "light",
+      "monk"
+    ],
+    "rangeFt": {
+      "normal": 5
+    },
+    "weight": 2
+  },
+  {
+    "id": "dagger",
+    "category": "simple",
+    "ranged": false,
+    "damage": {
+      "dice": "1d4",
+      "type": "piercing"
+    },
+    "properties": [
+      "finesse",
+      "light",
+      "thrown",
+      "monk"
+    ],
+    "rangeFt": {
+      "normal": 20,
+      "long": 60
+    },
+    "weight": 1
+  },
+  {
+    "id": "handaxe",
+    "category": "simple",
+    "ranged": false,
+    "damage": {
+      "dice": "1d6",
+      "type": "slashing"
+    },
+    "properties": [
+      "light",
+      "thrown",
+      "monk"
+    ],
+    "rangeFt": {
+      "normal": 20,
+      "long": 60
+    },
+    "weight": 2
+  },
+  {
+    "id": "javelin",
+    "category": "simple",
+    "ranged": false,
+    "damage": {
+      "dice": "1d6",
+      "type": "piercing"
+    },
+    "properties": [
+      "thrown",
+      "monk"
+    ],
+    "rangeFt": {
+      "normal": 30,
+      "long": 120
+    },
+    "weight": 2
+  },
+  {
+    "id": "mace",
+    "category": "simple",
+    "ranged": false,
+    "damage": {
+      "dice": "1d6",
+      "type": "bludgeoning"
+    },
+    "properties": [
+      "monk"
+    ],
+    "rangeFt": {
+      "normal": 5
+    },
+    "weight": 4
+  },
+  {
+    "id": "quarterstaff",
+    "category": "simple",
+    "ranged": false,
+    "damage": {
+      "dice": "1d6",
+      "type": "bludgeoning"
+    },
+    "versatileDice": "1d8",
+    "properties": [
+      "versatile",
+      "monk"
+    ],
+    "rangeFt": {
+      "normal": 5
+    },
+    "weight": 4
+  },
+  {
+    "id": "spear",
+    "category": "simple",
+    "ranged": false,
+    "damage": {
+      "dice": "1d6",
+      "type": "piercing"
+    },
+    "versatileDice": "1d8",
+    "properties": [
+      "thrown",
+      "versatile",
+      "monk"
+    ],
+    "rangeFt": {
+      "normal": 20,
+      "long": 60
+    },
+    "weight": 3
+  },
+  {
+    "id": "crossbow-light",
+    "category": "simple",
+    "ranged": true,
+    "damage": {
+      "dice": "1d8",
+      "type": "piercing"
+    },
+    "properties": [
+      "ammunition",
+      "loading",
+      "two-handed"
+    ],
+    "rangeFt": {
+      "normal": 80,
+      "long": 320
+    },
+    "weight": 5
+  },
+  {
+    "id": "shortbow",
+    "category": "simple",
+    "ranged": true,
+    "damage": {
+      "dice": "1d6",
+      "type": "piercing"
+    },
+    "properties": [
+      "ammunition",
+      "two-handed"
+    ],
+    "rangeFt": {
+      "normal": 80,
+      "long": 320
+    },
+    "weight": 2
+  },
+  {
+    "id": "battleaxe",
+    "category": "martial",
+    "ranged": false,
+    "damage": {
+      "dice": "1d8",
+      "type": "slashing"
+    },
+    "versatileDice": "1d10",
+    "properties": [
+      "versatile"
+    ],
+    "rangeFt": {
+      "normal": 5
+    },
+    "weight": 4
+  },
+  {
+    "id": "greatsword",
+    "category": "martial",
+    "ranged": false,
+    "damage": {
+      "dice": "2d6",
+      "type": "slashing"
+    },
+    "properties": [
+      "heavy",
+      "two-handed"
+    ],
+    "rangeFt": {
+      "normal": 5
+    },
+    "weight": 6
+  },
+  {
+    "id": "longsword",
+    "category": "martial",
+    "ranged": false,
+    "damage": {
+      "dice": "1d8",
+      "type": "slashing"
+    },
+    "versatileDice": "1d10",
+    "properties": [
+      "versatile"
+    ],
+    "rangeFt": {
+      "normal": 5
+    },
+    "weight": 3
+  },
+  {
+    "id": "rapier",
+    "category": "martial",
+    "ranged": false,
+    "damage": {
+      "dice": "1d8",
+      "type": "piercing"
+    },
+    "properties": [
+      "finesse"
+    ],
+    "rangeFt": {
+      "normal": 5
+    },
+    "weight": 2
+  },
+  {
+    "id": "shortsword",
+    "category": "martial",
+    "ranged": false,
+    "damage": {
+      "dice": "1d6",
+      "type": "piercing"
+    },
+    "properties": [
+      "finesse",
+      "light",
+      "monk"
+    ],
+    "rangeFt": {
+      "normal": 5
+    },
+    "weight": 2
+  },
+  {
+    "id": "warhammer",
+    "category": "martial",
+    "ranged": false,
+    "damage": {
+      "dice": "1d8",
+      "type": "bludgeoning"
+    },
+    "versatileDice": "1d10",
+    "properties": [
+      "versatile"
+    ],
+    "rangeFt": {
+      "normal": 5
+    },
+    "weight": 2
+  },
+  {
+    "id": "longbow",
+    "category": "martial",
+    "ranged": true,
+    "damage": {
+      "dice": "1d8",
+      "type": "piercing"
+    },
+    "properties": [
+      "ammunition",
+      "heavy",
+      "two-handed"
+    ],
+    "rangeFt": {
+      "normal": 150,
+      "long": 600
+    },
+    "weight": 2
+  }
+]

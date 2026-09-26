@@ -1,0 +1,2512 @@
+{
+  "staerke": {
+    "titel": "Stärke (ST)",
+    "kurz": "Wie kräftig du bist.",
+    "lang": "Stärke brauchst du, um mit Schwertern, Äxten und Keulen zuzuschlagen, schwere Dinge zu heben oder Türen aufzudrücken. Der Stärke-Modifikator kommt auf Nahkampfangriffe und deren Schaden drauf. Auch Klettern und Springen (Athletik) hängen davon ab.",
+    "beispiel": "Stärke 16 → Modifikator +3. Du triffst mit dem Langschwert also mit +3 und machst 3 Schaden extra.",
+    "siehe_auch": [
+      "modifikator",
+      "attributswert",
+      "fertigkeit:athletics"
+    ]
+  },
+  "geschicklichkeit": {
+    "titel": "Geschicklichkeit (GE)",
+    "kurz": "Wie flink und geschickt du bist.",
+    "lang": "Geschicklichkeit hilft beim Schießen mit Bogen und Armbrust und bei leichten Waffen wie Rapier oder Dolch. Sie macht dich schwerer zu treffen, wenn du leichte Rüstung trägst, und bestimmt, wie schnell du im Kampf reagierst (Initiative). Schleichen und Balancieren hängen auch davon ab.",
+    "beispiel": "Geschicklichkeit 16 → +3 auf Initiative, auf Bogenschüsse und auf Heimlichkeit.",
+    "siehe_auch": [
+      "modifikator",
+      "initiative",
+      "ruestungsklasse"
+    ]
+  },
+  "konstitution": {
+    "titel": "Konstitution (KO)",
+    "kurz": "Wie zäh und ausdauernd du bist.",
+    "lang": "Konstitution bestimmt, wie viele Trefferpunkte du hast: Der Modifikator kommt bei jeder Stufe dazu. Außerdem hilft sie dir, Gift zu widerstehen und dich trotz Treffern auf einen Zauber zu konzentrieren.",
+    "beispiel": "Ein Kämpfer mit Konstitution 14 (+2) hat auf Stufe 1 genau 10 + 2 = 12 Trefferpunkte.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "konzentration",
+      "modifikator"
+    ]
+  },
+  "intelligenz": {
+    "titel": "Intelligenz (IN)",
+    "kurz": "Wie klug und gebildet du bist.",
+    "lang": "Intelligenz steht für Wissen, Gedächtnis und logisches Denken. Magier zaubern damit: Je höher, desto besser treffen ihre Zauber und desto schwerer kann man ihnen widerstehen. Auch Rätsel, Spurensuche (Nachforschungen) und Wissen über Magie hängen daran.",
+    "beispiel": "Ein Magier mit Intelligenz 16 (+3) trifft mit dem Feuerpfeil mit +3 + 2 (Übung) = +5.",
+    "siehe_auch": [
+      "klasse:wizard",
+      "zauber_sg",
+      "fertigkeit:investigation"
+    ]
+  },
+  "weisheit": {
+    "titel": "Weisheit (WE)",
+    "kurz": "Wie aufmerksam und lebensklug du bist.",
+    "lang": "Weisheit steht für gute Sinne, Bauchgefühl und Willenskraft. Damit bemerkst du versteckte Dinge (Wahrnehmung) und merkst, wenn dich jemand anlügt (Motiv erkennen). Kleriker zaubern mit Weisheit.",
+    "beispiel": "Weisheit 14 (+2): Du würfelst für Wahrnehmung einen W20 und rechnest +2 dazu.",
+    "siehe_auch": [
+      "klasse:cleric",
+      "fertigkeit:perception",
+      "fertigkeit:insight"
+    ]
+  },
+  "charisma": {
+    "titel": "Charisma (CH)",
+    "kurz": "Wie überzeugend und selbstbewusst du auftrittst.",
+    "lang": "Charisma brauchst du beim Reden: Überzeugen, Lügen, Einschüchtern oder Vorspielen. Ritter wirken ihre Zauber mit Charisma. Wenn du mit einem Oger verhandeln willst statt zu kämpfen, ist Charisma dein Freund.",
+    "beispiel": "Charisma 14 (+2): Beim Überzeugen würfelst du W20 + 2.",
+    "siehe_auch": [
+      "klasse:paladin",
+      "fertigkeit:persuasion",
+      "fertigkeit:intimidation"
+    ]
+  },
+  "attributswert": {
+    "titel": "Attributswert",
+    "kurz": "Eine Zahl von 1 bis 20, die zeigt, wie gut du in etwas bist.",
+    "lang": "Jede Figur hat sechs Attribute: Stärke, Geschicklichkeit, Konstitution, Intelligenz, Weisheit und Charisma. 10 ist Durchschnitt, 15 ist richtig gut, 8 ist eher schwach. Beim Würfeln zählt aber nicht der Wert selbst, sondern der Modifikator, der sich daraus ergibt.",
+    "beispiel": "Stärke 15 → Modifikator +2. Stärke 8 → Modifikator −1.",
+    "siehe_auch": [
+      "modifikator",
+      "staerke",
+      "geschicklichkeit"
+    ]
+  },
+  "modifikator": {
+    "titel": "Modifikator",
+    "kurz": "Die Zahl, die du zu einem Wurf dazurechnest.",
+    "lang": "Aus jedem Attributswert ergibt sich ein Modifikator: Wert minus 10, geteilt durch 2, abgerundet. Er kommt auf Proben, Rettungswürfe, Angriffe und oft auch auf den Schaden. Keine Sorge, das Spiel rechnet das für dich aus.",
+    "beispiel": "Wert 8–9 → −1, 10–11 → +0, 12–13 → +1, 14–15 → +2, 16–17 → +3.",
+    "siehe_auch": [
+      "attributswert",
+      "probe",
+      "angriffswurf"
+    ]
+  },
+  "uebungsbonus": {
+    "titel": "Übungsbonus",
+    "kurz": "Ein Extra-Bonus für alles, was deine Figur gelernt hat.",
+    "lang": "Wenn du in etwas geübt bist, z. B. mit deiner Waffe, einem Rettungswurf oder einer Fertigkeit, kommt der Übungsbonus dazu. Auf Stufe 1 bis 4 ist er +2. Deine Klasse und dein Volk legen fest, worin du geübt bist.",
+    "beispiel": "Ein Kämpfer greift mit dem Langschwert an: 🎲 12 + 3 (Stärke) + 2 (Übung) = 17.",
+    "siehe_auch": [
+      "expertise",
+      "fertigkeit",
+      "stufe"
+    ]
+  },
+  "expertise": {
+    "titel": "Expertise",
+    "kurz": "Doppelter Übungsbonus in deinen Spezialgebieten.",
+    "lang": "Schurken sind Profis: In zwei Fertigkeiten ihrer Wahl zählt der Übungsbonus doppelt. Unsere Schurkin Pip ist Expertin für Heimlichkeit und Wahrnehmung. Dadurch schafft sie Proben, bei denen andere scheitern.",
+    "beispiel": "Pip schleicht: 🎲 11 + 3 (Geschicklichkeit) + 4 (Expertise) = 18.",
+    "siehe_auch": [
+      "uebungsbonus",
+      "klasse:rogue",
+      "fertigkeit:stealth"
+    ]
+  },
+  "stufe": {
+    "titel": "Stufe",
+    "kurz": "Wie erfahren deine Figur ist.",
+    "lang": "Alle Helden starten auf Stufe 1. Nach bestandenen Abenteuern steigen sie auf und werden stärker: mehr Trefferpunkte, neue Fähigkeiten, mehr Zauber. In diesem Spiel gehen die Stufen von 1 bis 3.",
+    "beispiel": "Ein Kämpfer auf Stufe 2 bekommt „Tatendrang“ und kann einmal eine zusätzliche Aktion machen.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "uebungsbonus"
+    ]
+  },
+  "w4": {
+    "titel": "W4 (vierseitiger Würfel)",
+    "kurz": "Ein Würfel mit 4 Seiten, er zeigt 1 bis 4.",
+    "lang": "Der W4 sieht aus wie eine kleine Pyramide. Er wird für kleinen Schaden benutzt, z. B. beim Dolch oder beim Magischen Geschoss. Auch der Segen-Zauber gibt dir einen W4 extra.",
+    "beispiel": "„1W4 + 1“ heißt: einen W4 würfeln und 1 dazuzählen, also 2 bis 5.",
+    "siehe_auch": [
+      "w6",
+      "w20",
+      "schaden"
+    ]
+  },
+  "w6": {
+    "titel": "W6 (sechsseitiger Würfel)",
+    "kurz": "Der ganz normale Spielwürfel mit 1 bis 6.",
+    "lang": "Den W6 kennst du von Brettspielen. Kurzschwerter, Handäxte und viele Monsterangriffe machen W6-Schaden. Wenn da „2W6“ steht, würfelst du zwei davon und zählst zusammen.",
+    "beispiel": "Der hinterhältige Angriff des Schurken macht 1W6 Extraschaden.",
+    "siehe_auch": [
+      "w4",
+      "w8",
+      "schaden"
+    ]
+  },
+  "w8": {
+    "titel": "W8 (achtseitiger Würfel)",
+    "kurz": "Ein Würfel mit 8 Seiten, er zeigt 1 bis 8.",
+    "lang": "Der W8 ist der typische Würfel für gute Einhandwaffen wie Langschwert, Rapier oder Streitkolben. Auch der Zauber Heilende Hand heilt 1W8 plus Modifikator.",
+    "beispiel": "Langschwert: 1W8 + 3 (Stärke), also 4 bis 11 Schaden.",
+    "siehe_auch": [
+      "w6",
+      "w10",
+      "schaden"
+    ]
+  },
+  "w10": {
+    "titel": "W10 (zehnseitiger Würfel)",
+    "kurz": "Ein Würfel mit 10 Seiten, er zeigt 1 bis 10.",
+    "lang": "Der W10 steht für kräftige Treffer. Der Feuerpfeil des Magiers macht 1W10 Feuerschaden, und der Kämpfer heilt sich beim Durchatmen um 1W10 plus seine Stufe.",
+    "beispiel": "Feuerpfeil: 🎲 7 auf dem W10 = 7 Feuerschaden.",
+    "siehe_auch": [
+      "w8",
+      "w12",
+      "schaden"
+    ]
+  },
+  "w12": {
+    "titel": "W12 (zwölfseitiger Würfel)",
+    "kurz": "Ein Würfel mit 12 Seiten, er zeigt 1 bis 12.",
+    "lang": "Der W12 ist selten, aber heftig. Große Zweihandwaffen wie die Zweihandaxt benutzen ihn. In unserem Spiel taucht er kaum auf.",
+    "siehe_auch": [
+      "w10",
+      "w20"
+    ]
+  },
+  "w20": {
+    "titel": "W20 (zwanzigseitiger Würfel)",
+    "kurz": "Der wichtigste Würfel: Er entscheidet, ob etwas klappt.",
+    "lang": "Fast alles, was spannend ist, entscheidet der W20: Triffst du? Schaffst du den Sprung? Widerstehst du dem Gift? Du würfelst, rechnest deine Boni dazu und vergleichst mit einer Zielzahl. Eine 20 ist beim Angriff immer ein kritischer Treffer, eine 1 verfehlt immer.",
+    "beispiel": "🎲 14 + 5 = 19 gegen Rüstungsklasse 15 → Treffer!",
+    "siehe_auch": [
+      "angriffswurf",
+      "probe",
+      "rettungswurf",
+      "kritischer_treffer"
+    ]
+  },
+  "probe": {
+    "titel": "Probe",
+    "kurz": "Ein Wurf, der entscheidet, ob du etwas schaffst.",
+    "lang": "Willst du etwas Schwieriges tun, z. B. über einen Graben springen oder ein Schloss knacken, verlangt der Spielleiter eine Probe. Du würfelst einen W20 und addierst das passende Attribut und, wenn du geübt bist, deinen Übungsbonus. Erreichst du den Schwierigkeitsgrad (SG), klappt es.",
+    "beispiel": "Probe auf Athletik, SG 12: 🎲 9 + 3 (Stärke) + 2 (Übung) = 14 → geschafft!",
+    "siehe_auch": [
+      "schwierigkeitsgrad",
+      "fertigkeit",
+      "w20"
+    ]
+  },
+  "fertigkeit": {
+    "titel": "Fertigkeit",
+    "kurz": "Etwas, worin man gut sein kann, z. B. Schleichen oder Überzeugen.",
+    "lang": "Es gibt 18 Fertigkeiten, jede gehört zu einem Attribut: Heimlichkeit zu Geschicklichkeit, Überzeugen zu Charisma usw. Bist du in einer Fertigkeit geübt, bekommst du bei der Probe deinen Übungsbonus dazu. Deine Klasse bestimmt, welche du lernst.",
+    "beispiel": "Wahrnehmung gehört zu Weisheit. Geübt: W20 + Weisheit + 2.",
+    "siehe_auch": [
+      "probe",
+      "uebungsbonus",
+      "expertise"
+    ]
+  },
+  "schwierigkeitsgrad": {
+    "titel": "Schwierigkeitsgrad (SG)",
+    "kurz": "Die Zahl, die du mindestens erreichen musst.",
+    "lang": "Jede Probe und jeder Rettungswurf hat einen Schwierigkeitsgrad. Leicht ist 10, mittel 15, schwer 20. Ist dein Ergebnis gleich hoch oder höher, hast du es geschafft.",
+    "beispiel": "SG 13, du hast 13 → geschafft. Gleichstand gewinnt immer der Würfelnde.",
+    "siehe_auch": [
+      "probe",
+      "rettungswurf",
+      "zauber_sg"
+    ]
+  },
+  "rettungswurf": {
+    "titel": "Rettungswurf",
+    "kurz": "Ein Wurf, um einer Gefahr zu entgehen.",
+    "lang": "Speit ein Drache Feuer oder trifft dich ein Zauber, darfst du einen Rettungswurf machen, um dem Schlimmsten zu entkommen. Du würfelst W20 plus das passende Attribut, z. B. Geschicklichkeit zum Ausweichen. Deine Klasse macht dich in zwei Rettungswürfen geübt. Geschafft heißt oft: nur halber oder gar kein Schaden.",
+    "beispiel": "Feuerodem, SG 13: 🎲 11 + 2 (Geschicklichkeit) = 13 → geschafft, nur halber Schaden.",
+    "siehe_auch": [
+      "schwierigkeitsgrad",
+      "zauber_sg",
+      "w20"
+    ]
+  },
+  "angriffswurf": {
+    "titel": "Angriffswurf",
+    "kurz": "Der Wurf, ob dein Angriff trifft.",
+    "lang": "Greifst du an, würfelst du einen W20 und addierst deinen Angriffsbonus (Attribut-Modifikator und Übungsbonus). Ist das Ergebnis mindestens so hoch wie die Rüstungsklasse des Ziels, triffst du und würfelst dann den Schaden. Eine natürliche 20 trifft immer kritisch, eine 1 verfehlt immer.",
+    "beispiel": "🎲 14 + 3 (Stärke) + 2 (Übung) = 19 gegen RK 15 → Treffer!",
+    "siehe_auch": [
+      "ruestungsklasse",
+      "angriffsbonus",
+      "kritischer_treffer",
+      "schaden"
+    ]
+  },
+  "angriffsbonus": {
+    "titel": "Angriffsbonus",
+    "kurz": "Was auf deinen Angriffswurf draufkommt.",
+    "lang": "Bei Helden setzt sich der Angriffsbonus aus dem Attribut-Modifikator und dem Übungsbonus zusammen. Bei Monstern steht er fertig ausgerechnet im Steckbrief. Je höher er ist, desto öfter trifft man.",
+    "beispiel": "Ein Goblin hat +4: 🎲 11 + 4 = 15.",
+    "siehe_auch": [
+      "angriffswurf",
+      "uebungsbonus",
+      "modifikator"
+    ]
+  },
+  "ruestungsklasse": {
+    "titel": "Rüstungsklasse (RK)",
+    "kurz": "Wie schwer du zu treffen bist.",
+    "lang": "Greift dich ein Gegner an, würfelt er einen W20 und addiert seinen Angriffsbonus. Ist das Ergebnis mindestens so hoch wie deine RK, trifft er. Rüstung und Schild erhöhen deine RK, ein hoher Geschicklichkeitswert auch. Ohne Rüstung ist die RK 10 plus Geschicklichkeit.",
+    "beispiel": "Goblin würfelt 11 + 4 = 15. Deine RK ist 16 → verfehlt.",
+    "siehe_auch": [
+      "angriffswurf",
+      "w20",
+      "geschicklichkeit"
+    ]
+  },
+  "trefferpunkte": {
+    "titel": "Trefferpunkte (TP)",
+    "kurz": "Deine Lebensenergie.",
+    "lang": "Jeder Treffer zieht Trefferpunkte ab. Fällt ein Monster auf 0, ist es besiegt. Fällst du auf 0, wirst du bewusstlos und musst Todesrettungswürfe machen, bis dir jemand hilft. Heilung, Heiltränke und Rasten bringen Trefferpunkte zurück, aber nie über dein Maximum.",
+    "beispiel": "Du hast 12 TP und wirst für 5 getroffen → noch 7 TP.",
+    "siehe_auch": [
+      "todesrettungswurf",
+      "zustand:unconscious",
+      "schaden",
+      "temporaere_trefferpunkte"
+    ]
+  },
+  "temporaere_trefferpunkte": {
+    "titel": "Temporäre Trefferpunkte",
+    "kurz": "Ein Polster, das Schaden zuerst abfängt.",
+    "lang": "Manche Fähigkeiten geben dir temporäre Trefferpunkte. Schaden zieht zuerst diese ab, erst danach deine echten Trefferpunkte. Sie lassen sich nicht heilen und verschwinden nach einer Rast.",
+    "siehe_auch": [
+      "trefferpunkte"
+    ]
+  },
+  "schaden": {
+    "titel": "Schaden",
+    "kurz": "So viele Trefferpunkte verliert das Ziel.",
+    "lang": "Triffst du, würfelst du den Schaden deiner Waffe oder deines Zaubers und addierst meistens deinen Attribut-Modifikator. Das Ergebnis wird von den Trefferpunkten des Ziels abgezogen. Jeder Schaden hat eine Schadensart, z. B. Hieb, Feuer oder Gift.",
+    "beispiel": "Langschwert: 5 (W8) + 3 (Stärke) = 8 Hiebschaden.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "schadensart",
+      "kritischer_treffer",
+      "resistenz"
+    ]
+  },
+  "schadensart": {
+    "titel": "Schadensart",
+    "kurz": "Welche Art Schaden etwas macht, z. B. Feuer oder Hieb.",
+    "lang": "Jeder Schaden hat eine Art. Das ist wichtig, weil manche Wesen gegen bestimmte Arten unempfindlich sind: Ein roter Drache ist gegen Feuer immun, ein Skelett gegen Gift. Überlege also, womit du angreifst!",
+    "beispiel": "Feuerpfeil gegen den roten Drachen → 0 Schaden. Lieber das Langschwert!",
+    "siehe_auch": [
+      "resistenz",
+      "immunitaet",
+      "verwundbarkeit"
+    ]
+  },
+  "resistenz": {
+    "titel": "Resistenz",
+    "kurz": "Das Ziel bekommt von dieser Schadensart nur halben Schaden.",
+    "lang": "Hat ein Wesen Resistenz gegen eine Schadensart, wird der Schaden halbiert (abgerundet). Rattenschwärme sind z. B. resistent gegen Hieb-, Stich- und Wuchtschaden. Geister und Werwölfe halten normale Waffen gut aus, magische Waffen und Zauber helfen.",
+    "beispiel": "9 Hiebschaden gegen den Rattenschwarm → nur 4.",
+    "siehe_auch": [
+      "schadensart",
+      "immunitaet",
+      "verwundbarkeit"
+    ]
+  },
+  "immunitaet": {
+    "titel": "Immunität",
+    "kurz": "Diese Schadensart macht dem Ziel gar nichts.",
+    "lang": "Ist ein Wesen gegen eine Schadensart immun, bekommt es davon keinen Schaden. Skelette und Zombies sind gegen Gift immun, der rote Drache gegen Feuer. Such dir einen anderen Weg!",
+    "beispiel": "Feuerpfeil (8 Feuerschaden) gegen den roten Drachen → 0.",
+    "siehe_auch": [
+      "resistenz",
+      "schadensart"
+    ]
+  },
+  "verwundbarkeit": {
+    "titel": "Verwundbarkeit",
+    "kurz": "Diese Schadensart tut dem Ziel doppelt weh.",
+    "lang": "Manche Wesen haben eine Schwäche gegen eine Schadensart. Dann wird der Schaden verdoppelt. Es lohnt sich, die Schwächen der Gegner herauszufinden.",
+    "beispiel": "6 Wuchtschaden gegen ein verwundbares Wesen → 12.",
+    "siehe_auch": [
+      "resistenz",
+      "immunitaet"
+    ]
+  },
+  "initiative": {
+    "titel": "Initiative",
+    "kurz": "Bestimmt, wer im Kampf zuerst dran ist.",
+    "lang": "Wenn ein Kampf beginnt, würfeln alle einen W20 und addieren ihre Geschicklichkeit. Wer am höchsten würfelt, ist zuerst dran, dann geht es der Reihe nach weiter. Die Reihenfolge siehst du am Rand des Fernsehers.",
+    "beispiel": "🎲 15 + 2 (Geschicklichkeit) = 17 → du bist vor dem Goblin mit 13 dran.",
+    "siehe_auch": [
+      "runde",
+      "zug",
+      "geschicklichkeit"
+    ]
+  },
+  "runde": {
+    "titel": "Runde",
+    "kurz": "Einmal sind alle im Kampf dran gewesen.",
+    "lang": "Im Kampf kommt jeder in der Initiative-Reihenfolge einmal an die Reihe. Sind alle durch, beginnt die nächste Runde. Eine Runde dauert in der Spielwelt etwa 6 Sekunden, darum passiert in einem Zug auch nicht allzu viel.",
+    "beispiel": "Segnen hält 10 Runden, also etwa eine Minute.",
+    "siehe_auch": [
+      "zug",
+      "initiative"
+    ]
+  },
+  "zug": {
+    "titel": "Zug",
+    "kurz": "Wenn du im Kampf an der Reihe bist.",
+    "lang": "In deinem Zug darfst du dich bewegen UND eine Aktion machen, z. B. angreifen oder zaubern. Manche Fähigkeiten brauchen nur eine Bonusaktion, die du zusätzlich machen kannst. Die Reihenfolge ist egal: erst laufen, dann schlagen, oder umgekehrt.",
+    "beispiel": "Du läufst 4 Felder zum Goblin und greifst ihn mit dem Schwert an.",
+    "siehe_auch": [
+      "bewegung",
+      "aktion",
+      "bonusaktion",
+      "reaktion"
+    ]
+  },
+  "bewegung": {
+    "titel": "Bewegung",
+    "kurz": "Wie viele Felder du in deinem Zug laufen darfst.",
+    "lang": "Die meisten Helden können sich 6 Felder weit bewegen (9 Meter, ein Feld sind 1,5 m). Zwerge und Halblinge sind etwas langsamer: 5 Felder. Du kannst die Bewegung auch aufteilen, z. B. 2 Felder vor, angreifen, 4 Felder zurück. Aufstehen kostet die halbe Bewegung.",
+    "beispiel": "Mensch: 6 Felder. Mit Spurt: 12 Felder, aber dann keine Aktion mehr frei.",
+    "siehe_auch": [
+      "zug",
+      "spurt",
+      "gelegenheitsangriff"
+    ]
+  },
+  "aktion": {
+    "titel": "Aktion",
+    "kurz": "Das Wichtigste, was du in deinem Zug tust.",
+    "lang": "In jedem Zug hast du genau eine Aktion. Die häufigsten: Angreifen, einen Zauber wirken, Spurten, Rückzug, Ausweichen oder einen Gegenstand benutzen (z. B. einen Heiltrank trinken). Zusätzlich darfst du dich bewegen.",
+    "beispiel": "Aktion: Angriff mit dem Langschwert. Danach ist die Aktion verbraucht.",
+    "siehe_auch": [
+      "zug",
+      "bonusaktion",
+      "reaktion"
+    ]
+  },
+  "bonusaktion": {
+    "titel": "Bonusaktion",
+    "kurz": "Eine kleine Extra-Aktion, die nur manche Fähigkeiten erlauben.",
+    "lang": "Einige Fähigkeiten und Zauber sind so schnell, dass sie nur eine Bonusaktion kosten, z. B. das Durchatmen des Kämpfers, Heilendes Wort oder die Raffinierte Aktion des Schurken. Du hast pro Zug höchstens eine Bonusaktion, zusätzlich zu deiner normalen Aktion.",
+    "beispiel": "Der Kleriker heilt mit Heilendes Wort (Bonusaktion) und greift dann mit dem Streitkolben an (Aktion).",
+    "siehe_auch": [
+      "aktion",
+      "zug",
+      "reaktion"
+    ]
+  },
+  "reaktion": {
+    "titel": "Reaktion",
+    "kurz": "Eine schnelle Antwort, auch außerhalb deines Zuges.",
+    "lang": "Einmal pro Runde darfst du auf etwas reagieren, auch wenn du nicht dran bist. Am häufigsten ist der Gelegenheitsangriff: Läuft ein Gegner an dir vorbei weg, darfst du ihm eins mitgeben. Die Reaktion kommt zu Beginn deines nächsten Zuges zurück.",
+    "siehe_auch": [
+      "gelegenheitsangriff",
+      "aktion",
+      "bonusaktion"
+    ]
+  },
+  "gelegenheitsangriff": {
+    "titel": "Gelegenheitsangriff",
+    "kurz": "Ein Gratis-Angriff auf einen Gegner, der aus deiner Reichweite flieht.",
+    "lang": "Wenn sich ein Gegner aus deiner Nahkampf-Reichweite wegbewegt, darfst du mit deiner Reaktion sofort einmal zuschlagen. Das gilt auch umgekehrt: Läufst du von einem Monster weg, kann es dich angreifen. Mit der Aktion Rückzug vermeidest du das.",
+    "beispiel": "Du stehst neben dem Oger und läufst weg → der Oger schlägt einmal nach dir.",
+    "siehe_auch": [
+      "reaktion",
+      "rueckzug",
+      "nahkampf"
+    ]
+  },
+  "spurt": {
+    "titel": "Spurt",
+    "kurz": "Als Aktion doppelt so weit laufen.",
+    "lang": "Mit der Aktion Spurt bekommst du noch einmal deine volle Bewegung dazu. Praktisch, um schnell zu einem Freund zu kommen oder wegzulaufen. Dafür kannst du in diesem Zug nicht angreifen.",
+    "beispiel": "6 Felder Bewegung + Spurt = 12 Felder.",
+    "siehe_auch": [
+      "bewegung",
+      "aktion",
+      "rueckzug"
+    ]
+  },
+  "rueckzug": {
+    "titel": "Rückzug",
+    "kurz": "Vorsichtig weggehen, ohne Gelegenheitsangriffe auszulösen.",
+    "lang": "Wenn du die Aktion Rückzug nimmst, dürfen dich Gegner in diesem Zug nicht mit Gelegenheitsangriffen treffen, während du dich wegbewegst. Schurken können das sogar als Bonusaktion.",
+    "beispiel": "Du bist schwer verletzt und neben dem Oger: Rückzug, dann 6 Felder weg.",
+    "siehe_auch": [
+      "gelegenheitsangriff",
+      "spurt",
+      "merkmal:cunning-action"
+    ]
+  },
+  "ausweichen": {
+    "titel": "Ausweichen",
+    "kurz": "Du konzentrierst dich ganz aufs Ausweichen.",
+    "lang": "Mit der Aktion Ausweichen haben alle Angriffe gegen dich bis zu deinem nächsten Zug Nachteil. Du selbst greifst in diesem Zug nicht an. Gut, wenn du wenig Trefferpunkte hast und auf Hilfe wartest.",
+    "siehe_auch": [
+      "nachteil",
+      "aktion"
+    ]
+  },
+  "verstecken": {
+    "titel": "Verstecken",
+    "kurz": "Aus dem Blickfeld der Gegner verschwinden.",
+    "lang": "Willst du dich verstecken, machst du eine Probe auf Heimlichkeit. Ist sie höher als die Aufmerksamkeit der Gegner, sehen sie dich nicht mehr. Dann hast du beim nächsten Angriff Vorteil.",
+    "beispiel": "🎲 13 + 3 (Geschicklichkeit) + 4 (Expertise) = 20 → versteckt.",
+    "siehe_auch": [
+      "fertigkeit:stealth",
+      "vorteil",
+      "zustand:invisible"
+    ]
+  },
+  "nahkampf": {
+    "titel": "Nahkampf",
+    "kurz": "Angriff auf jemanden direkt neben dir.",
+    "lang": "Mit Schwert, Axt, Keule oder Klauen greift man Ziele an, die direkt neben einem stehen (1 Feld Reichweite). Nahkampfangriffe nutzen meistens Stärke, leichte Waffen wie Dolch oder Rapier auch Geschicklichkeit.",
+    "siehe_auch": [
+      "fernkampf",
+      "reichweite",
+      "gelegenheitsangriff"
+    ]
+  },
+  "fernkampf": {
+    "titel": "Fernkampf",
+    "kurz": "Angriff aus der Entfernung, z. B. mit Bogen oder Zauber.",
+    "lang": "Mit Bogen, Armbrust, Wurfwaffen und vielen Zaubern kannst du aus sicherer Entfernung angreifen. Aber Vorsicht: Steht ein Gegner direkt neben dir, hast du beim Fernkampf Nachteil. Und über die normale Reichweite hinaus auch.",
+    "beispiel": "Goblin neben dir, du schießt mit dem Kurzbogen → Nachteil.",
+    "siehe_auch": [
+      "nahkampf",
+      "reichweite",
+      "nachteil"
+    ]
+  },
+  "reichweite": {
+    "titel": "Reichweite",
+    "kurz": "Wie weit eine Waffe oder ein Zauber reicht.",
+    "lang": "Nahkampfwaffen erreichen das Feld direkt neben dir. Fernwaffen haben zwei Werte: normale und maximale Reichweite. Zwischen den beiden triffst du nur mit Nachteil. Zauber haben eine feste Reichweite, „Berührung“ heißt: direkt daneben.",
+    "beispiel": "Kurzbogen 80/320 Fuß: bis 16 Felder normal, bis 64 Felder mit Nachteil.",
+    "siehe_auch": [
+      "fernkampf",
+      "nahkampf",
+      "nachteil"
+    ]
+  },
+  "vorteil": {
+    "titel": "Vorteil",
+    "kurz": "Zwei W20 würfeln, der höhere zählt.",
+    "lang": "Wenn die Lage günstig für dich ist, z. B. weil dein Gegner am Boden liegt oder dich nicht sieht, hast du Vorteil. Dann würfelst du zwei W20 und nimmst den besseren. Hast du gleichzeitig Vorteil und Nachteil, heben sie sich auf.",
+    "beispiel": "🎲 6 und 15 → die 15 zählt.",
+    "siehe_auch": [
+      "nachteil",
+      "w20"
+    ]
+  },
+  "nachteil": {
+    "titel": "Nachteil",
+    "kurz": "Zwei W20 würfeln, der niedrigere zählt.",
+    "lang": "Ist die Lage ungünstig, z. B. weil du vergiftet bist oder mit dem Bogen auf einen Gegner neben dir schießt, hast du Nachteil. Dann würfelst du zwei W20 und nimmst den schlechteren. Vorteil und Nachteil zusammen heben sich auf.",
+    "beispiel": "🎲 17 und 4 → die 4 zählt.",
+    "siehe_auch": [
+      "vorteil",
+      "w20"
+    ]
+  },
+  "kritischer_treffer": {
+    "titel": "Kritischer Treffer",
+    "kurz": "Eine natürliche 20 beim Angriff: Treffer mit doppelten Schadenswürfeln.",
+    "lang": "Zeigt der W20 bei einem Angriff eine 20, triffst du automatisch, egal wie hoch die Rüstungsklasse ist. Außerdem würfelst du alle Schadenswürfel doppelt. Boni wie Stärke zählen aber nur einmal. Eine 1 dagegen verfehlt immer.",
+    "beispiel": "Langschwert kritisch: 2W8 statt 1W8, also z. B. 5 + 6 + 3 (Stärke) = 14.",
+    "siehe_auch": [
+      "angriffswurf",
+      "w20",
+      "merkmal:improved-critical"
+    ]
+  },
+  "zaubern": {
+    "titel": "Zaubern",
+    "kurz": "Magie wirken, z. B. Feuer schleudern oder Wunden heilen.",
+    "lang": "Magier, Kleriker und Ritter können Zauber wirken. Kleine Zauber (Zaubertricks) gehen immer. Stärkere Zauber verbrauchen einen Zauberplatz, und die kommen erst nach einer langen Rast zurück. Such dir also gut aus, wann du sie einsetzt.",
+    "siehe_auch": [
+      "zaubertrick",
+      "zauberplaetze",
+      "konzentration",
+      "zauber_sg"
+    ]
+  },
+  "zaubertrick": {
+    "titel": "Zaubertrick",
+    "kurz": "Ein kleiner Zauber, den du so oft wirken kannst, wie du willst.",
+    "lang": "Zaubertricks verbrauchen keinen Zauberplatz. Feuerpfeil, Froststrahl und Heilige Flamme sind Zaubertricks. Sie sind schwächer als große Zauber, aber du kannst sie in jedem Zug einsetzen.",
+    "beispiel": "Der Magier wirkt jeden Zug Feuerpfeil: 1W10 Feuerschaden.",
+    "siehe_auch": [
+      "zaubern",
+      "zauberplaetze"
+    ]
+  },
+  "zauberplaetze": {
+    "titel": "Zauberplätze",
+    "kurz": "Deine Magie-Energie für starke Zauber.",
+    "lang": "Jeder Zauber ab Grad 1 verbraucht einen Zauberplatz. Wie viele du hast, hängt von Klasse und Stufe ab. Ein Magier auf Stufe 1 hat 2 Plätze. Nach einer langen Rast sind alle wieder voll. Ritter können Zauberplätze auch für den Göttlichen Schlag nutzen.",
+    "beispiel": "Magisches Geschoss verbraucht einen Platz: 2 → noch 1 übrig.",
+    "siehe_auch": [
+      "zaubern",
+      "zaubertrick",
+      "lange_rast"
+    ]
+  },
+  "konzentration": {
+    "titel": "Konzentration",
+    "kurz": "Manche Zauber halten nur, solange du dich darauf konzentrierst.",
+    "lang": "Zauber wie Segnen oder Schild des Glaubens halten eine Weile, aber nur solange du dich konzentrierst. Du kannst immer nur einen solchen Zauber gleichzeitig aufrechterhalten. Wirst du getroffen, musst du einen Rettungswurf auf Konstitution schaffen (SG 10 oder halber Schaden), sonst endet der Zauber.",
+    "beispiel": "Der Kleriker segnet die Gruppe, wird für 8 getroffen: 🎲 12 + 2 = 14 gegen SG 10 → Segen hält.",
+    "siehe_auch": [
+      "zaubern",
+      "rettungswurf",
+      "konstitution"
+    ]
+  },
+  "zauber_sg": {
+    "titel": "Zauber-SG",
+    "kurz": "Wie schwer es ist, deinem Zauber zu widerstehen.",
+    "lang": "Muss ein Ziel gegen deinen Zauber einen Rettungswurf machen, ist der Schwierigkeitsgrad 8 plus dein Zauber-Attribut plus dein Übungsbonus. Je höher dein Zauber-Attribut, desto schwerer kann man deinen Zaubern entkommen.",
+    "beispiel": "Kleriker mit Weisheit +3: 8 + 3 + 2 = SG 13.",
+    "siehe_auch": [
+      "rettungswurf",
+      "schwierigkeitsgrad",
+      "zaubern"
+    ]
+  },
+  "todesrettungswurf": {
+    "titel": "Todesrettungswurf",
+    "kurz": "Mit 0 Trefferpunkten kämpfst du ums Überleben.",
+    "lang": "Fällst du auf 0 Trefferpunkte, wirst du bewusstlos. Zu Beginn jedes deiner Züge würfelst du einen W20: 10 oder mehr ist ein Erfolg, weniger ein Fehlschlag. Drei Erfolge und du bist stabil. Drei Fehlschläge und deine Figur stirbt. Eine 20 weckt dich sofort mit 1 TP, eine 1 zählt doppelt. Jede Heilung weckt dich wieder auf!",
+    "beispiel": "🎲 14 → Erfolg (1/3). Der Kleriker heilt dich → du stehst wieder.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "stabil",
+      "zustand:unconscious"
+    ]
+  },
+  "stabil": {
+    "titel": "Stabil",
+    "kurz": "Du bist bewusstlos, stirbst aber nicht mehr.",
+    "lang": "Hast du drei erfolgreiche Todesrettungswürfe, bist du stabil. Du bleibst bewusstlos, musst aber nicht mehr würfeln. Nach dem Kampf kommst du wieder zu dir. Heilung weckt dich sofort.",
+    "siehe_auch": [
+      "todesrettungswurf",
+      "zustand:unconscious"
+    ]
+  },
+  "kurze_rast": {
+    "titel": "Kurze Rast",
+    "kurz": "Eine Verschnaufpause von etwa einer Stunde.",
+    "lang": "Bei einer kurzen Rast verbindest du Wunden und kommst zu Atem. Du bekommst einen Teil deiner Trefferpunkte zurück, und Fähigkeiten wie Durchatmen oder Tatendrang laden sich wieder auf.",
+    "siehe_auch": [
+      "lange_rast",
+      "trefferpunkte"
+    ]
+  },
+  "lange_rast": {
+    "titel": "Lange Rast",
+    "kurz": "Eine ganze Nacht Schlaf.",
+    "lang": "Nach einer langen Rast bist du wieder voll da: alle Trefferpunkte, alle Zauberplätze und alle Fähigkeiten sind zurück. Aber Vorsicht, nicht überall ist es sicher, eine Nacht zu schlafen.",
+    "siehe_auch": [
+      "kurze_rast",
+      "zauberplaetze"
+    ]
+  },
+  "kampfstil": {
+    "titel": "Kampfstil",
+    "kurz": "Eine Spezialisierung, wie deine Figur kämpft.",
+    "lang": "Kämpfer (ab Stufe 1) und Ritter (ab Stufe 2) haben einen Kampfstil. Verteidigung gibt +1 auf die Rüstungsklasse, solange du Rüstung trägst. Duellieren gibt +2 Schaden, wenn du eine Nahkampfwaffe in einer Hand führst.",
+    "beispiel": "Duellieren: Langschwert 1W8 + 3 (Stärke) + 2 (Duellieren).",
+    "siehe_auch": [
+      "klasse:fighter",
+      "klasse:paladin",
+      "ruestungsklasse"
+    ]
+  },
+  "ausruestung": {
+    "titel": "Ausrüstung",
+    "kurz": "Waffen, Rüstung und nützliche Dinge, die du mit dir trägst.",
+    "lang": "Jede Figur startet mit passender Ausrüstung für ihre Klasse. Im Inventar auf deinem Handy siehst du, was du dabei hast. Heiltränke kannst du im Kampf als Aktion trinken oder einem bewusstlosen Freund einflößen.",
+    "siehe_auch": [
+      "gegenstand:potion-of-healing",
+      "ruestungsklasse"
+    ]
+  },
+  "klasse": {
+    "titel": "Klasse",
+    "kurz": "Der Beruf deiner Figur: Kämpfer, Ritter, Magier, Schurke oder Kleriker.",
+    "lang": "Die Klasse bestimmt, was deine Figur besonders gut kann: Kämpfer und Ritter halten viel aus und kämpfen vorne, Magier zaubern aus der Entfernung, Schurken sind flink und listig, Kleriker heilen. Für Einsteiger empfehlen wir Kämpfer oder Ritter.",
+    "siehe_auch": [
+      "klasse:fighter",
+      "klasse:paladin",
+      "klasse:wizard",
+      "klasse:rogue",
+      "klasse:cleric"
+    ]
+  },
+  "volk": {
+    "titel": "Volk",
+    "kurz": "Zu welchem Volk deine Figur gehört: Mensch, Elf, Zwerg oder Halbling.",
+    "lang": "Das Volk gibt dir ein paar Boni auf Attribute und besondere Eigenschaften. Elfen sehen im Dunkeln, Zwerge sind zäh, Halblinge haben Glück, Menschen sind in allem ein bisschen besser. Eine falsche Wahl gibt es nicht.",
+    "siehe_auch": [
+      "volk:human",
+      "volk:elf",
+      "volk:dwarf",
+      "volk:halfling"
+    ]
+  },
+  "monster": {
+    "titel": "Monster",
+    "kurz": "Alle Gegner und Kreaturen, denen ihr begegnet.",
+    "lang": "Vom kleinen Ratte bis zum Drachen: Monster haben Trefferpunkte, eine Rüstungsklasse und Angriffe wie ihr. Der Code steuert sie, der Spielleiter erzählt, was sie tun. Nicht jedes Monster muss bekämpft werden, manchmal hilft Reden.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "ruestungsklasse"
+    ]
+  },
+  "zustand": {
+    "titel": "Zustand",
+    "kurz": "Ein besonderer Zustand wie vergiftet oder liegend.",
+    "lang": "Zustände verändern, was eine Figur kann. Wer liegt, hat Nachteil beim Angreifen, wer vergiftet ist, auch. Ein bewusstloses Wesen kann gar nichts tun. Auf dem Handy siehst du deine Zustände als kleine Symbole, antippen erklärt sie.",
+    "siehe_auch": [
+      "zustand:prone",
+      "zustand:poisoned",
+      "zustand:unconscious"
+    ]
+  },
+  "dunkelsicht": {
+    "titel": "Dunkelsicht",
+    "kurz": "Im Dunkeln sehen, als wäre es dämmrig.",
+    "lang": "Elfen, Zwerge und viele Monster können im Dunkeln bis zu 12 Felder weit sehen, allerdings nur in Grautönen. Menschen und Halblinge brauchen eine Fackel. In Höhlen und nachts im Wald ist das ein großer Vorteil.",
+    "siehe_auch": [
+      "volk:elf",
+      "volk:dwarf",
+      "gegenstand:torch"
+    ]
+  },
+  "klasse:fighter": {
+    "titel": "Kämpfer",
+    "kurz": "Hält viel aus und haut kräftig zu – ideal für Einsteiger.",
+    "lang": "Der Kämpfer ist ein Profi mit Schwert und Schild. Er trägt die schwerste Rüstung, hat viele Trefferpunkte und muss sich keine Zauber merken. Mit Durchatmen heilt er sich selbst, ab Stufe 2 bekommt er mit Tatendrang eine zweite Aktion. Perfekt, wenn du einfach losspielen willst.",
+    "beispiel": "Brunhild: RK 19, 12 Trefferpunkte, Langschwert +5.",
+    "siehe_auch": [
+      "merkmal:second-wind",
+      "merkmal:action-surge-1-use",
+      "kampfstil"
+    ]
+  },
+  "klasse:paladin": {
+    "titel": "Ritter",
+    "kurz": "Ein heiliger Streiter in schwerer Rüstung – stark und einsteigerfreundlich.",
+    "lang": "Der Ritter hat einen heiligen Eid geschworen. Er kämpft mit Schwert und Schild wie ein Kämpfer, kann aber auch heilen: Mit Handauflegen verteilt er Heilung aus einem Vorrat. Ab Stufe 2 wirkt er Zauber wie Segnen und lässt mit dem Göttlichen Schlag seine Waffe aufleuchten. In den Regeln heißt diese Klasse Paladin.",
+    "beispiel": "Siegfried trifft den Drachen und nutzt den Göttlichen Schlag: 2W8 Glanzschaden extra.",
+    "siehe_auch": [
+      "merkmal:lay-on-hands",
+      "merkmal:divine-smite",
+      "charisma"
+    ]
+  },
+  "klasse:wizard": {
+    "titel": "Magier",
+    "kurz": "Zaubert mächtig aus der Ferne, hält aber wenig aus.",
+    "lang": "Der Magier hat seine Zauber in langen Nächten aus Büchern gelernt. Er schleudert Feuerpfeile, schickt Gegner schlafen und trifft mit dem Magischen Geschoss immer. Dafür trägt er keine Rüstung und hat wenige Trefferpunkte. Bleib hinter deinen Freunden! Etwas für Spieler, die gern taktisch denken.",
+    "beispiel": "Ilmarin: RK 12, 8 Trefferpunkte, aber Schlaf kann 3 Goblins auf einmal ausschalten.",
+    "siehe_auch": [
+      "zaubern",
+      "intelligenz",
+      "zauberplaetze"
+    ]
+  },
+  "klasse:rogue": {
+    "titel": "Schurke",
+    "kurz": "Flink, listig und gefährlich, wenn er aus dem Hinterhalt zuschlägt.",
+    "lang": "Der Schurke schleicht, knackt Schlösser und findet Fallen. Im Kampf trifft er besonders hart, wenn ein Freund neben dem Gegner steht oder er Vorteil hat (Hinterhältiger Angriff). Ab Stufe 2 kann er sich als Bonusaktion zurückziehen oder verstecken. Gut für Spieler, die gern clever vorgehen.",
+    "beispiel": "Pip schießt auf den Goblin, neben dem Brunhild steht: 1W6 + 1W6 (hinterhältig) + 3.",
+    "siehe_auch": [
+      "merkmal:sneak-attack",
+      "merkmal:cunning-action",
+      "expertise"
+    ]
+  },
+  "klasse:cleric": {
+    "titel": "Kleriker",
+    "kurz": "Heiler und Helfer der Gruppe, kann aber auch zuschlagen.",
+    "lang": "Der Kleriker dient einer Gottheit und wirkt heilige Magie. Er heilt Wunden, segnet seine Freunde und brennt Gegner mit Heiliger Flamme. Er trägt Rüstung und Schild, hält also einiges aus. Unser Kleriker gehört der Domäne des Lebens an und heilt besonders gut. Ab Stufe 2 kann er Untote vertreiben.",
+    "beispiel": "Thorgrim heilt mit Heilendes Wort: 1W4 + 3 (Weisheit) + 3 (Jünger des Lebens).",
+    "siehe_auch": [
+      "merkmal:disciple-of-life",
+      "merkmal:channel-divinity-turn-undead",
+      "weisheit"
+    ]
+  },
+  "volk:human": {
+    "titel": "Mensch",
+    "kurz": "Vielseitig: in allen Attributen ein bisschen besser.",
+    "lang": "Menschen sind das häufigste Volk. Sie haben keine magischen Besonderheiten, bekommen dafür aber +1 auf alle sechs Attribute. Damit passen sie zu jeder Klasse.",
+    "siehe_auch": [
+      "volk",
+      "attributswert"
+    ]
+  },
+  "volk:elf": {
+    "titel": "Elf",
+    "kurz": "Anmutig, scharfsinnig und im Dunkeln sehend.",
+    "lang": "Elfen leben sehr lange und haben ein Gespür für Magie. Unsere Elfen sind Hochelfen: +2 Geschicklichkeit, +1 Intelligenz. Sie sehen im Dunkeln, sind in Wahrnehmung geübt, lassen sich nicht magisch einschläfern und können einen Zaubertrick (Feuerpfeil).",
+    "siehe_auch": [
+      "dunkelsicht",
+      "volksmerkmal:fey-ancestry",
+      "volksmerkmal:keen-senses"
+    ]
+  },
+  "volk:dwarf": {
+    "titel": "Zwerg",
+    "kurz": "Klein, stämmig und unglaublich zäh.",
+    "lang": "Zwerge sind Bergbewohner und stur wie Felsen. Unsere Zwerge sind Hügelzwerge: +2 Konstitution, +1 Weisheit und ein Extra-Trefferpunkt pro Stufe. Sie sehen im Dunkeln und halten Gift gut aus. Dafür laufen sie nur 5 Felder pro Zug.",
+    "siehe_auch": [
+      "dunkelsicht",
+      "volksmerkmal:dwarven-resilience",
+      "volksmerkmal:dwarven-toughness"
+    ]
+  },
+  "volk:halfling": {
+    "titel": "Halbling",
+    "kurz": "Klein, flink und mit unverschämtem Glück.",
+    "lang": "Halblinge sind etwa halb so groß wie Menschen und lieben gutes Essen. Unsere Halblinge sind Leichtfüße: +2 Geschicklichkeit, +1 Charisma. Würfeln sie beim W20 eine 1, dürfen sie noch einmal würfeln. Außerdem lassen sie sich nicht so leicht Angst machen.",
+    "siehe_auch": [
+      "volksmerkmal:lucky",
+      "volksmerkmal:brave",
+      "volksmerkmal:naturally-stealthy"
+    ]
+  },
+  "volksmerkmal:brave": {
+    "titel": "Tapfer",
+    "kurz": "Halblinge lassen sich schwer Angst machen.",
+    "lang": "Bei Rettungswürfen gegen Angst haben Halblinge Vorteil. Das kleine Volk hat ein großes Herz.",
+    "siehe_auch": [
+      "volk:halfling",
+      "zustand:frightened",
+      "vorteil"
+    ]
+  },
+  "volksmerkmal:darkvision": {
+    "titel": "Dunkelsicht",
+    "kurz": "Im Dunkeln bis 12 Felder weit sehen.",
+    "lang": "Wer Dunkelsicht hat, sieht in Dunkelheit wie in Dämmerlicht, bis zu 18 Meter (12 Felder) weit. Farben erkennt man dabei nicht.",
+    "siehe_auch": [
+      "dunkelsicht"
+    ]
+  },
+  "volksmerkmal:dwarven-combat-training": {
+    "titel": "Zwergische Kampfausbildung",
+    "kurz": "Zwerge können mit Äxten und Hämmern umgehen.",
+    "lang": "Jeder Zwerg lernt früh den Umgang mit Streitaxt, Handaxt und Kriegshammer. Mit diesen Waffen bekommt er immer seinen Übungsbonus, egal welche Klasse er hat.",
+    "siehe_auch": [
+      "volk:dwarf",
+      "uebungsbonus"
+    ]
+  },
+  "volksmerkmal:dwarven-resilience": {
+    "titel": "Zwergische Unverwüstlichkeit",
+    "kurz": "Zwerge vertragen Gift.",
+    "lang": "Zwerge haben Resistenz gegen Giftschaden, bekommen also nur halben Schaden. Gegen Vergiftung haben sie bei Rettungswürfen Vorteil.",
+    "siehe_auch": [
+      "resistenz",
+      "zustand:poisoned"
+    ]
+  },
+  "volksmerkmal:dwarven-toughness": {
+    "titel": "Zwergische Zähigkeit",
+    "kurz": "+1 Trefferpunkt pro Stufe.",
+    "lang": "Hügelzwerge sind besonders zäh. Ihr Trefferpunkte-Maximum steigt um 1 auf jeder Stufe.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "volk:dwarf"
+    ]
+  },
+  "volksmerkmal:elf-weapon-training": {
+    "titel": "Elfische Waffenausbildung",
+    "kurz": "Elfen können mit Langschwert und Bogen umgehen.",
+    "lang": "Elfen lernen Langschwert, Kurzschwert, Kurzbogen und Langbogen. Damit bekommen sie immer ihren Übungsbonus, auch als Magier.",
+    "siehe_auch": [
+      "volk:elf",
+      "uebungsbonus"
+    ]
+  },
+  "volksmerkmal:extra-language": {
+    "titel": "Zusätzliche Sprache",
+    "kurz": "Hochelfen sprechen eine Sprache mehr.",
+    "lang": "Hochelfen haben viel gelernt und sprechen eine zusätzliche Sprache. Manchmal versteht man so, was die Gegner flüstern.",
+    "siehe_auch": [
+      "volk:elf"
+    ]
+  },
+  "volksmerkmal:fey-ancestry": {
+    "titel": "Feenblut",
+    "kurz": "Elfen lassen sich nicht magisch einschläfern.",
+    "lang": "In den Adern der Elfen fließt Feenmagie. Zauber wie Schlaf wirken bei ihnen nicht, und gegen Bezauberung haben sie beim Rettungswurf Vorteil.",
+    "siehe_auch": [
+      "zauber:sleep",
+      "zustand:charmed"
+    ]
+  },
+  "volksmerkmal:halfling-nimbleness": {
+    "titel": "Halblingsgewandtheit",
+    "kurz": "Halblinge schlüpfen an größeren Wesen vorbei.",
+    "lang": "Halblinge dürfen durch Felder laufen, auf denen ein größeres Wesen steht. Sehr praktisch, um an einem Oger vorbeizuflitzen.",
+    "siehe_auch": [
+      "volk:halfling",
+      "bewegung"
+    ]
+  },
+  "volksmerkmal:high-elf-cantrip": {
+    "titel": "Zaubertrick der Hochelfen",
+    "kurz": "Hochelfen können einen kleinen Zauber.",
+    "lang": "Jeder Hochelf beherrscht einen Magier-Zaubertrick. In unserem Spiel ist es der Feuerpfeil. Er wird mit Intelligenz gewirkt.",
+    "siehe_auch": [
+      "zaubertrick",
+      "zauber:fire-bolt"
+    ]
+  },
+  "volksmerkmal:keen-senses": {
+    "titel": "Scharfe Sinne",
+    "kurz": "Elfen sind in Wahrnehmung geübt.",
+    "lang": "Elfen hören und sehen besonders gut. Sie bekommen auf Wahrnehmung immer ihren Übungsbonus.",
+    "siehe_auch": [
+      "fertigkeit:perception"
+    ]
+  },
+  "volksmerkmal:lucky": {
+    "titel": "Glückspilz",
+    "kurz": "Eine gewürfelte 1 darf noch einmal gewürfelt werden.",
+    "lang": "Würfelt ein Halbling beim Angriff, bei einer Probe oder einem Rettungswurf eine 1 auf dem W20, würfelt er einfach noch einmal. Das zweite Ergebnis gilt.",
+    "beispiel": "🎲 1 → Glück gehabt, neuer Wurf: 🎲 13.",
+    "siehe_auch": [
+      "volk:halfling",
+      "w20"
+    ]
+  },
+  "volksmerkmal:naturally-stealthy": {
+    "titel": "Von Natur aus unauffällig",
+    "kurz": "Halblinge können sich hinter Größeren verstecken.",
+    "lang": "Ein Halbling kann versuchen, sich zu verstecken, auch wenn er nur hinter einem größeren Wesen steht, zum Beispiel hinter seinem Freund, dem Kämpfer.",
+    "siehe_auch": [
+      "verstecken",
+      "volk:halfling"
+    ]
+  },
+  "volksmerkmal:stonecunning": {
+    "titel": "Steingespür",
+    "kurz": "Zwerge kennen sich mit Steinbauten aus.",
+    "lang": "Bei Proben über Mauerwerk, Höhlen und Stollen sind Zwerge besonders gut. Ihnen fällt eher auf, wenn eine Wand hohl klingt oder ein Gang einzustürzen droht.",
+    "siehe_auch": [
+      "volk:dwarf",
+      "fertigkeit:history"
+    ]
+  },
+  "volksmerkmal:tool-proficiency": {
+    "titel": "Werkzeugkunde",
+    "kurz": "Zwerge können mit Handwerkszeug umgehen.",
+    "lang": "Jeder Zwerg hat ein Handwerk gelernt: Schmied, Brauer oder Steinmetz. Das kann bei Proben rund ums Handwerk helfen.",
+    "siehe_auch": [
+      "volk:dwarf"
+    ]
+  },
+  "volksmerkmal:trance": {
+    "titel": "Trance",
+    "kurz": "Elfen schlafen nicht, sie meditieren.",
+    "lang": "Statt acht Stunden zu schlafen, meditieren Elfen vier Stunden. Dabei bekommen sie trotzdem alles von der langen Rast.",
+    "siehe_auch": [
+      "lange_rast",
+      "volk:elf"
+    ]
+  },
+  "merkmal:action-surge-1-use": {
+    "titel": "Tatendrang",
+    "kurz": "Einmal eine zusätzliche Aktion.",
+    "lang": "Ab Stufe 2 kann der Kämpfer einmal alle Kräfte mobilisieren und in seinem Zug eine zweite Aktion machen, also z. B. zweimal angreifen. Danach braucht er eine Rast, bevor es wieder geht.",
+    "beispiel": "Angriff mit dem Langschwert, Tatendrang, gleich noch ein Angriff.",
+    "siehe_auch": [
+      "aktion",
+      "klasse:fighter",
+      "kurze_rast"
+    ]
+  },
+  "merkmal:arcane-recovery": {
+    "titel": "Arkane Erholung",
+    "kurz": "Der Magier holt sich bei einer Pause etwas Magie zurück.",
+    "lang": "Einmal am Tag kann der Magier bei einer kurzen Rast in seinem Zauberbuch lesen und dabei einen verbrauchten Zauberplatz zurückbekommen.",
+    "siehe_auch": [
+      "zauberplaetze",
+      "kurze_rast"
+    ]
+  },
+  "merkmal:arcane-tradition": {
+    "titel": "Magische Schule",
+    "kurz": "Ab Stufe 2 spezialisiert sich der Magier.",
+    "lang": "Unser Magier gehört der Schule der Hervorrufung an: Er liebt Feuer, Blitz und Energie. Seine Zauber sind besonders auf Schaden ausgelegt.",
+    "siehe_auch": [
+      "klasse:wizard"
+    ]
+  },
+  "merkmal:channel-divinity": {
+    "titel": "Göttliche Macht",
+    "kurz": "Eine besondere Kraft direkt von der Gottheit.",
+    "lang": "Kleriker ab Stufe 2 und Ritter ab Stufe 3 können einmal pro Rast göttliche Macht anrufen. Beim Kleriker vertreibt sie Untote. Danach braucht es eine Rast, bis sie wieder zur Verfügung steht.",
+    "siehe_auch": [
+      "merkmal:channel-divinity-turn-undead",
+      "kurze_rast"
+    ]
+  },
+  "merkmal:channel-divinity-1-rest": {
+    "titel": "Göttliche Macht",
+    "kurz": "Einmal pro Rast eine besondere göttliche Kraft.",
+    "lang": "Der Kleriker kann einmal pro kurzer oder langer Rast seine Göttliche Macht einsetzen, zum Beispiel um Untote zu vertreiben.",
+    "siehe_auch": [
+      "merkmal:channel-divinity",
+      "merkmal:channel-divinity-turn-undead"
+    ]
+  },
+  "merkmal:channel-divinity-turn-undead": {
+    "titel": "Untote vertreiben",
+    "kurz": "Untote in der Nähe fliehen vor dem heiligen Symbol.",
+    "lang": "Der Kleriker hält sein heiliges Symbol hoch. Alle Untoten im Umkreis von 6 Feldern machen einen Rettungswurf auf Weisheit. Wer scheitert, flieht eine Minute lang in Panik und greift nicht an.",
+    "beispiel": "Drei Skelette, SG 13: zwei scheitern und rennen davon.",
+    "siehe_auch": [
+      "merkmal:channel-divinity",
+      "zauber_sg",
+      "zustand:frightened"
+    ]
+  },
+  "merkmal:cunning-action": {
+    "titel": "Raffinierte Aktion",
+    "kurz": "Der Schurke kann als Bonusaktion spurten, sich zurückziehen oder verstecken.",
+    "lang": "Ab Stufe 2 ist der Schurke so flink, dass er Spurt, Rückzug oder Verstecken als Bonusaktion machen kann. Er kann also angreifen und danach sicher verschwinden.",
+    "beispiel": "Pip sticht zu (Aktion) und zieht sich zurück (Bonusaktion).",
+    "siehe_auch": [
+      "bonusaktion",
+      "rueckzug",
+      "verstecken"
+    ]
+  },
+  "merkmal:divine-domain": {
+    "titel": "Göttliche Domäne",
+    "kurz": "Der Bereich, für den der Gott des Klerikers steht.",
+    "lang": "Unser Kleriker dient der Domäne des Lebens. Dadurch heilt er besonders gut und darf schwere Rüstung tragen.",
+    "siehe_auch": [
+      "merkmal:disciple-of-life",
+      "klasse:cleric"
+    ]
+  },
+  "merkmal:divine-domain-improvement-1": {
+    "titel": "Leben bewahren",
+    "kurz": "Eine besondere Heilkraft des Lebens-Klerikers.",
+    "lang": "Mit seiner Göttlichen Macht kann der Lebens-Kleriker auch Heilung auf mehrere Verbündete verteilen. In diesem Spiel nutzt er die Göttliche Macht vor allem, um Untote zu vertreiben.",
+    "siehe_auch": [
+      "merkmal:channel-divinity"
+    ]
+  },
+  "merkmal:divine-health": {
+    "titel": "Göttliche Gesundheit",
+    "kurz": "Ritter werden nicht krank.",
+    "lang": "Ab Stufe 3 schützt die göttliche Kraft den Ritter vor allen Krankheiten.",
+    "siehe_auch": [
+      "klasse:paladin"
+    ]
+  },
+  "merkmal:divine-sense": {
+    "titel": "Göttliches Gespür",
+    "kurz": "Der Ritter spürt Böses in der Nähe.",
+    "lang": "Der Ritter kann kurz seine Sinne öffnen und spüren, ob sich Untote oder böse Geisterwesen in der Nähe verstecken. Der Spielleiter verrät ihm dann, was er fühlt.",
+    "siehe_auch": [
+      "klasse:paladin"
+    ]
+  },
+  "merkmal:divine-smite": {
+    "titel": "Göttlicher Schlag",
+    "kurz": "Mit einem Zauberplatz macht der Nahkampftreffer viel mehr Schaden.",
+    "lang": "Trifft der Ritter mit einer Nahkampfwaffe, kann er einen Zauberplatz verbrauchen, um göttliche Energie hineinzulegen: 2W8 Glanzschaden extra, gegen Untote sogar 3W8. Der Zauberplatz wird nur verbraucht, wenn der Angriff trifft.",
+    "beispiel": "Langschwert 8 + Göttlicher Schlag 4 + 5 = 17 Schaden.",
+    "siehe_auch": [
+      "zauberplaetze",
+      "klasse:paladin",
+      "schadensart:radiant"
+    ]
+  },
+  "merkmal:domain-spells-1": {
+    "titel": "Domänenzauber",
+    "kurz": "Zauber, die der Kleriker durch seine Domäne immer kann.",
+    "lang": "Die Domäne des Lebens schenkt dem Kleriker die Zauber Segnen und Heilende Hand. Er muss sie nicht extra vorbereiten.",
+    "siehe_auch": [
+      "zauber:bless",
+      "zauber:cure-wounds"
+    ]
+  },
+  "merkmal:domain-spells-2": {
+    "titel": "Domänenzauber",
+    "kurz": "Weitere Zauber der Domäne ab Stufe 3.",
+    "lang": "Ab Stufe 3 bekommt der Lebens-Kleriker weitere Zauber seiner Domäne dazu.",
+    "siehe_auch": [
+      "merkmal:domain-spells-1"
+    ]
+  },
+  "merkmal:fighter-fighting-style": {
+    "titel": "Kampfstil",
+    "kurz": "Der Kämpfer hat sich auf eine Kampfweise spezialisiert.",
+    "lang": "Unser Kämpfer nutzt den Stil Verteidigung: +1 auf die Rüstungsklasse, solange er eine Rüstung trägt.",
+    "siehe_auch": [
+      "kampfstil"
+    ]
+  },
+  "merkmal:lay-on-hands": {
+    "titel": "Handauflegen",
+    "kurz": "Der Ritter heilt durch Berührung aus einem Heilvorrat.",
+    "lang": "Der Ritter hat einen Vorrat an Heilkraft: 5 Punkte pro Stufe. Als Aktion berührt er jemanden und gibt ihm so viele Trefferpunkte aus dem Vorrat, wie er möchte. Der Vorrat füllt sich nach einer langen Rast wieder auf.",
+    "beispiel": "Stufe 1: 5 Punkte. Siegfried heilt Pip um 3, es bleiben 2 für später.",
+    "siehe_auch": [
+      "klasse:paladin",
+      "trefferpunkte",
+      "lange_rast"
+    ]
+  },
+  "merkmal:martial-archetype": {
+    "titel": "Meisterkämpfer",
+    "kurz": "Ab Stufe 3 wird der Kämpfer zum Champion.",
+    "lang": "Der Meisterkämpfer (Champion) setzt auf rohe Kampfkraft. Er erzielt öfter kritische Treffer: schon bei einer 19 oder 20.",
+    "siehe_auch": [
+      "merkmal:improved-critical"
+    ]
+  },
+  "merkmal:improved-critical": {
+    "titel": "Verbesserter kritischer Treffer",
+    "kurz": "Kritische Treffer schon bei 19 oder 20.",
+    "lang": "Ab Stufe 3 trifft der Kämpfer schon bei einer gewürfelten 19 kritisch, nicht erst bei einer 20. Das passiert also doppelt so oft.",
+    "siehe_auch": [
+      "kritischer_treffer",
+      "klasse:fighter"
+    ]
+  },
+  "merkmal:oath-spells": {
+    "titel": "Eidzauber",
+    "kurz": "Zauber, die zum Eid des Ritters gehören.",
+    "lang": "Ab Stufe 3 bekommt der Ritter durch seinen Eid der Hingabe zusätzliche Zauber, die er immer vorbereitet hat.",
+    "siehe_auch": [
+      "merkmal:sacred-oath"
+    ]
+  },
+  "merkmal:paladin-fighting-style": {
+    "titel": "Kampfstil",
+    "kurz": "Der Ritter hat sich auf eine Kampfweise spezialisiert.",
+    "lang": "Ab Stufe 2 wählt der Ritter einen Kampfstil. Unser Ritter kämpft im Stil Duellieren: +2 Schaden mit einer Einhandwaffe.",
+    "siehe_auch": [
+      "kampfstil"
+    ]
+  },
+  "merkmal:rogue-expertise-1": {
+    "titel": "Expertise",
+    "kurz": "Doppelter Übungsbonus in zwei Fertigkeiten.",
+    "lang": "Der Schurke ist in zwei Fertigkeiten ein echter Profi. Dort zählt sein Übungsbonus doppelt. Unsere Schurkin ist Expertin in Heimlichkeit und Wahrnehmung.",
+    "siehe_auch": [
+      "expertise"
+    ]
+  },
+  "merkmal:roguish-archetype": {
+    "titel": "Dieb",
+    "kurz": "Ab Stufe 3 wird der Schurke zum Meisterdieb.",
+    "lang": "Der Dieb ist besonders flink mit den Fingern. Er kann Gegenstände blitzschnell benutzen und klettert so gut wie er läuft.",
+    "siehe_auch": [
+      "klasse:rogue"
+    ]
+  },
+  "merkmal:sacred-oath": {
+    "titel": "Heiliger Eid",
+    "kurz": "Ab Stufe 3 legt der Ritter einen Eid ab.",
+    "lang": "Unser Ritter schwört den Eid der Hingabe: Ehrlichkeit, Mut, Mitgefühl und Pflicht. Der Eid gibt ihm zusätzliche Kräfte und Zauber.",
+    "siehe_auch": [
+      "klasse:paladin",
+      "merkmal:oath-spells"
+    ]
+  },
+  "merkmal:second-wind": {
+    "titel": "Durchatmen",
+    "kurz": "Der Kämpfer heilt sich selbst als Bonusaktion.",
+    "lang": "Einmal pro Rast kann der Kämpfer tief durchatmen und sich um 1W10 plus seine Stufe heilen. Das kostet nur eine Bonusaktion, er kann also im selben Zug noch angreifen.",
+    "beispiel": "🎲 7 + 1 (Stufe) = 8 Trefferpunkte zurück.",
+    "siehe_auch": [
+      "bonusaktion",
+      "klasse:fighter",
+      "kurze_rast"
+    ]
+  },
+  "merkmal:sneak-attack": {
+    "titel": "Hinterhältiger Angriff",
+    "kurz": "Extraschaden, wenn ein Freund neben dem Ziel steht oder du Vorteil hast.",
+    "lang": "Einmal pro Zug macht der Schurke zusätzlich 1W6 Schaden (ab Stufe 3: 2W6). Dafür braucht er eine Fernkampf- oder leichte Waffe (z. B. Rapier, Dolch, Kurzbogen) und entweder Vorteil oder einen Verbündeten direkt neben dem Ziel. Bei Nachteil klappt es nicht.",
+    "beispiel": "Pip schießt, Brunhild steht am Goblin: 4 (W6) + 5 (W6 hinterhältig) + 3 = 12.",
+    "siehe_auch": [
+      "klasse:rogue",
+      "vorteil",
+      "w6"
+    ]
+  },
+  "merkmal:spellcasting-cleric": {
+    "titel": "Zauberwirken (Kleriker)",
+    "kurz": "Der Kleriker wirkt Zauber mit Weisheit.",
+    "lang": "Der Kleriker betet für seine Zauber. Sein Zauber-Attribut ist Weisheit. Er kann Zaubertricks unbegrenzt wirken und hat Zauberplätze für stärkere Zauber.",
+    "siehe_auch": [
+      "zaubern",
+      "weisheit",
+      "zauberplaetze"
+    ]
+  },
+  "merkmal:spellcasting-paladin": {
+    "titel": "Zauberwirken (Ritter)",
+    "kurz": "Ab Stufe 2 wirkt der Ritter Zauber mit Charisma.",
+    "lang": "Ab Stufe 2 schenkt der Eid dem Ritter Magie. Er wirkt seine Zauber mit Charisma und hat anfangs 2 Zauberplätze, die er auch für den Göttlichen Schlag nutzen kann.",
+    "siehe_auch": [
+      "zaubern",
+      "charisma",
+      "merkmal:divine-smite"
+    ]
+  },
+  "merkmal:spellcasting-wizard": {
+    "titel": "Zauberwirken (Magier)",
+    "kurz": "Der Magier wirkt Zauber mit Intelligenz.",
+    "lang": "Der Magier hat seine Zauber in einem Zauberbuch aufgeschrieben. Sein Zauber-Attribut ist Intelligenz. Auf Stufe 1 kennt er drei Zauber ersten Grades und zwei Zaubertricks.",
+    "siehe_auch": [
+      "zaubern",
+      "intelligenz",
+      "zauberplaetze"
+    ]
+  },
+  "merkmal:thieves-cant": {
+    "titel": "Diebessprache",
+    "kurz": "Eine geheime Sprache der Schurken.",
+    "lang": "Schurken verständigen sich mit Andeutungen, Handzeichen und Kreidesymbolen, die Außenstehende nicht verstehen. Manchmal findet man solche Zeichen an Hauswänden.",
+    "siehe_auch": [
+      "klasse:rogue"
+    ]
+  },
+  "merkmal:disciple-of-life": {
+    "titel": "Jünger des Lebens",
+    "kurz": "Heilzauber des Klerikers heilen extra.",
+    "lang": "Wenn der Lebens-Kleriker mit einem Zauberplatz heilt, bekommt das Ziel zusätzlich 2 plus den Grad des Zaubers an Trefferpunkten. Mit einem Platz ersten Grades also +3.",
+    "beispiel": "Heilende Hand: 5 (W8) + 3 (Weisheit) + 3 (Jünger des Lebens) = 11.",
+    "siehe_auch": [
+      "klasse:cleric",
+      "zauber:cure-wounds",
+      "zauber:healing-word"
+    ]
+  },
+  "zauber:fire-bolt": {
+    "titel": "Feuerpfeil (Zaubertrick)",
+    "kurz": "Ein Flammenpfeil auf einen Gegner, beliebig oft.",
+    "lang": "Du schleuderst einen Feuerpfeil auf ein Ziel bis 24 Felder entfernt. Mach einen Zauberangriff: Triffst du, bekommt das Ziel 1W10 Feuerschaden. Weil es ein Zaubertrick ist, kostet er keinen Zauberplatz.",
+    "beispiel": "🎲 13 + 3 (Intelligenz) + 2 (Übung) = 18 gegen RK 15 → Treffer, 7 Feuerschaden.",
+    "siehe_auch": [
+      "zaubertrick",
+      "angriffswurf",
+      "schadensart:fire"
+    ]
+  },
+  "zauber:ray-of-frost": {
+    "titel": "Froststrahl (Zaubertrick)",
+    "kurz": "Ein eisiger Strahl, der verletzt und verlangsamt.",
+    "lang": "Ein blau-weißer Strahl schießt auf ein Ziel bis 12 Felder entfernt. Bei einem Treffer macht er 1W8 Kälteschaden, und das Ziel ist bis zu deinem nächsten Zug 2 Felder langsamer. Gut, um flinke Gegner auszubremsen.",
+    "siehe_auch": [
+      "zaubertrick",
+      "bewegung",
+      "schadensart:cold"
+    ]
+  },
+  "zauber:sacred-flame": {
+    "titel": "Heilige Flamme (Zaubertrick)",
+    "kurz": "Göttliches Feuer fällt auf einen Gegner herab.",
+    "lang": "Strahlendes Licht fällt auf ein Ziel bis 12 Felder entfernt. Das Ziel muss einen Rettungswurf auf Geschicklichkeit schaffen, sonst bekommt es 1W8 Glanzschaden. Man muss nicht zielen, deshalb hilft auch Deckung nichts.",
+    "beispiel": "Goblin: 🎲 7 + 2 = 9 gegen SG 13 → nicht geschafft, 5 Glanzschaden.",
+    "siehe_auch": [
+      "zaubertrick",
+      "rettungswurf",
+      "zauber_sg"
+    ]
+  },
+  "zauber:magic-missile": {
+    "titel": "Magisches Geschoss",
+    "kurz": "Drei leuchtende Pfeile, die immer treffen.",
+    "lang": "Drei magische Pfeile schießen los und treffen automatisch, ohne Angriffswurf. Jeder macht 1W4 + 1 Energieschaden. Du kannst sie auf ein Ziel oder auf mehrere verteilen. Mit einem höheren Zauberplatz gibt es einen Pfeil mehr pro Grad.",
+    "beispiel": "3 Pfeile auf einen Goblin: 4 + 3 + 5 = 12 Schaden, der Goblin fällt sicher.",
+    "siehe_auch": [
+      "zauberplaetze",
+      "schadensart:force"
+    ]
+  },
+  "zauber:burning-hands": {
+    "titel": "Brennende Hände",
+    "kurz": "Ein Feuerfächer aus deinen Händen trifft alle vor dir.",
+    "lang": "Aus deinen Fingern schießt ein Flammenkegel, 3 Felder lang. Jeder darin macht einen Rettungswurf auf Geschicklichkeit: 3W6 Feuerschaden, bei Erfolg die Hälfte. Achtung, auch Freunde im Kegel werden getroffen!",
+    "beispiel": "Zwei Goblins im Kegel, 11 Feuerschaden: einer weicht aus (5), einer nicht (11).",
+    "siehe_auch": [
+      "rettungswurf",
+      "zauberplaetze",
+      "schadensart:fire"
+    ]
+  },
+  "zauber:sleep": {
+    "titel": "Schlaf",
+    "kurz": "Schickt schwache Gegner in einen magischen Schlaf.",
+    "lang": "Würfle 5W8: So viele Trefferpunkte an Gegnern schlafen ein, angefangen beim schwächsten. Schlafende liegen am Boden, sind wehrlos und wachen erst auf, wenn sie Schaden nehmen oder jemand sie wachrüttelt. Untote und Elfen schlafen nicht.",
+    "beispiel": "Vorrat 22: drei Goblins mit 7, 7 und 5 TP schlafen ein (19), für den vierten reicht es nicht.",
+    "siehe_auch": [
+      "zustand:unconscious",
+      "volksmerkmal:fey-ancestry",
+      "zauberplaetze"
+    ]
+  },
+  "zauber:cure-wounds": {
+    "titel": "Heilende Hand",
+    "kurz": "Heilt eine Figur, die du berührst.",
+    "lang": "Du berührst einen Verbündeten und heilst 1W8 plus dein Zauber-Attribut. Das weckt auch jemanden auf, der bewusstlos am Boden liegt. Du musst direkt neben ihm stehen. Bei Untoten wirkt der Zauber nicht.",
+    "beispiel": "6 (W8) + 3 (Weisheit) = 9 Trefferpunkte.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "todesrettungswurf",
+      "zauber:healing-word"
+    ]
+  },
+  "zauber:healing-word": {
+    "titel": "Heilendes Wort",
+    "kurz": "Ein schnelles Heilwort auf Entfernung, als Bonusaktion.",
+    "lang": "Du rufst einem Verbündeten bis 12 Felder entfernt ein heiliges Wort zu. Er heilt 1W4 plus dein Zauber-Attribut. Weniger als Heilende Hand, aber aus der Entfernung und nur als Bonusaktion. Perfekt, um einen bewusstlosen Freund wieder aufzurichten.",
+    "siehe_auch": [
+      "bonusaktion",
+      "zauber:cure-wounds",
+      "todesrettungswurf"
+    ]
+  },
+  "zauber:bless": {
+    "titel": "Segnen",
+    "kurz": "Bis zu drei Verbündete bekommen +1W4 auf Angriffe und Rettungswürfe.",
+    "lang": "Du segnest bis zu drei Figuren in deiner Nähe. Eine Minute lang würfeln sie bei jedem Angriffswurf und Rettungswurf einen W4 extra und zählen ihn dazu. Der Zauber braucht Konzentration.",
+    "beispiel": "🎲 11 + 5 + 3 (Segen) = 19 gegen RK 17 → Treffer dank Segen!",
+    "siehe_auch": [
+      "konzentration",
+      "w4",
+      "angriffswurf"
+    ]
+  },
+  "zauber:guiding-bolt": {
+    "titel": "Lenkendes Geschoss",
+    "kurz": "Ein Lichtblitz mit viel Schaden, der das Ziel zum Leuchten bringt.",
+    "lang": "Ein Blitz aus Licht schießt auf ein Ziel bis 24 Felder entfernt. Mach einen Zauberangriff: Bei einem Treffer bekommt es 4W6 Glanzschaden. Danach leuchtet es, und der nächste Angriff gegen dieses Ziel hat Vorteil.",
+    "beispiel": "14 Glanzschaden, dann greift der Kämpfer mit Vorteil an.",
+    "siehe_auch": [
+      "vorteil",
+      "schadensart:radiant",
+      "zauberplaetze"
+    ]
+  },
+  "zauber:shield-of-faith": {
+    "titel": "Schild des Glaubens",
+    "kurz": "Ein schimmerndes Feld gibt einem Verbündeten +2 Rüstungsklasse.",
+    "lang": "Als Bonusaktion umgibst du eine Figur mit einem Schutzfeld. Bis zu 10 Minuten lang hat sie +2 auf die Rüstungsklasse. Der Zauber braucht Konzentration.",
+    "siehe_auch": [
+      "ruestungsklasse",
+      "konzentration",
+      "bonusaktion"
+    ]
+  },
+  "zauber:divine-favor": {
+    "titel": "Göttliche Gunst",
+    "kurz": "Deine Waffe glüht und macht bei jedem Treffer 1W4 Glanzschaden extra.",
+    "lang": "Als Bonusaktion bittest du um göttlichen Beistand. Eine Minute lang macht jeder deiner Waffentreffer zusätzlich 1W4 Glanzschaden. Der Zauber braucht Konzentration.",
+    "siehe_auch": [
+      "bonusaktion",
+      "konzentration",
+      "schadensart:radiant"
+    ]
+  },
+  "zauber:scorching-ray": {
+    "titel": "Sengender Strahl",
+    "kurz": "Drei Feuerstrahlen, jeder mit eigenem Angriff.",
+    "lang": "Ein Zauber zweiten Grades: Du schießt drei Feuerstrahlen ab, auf ein Ziel oder mehrere. Für jeden Strahl machst du einen Zauberangriff, jeder Treffer macht 2W6 Feuerschaden.",
+    "siehe_auch": [
+      "zauberplaetze",
+      "angriffswurf",
+      "schadensart:fire"
+    ]
+  },
+  "waffe:club": {
+    "titel": "Knüppel",
+    "kurz": "Ein einfacher Holzprügel (1W4 Wucht).",
+    "lang": "Eine einfache Waffe, die jeder benutzen kann. Leicht und billig, aber nicht sehr gefährlich.",
+    "siehe_auch": [
+      "nahkampf",
+      "schadensart:bludgeoning"
+    ]
+  },
+  "waffe:dagger": {
+    "titel": "Dolch",
+    "kurz": "Ein kurzes Messer zum Stechen oder Werfen (1W4 Stich).",
+    "lang": "Der Dolch ist leicht und wendig: Man kann mit Stärke oder Geschicklichkeit angreifen. Man kann ihn auch bis 4 Felder weit werfen. Schurken nutzen ihn gern für hinterhältige Angriffe.",
+    "siehe_auch": [
+      "nahkampf",
+      "fernkampf",
+      "merkmal:sneak-attack"
+    ]
+  },
+  "waffe:handaxe": {
+    "titel": "Handaxt",
+    "kurz": "Eine kleine Axt, auch zum Werfen (1W6 Hieb).",
+    "lang": "Die Handaxt ist leicht und kann bis 4 Felder weit geworfen werden. Praktisch, wenn der Gegner noch nicht ganz heran ist.",
+    "siehe_auch": [
+      "nahkampf",
+      "fernkampf"
+    ]
+  },
+  "waffe:javelin": {
+    "titel": "Wurfspeer",
+    "kurz": "Ein Speer zum Werfen (1W6 Stich).",
+    "lang": "Den Wurfspeer wirft man bis 6 Felder weit (mit Nachteil bis 24). Man kann auch damit zustechen. Ritter tragen ihn für Gegner, die noch zu weit weg sind.",
+    "siehe_auch": [
+      "fernkampf",
+      "reichweite"
+    ]
+  },
+  "waffe:mace": {
+    "titel": "Streitkolben",
+    "kurz": "Eine schwere Schlagwaffe (1W6 Wucht).",
+    "lang": "Ein Stab mit schwerem Metallkopf. Kleriker führen ihn gern, denn er ist einfach zu benutzen.",
+    "siehe_auch": [
+      "nahkampf",
+      "schadensart:bludgeoning"
+    ]
+  },
+  "waffe:quarterstaff": {
+    "titel": "Kampfstab",
+    "kurz": "Ein langer Holzstab (1W6 Wucht, beidhändig 1W8).",
+    "lang": "Der Kampfstab ist die typische Waffe des Magiers. Mit beiden Händen geführt macht er mehr Schaden.",
+    "siehe_auch": [
+      "nahkampf",
+      "klasse:wizard"
+    ]
+  },
+  "waffe:spear": {
+    "titel": "Speer",
+    "kurz": "Ein Stangenspeer zum Stechen oder Werfen (1W6 Stich).",
+    "lang": "Ein Speer kann gestoßen oder bis 4 Felder weit geworfen werden. Wachen und Soldaten tragen ihn oft.",
+    "siehe_auch": [
+      "nahkampf",
+      "fernkampf"
+    ]
+  },
+  "waffe:crossbow-light": {
+    "titel": "Leichte Armbrust",
+    "kurz": "Eine Armbrust für den Fernkampf (1W8 Stich).",
+    "lang": "Die leichte Armbrust schießt bis 16 Felder weit (mit Nachteil bis 64). Man greift mit Geschicklichkeit an. Steht ein Gegner direkt neben dir, hast du Nachteil.",
+    "siehe_auch": [
+      "fernkampf",
+      "reichweite"
+    ]
+  },
+  "waffe:shortbow": {
+    "titel": "Kurzbogen",
+    "kurz": "Ein handlicher Bogen (1W6 Stich).",
+    "lang": "Mit dem Kurzbogen schießt man bis 16 Felder weit, mit Nachteil bis 64. Er nutzt Geschicklichkeit und eignet sich für den hinterhältigen Angriff des Schurken.",
+    "siehe_auch": [
+      "fernkampf",
+      "merkmal:sneak-attack"
+    ]
+  },
+  "waffe:battleaxe": {
+    "titel": "Streitaxt",
+    "kurz": "Eine große Kriegsaxt (1W8 Hieb, beidhändig 1W10).",
+    "lang": "Die Streitaxt ist die Lieblingswaffe vieler Zwerge. Mit einer Hand macht sie 1W8 Schaden, mit beiden Händen 1W10.",
+    "siehe_auch": [
+      "nahkampf",
+      "volksmerkmal:dwarven-combat-training"
+    ]
+  },
+  "waffe:greatsword": {
+    "titel": "Zweihänder",
+    "kurz": "Ein riesiges Schwert für beide Hände (2W6 Hieb).",
+    "lang": "Der Zweihänder ist schwer und macht viel Schaden. Weil man beide Hände braucht, kann man keinen Schild tragen.",
+    "siehe_auch": [
+      "nahkampf"
+    ]
+  },
+  "waffe:longsword": {
+    "titel": "Langschwert",
+    "kurz": "Das klassische Ritterschwert (1W8 Hieb).",
+    "lang": "Das Langschwert ist die Waffe der Kämpfer und Ritter. Mit einer Hand und Schild macht es 1W8 Schaden, mit beiden Händen 1W10.",
+    "beispiel": "5 (W8) + 3 (Stärke) = 8 Hiebschaden.",
+    "siehe_auch": [
+      "nahkampf",
+      "klasse:fighter",
+      "klasse:paladin"
+    ]
+  },
+  "waffe:rapier": {
+    "titel": "Rapier",
+    "kurz": "Ein schlanker Degen für flinke Kämpfer (1W8 Stich).",
+    "lang": "Das Rapier ist leicht zu führen: Man greift mit Geschicklichkeit an statt mit Stärke. Deshalb ist es die Hauptwaffe der Schurken.",
+    "siehe_auch": [
+      "nahkampf",
+      "klasse:rogue",
+      "merkmal:sneak-attack"
+    ]
+  },
+  "waffe:shortsword": {
+    "titel": "Kurzschwert",
+    "kurz": "Ein kurzes, wendiges Schwert (1W6 Stich).",
+    "lang": "Das Kurzschwert ist leicht und wendig, man kann auch mit Geschicklichkeit damit angreifen.",
+    "siehe_auch": [
+      "nahkampf"
+    ]
+  },
+  "waffe:warhammer": {
+    "titel": "Kriegshammer",
+    "kurz": "Ein schwerer Hammer (1W8 Wucht).",
+    "lang": "Der Kriegshammer zertrümmert Rüstungen und Knochen. Zwerge lernen ihn früh.",
+    "siehe_auch": [
+      "nahkampf",
+      "volksmerkmal:dwarven-combat-training"
+    ]
+  },
+  "waffe:longbow": {
+    "titel": "Langbogen",
+    "kurz": "Ein großer Bogen mit enormer Reichweite (1W8 Stich).",
+    "lang": "Mit dem Langbogen schießt man bis 30 Felder weit, mit Nachteil sogar noch viel weiter. Man braucht beide Hände.",
+    "siehe_auch": [
+      "fernkampf",
+      "reichweite"
+    ]
+  },
+  "waffe:unarmed": {
+    "titel": "Waffenloser Schlag",
+    "kurz": "Mit Faust, Fuß oder Kopf zuschlagen (1 + Stärke).",
+    "lang": "Wer keine Waffe hat, kann trotzdem zuschlagen. Das macht 1 plus Stärke-Modifikator Wuchtschaden. Nicht viel, aber besser als nichts.",
+    "siehe_auch": [
+      "nahkampf"
+    ]
+  },
+  "ruestung:leather-armor": {
+    "titel": "Lederrüstung",
+    "kurz": "Leichte Rüstung aus gehärtetem Leder (RK 11 + Geschicklichkeit).",
+    "lang": "Leichte Rüstung behindert nicht. Deine volle Geschicklichkeit zählt zur Rüstungsklasse. Schurken tragen sie.",
+    "siehe_auch": [
+      "ruestungsklasse",
+      "geschicklichkeit"
+    ]
+  },
+  "ruestung:studded-leather-armor": {
+    "titel": "Beschlagene Lederrüstung",
+    "kurz": "Leder mit Metallnieten (RK 12 + Geschicklichkeit).",
+    "lang": "Die bessere leichte Rüstung. Sie schützt etwas mehr als einfache Lederrüstung und lässt trotzdem volle Bewegungsfreiheit.",
+    "siehe_auch": [
+      "ruestungsklasse"
+    ]
+  },
+  "ruestung:chain-shirt": {
+    "titel": "Kettenhemd",
+    "kurz": "Mittlere Rüstung (RK 13 + Geschicklichkeit, höchstens +2).",
+    "lang": "Ein Hemd aus Metallringen. Bei mittlerer Rüstung zählt deine Geschicklichkeit nur bis +2.",
+    "siehe_auch": [
+      "ruestungsklasse"
+    ]
+  },
+  "ruestung:scale-mail": {
+    "titel": "Schuppenpanzer",
+    "kurz": "Mittlere Rüstung aus Metallschuppen (RK 14 + Geschicklichkeit, höchstens +2).",
+    "lang": "Der Schuppenpanzer schützt gut, klappert aber: Beim Schleichen hast du Nachteil. Kleriker tragen ihn gern.",
+    "siehe_auch": [
+      "ruestungsklasse",
+      "fertigkeit:stealth",
+      "nachteil"
+    ]
+  },
+  "ruestung:chain-mail": {
+    "titel": "Kettenpanzer",
+    "kurz": "Schwere Rüstung (RK 16).",
+    "lang": "Der Kettenpanzer ist eine schwere Rüstung aus Metallringen. Die Geschicklichkeit zählt nicht, dafür schützt er sehr gut. Beim Schleichen hast du Nachteil. Kämpfer und Ritter tragen ihn.",
+    "siehe_auch": [
+      "ruestungsklasse",
+      "klasse:fighter",
+      "klasse:paladin"
+    ]
+  },
+  "ruestung:shield": {
+    "titel": "Schild",
+    "kurz": "+2 auf die Rüstungsklasse.",
+    "lang": "Mit einem Schild in einer Hand bist du deutlich schwerer zu treffen: +2 RK. Dafür kannst du keine Waffe mit beiden Händen führen.",
+    "siehe_auch": [
+      "ruestungsklasse"
+    ]
+  },
+  "gegenstand:potion-of-healing": {
+    "titel": "Heiltrank",
+    "kurz": "Ein roter Trank, der 2W4 + 2 Trefferpunkte heilt.",
+    "lang": "Trink ihn als Aktion oder flöße ihn einem Freund ein, der direkt neben dir liegt. Er heilt 2W4 + 2 Trefferpunkte und weckt Bewusstlose sofort auf. Jede Figur startet mit einem Heiltrank.",
+    "beispiel": "3 + 2 (W4) + 2 = 7 Trefferpunkte.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "aktion",
+      "todesrettungswurf"
+    ]
+  },
+  "gegenstand:torch": {
+    "titel": "Fackel",
+    "kurz": "Spendet Licht in dunklen Gängen.",
+    "lang": "Eine Fackel leuchtet 4 Felder hell und noch 4 weitere schwach. Menschen und Halblinge brauchen sie im Dunkeln, Elfen und Zwerge sehen auch so.",
+    "siehe_auch": [
+      "dunkelsicht"
+    ]
+  },
+  "gegenstand:rope-hempen-50-feet": {
+    "titel": "Seil (15 m)",
+    "kurz": "Ein langes Hanfseil.",
+    "lang": "Zum Klettern, Abseilen oder Fesseln. Ein Seil ist erstaunlich oft nützlich.",
+    "siehe_auch": [
+      "fertigkeit:athletics"
+    ]
+  },
+  "gegenstand:healers-kit": {
+    "titel": "Heilerausrüstung",
+    "kurz": "Verbände und Salben, um Sterbende zu stabilisieren.",
+    "lang": "Mit der Heilerausrüstung kann man einen bewusstlosen Freund stabilisieren, ohne eine Probe zu würfeln. Heilen tut sie nicht.",
+    "siehe_auch": [
+      "stabil",
+      "fertigkeit:medicine"
+    ]
+  },
+  "fertigkeit:acrobatics": {
+    "titel": "Akrobatik (Geschicklichkeit)",
+    "kurz": "Balancieren, Purzelbäume, sich aus Griffen winden.",
+    "lang": "Mit Akrobatik hältst du auf einem schmalen Balken das Gleichgewicht, landest nach einem Sprung auf den Füßen oder rollst unter einem Tisch durch.",
+    "siehe_auch": [
+      "fertigkeit",
+      "geschicklichkeit"
+    ]
+  },
+  "fertigkeit:animal-handling": {
+    "titel": "Umgang mit Tieren (Weisheit)",
+    "kurz": "Tiere beruhigen und lenken.",
+    "lang": "Ein scheuendes Pferd beruhigen, einen Wachhund besänftigen oder spüren, ob ein Tier gleich angreift: dafür ist Umgang mit Tieren da.",
+    "siehe_auch": [
+      "fertigkeit",
+      "weisheit"
+    ]
+  },
+  "fertigkeit:arcana": {
+    "titel": "Arkane Kunde (Intelligenz)",
+    "kurz": "Wissen über Magie und magische Dinge.",
+    "lang": "Erkennst du den Zauber, der auf der Tür liegt? Weißt du, was ein Amulett bewirkt? Arkane Kunde ist das Wissen der Magier.",
+    "siehe_auch": [
+      "fertigkeit",
+      "intelligenz"
+    ]
+  },
+  "fertigkeit:athletics": {
+    "titel": "Athletik (Stärke)",
+    "kurz": "Klettern, Springen, Schwimmen, Kraftakte.",
+    "lang": "Eine Mauer hinaufklettern, über einen Bach springen, eine Tür aufstemmen oder jemanden festhalten: Athletik steht für Körperkraft im Einsatz.",
+    "siehe_auch": [
+      "fertigkeit",
+      "staerke"
+    ]
+  },
+  "fertigkeit:deception": {
+    "titel": "Täuschen (Charisma)",
+    "kurz": "Lügen, bluffen, verkleiden.",
+    "lang": "Mit Täuschen redest du dich aus der Klemme, gibst dich als jemand anderes aus oder lenkst Wachen ab. Klappt es, glauben sie dir.",
+    "siehe_auch": [
+      "fertigkeit",
+      "charisma"
+    ]
+  },
+  "fertigkeit:history": {
+    "titel": "Geschichte (Intelligenz)",
+    "kurz": "Wissen über alte Zeiten, Königreiche und Sagen.",
+    "lang": "Kennst du das Wappen? Weißt du, wer die Burg einst gebaut hat? Mit Geschichte erinnerst du dich an Legenden und Ereignisse.",
+    "siehe_auch": [
+      "fertigkeit",
+      "intelligenz"
+    ]
+  },
+  "fertigkeit:insight": {
+    "titel": "Motiv erkennen (Weisheit)",
+    "kurz": "Merken, ob jemand lügt oder etwas verbirgt.",
+    "lang": "Mit Motiv erkennen beobachtest du Gesicht, Stimme und Hände deines Gegenübers. So merkst du, ob der Wirt dir die Wahrheit sagt.",
+    "siehe_auch": [
+      "fertigkeit",
+      "weisheit"
+    ]
+  },
+  "fertigkeit:intimidation": {
+    "titel": "Einschüchtern (Charisma)",
+    "kurz": "Andere mit Drohungen beeindrucken.",
+    "lang": "Ein finsterer Blick, eine gezogene Klinge, eine laute Stimme: Mit Einschüchtern bringst du andere dazu zu tun, was du willst, weil sie Angst haben.",
+    "siehe_auch": [
+      "fertigkeit",
+      "charisma"
+    ]
+  },
+  "fertigkeit:investigation": {
+    "titel": "Nachforschungen (Intelligenz)",
+    "kurz": "Hinweise finden und kombinieren.",
+    "lang": "Du durchsuchst einen Raum nach Spuren, findest ein Geheimfach oder schließt aus Fußabdrücken, wer hier war. Nachforschungen sind Detektivarbeit.",
+    "siehe_auch": [
+      "fertigkeit",
+      "intelligenz"
+    ]
+  },
+  "fertigkeit:medicine": {
+    "titel": "Heilkunde (Weisheit)",
+    "kurz": "Wunden versorgen und Krankheiten erkennen.",
+    "lang": "Mit Heilkunde kannst du einen bewusstlosen Freund stabilisieren (SG 10) oder herausfinden, woran jemand erkrankt ist.",
+    "siehe_auch": [
+      "fertigkeit",
+      "stabil"
+    ]
+  },
+  "fertigkeit:nature": {
+    "titel": "Naturkunde (Intelligenz)",
+    "kurz": "Wissen über Tiere, Pflanzen und Wetter.",
+    "lang": "Ist die Beere giftig? Welches Tier hat diese Spur hinterlassen? Kommt ein Sturm auf? Naturkunde beantwortet solche Fragen.",
+    "siehe_auch": [
+      "fertigkeit",
+      "intelligenz"
+    ]
+  },
+  "fertigkeit:perception": {
+    "titel": "Wahrnehmung (Weisheit)",
+    "kurz": "Dinge bemerken: Geräusche, Fallen, versteckte Gegner.",
+    "lang": "Wahrnehmung ist die wichtigste Fertigkeit überhaupt: Sie zeigt, ob du den Hinterhalt bemerkst, das Knacken im Gebüsch hörst oder die Falle im Boden siehst.",
+    "siehe_auch": [
+      "fertigkeit",
+      "weisheit"
+    ]
+  },
+  "fertigkeit:performance": {
+    "titel": "Auftreten (Charisma)",
+    "kurz": "Singen, musizieren, schauspielern.",
+    "lang": "Mit Auftreten unterhältst du ein Publikum: ein Lied in der Taverne, eine Rede auf dem Marktplatz oder eine Melodie, die Ratten anlockt.",
+    "siehe_auch": [
+      "fertigkeit",
+      "charisma"
+    ]
+  },
+  "fertigkeit:persuasion": {
+    "titel": "Überzeugen (Charisma)",
+    "kurz": "Andere freundlich und ehrlich überzeugen.",
+    "lang": "Mit guten Argumenten und Charme bringst du Leute auf deine Seite, handelst einen besseren Preis aus oder verhandelst mit einem hungrigen Oger.",
+    "siehe_auch": [
+      "fertigkeit",
+      "charisma"
+    ]
+  },
+  "fertigkeit:religion": {
+    "titel": "Religion (Intelligenz)",
+    "kurz": "Wissen über Götter, Rituale und Untote.",
+    "lang": "Welches heilige Symbol ist das? Wie vertreibt man einen Geist? Religion ist das Wissen der Priester und Ritter.",
+    "siehe_auch": [
+      "fertigkeit",
+      "intelligenz"
+    ]
+  },
+  "fertigkeit:sleight-of-hand": {
+    "titel": "Fingerfertigkeit (Geschicklichkeit)",
+    "kurz": "Taschendiebstahl, Taschenspielertricks, Schlösser.",
+    "lang": "Mit flinken Fingern steckst du unbemerkt einen Schlüssel ein, versteckst etwas im Ärmel oder knackst ein Schloss.",
+    "siehe_auch": [
+      "fertigkeit",
+      "geschicklichkeit"
+    ]
+  },
+  "fertigkeit:stealth": {
+    "titel": "Heimlichkeit (Geschicklichkeit)",
+    "kurz": "Leise schleichen und sich verstecken.",
+    "lang": "Mit Heimlichkeit schleichst du an Wachen vorbei oder versteckst dich im Schatten. Schwere Rüstung klappert, dann hast du Nachteil.",
+    "siehe_auch": [
+      "fertigkeit",
+      "verstecken"
+    ]
+  },
+  "fertigkeit:survival": {
+    "titel": "Überlebenskunst (Weisheit)",
+    "kurz": "Spuren lesen, den Weg finden, jagen.",
+    "lang": "Mit Überlebenskunst folgst du Spuren durch den Wald, findest essbare Beeren oder verirrst dich nicht im Nebel.",
+    "siehe_auch": [
+      "fertigkeit",
+      "weisheit"
+    ]
+  },
+  "zustand:blinded": {
+    "titel": "Blind",
+    "kurz": "Du siehst nichts.",
+    "lang": "Wer blind ist, trifft schlechter (Nachteil) und wird leichter getroffen (Angreifer haben Vorteil). Proben, bei denen man sehen muss, scheitern automatisch.",
+    "siehe_auch": [
+      "nachteil",
+      "vorteil",
+      "zustand"
+    ]
+  },
+  "zustand:charmed": {
+    "titel": "Bezaubert",
+    "kurz": "Du hältst jemanden für deinen Freund.",
+    "lang": "Ein bezaubertes Wesen greift den Bezauberer nicht an und ist ihm gegenüber sehr freundlich. Elfen widerstehen dem leichter.",
+    "siehe_auch": [
+      "zustand",
+      "volksmerkmal:fey-ancestry"
+    ]
+  },
+  "zustand:frightened": {
+    "titel": "Verängstigt",
+    "kurz": "Du hast Angst und willst weg.",
+    "lang": "Solange du die Quelle deiner Angst sehen kannst, hast du bei Angriffen und Proben Nachteil. Du kannst dich nicht freiwillig auf sie zubewegen.",
+    "siehe_auch": [
+      "nachteil",
+      "zustand",
+      "merkmal:channel-divinity-turn-undead"
+    ]
+  },
+  "zustand:grappled": {
+    "titel": "Gepackt",
+    "kurz": "Jemand hält dich fest.",
+    "lang": "Wer gepackt ist, kann sich nicht von der Stelle bewegen (Bewegung 0), bis er sich losreißt oder der Packende loslässt.",
+    "siehe_auch": [
+      "bewegung",
+      "zustand"
+    ]
+  },
+  "zustand:incapacitated": {
+    "titel": "Kampfunfähig",
+    "kurz": "Du kannst keine Aktionen machen.",
+    "lang": "Wer kampfunfähig ist, kann weder Aktionen noch Reaktionen nutzen. Das passiert z. B., wenn man betäubt oder bewusstlos ist.",
+    "siehe_auch": [
+      "aktion",
+      "zustand"
+    ]
+  },
+  "zustand:invisible": {
+    "titel": "Unsichtbar",
+    "kurz": "Niemand kann dich sehen.",
+    "lang": "Unsichtbare Wesen greifen mit Vorteil an, und Angriffe gegen sie haben Nachteil. Wer sich erfolgreich versteckt, gilt bis zu seinem nächsten Angriff als unsichtbar.",
+    "siehe_auch": [
+      "vorteil",
+      "nachteil",
+      "verstecken"
+    ]
+  },
+  "zustand:paralyzed": {
+    "titel": "Gelähmt",
+    "kurz": "Du kannst dich nicht rühren.",
+    "lang": "Gelähmte können nichts tun, scheitern bei Rettungswürfen auf Stärke und Geschicklichkeit, und Angriffe gegen sie haben Vorteil. Trifft ein Angreifer direkt daneben, ist es ein kritischer Treffer.",
+    "siehe_auch": [
+      "kritischer_treffer",
+      "zustand"
+    ]
+  },
+  "zustand:poisoned": {
+    "titel": "Vergiftet",
+    "kurz": "Dir ist übel, alles fällt schwerer.",
+    "lang": "Wer vergiftet ist, hat bei Angriffen und Proben Nachteil. Zwerge halten Gift besonders gut aus.",
+    "siehe_auch": [
+      "nachteil",
+      "volksmerkmal:dwarven-resilience",
+      "zustand"
+    ]
+  },
+  "zustand:prone": {
+    "titel": "Liegend",
+    "kurz": "Du liegst am Boden.",
+    "lang": "Wer liegt, greift mit Nachteil an. Nahkampfangriffe gegen dich haben Vorteil, Fernkampfangriffe dagegen Nachteil. Aufstehen kostet die halbe Bewegung.",
+    "siehe_auch": [
+      "vorteil",
+      "nachteil",
+      "bewegung"
+    ]
+  },
+  "zustand:restrained": {
+    "titel": "Festgesetzt",
+    "kurz": "Du bist gefesselt oder klebst fest, z. B. in einem Spinnennetz.",
+    "lang": "Festgesetzte können sich nicht bewegen, greifen mit Nachteil an und werden mit Vorteil angegriffen. Rettungswürfe auf Geschicklichkeit haben Nachteil.",
+    "siehe_auch": [
+      "nachteil",
+      "vorteil",
+      "zustand"
+    ]
+  },
+  "zustand:stunned": {
+    "titel": "Betäubt",
+    "kurz": "Du bist benommen und kannst kaum etwas tun.",
+    "lang": "Betäubte sind kampfunfähig, scheitern bei Rettungswürfen auf Stärke und Geschicklichkeit, und Angriffe gegen sie haben Vorteil.",
+    "siehe_auch": [
+      "zustand:incapacitated",
+      "vorteil"
+    ]
+  },
+  "zustand:unconscious": {
+    "titel": "Bewusstlos",
+    "kurz": "Du liegst ohnmächtig am Boden.",
+    "lang": "Wer bewusstlos ist, kann nichts tun und liegt am Boden. Angriffe gegen ihn haben Vorteil, und aus nächster Nähe ist jeder Treffer kritisch. Helden mit 0 Trefferpunkten sind bewusstlos und machen Todesrettungswürfe. Heilung weckt sie auf.",
+    "siehe_auch": [
+      "todesrettungswurf",
+      "trefferpunkte",
+      "zauber:sleep"
+    ]
+  },
+  "schadensart:acid": {
+    "titel": "Säureschaden",
+    "kurz": "Ätzende Flüssigkeit.",
+    "lang": "Säure frisst sich durch Haut und Rüstung. Manche Wesen spucken oder bluten Säure.",
+    "siehe_auch": [
+      "schadensart"
+    ]
+  },
+  "schadensart:bludgeoning": {
+    "titel": "Wuchtschaden",
+    "kurz": "Stumpfe Schläge, z. B. von Keulen und Hämmern.",
+    "lang": "Wuchtschaden kommt von Knüppeln, Streitkolben, Fäusten oder Stürzen. Skelette sind besonders empfindlich dagegen.",
+    "siehe_auch": [
+      "schadensart"
+    ]
+  },
+  "schadensart:cold": {
+    "titel": "Kälteschaden",
+    "kurz": "Eisige Kälte.",
+    "lang": "Kälteschaden kommt von Frostzaubern wie dem Froststrahl oder eisigen Geistern.",
+    "siehe_auch": [
+      "schadensart",
+      "zauber:ray-of-frost"
+    ]
+  },
+  "schadensart:fire": {
+    "titel": "Feuerschaden",
+    "kurz": "Flammen und Hitze.",
+    "lang": "Feuerschaden kommt von Feuerpfeilen, Brennenden Händen und natürlich vom Feuerodem eines Drachen. Rote Drachen sind gegen Feuer immun.",
+    "siehe_auch": [
+      "schadensart",
+      "immunitaet"
+    ]
+  },
+  "schadensart:force": {
+    "titel": "Energieschaden",
+    "kurz": "Reine magische Kraft.",
+    "lang": "Energieschaden ist pure Magie. Fast niemand ist dagegen geschützt, deshalb ist das Magische Geschoss so zuverlässig.",
+    "siehe_auch": [
+      "schadensart",
+      "zauber:magic-missile"
+    ]
+  },
+  "schadensart:lightning": {
+    "titel": "Blitzschaden",
+    "kurz": "Elektrische Schläge.",
+    "lang": "Blitzschaden kommt von Blitzzaubern und Gewittern.",
+    "siehe_auch": [
+      "schadensart"
+    ]
+  },
+  "schadensart:necrotic": {
+    "titel": "Nekrotischer Schaden",
+    "kurz": "Lebensentziehende, finstere Magie.",
+    "lang": "Nekrotischer Schaden lässt Lebendiges welken. Geister und Schreckgespenster greifen damit an.",
+    "siehe_auch": [
+      "schadensart"
+    ]
+  },
+  "schadensart:piercing": {
+    "titel": "Stichschaden",
+    "kurz": "Spitze Dinge: Pfeile, Speere, Zähne.",
+    "lang": "Stichschaden kommt von Pfeilen, Dolchen, Speeren und Bissen.",
+    "siehe_auch": [
+      "schadensart"
+    ]
+  },
+  "schadensart:poison": {
+    "titel": "Giftschaden",
+    "kurz": "Gift und giftige Dämpfe.",
+    "lang": "Giftschaden kommt von giftigen Bissen oder Gasen. Untote wie Skelette und Zombies sind dagegen immun, Zwerge halten ihn gut aus.",
+    "siehe_auch": [
+      "schadensart",
+      "volksmerkmal:dwarven-resilience"
+    ]
+  },
+  "schadensart:psychic": {
+    "titel": "Psychischer Schaden",
+    "kurz": "Schmerz im Kopf.",
+    "lang": "Psychischer Schaden greift den Geist an, nicht den Körper.",
+    "siehe_auch": [
+      "schadensart"
+    ]
+  },
+  "schadensart:radiant": {
+    "titel": "Glanzschaden",
+    "kurz": "Heiliges, strahlendes Licht.",
+    "lang": "Glanzschaden kommt von göttlicher Magie wie der Heiligen Flamme oder dem Göttlichen Schlag. Untote hassen ihn: Zombies können dagegen ihre Zähigkeit nicht nutzen.",
+    "siehe_auch": [
+      "schadensart",
+      "merkmal:divine-smite"
+    ]
+  },
+  "schadensart:slashing": {
+    "titel": "Hiebschaden",
+    "kurz": "Scharfe Klingen und Klauen.",
+    "lang": "Hiebschaden kommt von Schwertern, Äxten und Klauen.",
+    "siehe_auch": [
+      "schadensart"
+    ]
+  },
+  "schadensart:thunder": {
+    "titel": "Donnerschaden",
+    "kurz": "Ohrenbetäubender Schall.",
+    "lang": "Donnerschaden ist eine Druckwelle aus Lärm.",
+    "siehe_auch": [
+      "schadensart"
+    ]
+  },
+  "monster:rat": {
+    "titel": "Ratte",
+    "kurz": "Eine gewöhnliche Ratte – lästig, aber harmlos.",
+    "lang": "Ratten huschen durch Keller und Kanäle. Mit 1 Trefferpunkt fällt eine Ratte beim ersten Treffer. Im Tutorial ist sie euer erster Gegner.",
+    "beispiel": "RK 10, 1 TP, Biss für 1 Schaden.",
+    "siehe_auch": [
+      "monster",
+      "monster:giant-rat"
+    ]
+  },
+  "monster:giant-rat": {
+    "titel": "Riesenratte",
+    "kurz": "Eine Ratte, groß wie ein Hund.",
+    "lang": "Riesenratten jagen in Rudeln. Steht eine zweite Ratte neben dir, beißen sie mit Vorteil (Rudeltaktik). Einzeln sind sie schnell besiegt.",
+    "beispiel": "RK 12, 7 TP, Biss +4 für 1W4 + 2.",
+    "siehe_auch": [
+      "monstermerkmal:pack-tactics",
+      "monster:swarm-of-rats"
+    ]
+  },
+  "monster:swarm-of-rats": {
+    "titel": "Rattenschwarm",
+    "kurz": "Hunderte Ratten, die wie eine Welle heranrollen.",
+    "lang": "Ein Schwarm ist schwer zu treffen und steckt Schwerthiebe und Pfeile gut weg (Resistenz). Zauber wie Brennende Hände wirken besser. Wird der Schwarm kleiner, beißt er auch schwächer.",
+    "beispiel": "RK 10, 24 TP, Bisse +2 für 2W6.",
+    "siehe_auch": [
+      "monstermerkmal:swarm",
+      "resistenz"
+    ]
+  },
+  "monster:commoner": {
+    "titel": "Dorfbewohner",
+    "kurz": "Ein ganz normaler Mensch ohne Kampferfahrung.",
+    "lang": "Bauern, Wirte, Händler: Die meisten Leute, denen ihr begegnet, sind keine Kämpfer. Mit ihnen redet man besser, als sie anzugreifen.",
+    "siehe_auch": [
+      "monster"
+    ]
+  },
+  "monster:guard": {
+    "titel": "Wache",
+    "kurz": "Ein Soldat mit Speer und Schild.",
+    "lang": "Wachen stehen an Stadttoren und Burgmauern. Sie sind gut gerüstet, aber nicht besonders erfahren.",
+    "beispiel": "RK 16, 11 TP, Speer +3.",
+    "siehe_auch": [
+      "monster"
+    ]
+  },
+  "monster:noble": {
+    "titel": "Adliger",
+    "kurz": "Ein Mitglied des Adels, geübter im Reden als im Kämpfen.",
+    "lang": "Grafen, Barone und Hofleute tragen feine Kleidung und ein Rapier. Sie haben Einfluss und oft eigene Pläne.",
+    "siehe_auch": [
+      "monster"
+    ]
+  },
+  "monster:ogre": {
+    "titel": "Oger",
+    "kurz": "Ein riesiger, hungriger Grobian mit einer Keule.",
+    "lang": "Oger sind drei Meter groß und unglaublich stark, aber nicht sehr schlau. Ein Treffer mit der Riesenkeule tut richtig weh. Manchmal lassen sie sich mit Essen oder einem Fass Bier bestechen.",
+    "beispiel": "RK 11, 59 TP, Riesenkeule +6 für 2W8 + 4.",
+    "siehe_auch": [
+      "monster",
+      "fertigkeit:persuasion"
+    ]
+  },
+  "monster:red-dragon-wyrmling": {
+    "titel": "Junger Roter Drache",
+    "kurz": "Ein junger Feuerdrache – klein für einen Drachen, groß für euch.",
+    "lang": "Der junge rote Drache beißt mit feurigen Zähnen und speit Feuer in einem Kegel. Gegen seinen Feuerodem hilft ein Rettungswurf auf Geschicklichkeit. Feuer kann ihm nichts anhaben. Der Odem muss sich nach dem Einsatz erst wieder aufladen.",
+    "beispiel": "RK 17, 75 TP, Feuerodem SG 13, 7W6 Feuerschaden.",
+    "siehe_auch": [
+      "monstermerkmal:recharge",
+      "rettungswurf",
+      "immunitaet"
+    ]
+  },
+  "monster:kobold": {
+    "titel": "Kobold",
+    "kurz": "Ein kleiner, hinterlistiger Drachendiener.",
+    "lang": "Kobolde sind klein und schwach, aber gerissen: Sie stellen Fallen und greifen in Gruppen an (Rudeltaktik). Im Sonnenlicht sind sie geblendet und kämpfen schlecht.",
+    "beispiel": "RK 12, 5 TP, Dolch +4.",
+    "siehe_auch": [
+      "monstermerkmal:pack-tactics",
+      "monstermerkmal:sunlight-sensitivity"
+    ]
+  },
+  "monster:wolf": {
+    "titel": "Wolf",
+    "kurz": "Ein Raubtier, das im Rudel jagt.",
+    "lang": "Wölfe umzingeln ihre Beute. Steht ein zweiter Wolf neben dem Ziel, beißen sie mit Vorteil. Bleibt zusammen und schützt euch gegenseitig!",
+    "beispiel": "RK 13, 11 TP, Biss +4 für 2W4 + 2.",
+    "siehe_auch": [
+      "monstermerkmal:pack-tactics"
+    ]
+  },
+  "monster:dire-wolf": {
+    "titel": "Schreckenswolf",
+    "kurz": "Ein riesiger, uralter Wolf.",
+    "lang": "Schreckenswölfe sind so groß wie Ponys und viel gefährlicher als normale Wölfe. Auch sie jagen im Rudel.",
+    "beispiel": "RK 14, 37 TP, Biss +5 für 2W6 + 3.",
+    "siehe_auch": [
+      "monster:wolf",
+      "monstermerkmal:pack-tactics"
+    ]
+  },
+  "monster:bandit": {
+    "titel": "Bandit",
+    "kurz": "Ein Straßenräuber mit Säbel oder Armbrust.",
+    "lang": "Banditen überfallen Reisende im Wald. Einzeln sind sie keine große Gefahr, aber sie kommen selten allein.",
+    "beispiel": "RK 12, 11 TP, Krummsäbel +3.",
+    "siehe_auch": [
+      "monster:bandit-captain"
+    ]
+  },
+  "monster:bandit-captain": {
+    "titel": "Banditenhauptmann",
+    "kurz": "Der Anführer einer Räuberbande.",
+    "lang": "Der Hauptmann ist ein erfahrener Kämpfer und schlägt dreimal pro Zug zu: zweimal mit dem Säbel, einmal mit dem Dolch. Besiegt ihn, und die Bande flieht oft.",
+    "beispiel": "RK 15, 65 TP, drei Angriffe pro Zug.",
+    "siehe_auch": [
+      "monstermerkmal:multiattack"
+    ]
+  },
+  "monster:thug": {
+    "titel": "Schläger",
+    "kurz": "Ein grober Handlanger mit Streitkolben.",
+    "lang": "Schläger arbeiten für Leute, die sich nicht selbst die Hände schmutzig machen wollen. Sie schlagen zweimal pro Zug und kämpfen gern zu zweit.",
+    "beispiel": "RK 11, 32 TP, zwei Angriffe mit dem Streitkolben.",
+    "siehe_auch": [
+      "monstermerkmal:multiattack",
+      "monstermerkmal:pack-tactics"
+    ]
+  },
+  "monster:knight": {
+    "titel": "Gepanzerter Ritter",
+    "kurz": "Ein schwer gerüsteter Ritter als Gegner.",
+    "lang": "Ein Ritter in Plattenrüstung mit Zweihänder. Er ist sehr schwer zu treffen und schlägt zweimal pro Zug hart zu. Der schwarze Ritter aus dem Turnier nutzt diese Werte.",
+    "beispiel": "RK 18, 52 TP, zwei Angriffe mit dem Zweihänder (2W6 + 3).",
+    "siehe_auch": [
+      "monstermerkmal:multiattack",
+      "monstermerkmal:brave"
+    ]
+  },
+  "monster:veteran": {
+    "titel": "Veteran",
+    "kurz": "Ein kampferprobter Söldner.",
+    "lang": "Veteranen haben viele Schlachten überlebt. Sie tragen gute Rüstung und greifen zweimal pro Zug mit dem Langschwert an.",
+    "beispiel": "RK 17, 58 TP, zwei Angriffe.",
+    "siehe_auch": [
+      "monstermerkmal:multiattack"
+    ]
+  },
+  "monster:scout": {
+    "titel": "Späher",
+    "kurz": "Ein Kundschafter mit scharfen Augen und Langbogen.",
+    "lang": "Späher bewegen sich lautlos durch den Wald und schießen aus großer Entfernung. Sie bemerken fast alles.",
+    "beispiel": "RK 13, 16 TP, zwei Pfeile pro Zug.",
+    "siehe_auch": [
+      "monstermerkmal:keen-hearing-and-sight"
+    ]
+  },
+  "monster:mage": {
+    "titel": "Zauberkundiger",
+    "kurz": "Ein Magier, der gegen euch kämpft.",
+    "lang": "Zauberkundige sind gelehrte Magier mit gefährlichen Zaubern. Sie halten wenig aus, deshalb sollte man schnell an sie herankommen. Hofmagier Morgrim ist so einer.",
+    "beispiel": "RK 12, 40 TP.",
+    "siehe_auch": [
+      "monstermerkmal:spellcasting"
+    ]
+  },
+  "monster:goblin": {
+    "titel": "Goblin",
+    "kurz": "Ein kleiner, gemeiner Plünderer.",
+    "lang": "Goblins sind klein, feige und hinterhältig. Sie können als Bonusaktion wegspringen oder sich verstecken. Alleine schwach, in Gruppen lästig.",
+    "beispiel": "RK 15, 7 TP, Krummsäbel +4 für 1W6 + 2.",
+    "siehe_auch": [
+      "monstermerkmal:nimble-escape"
+    ]
+  },
+  "monster:cultist": {
+    "titel": "Kultist",
+    "kurz": "Ein Anhänger eines finsteren Kults.",
+    "lang": "Kultisten dienen dunklen Mächten und kämpfen mit Krummsäbeln. Sie widerstehen Angst und Bezauberung besser als andere.",
+    "beispiel": "RK 12, 9 TP.",
+    "siehe_auch": [
+      "monstermerkmal:dark-devotion"
+    ]
+  },
+  "monster:cult-fanatic": {
+    "titel": "Kultfanatiker",
+    "kurz": "Ein Anführer eines Kults, der auch zaubern kann.",
+    "lang": "Kultfanatiker führen die einfachen Kultisten an. Sie greifen zweimal mit dem Dolch an und beherrschen finstere Zauber.",
+    "beispiel": "RK 13, 22 TP.",
+    "siehe_auch": [
+      "monster:cultist",
+      "monstermerkmal:spellcasting"
+    ]
+  },
+  "monster:spy": {
+    "titel": "Spion",
+    "kurz": "Ein Meister der Tarnung und Informationen.",
+    "lang": "Spione mischen sich unauffällig unter die Leute. Im Kampf sind sie flink und stechen hinterhältig zu, wie ein Schurke.",
+    "beispiel": "RK 12, 27 TP, zwei Angriffe mit dem Kurzschwert.",
+    "siehe_auch": [
+      "monstermerkmal:sneak-attack",
+      "monstermerkmal:cunning-action"
+    ]
+  },
+  "monster:priest": {
+    "titel": "Priester",
+    "kurz": "Ein Diener der Götter mit heilender Magie.",
+    "lang": "Priester leiten Tempel und kennen heilige Zauber. Sie sind meist freundlich gesinnt, aber nicht immer.",
+    "beispiel": "RK 13, 27 TP.",
+    "siehe_auch": [
+      "monstermerkmal:spellcasting",
+      "monstermerkmal:divine-eminence"
+    ]
+  },
+  "monster:swarm-of-bats": {
+    "titel": "Fledermausschwarm",
+    "kurz": "Dutzende flatternde, beißende Fledermäuse.",
+    "lang": "Ein Fledermausschwarm flattert aus der Dunkelheit heran. Er findet euch auch blind, weil er mit Echoortung „sieht“. Waffen machen ihm nur halben Schaden.",
+    "beispiel": "RK 12, 22 TP.",
+    "siehe_auch": [
+      "monstermerkmal:swarm",
+      "monstermerkmal:echolocation"
+    ]
+  },
+  "monster:werewolf-hybrid": {
+    "titel": "Werwolf",
+    "kurz": "Halb Mensch, halb Wolf – und tagsüber gut versteckt.",
+    "lang": "Werwölfe sehen tagsüber aus wie ganz normale Leute. Nachts werden sie zu Bestien, die beißen und kratzen. Gewöhnliche Waffen schaden ihnen kaum, magische Waffen, Zauber und Silber schon.",
+    "beispiel": "RK 12, 58 TP, Biss und Klauen in einem Zug.",
+    "siehe_auch": [
+      "monstermerkmal:shapechanger",
+      "immunitaet"
+    ]
+  },
+  "monster:green-hag": {
+    "titel": "Grüne Vettel",
+    "kurz": "Eine böse Hexe aus dem Sumpf.",
+    "lang": "Grüne Vetteln sind uralte, verschlagene Hexen. Sie können sich unsichtbar machen, Stimmen nachahmen und Illusionen erzeugen. Im Kampf reißen sie mit scharfen Klauen.",
+    "beispiel": "RK 17, 82 TP, Klauen +6 für 2W8 + 4.",
+    "siehe_auch": [
+      "monstermerkmal:mimicry",
+      "monstermerkmal:innate-spellcasting"
+    ]
+  },
+  "monster:ghost": {
+    "titel": "Geist",
+    "kurz": "Die ruhelose Seele eines Verstorbenen.",
+    "lang": "Geister schweben durch Wände und machen mit ihrer Berührung Lebendiges welk. Normale Waffen schaden ihnen nur halb. Oft wollen sie etwas erledigen, bevor sie Ruhe finden.",
+    "beispiel": "RK 11, 45 TP, Welkende Berührung 4W6 + 3.",
+    "siehe_auch": [
+      "monstermerkmal:incorporeal-movement",
+      "resistenz"
+    ]
+  },
+  "monster:specter": {
+    "titel": "Schreckgespenst",
+    "kurz": "Ein finsterer Geist voller Hass.",
+    "lang": "Schreckgespenster sind Schatten verlorener Seelen. Ihre Berührung saugt Leben aus. Sonnenlicht mögen sie gar nicht. In der Walpurgisnacht reiten sie mit der Wilden Jagd.",
+    "beispiel": "RK 12, 22 TP, Lebensentzug 3W6.",
+    "siehe_auch": [
+      "monstermerkmal:incorporeal-movement",
+      "monstermerkmal:sunlight-sensitivity"
+    ]
+  },
+  "monster:skeleton": {
+    "titel": "Skelett",
+    "kurz": "Ein wandelndes Knochengerüst.",
+    "lang": "Skelette werden von finsterer Magie bewegt. Gift macht ihnen nichts aus, aber Kleriker können sie vertreiben.",
+    "beispiel": "RK 13, 13 TP.",
+    "siehe_auch": [
+      "merkmal:channel-divinity-turn-undead",
+      "immunitaet"
+    ]
+  },
+  "monster:zombie": {
+    "titel": "Zombie",
+    "kurz": "Ein langsamer, aber zäher Untoter.",
+    "lang": "Zombies schlurfen langsam heran und schlagen zu. Sie sind so zäh, dass sie manchmal bei 0 Trefferpunkten einfach wieder aufstehen. Glanzschaden und kritische Treffer verhindern das.",
+    "beispiel": "RK 8, 22 TP.",
+    "siehe_auch": [
+      "monstermerkmal:undead-fortitude",
+      "schadensart:radiant"
+    ]
+  },
+  "monster:ghoul": {
+    "titel": "Ghul",
+    "kurz": "Ein hungriger Untoter mit lähmenden Klauen.",
+    "lang": "Ghule lauern auf Friedhöfen und in Grüften. Ihre Klauen können lebende Wesen lähmen. Schnell handeln!",
+    "beispiel": "RK 12, 22 TP.",
+    "siehe_auch": [
+      "zustand:paralyzed"
+    ]
+  },
+  "monster:giant-spider": {
+    "titel": "Riesenspinne",
+    "kurz": "Eine Spinne, groß wie ein Pferd.",
+    "lang": "Riesenspinnen spinnen klebrige Netze, laufen an Decken entlang und beißen mit giftigen Kiefern. Wer im Netz hängt, ist festgesetzt.",
+    "beispiel": "RK 14, 26 TP, Biss +5.",
+    "siehe_auch": [
+      "monstermerkmal:spider-climb",
+      "zustand:restrained"
+    ]
+  },
+  "monstermerkmal:amphibious": {
+    "titel": "Amphibisch",
+    "kurz": "Kann an Land und unter Wasser atmen.",
+    "lang": "Dieses Wesen kann sich im Wasser verstecken und auftauchen, wann es will.",
+    "siehe_auch": [
+      "monster"
+    ]
+  },
+  "monstermerkmal:brave": {
+    "titel": "Tapfer",
+    "kurz": "Lässt sich kaum Angst machen.",
+    "lang": "Bei Rettungswürfen gegen Angst hat dieses Wesen Vorteil.",
+    "siehe_auch": [
+      "zustand:frightened"
+    ]
+  },
+  "monstermerkmal:cunning-action": {
+    "titel": "Raffinierte Aktion",
+    "kurz": "Kann als Bonusaktion spurten, sich zurückziehen oder verstecken.",
+    "lang": "Genau wie der Schurke ist dieses Wesen so flink, dass es nach dem Angriff sofort wieder verschwinden kann.",
+    "siehe_auch": [
+      "merkmal:cunning-action"
+    ]
+  },
+  "monstermerkmal:dark-devotion": {
+    "titel": "Finstere Hingabe",
+    "kurz": "Widersteht Angst und Bezauberung besser.",
+    "lang": "Der Glaube an dunkle Mächte macht Kultisten standhaft: Vorteil bei Rettungswürfen gegen Bezauberung und Angst.",
+    "siehe_auch": [
+      "monster:cultist"
+    ]
+  },
+  "monstermerkmal:divine-eminence": {
+    "titel": "Göttliche Erhabenheit",
+    "kurz": "Kann seine Angriffe mit göttlicher Kraft verstärken.",
+    "lang": "Der Priester kann einen Zauberplatz nutzen, um bei einem Treffer zusätzlichen Glanzschaden zu machen.",
+    "siehe_auch": [
+      "monster:priest"
+    ]
+  },
+  "monstermerkmal:echolocation": {
+    "titel": "Echoortung",
+    "kurz": "„Sieht“ mit Schall, auch im Dunkeln.",
+    "lang": "Fledermäuse orientieren sich durch Echos. Dunkelheit stört sie nicht, aber wenn sie taub sind, sind sie verloren.",
+    "siehe_auch": [
+      "monster:swarm-of-bats"
+    ]
+  },
+  "monstermerkmal:ethereal-sight": {
+    "titel": "Ätherische Sicht",
+    "kurz": "Sieht in die Geisterwelt.",
+    "lang": "Der Geist sieht auch Dinge, die sich in der Geisterwelt verbergen.",
+    "siehe_auch": [
+      "monster:ghost"
+    ]
+  },
+  "monstermerkmal:incorporeal-movement": {
+    "titel": "Körperlose Bewegung",
+    "kurz": "Schwebt durch Wände und Gegenstände.",
+    "lang": "Geister können durch Wände, Türen und andere Wesen hindurchgleiten. Man kann ihnen nicht den Weg versperren.",
+    "siehe_auch": [
+      "monster:ghost",
+      "monster:specter"
+    ]
+  },
+  "monstermerkmal:innate-spellcasting": {
+    "titel": "Angeborene Magie",
+    "kurz": "Kann von Natur aus zaubern.",
+    "lang": "Dieses Wesen beherrscht ein paar Zauber, ohne sie gelernt zu haben, zum Beispiel Illusionen oder Unsichtbarkeit.",
+    "siehe_auch": [
+      "zaubern"
+    ]
+  },
+  "monstermerkmal:keen-hearing": {
+    "titel": "Scharfes Gehör",
+    "kurz": "Hört fast alles.",
+    "lang": "Bei Wahrnehmung, die aufs Hören ankommt, hat dieses Wesen Vorteil. Leise sein lohnt sich!",
+    "siehe_auch": [
+      "fertigkeit:perception",
+      "vorteil"
+    ]
+  },
+  "monstermerkmal:keen-hearing-and-sight": {
+    "titel": "Scharfes Gehör und scharfe Augen",
+    "kurz": "Hört und sieht fast alles.",
+    "lang": "Bei Wahrnehmung mit Augen oder Ohren hat dieses Wesen Vorteil. Schwer, sich daran vorbeizuschleichen.",
+    "siehe_auch": [
+      "fertigkeit:perception",
+      "vorteil"
+    ]
+  },
+  "monstermerkmal:keen-hearing-and-smell": {
+    "titel": "Scharfes Gehör und feine Nase",
+    "kurz": "Hört und riecht fast alles.",
+    "lang": "Bei Wahrnehmung mit Ohren oder Nase hat dieses Wesen Vorteil. Wölfe wittern euch, bevor ihr sie seht.",
+    "siehe_auch": [
+      "fertigkeit:perception",
+      "vorteil"
+    ]
+  },
+  "monstermerkmal:keen-smell": {
+    "titel": "Feine Nase",
+    "kurz": "Riecht fast alles.",
+    "lang": "Bei Wahrnehmung, die aufs Riechen ankommt, hat dieses Wesen Vorteil.",
+    "siehe_auch": [
+      "fertigkeit:perception",
+      "vorteil"
+    ]
+  },
+  "monstermerkmal:mimicry": {
+    "titel": "Stimmen nachahmen",
+    "kurz": "Kann Stimmen und Tierlaute täuschend echt nachmachen.",
+    "lang": "Die Vettel kann rufen wie ein Kind in Not oder sprechen wie euer Freund. Wer genau hinhört (Motiv erkennen), bemerkt den Trick.",
+    "siehe_auch": [
+      "fertigkeit:insight",
+      "monster:green-hag"
+    ]
+  },
+  "monstermerkmal:nimble-escape": {
+    "titel": "Flinke Flucht",
+    "kurz": "Kann als Bonusaktion wegspringen oder sich verstecken.",
+    "lang": "Goblins sind so flink, dass sie sich jede Runde als Bonusaktion zurückziehen oder verstecken können.",
+    "siehe_auch": [
+      "rueckzug",
+      "verstecken",
+      "bonusaktion"
+    ]
+  },
+  "monstermerkmal:pack-tactics": {
+    "titel": "Rudeltaktik",
+    "kurz": "Vorteil beim Angriff, wenn ein Verbündeter direkt beim Ziel steht.",
+    "lang": "Wölfe, Riesenratten und Kobolde greifen gemeinsam an. Steht ein Verbündeter des Monsters (der nicht kampfunfähig ist) direkt neben dem Ziel, hat das Monster beim Angriff Vorteil. Tipp: Nicht allein zwischen mehrere Gegner laufen!",
+    "siehe_auch": [
+      "vorteil",
+      "monster:wolf",
+      "monster:kobold"
+    ]
+  },
+  "monstermerkmal:shapechanger": {
+    "titel": "Gestaltwandler",
+    "kurz": "Kann seine Gestalt wechseln.",
+    "lang": "Werwölfe können sich in einen Menschen, einen Wolf oder eine Mischung aus beidem verwandeln. Tagsüber erkennt man sie kaum.",
+    "siehe_auch": [
+      "monster:werewolf-hybrid"
+    ]
+  },
+  "monstermerkmal:sneak-attack": {
+    "titel": "Hinterhältiger Angriff",
+    "kurz": "Extraschaden aus dem Hinterhalt.",
+    "lang": "Wie ein Schurke macht dieses Wesen einmal pro Zug Extraschaden, wenn es Vorteil hat oder ein Verbündeter neben dem Ziel steht.",
+    "siehe_auch": [
+      "merkmal:sneak-attack"
+    ]
+  },
+  "monstermerkmal:spellcasting": {
+    "titel": "Zauberwirken",
+    "kurz": "Kann Zauber wirken.",
+    "lang": "Dieses Wesen hat Zauber gelernt. Was genau es kann, erzählt der Spielleiter, wenn es zaubert.",
+    "siehe_auch": [
+      "zaubern"
+    ]
+  },
+  "monstermerkmal:spider-climb": {
+    "titel": "Spinnenklettern",
+    "kurz": "Läuft an Wänden und Decken entlang.",
+    "lang": "Riesenspinnen krabbeln an senkrechten Wänden und sogar kopfüber an der Decke, ohne eine Probe zu würfeln.",
+    "siehe_auch": [
+      "monster:giant-spider"
+    ]
+  },
+  "monstermerkmal:sunlight-sensitivity": {
+    "titel": "Sonnenlichtempfindlich",
+    "kurz": "Im Sonnenlicht kämpft es schlechter.",
+    "lang": "In hellem Sonnenlicht hat dieses Wesen Nachteil bei Angriffen und bei Wahrnehmung mit den Augen. Kobolde meiden deshalb den Tag.",
+    "siehe_auch": [
+      "nachteil"
+    ]
+  },
+  "monstermerkmal:swarm": {
+    "titel": "Schwarm",
+    "kurz": "Viele kleine Tiere, die wie ein Wesen kämpfen.",
+    "lang": "Ein Schwarm kann sich durch enge Lücken quetschen und andere Felder betreten. Er erholt sich nicht und kann nicht festgehalten werden.",
+    "siehe_auch": [
+      "monster:swarm-of-rats",
+      "monster:swarm-of-bats"
+    ]
+  },
+  "monstermerkmal:undead-fortitude": {
+    "titel": "Untote Zähigkeit",
+    "kurz": "Steht manchmal bei 0 TP einfach wieder auf.",
+    "lang": "Fällt ein Zombie auf 0 Trefferpunkte, macht er einen Rettungswurf auf Konstitution (SG 5 + Schaden). Schafft er ihn, bleibt er mit 1 Trefferpunkt stehen. Gegen Glanzschaden und kritische Treffer hilft ihm das nicht.",
+    "siehe_auch": [
+      "monster:zombie",
+      "schadensart:radiant",
+      "kritischer_treffer"
+    ]
+  },
+  "monstermerkmal:web-sense": {
+    "titel": "Netzgespür",
+    "kurz": "Spürt jede Berührung seines Netzes.",
+    "lang": "Die Spinne weiß sofort, wo sich etwas in ihrem Netz bewegt.",
+    "siehe_auch": [
+      "monster:giant-spider"
+    ]
+  },
+  "monstermerkmal:web-walker": {
+    "titel": "Netzläufer",
+    "kurz": "Bleibt im eigenen Netz nicht kleben.",
+    "lang": "Die Spinne bewegt sich in Spinnennetzen, ohne festzukleben.",
+    "siehe_auch": [
+      "monster:giant-spider"
+    ]
+  },
+  "monstermerkmal:multiattack": {
+    "titel": "Mehrfachangriff",
+    "kurz": "Greift mehrmals pro Zug an.",
+    "lang": "Manche starken Gegner greifen in einem Zug zwei- oder dreimal an. Der Werwolf zum Beispiel beißt und kratzt.",
+    "siehe_auch": [
+      "aktion",
+      "monster:werewolf-hybrid"
+    ]
+  },
+  "monstermerkmal:recharge": {
+    "titel": "Aufladen",
+    "kurz": "Eine starke Fähigkeit muss sich nach dem Einsatz erst erholen.",
+    "lang": "Der Feuerodem des Drachen ist so stark, dass er ihn nicht jede Runde einsetzen kann. Zu Beginn jedes seiner Züge würfelt er einen W6: bei 5 oder 6 ist der Odem wieder bereit.",
+    "siehe_auch": [
+      "monster:red-dragon-wyrmling",
+      "w6"
+    ]
+  }
+}
