@@ -1,0 +1,50 @@
+:root {
+  --bg: #14110f;
+  --panel: #231d19;
+  --text: #f3e9d2;
+  --muted: #b3a58a;
+  --accent: #e0a526;
+  --radius: 14px;
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#app { min-height: 100%; }
+
+.home, .play {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.home h1, .play h1 { margin: 0; font-size: 2rem; }
+.home p, .play p { margin: 0; color: var(--muted); line-height: 1.5; }
+
+.big-button {
+  display: block;
+  padding: 20px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 600;
+  border: 2px solid transparent;
+}
+.big-button:hover, .big-button:focus-visible { border-color: var(--accent); outline: none; }
+.big-button small { display: block; font-weight: 400; font-size: 0.95rem; color: var(--muted); margin-top: 4px; }
+
+.tv { position: fixed; inset: 0; background: #000; }
+.tv canvas { image-rendering: pixelated; }
