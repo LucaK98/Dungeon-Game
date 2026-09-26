@@ -1,6 +1,6 @@
 import { createTransport, type GameTransport } from "../net";
 import { nameOf } from "../engine/names";
-import type { SeatOffer } from "../shared/events";
+import type { PlayerAction, SeatOffer } from "../shared/events";
 import type { LobbyState } from "../shared/lobby";
 import { isValidRoomCode, normalizeRoomCode, ROOM_CODE_LENGTH } from "../shared/room";
 import type { Route } from "../shared/route";
@@ -119,6 +119,13 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
         showSeatOffer(t, e.seats);
       } else if (e.type === "state_update") {
         choosingSeat = false;
+        // Test hook for browser play-throughs (dev server only, not in the published build).
+        if (import.meta.env.DEV) {
+          (window as unknown as { __couchPhone?: unknown }).__couchPhone = {
+            view: e.state,
+            send: (action: PlayerAction) => t.send({ type: "player_action", action }),
+          };
+        }
         if (!controller) {
           lobby = lobby ? { ...lobby, phase: "playing" } : lobby;
           renderLobby();

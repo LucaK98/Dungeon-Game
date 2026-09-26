@@ -51,7 +51,8 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.atlas("tiles", assetUrl("atlas.png"), assetUrl("atlas.json"));
+    // Loaded once; the scene restarts for every new map.
+    if (!this.textures.exists("tiles")) this.load.atlas("tiles", assetUrl("atlas.png"), assetUrl("atlas.json"));
   }
 
   create(): void {

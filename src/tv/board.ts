@@ -98,6 +98,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       },
     });
     c.start();
+    // Test hook for browser play-throughs (dev server only, not in the published build).
+    if (import.meta.env.DEV) (window as unknown as { __couchTv?: unknown }).__couchTv = { game: c };
 
     if (opts.story) {
       const { story, duration } = opts.story;

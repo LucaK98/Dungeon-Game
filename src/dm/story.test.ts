@@ -267,6 +267,14 @@ for (const STORY of STORIES) {
       expect(state.sceneIndex).toBeGreaterThanOrEqual(state.plan.length - 1);
     }, 60_000);
 
+    for (const duration of ["mittel", "lang"] as const) {
+      it(`works with six players (${duration})`, async () => {
+        const { result, state } = await playStory({ story: STORY, seed: 9, duration, players: 6 });
+        expect(result).toBeDefined();
+        expect(state.sceneIndex).toBeGreaterThanOrEqual(state.plan.length - 1);
+      }, 90_000);
+    }
+
     it("works with a single player", async () => {
       const { result } = await playStory({ story: STORY, seed: 3, duration: "kurz", players: 1 });
       expect(result).toBeDefined();
