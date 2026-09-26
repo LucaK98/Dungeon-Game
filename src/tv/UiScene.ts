@@ -27,11 +27,13 @@ export class UiScene extends Phaser.Scene {
   // The tile atlas is loaded by the DungeonScene; the initiative bar (the only user here) appears after it is ready.
 
   private aiBadge: Phaser.GameObjects.Text | undefined;
+  private skipLine: (() => void) | undefined;
 
   create(): void {
     this.orderBar = this.add.container(20, 150);
     this.banner = this.add
-      .text(BOARD_WIDTH / 2, 90, "", { fontFamily: FONT, fontSize: "56px", color: "#f3e9d2", stroke: "#000", strokeThickness: 10 })
+      // In the middle of the screen: at the top the dice card would cover it during fights.
+      .text(BOARD_WIDTH / 2, BOARD_HEIGHT * 0.42, "", { fontFamily: FONT, fontSize: "64px", color: "#f3e9d2", stroke: "#000", strokeThickness: 12 })
       .setOrigin(0.5)
       .setAlpha(0);
     this.turnBox = this.add.graphics();
@@ -53,6 +55,9 @@ export class UiScene extends Phaser.Scene {
     const onChapter = (text: string) => this.chapter.setText(text);
     const onAi = (s: AiStatus | undefined) => this.showAiStatus(s);
     this.game.events.on("ai-status", onAi);
+    const onSkip = () => this.skipLine?.();
+    this.input.keyboard?.on("keydown-SPACE", onSkip);
+    this.input.keyboard?.on("keydown-ENTER", onSkip);
     this.game.events.on("narration", onNarration);
     this.game.events.on("chapter", onChapter);
     this.game.events.on("room-name", onRoom);
@@ -140,19 +145,37 @@ export class UiScene extends Phaser.Scene {
     }
     const full = text.text;
     text.setText("");
+    // Catch up when lines pile up: type faster, shorter pauses, no reading aloud for a long backlog.
+    const waiting = this.queue.length;
+    const pace = waiting >= 4 ? 0.3 : waiting >= 2 ? 0.6 : 1;
     return new Promise((resolve) => {
       let i = 0;
+      let done = false;
       const typing = this.time.addEvent({
         delay: 24,
         loop: true,
         callback: () => {
-          i = Math.min(full.length, i + 2);
+          i = Math.min(full.length, i + (pace < 1 ? 6 : 2));
           text.setText(full.slice(0, i));
           if (i >= full.length) typing.remove();
         },
       });
-      const minTime = new Promise<void>((r) => this.time.delayedCall(1800 + full.length * 45 + (line.tip ? 2500 : 0), () => r()));
-      void Promise.all([minTime, speak(line.text, !!line.npc)]).then(() => resolve());
+      const finish = () => {
+        if (done) return;
+        done = true;
+        this.skipLine = undefined;
+        typing.remove();
+        text.setText(full);
+        resolve();
+      };
+      // Space or Enter on the TV skips the current line.
+      this.skipLine = () => {
+        if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+        finish();
+      };
+      const minTime = new Promise<void>((r) => this.time.delayedCall((1800 + full.length * 45 + (line.tip ? 2500 : 0)) * pace, () => r()));
+      const voice = waiting >= 3 ? Promise.resolve() : speak(line.text, !!line.npc);
+      void Promise.all([minTime, voice]).then(finish);
     });
   }
 
