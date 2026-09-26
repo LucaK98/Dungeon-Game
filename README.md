@@ -24,6 +24,16 @@ Zum Testen am Rechner: 1 Tab mit `#/tv`, 2–6 Tabs mit `#/play` in der Handy-An
 
 Ablauf am Fernseher: Titel → (Wie spielt man das?) → Geschichte → Spieldauer → Lobby → Abenteuer → „Was wirklich geschah“.
 
+### Die Geschichten
+
+| Geschichte | Stil | Besonderheiten |
+|---|---|---|
+| **Der Drache vom Drachenfels** | Ritter-Queste, mit Einführung in alle Regeln | Oger überlisten, Drachenlanze, Drache als Endgegner |
+| **Der Rattenfänger von Hammelstein** | Stadt-Abenteuer | Rattenschwärme, Musik-Duell, oft hilft Reden mehr als Kämpfen |
+| **Walpurgisnacht am Brocken** | Grusel-Rätsel für Fortgeschrittene | Nachtszenen (Fackeln!), Werwolf (Silberstaub), die wahre Hexe muss entlarvt werden |
+
+Jede Geschichte hat 4 geheime Wahrheiten (eine wird pro Partie ausgewürfelt), mehrere Enden und läuft ohne KI komplett durch – in allen drei Spieldauern und mit 1 bis 6 Spielern.
+
 Mit `?net=local|peer|supabase` wird die Verbindungsart gewählt. Standard: `local` auf `localhost` (mehrere Tabs auf einem Rechner), sonst `supabase`.
 
 ### Mit echten Handys spielen (`supabase`, Ersatz: `peer`)
@@ -74,7 +84,7 @@ src/
   shared/      Typen, Events, Transport- & DM-Interfaces
   net/         Verbindungen (lokal, PeerJS, …)
   engine/      Regel-Engine (ohne UI, getestet)
-  dm/          Spielleiter (geskriptet, später KI) und Geschichten
+  dm/          Spielleiter (geskriptet und KI) und Geschichten
   data/        SRD-Daten, Übersetzungen, Raum-Module, Glossar
   tv/          Spielbrett (Phaser)
   play/        Handy-Oberfläche

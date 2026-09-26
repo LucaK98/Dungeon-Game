@@ -152,6 +152,7 @@ async function playStory(opts: { story?: Story; seed: number; duration: "kurz" |
     game.handle(pid, { kind: "end_turn" });
   }
   await Promise.race([run, new Promise((r) => setTimeout(r, 10))]);
+  if (process.env.DEBUG_STORY) console.log("HEROES", game.heroes().map((h) => `${h.name} ${h.hp}/${h.maxHp} L${h.pc?.level} pos ${JSON.stringify(h.pos)}`).join(" | "), "\nLAST", narration.slice(-14).join(" / "), "\nMONSTERS", JSON.stringify(Object.values(game.session.battle.creatures).filter((c) => c.kind === "monster").map((c) => [c.name, c.hp, c.dead, c.pos])));
   if (process.env.DEBUG_STORY) console.log("END", result?.ending.id, state.sceneIndex, state.plan.length, state.dropped, state.flags.join(","));
   game.destroy();
   return { result, state, narration, guard };

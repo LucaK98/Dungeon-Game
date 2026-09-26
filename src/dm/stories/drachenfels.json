@@ -1302,6 +1302,31 @@
          "text": "Hitze schlägt euch entgegen. Unten schläft etwas Großes."
         }
        ]
+      },
+      {
+       "id": "rast",
+       "kind": "choice",
+       "enter": [
+        {
+         "text": "Vor der letzten Treppe findet ihr eine kühle Felsnische. Hier könnt ihr ein letztes Mal verschnaufen."
+        }
+       ],
+       "choices": [
+        {
+         "id": "rasten",
+         "label": "Kurz rasten",
+         "detail": "Alle heilen vollständig",
+         "outcome": {
+          "narration": [
+           {
+            "text": "Ihr verbindet eure Wunden und trinkt einen Schluck Wasser. Unten grollt der Drache im Schlaf."
+           }
+          ],
+          "heal": 0,
+          "endScene": true
+         }
+        }
+       ]
       }
      ]
     },

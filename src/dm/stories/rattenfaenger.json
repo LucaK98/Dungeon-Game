@@ -1159,6 +1159,31 @@
                   "text": "Vor euch öffnet sich eine riesige Halle."
                 }
               ]
+            },
+            {
+              "id": "rast",
+              "kind": "choice",
+              "enter": [
+                {
+                  "text": "In einer trockenen Nische, kurz vor der Halle, könnt ihr kurz verschnaufen."
+                }
+              ],
+              "choices": [
+                {
+                  "id": "rasten",
+                  "label": "Kurz rasten",
+                  "detail": "Alle heilen vollständig",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Ihr teilt euren letzten Proviant und verbindet eure Wunden. Dann steht ihr auf – bereit für den Pfeifer."
+                      }
+                    ],
+                    "heal": 0,
+                    "endScene": true
+                  }
+                }
+              ]
             }
           ]
         },

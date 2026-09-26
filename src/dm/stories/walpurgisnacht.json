@@ -1,0 +1,1607 @@
+{
+  "id": "walpurgisnacht",
+  "title": "Walpurgisnacht am Brocken",
+  "subtitle": "Ein Grusel-Rätsel im Harz",
+  "description": "In einem Harzdorf verschwinden Menschen, nachts heulen Wölfe, und alle verdächtigen die Kräuterfrau. Sammelt Hinweise, sprecht mit den Verdächtigen und entlarvt in der Walpurgisnacht die wahre Hexe. Für Gruppen, die die Regeln schon kennen.",
+  "recommended": false,
+  "cover": [
+    "monster.green-hag",
+    "monster.werewolf-hybrid",
+    "tree.2"
+  ],
+  "intro": [
+    {
+      "text": "Der Harz im Frühling. Nebel hängt in den Tälern, auf dem Brocken liegt noch Schnee."
+    },
+    {
+      "text": "Man erzählt sich, dass sich in der Walpurgisnacht die Hexen auf dem Brocken treffen. Die meisten lachen darüber."
+    },
+    {
+      "text": "Im Dorf Elend lacht niemand mehr."
+    }
+  ],
+  "truths": [
+    {
+      "id": "A",
+      "title": "Die Vorstehersfrau",
+      "summary": "Frau Adelgund, die Frau des Dorfvorstehers, ist in Wahrheit eine Grüne Vettel. Sie raubt den Verschwundenen ihre Jugend, um selbst jung zu bleiben. Wirt Bodo hat sie in einen Werwolf verwandelt, damit er die Leute in den Wald treibt.",
+      "reveal": [
+        {
+          "text": "Frau Adelgund lacht – ein Lachen wie brechende Äste. Die Gestalt wächst, die Haut wird grün wie Moos."
+        },
+        {
+          "text": "„Klug seid ihr. Zu klug. In dieser Nacht holt die Wilde Jagd euch alle!“",
+          "npc": "Die Grüne Vettel"
+        },
+        {
+          "text": "Aus dem Dunkel springt ein riesiger Wolf. In seinen Augen erkennt ihr Wirt Bodo – verflucht, gefangen in der Bestie."
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "title": "Der Pfarrer",
+      "summary": "Pfarrer Anselm ist die Hexe. Unter der Kutte verbirgt sich eine Grüne Vettel, die für die Walpurgisnacht Seelen sammelt. Frau Adelgund hat sie verflucht – sie wird nachts zum Werwolf.",
+      "reveal": [
+        {
+          "text": "Pfarrer Anselm lacht – ein Lachen wie brechende Äste. Die Gestalt wächst, die Haut wird grün wie Moos."
+        },
+        {
+          "text": "„Klug seid ihr. Zu klug. In dieser Nacht holt die Wilde Jagd euch alle!“",
+          "npc": "Die Grüne Vettel"
+        },
+        {
+          "text": "Aus dem Dunkel springt ein riesiger Wolf. In seinen Augen erkennt ihr Frau Adelgund – verflucht, gefangen in der Bestie."
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "title": "Der Wirt",
+      "summary": "Wirt Bodo ist die Hexe. Sein grünes Bier macht die Leute willenlos, und sie wandern in der Nacht zum Brocken. Die stille Liese hat er verflucht – sie ist der Werwolf und weiß es nicht einmal.",
+      "reveal": [
+        {
+          "text": "Wirt Bodo lacht – ein Lachen wie brechende Äste. Die Gestalt wächst, die Haut wird grün wie Moos."
+        },
+        {
+          "text": "„Klug seid ihr. Zu klug. In dieser Nacht holt die Wilde Jagd euch alle!“",
+          "npc": "Die Grüne Vettel"
+        },
+        {
+          "text": "Aus dem Dunkel springt ein riesiger Wolf. In seinen Augen erkennt ihr Die stille Liese – verflucht, gefangen in der Bestie."
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "title": "Die stille Liese",
+      "summary": "Die stille Liese ist keine Waise, sondern eine uralte Vettel in Kindergestalt. Sie hat Pfarrer Anselm verflucht, der als Werwolf durch die Wälder streift – und alle suchen die Schuld bei der Kräuterfrau.",
+      "reveal": [
+        {
+          "text": "Die stille Liese lacht – ein Lachen wie brechende Äste. Die Gestalt wächst, die Haut wird grün wie Moos."
+        },
+        {
+          "text": "„Klug seid ihr. Zu klug. In dieser Nacht holt die Wilde Jagd euch alle!“",
+          "npc": "Die Grüne Vettel"
+        },
+        {
+          "text": "Aus dem Dunkel springt ein riesiger Wolf. In seinen Augen erkennt ihr Pfarrer Anselm – verflucht, gefangen in der Bestie."
+        }
+      ]
+    }
+  ],
+  "clues": [
+    {
+      "id": "geruecht_hedwig",
+      "text": "Überall tuscheln die Leute: Die Kräuterfrau am Waldrand ist schuld! Sie kennt Gifte und Zaubersprüche.",
+      "truth": null
+    },
+    {
+      "id": "silber_name",
+      "text": "Hedwig: Silber verwundet den Werwolf. Und eine Hexe verliert ihre Macht, wenn man sie vor allen beim Namen nennt.",
+      "truth": null
+    },
+    {
+      "id": "a_dorf",
+      "text": "Frau Adelgund trägt neuerdings einen grünen Stein an einer Kette. Seit Leute verschwinden, sieht sie jünger aus.",
+      "truth": "A"
+    },
+    {
+      "id": "b_dorf",
+      "text": "Die Magd des Pfarrers flüstert: In keiner der Nächte, in denen jemand verschwand, lag der Pfarrer in seinem Bett.",
+      "truth": "B"
+    },
+    {
+      "id": "c_dorf",
+      "text": "Wirt Bodo hat plötzlich Gold – und schenkt ein seltsames grünes Bier aus, nach dem man tief und traumlos schläft.",
+      "truth": "C"
+    },
+    {
+      "id": "d_dorf",
+      "text": "Die stille Liese malt mit Kreide kleine Zeichen an die Türen – genau an die Häuser der Verschwundenen.",
+      "truth": "D"
+    },
+    {
+      "id": "a_kirche",
+      "text": "Im Kirchenbuch: Adelgund kam vor genau sieben Jahren ins Dorf – in einer Walpurgisnacht. Niemand weiß, woher.",
+      "truth": "A"
+    },
+    {
+      "id": "b_kirche",
+      "text": "Hinter dem Altar: ein Kessel mit grünem Schlamm und ein Besen, an dem Erde vom Brocken klebt.",
+      "truth": "B"
+    },
+    {
+      "id": "c_kirche",
+      "text": "Der Pfarrer: ‚Bodo hat mir gebeichtet, dass in seinem Keller nachts etwas brodelt. Dann wollte er nicht weiterreden.‘",
+      "truth": "C"
+    },
+    {
+      "id": "d_kirche",
+      "text": "Der Pfarrer: ‚Liese spricht nicht, seit sie hier ist. Aber nachts singt sie – in einer Sprache, die ich nie gehört habe.‘",
+      "truth": "D"
+    },
+    {
+      "id": "a_wald",
+      "text": "An einem Dornbusch: ein Fetzen Schürze mit Bierflecken – voller grauer Wolfshaare.",
+      "truth": "A"
+    },
+    {
+      "id": "b_wald",
+      "text": "Die Wolfsspuren enden an einem Gartenzaun mit goldenen Spitzen. So einen Zaun hat nur das Haus des Vorstehers.",
+      "truth": "B"
+    },
+    {
+      "id": "c_wald",
+      "text": "Neben riesigen Pfotenabdrücken liegt ein kleines, zerrissenes Haarband.",
+      "truth": "C"
+    },
+    {
+      "id": "d_wald",
+      "text": "Im Moos liegt ein zerbissener Rosenkranz.",
+      "truth": "D"
+    },
+    {
+      "id": "a_huette",
+      "text": "Hedwig: ‚Adelgund hat mir im Winter Alraunwurzeln abgekauft. Wofür braucht eine Vorstehersfrau Alraunen?‘",
+      "truth": "A"
+    },
+    {
+      "id": "b_huette",
+      "text": "Hedwig: ‚Der Pfarrer segnet kein Wasser mehr. Eine Hexe erträgt kein Weihwasser.‘",
+      "truth": "B"
+    },
+    {
+      "id": "c_huette",
+      "text": "Hedwig: ‚Bodo hat Wolfskraut bei mir gekauft. Das braucht man, um einen Menschen in einen Wolf zu verwandeln.‘",
+      "truth": "C"
+    },
+    {
+      "id": "d_huette",
+      "text": "Hedwig: ‚Liese war oft bei mir. Neulich fehlte danach mein altes Zauberbuch.‘",
+      "truth": "D"
+    },
+    {
+      "id": "a_aufstieg",
+      "text": "Am Weg zerbrochen: ein grüner Stein, genau wie der an Adelgunds Kette.",
+      "truth": "A"
+    },
+    {
+      "id": "b_aufstieg",
+      "text": "Eine Seite aus einem Gebetbuch – die Worte stehen rückwärts, mit grüner Tinte.",
+      "truth": "B"
+    },
+    {
+      "id": "c_aufstieg",
+      "text": "Ein Bierkrug mit eingeritzten Hexenzeichen, noch halb voll mit grünem Bier.",
+      "truth": "C"
+    },
+    {
+      "id": "d_aufstieg",
+      "text": "Kreidezeichen an den Felsen – dieselben wie an den Türen im Dorf.",
+      "truth": "D"
+    },
+    {
+      "id": "a_wirt",
+      "text": "Bodo hat seltsam lange Fingernägel, knurrt im Schlaf und isst sein Fleisch roh.",
+      "truth": "A"
+    },
+    {
+      "id": "b_wirt",
+      "text": "Bodo: ‚Frau Adelgund heult nachts so seltsam. Ich dachte immer, das sei der Wind.‘",
+      "truth": "B"
+    },
+    {
+      "id": "c_wirt",
+      "text": "Im Keller des Wirts: ein Kessel, getrocknete Kröten und eine Liste mit den Namen der Verschwundenen.",
+      "truth": "C"
+    },
+    {
+      "id": "d_wirt",
+      "text": "Bodo: ‚Der Pfarrer hat seit Wochen Wunden an den Händen, wie von Krallen.‘",
+      "truth": "D"
+    },
+    {
+      "id": "a_spur",
+      "text": "Die frische Wolfsspur führt zum Hinterhof des Wirtshauses.",
+      "truth": "A"
+    },
+    {
+      "id": "b_spur",
+      "text": "Die frische Wolfsspur führt direkt zum Haus des Dorfvorstehers.",
+      "truth": "B"
+    },
+    {
+      "id": "c_spur",
+      "text": "Die frische Wolfsspur endet vor Lieses kleiner Kammer unter dem Dach.",
+      "truth": "C"
+    },
+    {
+      "id": "d_spur",
+      "text": "Die frische Wolfsspur führt zum Pfarrhaus.",
+      "truth": "D"
+    },
+    {
+      "id": "a_moor",
+      "text": "Ein Irrlicht flüstert mit einer Frauenstimme: ‚Die Herrin trägt Grün um den Hals …‘",
+      "truth": "A"
+    },
+    {
+      "id": "b_moor",
+      "text": "Ein Irrlicht flüstert: ‚Die Herrin betet – aber nicht zu eurem Gott …‘",
+      "truth": "B"
+    },
+    {
+      "id": "c_moor",
+      "text": "Ein Irrlicht flüstert: ‚Die Herrin braut, und das Dorf trinkt …‘",
+      "truth": "C"
+    },
+    {
+      "id": "d_moor",
+      "text": "Ein Irrlicht flüstert mit Kinderstimme: ‚Die Herrin ist klein und alt zugleich …‘",
+      "truth": "D"
+    }
+  ],
+  "npcs": [
+    {
+      "id": "gerwin",
+      "name": "Dorfvorsteher Gerwin",
+      "monster": "noble",
+      "description": "Ein müder Mann mit grauem Bart, der sein Dorf schützen will.",
+      "secretGoal": "Er will, dass endlich wieder Ruhe einkehrt – ohne dass jemand Unschuldiges verbrannt wird."
+    },
+    {
+      "id": "adelgund",
+      "name": "Frau Adelgund",
+      "monster": "noble",
+      "description": "Die Frau des Vorstehers: elegant, freundlich, mit einem grünen Stein an der Kette.",
+      "secretGoal": "Je nach Wahrheit: die Hexe, der verfluchte Werwolf – oder nur eine Frau mit Geheimnissen."
+    },
+    {
+      "id": "anselm",
+      "name": "Pfarrer Anselm",
+      "monster": "priest",
+      "description": "Ein hagerer Pfarrer mit tiefliegenden Augen.",
+      "secretGoal": "Je nach Wahrheit: die Hexe, der verfluchte Werwolf – oder ein ehrlicher Mann."
+    },
+    {
+      "id": "bodo",
+      "name": "Wirt Bodo",
+      "monster": "commoner",
+      "description": "Ein bärenstarker Wirt mit dröhnendem Lachen.",
+      "secretGoal": "Je nach Wahrheit: die Hexe, der verfluchte Werwolf – oder nur ein Wirt, der gut verdient."
+    },
+    {
+      "id": "liese",
+      "name": "Die stille Liese",
+      "monster": "commoner",
+      "description": "Ein Mädchen, das nie spricht und immer zum Brocken schaut.",
+      "secretGoal": "Je nach Wahrheit: die Hexe in Kindergestalt, die verfluchte Wölfin – oder ein Kind, das mehr weiß, als es sagt."
+    },
+    {
+      "id": "hedwig",
+      "name": "Kräuterfrau Hedwig",
+      "monster": "commoner",
+      "description": "Eine alte Frau mit Kräuterbündeln im Haar. Alle halten sie für die Hexe.",
+      "secretGoal": "Sie ist unschuldig und will, dass die wahre Hexe gefunden wird."
+    }
+  ],
+  "acts": [
+    {
+      "id": "akt1",
+      "title": "Das Dorf Elend",
+      "level": 1,
+      "scenes": [
+        {
+          "id": "dorfplatz",
+          "title": "Das Dorf Elend",
+          "rooms": [
+            "harzdorf"
+          ],
+          "pflicht": true,
+          "dauer_min": 8,
+          "mindestDauer": "kurz",
+          "ziel": "Mit dem Dorfvorsteher sprechen und die Verdächtigen kennenlernen",
+          "npcs": [
+            {
+              "npc": "gerwin"
+            },
+            {
+              "npc": "adelgund"
+            },
+            {
+              "npc": "liese"
+            }
+          ],
+          "clues": [
+            {
+              "id": "dorf",
+              "byTruth": {
+                "A": "a_dorf",
+                "B": "b_dorf",
+                "C": "c_dorf",
+                "D": "d_dorf"
+              }
+            },
+            {
+              "id": "geruecht",
+              "byTruth": {
+                "A": "geruecht_hedwig",
+                "B": "geruecht_hedwig",
+                "C": "geruecht_hedwig",
+                "D": "geruecht_hedwig"
+              }
+            }
+          ],
+          "keywords": [
+            {
+              "words": [
+                "hexe",
+                "zauber",
+                "kräuterfrau",
+                "hedwig"
+              ],
+              "response": [
+                {
+                  "text": "Gerwin senkt die Stimme: „Die Leute reden über die Kräuterfrau. Aber ich weiß nicht … sie hat meiner Frau einmal das Leben gerettet.“",
+                  "npc": "Dorfvorsteher Gerwin"
+                }
+              ],
+              "set": [
+                "zweifel_gesaet"
+              ]
+            },
+            {
+              "words": [
+                "wolf",
+                "wölfe",
+                "heulen"
+              ],
+              "response": [
+                {
+                  "text": "„Jede Nacht heult es im Wald. Näher als früher“, murmelt Gerwin.",
+                  "npc": "Dorfvorsteher Gerwin"
+                }
+              ]
+            }
+          ],
+          "steps": [
+            {
+              "id": "hingehen",
+              "kind": "reach",
+              "target": "gerwin",
+              "enter": [
+                {
+                  "text": "Elend, ein Dorf im Harz. Die Häuser ducken sich unter dunklen Fichten. Morgen ist Walpurgisnacht."
+                },
+                {
+                  "text": "Dorfvorsteher Gerwin winkt euch zu sich. Er sieht aus, als hätte er seit Tagen nicht geschlafen.",
+                  "tip": {
+                    "key": "hinweis",
+                    "text": "In dieser Geschichte zählen Hinweise besonders. Sprecht mit allen, sammelt Spuren – am Ende müsst ihr die wahre Hexe entlarven."
+                  }
+                }
+              ]
+            },
+            {
+              "id": "bericht",
+              "kind": "narrate",
+              "enter": [
+                {
+                  "text": "„Drei Leute sind verschwunden. Der Köhler, die Magd Grete und der alte Jost. Immer in einer Vollmondnacht.“",
+                  "npc": "Dorfvorsteher Gerwin"
+                },
+                {
+                  "text": "„Und jede Nacht heulen die Wölfe. Alle sagen, die Kräuterfrau am Waldrand hat sie verhext.“",
+                  "npc": "Dorfvorsteher Gerwin"
+                }
+              ],
+              "clues": [
+                "dorf",
+                "geruecht"
+              ]
+            },
+            {
+              "id": "befragen",
+              "kind": "choice",
+              "enter": [
+                {
+                  "text": "Einige Dorfleute stehen herum und beobachten euch misstrauisch."
+                }
+              ],
+              "choices": [
+                {
+                  "id": "adelgund",
+                  "label": "Mit Frau Adelgund sprechen",
+                  "detail": "Motiv erkennen gegen SG 11",
+                  "unless": [
+                    "adelgund_gefragt"
+                  ],
+                  "check": {
+                    "skill": "insight",
+                    "dc": 11,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "„Die Kräuterfrau war es, natürlich!“, sagt Adelgund – ein bisschen zu schnell. Ihr merkt es euch.",
+                          "npc": "Frau Adelgund"
+                        }
+                      ],
+                      "set": [
+                        "adelgund_gefragt"
+                      ],
+                      "goto": "befragen"
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Adelgund lächelt freundlich und bietet euch Kuchen an. Ihr erfahrt nichts.",
+                          "npc": "Frau Adelgund"
+                        }
+                      ],
+                      "set": [
+                        "adelgund_gefragt"
+                      ],
+                      "goto": "befragen"
+                    }
+                  }
+                },
+                {
+                  "id": "liese",
+                  "label": "Der stillen Liese zuwinken",
+                  "detail": "Überzeugen gegen SG 10",
+                  "unless": [
+                    "liese_gefragt"
+                  ],
+                  "check": {
+                    "skill": "persuasion",
+                    "dc": 10,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Liese sagt kein Wort. Aber sie zeigt zum Brocken hinauf und zeichnet mit dem Finger einen Kreis in die Luft."
+                        }
+                      ],
+                      "set": [
+                        "liese_gefragt"
+                      ],
+                      "goto": "befragen"
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Liese huscht davon wie eine Katze."
+                        }
+                      ],
+                      "set": [
+                        "liese_gefragt"
+                      ],
+                      "goto": "befragen"
+                    }
+                  }
+                },
+                {
+                  "id": "weiter",
+                  "label": "Zur Dorfkirche gehen",
+                  "detail": "Der Pfarrer weiß vielleicht mehr",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Ihr lasst den Dorfplatz hinter euch. Hinter euch wird wieder getuschelt."
+                      }
+                    ],
+                    "endScene": true
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "kirche",
+          "title": "Die Dorfkirche",
+          "rooms": [
+            "dorfkirche"
+          ],
+          "pflicht": true,
+          "dauer_min": 7,
+          "mindestDauer": "kurz",
+          "ziel": "Mit Pfarrer Anselm sprechen",
+          "npcs": [
+            {
+              "npc": "anselm"
+            }
+          ],
+          "travel": "Die kleine Kirche steht am Rand des Dorfes. Die Tür knarrt.",
+          "clues": [
+            {
+              "id": "kirche",
+              "byTruth": {
+                "A": "a_kirche",
+                "B": "b_kirche",
+                "C": "c_kirche",
+                "D": "d_kirche"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "hingehen",
+              "kind": "reach",
+              "target": "anselm",
+              "enter": [
+                {
+                  "text": "Kerzenlicht, harte Bänke. Pfarrer Anselm kniet vor dem Altar und dreht sich langsam um."
+                }
+              ]
+            },
+            {
+              "id": "buch",
+              "kind": "check",
+              "check": {
+                "skill": "investigation",
+                "dc": 12,
+                "who": "one",
+                "title": "Das Kirchenbuch durchsehen",
+                "success": {
+                  "narration": [
+                    {
+                      "text": "Zwischen Taufen und Hochzeiten fällt euch etwas auf …"
+                    }
+                  ],
+                  "set": [
+                    "kirchenbuch"
+                  ]
+                },
+                "failure": {
+                  "narration": [
+                    {
+                      "text": "Die alte Schrift ist schwer zu lesen. Der Pfarrer hilft euch schließlich."
+                    }
+                  ]
+                }
+              },
+              "enter": [
+                {
+                  "text": "„Sucht, wenn ihr müsst“, seufzt der Pfarrer und schiebt euch das dicke Kirchenbuch hin.",
+                  "npc": "Pfarrer Anselm",
+                  "tip": {
+                    "key": "fertigkeit:investigation",
+                    "text": "Nachforschung: genau hinschauen, Spuren deuten. Einer würfelt für alle."
+                  }
+                }
+              ],
+              "clue": "kirche"
+            }
+          ]
+        },
+        {
+          "id": "wirtshaus",
+          "title": "Im Wirtshaus „Zum Brockenhexchen“",
+          "rooms": [
+            "wirtshaus"
+          ],
+          "pflicht": false,
+          "dauer_min": 15,
+          "mindestDauer": "mittel",
+          "ziel": "Im Wirtshaus Gerüchte sammeln",
+          "npcs": [
+            {
+              "npc": "bodo"
+            }
+          ],
+          "travel": "Am Abend sitzt das halbe Dorf im Wirtshaus. Ein guter Ort für Gerüchte.",
+          "clues": [
+            {
+              "id": "wirt",
+              "byTruth": {
+                "A": "a_wirt",
+                "B": "b_wirt",
+                "C": "c_wirt",
+                "D": "d_wirt"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "rauferei",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "thug",
+                  "count": 1,
+                  "perExtraPlayer": 1,
+                  "name": "Betrunkener Holzfäller",
+                  "training": true
+                }
+              ],
+              "enter": [
+                {
+                  "text": "„Fremde! Ihr steckt mit der Hexe unter einer Decke!“ Zwei Holzfäller krempeln die Ärmel hoch.",
+                  "npc": "Betrunkener Holzfäller"
+                },
+                {
+                  "text": "Eine Wirtshausrauferei – niemand wird ernsthaft verletzt.",
+                  "tip": {
+                    "key": "kampf",
+                    "text": "Eine Rauferei ist ein Übungskampf: Wer auf 0 fällt, ist nur k.o."
+                  }
+                }
+              ],
+              "done": [
+                {
+                  "text": "Die Holzfäller geben auf und spendieren eine Runde. Wirt Bodo stellt die Krüge hin und erzählt …",
+                  "npc": "Wirt Bodo"
+                }
+              ],
+              "clue": "wirt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "akt2",
+      "title": "Die Nacht im Harz",
+      "level": 2,
+      "scenes": [
+        {
+          "id": "nachtwald",
+          "title": "Nachts im Harzwald",
+          "rooms": [
+            "waldweg",
+            "harzwald"
+          ],
+          "pflicht": true,
+          "dauer_min": 8,
+          "mindestDauer": "kurz",
+          "dark": true,
+          "ziel": "Den Wald durchqueren und die Wölfe überleben",
+          "travel": "Ihr brecht in der Nacht zur Kräuterfrau auf. Nebel kriecht zwischen den Fichten.",
+          "clues": [
+            {
+              "id": "wald",
+              "byTruth": {
+                "A": "a_wald",
+                "B": "b_wald",
+                "C": "c_wald",
+                "D": "d_wald"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "woelfe",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "wolf",
+                  "count": 2,
+                  "perExtraPlayer": 1,
+                  "name": "Wolf"
+                }
+              ],
+              "enter": [
+                {
+                  "text": "Gelbe Augen im Dunkeln. Ein Rudel Wölfe umkreist euch!"
+                },
+                {
+                  "text": "Auf einem Hügel steht eine riesige Gestalt auf zwei Beinen und beobachtet euch. Dann ist sie verschwunden."
+                },
+                {
+                  "text": "Es ist stockdunkel.",
+                  "tip": {
+                    "key": "dunkelheit",
+                    "text": "Nacht: Wer ein Ziel nicht sieht, hat Nachteil. Zündet am Handy eine Fackel an (kostet keine Aktion). Elfen und Zwerge sehen im Dunkeln."
+                  }
+                }
+              ],
+              "done": [
+                {
+                  "text": "Die Wölfe fliehen jaulend. Am Rand der Lichtung findet ihr etwas …"
+                }
+              ],
+              "clue": "wald"
+            },
+            {
+              "id": "weiter",
+              "kind": "reach",
+              "target": "exit",
+              "enter": [
+                {
+                  "text": "Zwischen den Bäumen schimmert ein Licht. Die Hütte der Kräuterfrau!"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wolfsspur",
+          "title": "Die Spur des Werwolfs",
+          "rooms": [
+            "harzwald"
+          ],
+          "pflicht": false,
+          "dauer_min": 15,
+          "mindestDauer": "mittel",
+          "dark": true,
+          "ziel": "Der frischen Wolfsspur folgen",
+          "travel": "Frische Spuren, riesig und tief: Etwas ist hier auf zwei Beinen gelaufen.",
+          "clues": [
+            {
+              "id": "spur",
+              "byTruth": {
+                "A": "a_spur",
+                "B": "b_spur",
+                "C": "c_spur",
+                "D": "d_spur"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "fährte",
+              "kind": "check",
+              "check": {
+                "skill": "survival",
+                "dc": 13,
+                "who": "one",
+                "title": "Der Fährte folgen",
+                "success": {
+                  "narration": [
+                    {
+                      "text": "Ihr lest die Spur wie ein Buch. Sie führt zurück – ins Dorf!"
+                    }
+                  ]
+                },
+                "failure": {
+                  "narration": [
+                    {
+                      "text": "Ihr verliert die Spur im Bach – und findet sie erst nach langem Suchen wieder. Dornen zerkratzen euch."
+                    }
+                  ],
+                  "damage": "1d4"
+                }
+              },
+              "clue": "spur"
+            },
+            {
+              "id": "wache",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "dire-wolf",
+                  "count": 1,
+                  "name": "Riesenwolf"
+                }
+              ],
+              "enter": [
+                {
+                  "text": "Ein Riesenwolf stellt sich euch in den Weg. Er bewacht die Spur!"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "kraeuterfrau",
+          "title": "Die Kräuterfrau",
+          "rooms": [
+            "kraeuterhuette"
+          ],
+          "pflicht": true,
+          "dauer_min": 7,
+          "mindestDauer": "kurz",
+          "ziel": "Herausfinden, ob die Kräuterfrau schuldig ist",
+          "npcs": [
+            {
+              "npc": "hedwig"
+            }
+          ],
+          "savePoint": true,
+          "clues": [
+            {
+              "id": "huette",
+              "byTruth": {
+                "A": "a_huette",
+                "B": "b_huette",
+                "C": "c_huette",
+                "D": "d_huette"
+              }
+            },
+            {
+              "id": "silber",
+              "byTruth": {
+                "A": "silber_name",
+                "B": "silber_name",
+                "C": "silber_name",
+                "D": "silber_name"
+              }
+            }
+          ],
+          "keywords": [
+            {
+              "words": [
+                "unschuldig",
+                "helfen",
+                "glauben",
+                "vertrauen"
+              ],
+              "response": [
+                {
+                  "text": "Hedwig wischt sich eine Träne ab. „Ihr seid die Ersten, die mir glauben.“",
+                  "npc": "Kräuterfrau Hedwig"
+                }
+              ],
+              "set": [
+                "hedwig_vertraut"
+              ]
+            }
+          ],
+          "steps": [
+            {
+              "id": "hingehen",
+              "kind": "reach",
+              "target": "hedwig",
+              "enter": [
+                {
+                  "text": "Die Tür der Hütte steht offen. Drinnen: zerbrochene Töpfe, verstreute Kräuter. Jemand hat hier gewütet."
+                },
+                {
+                  "text": "Eine alte Frau kauert am Herd, eine Wunde an der Stirn."
+                }
+              ]
+            },
+            {
+              "id": "verbinden",
+              "kind": "check",
+              "check": {
+                "skill": "medicine",
+                "dc": 10,
+                "who": "one",
+                "title": "Die Kräuterfrau verbinden",
+                "success": {
+                  "narration": [
+                    {
+                      "text": "Ihr versorgt die Wunde. Hedwig atmet auf. „Die Dorfleute waren das. Sie halten mich für die Hexe.“",
+                      "npc": "Kräuterfrau Hedwig"
+                    },
+                    {
+                      "text": "„Nehmt das hier. Silberstaub – streut ihn auf eure Klingen. Gegen den Wolf werdet ihr ihn brauchen.“",
+                      "npc": "Kräuterfrau Hedwig"
+                    }
+                  ],
+                  "item": {
+                    "id": "silberstaub",
+                    "qty": 1
+                  },
+                  "set": [
+                    "silberstaub",
+                    "hedwig_gerettet"
+                  ]
+                },
+                "failure": {
+                  "narration": [
+                    {
+                      "text": "Eure Hände zittern, aber Hedwig lächelt. „Gut gemeint ist auch schon etwas.“",
+                      "npc": "Kräuterfrau Hedwig"
+                    },
+                    {
+                      "text": "„Nehmt das hier. Silberstaub – streut ihn auf eure Klingen. Gegen den Wolf werdet ihr ihn brauchen.“",
+                      "npc": "Kräuterfrau Hedwig"
+                    }
+                  ],
+                  "item": {
+                    "id": "silberstaub",
+                    "qty": 1
+                  },
+                  "set": [
+                    "silberstaub"
+                  ]
+                }
+              },
+              "enter": [
+                {
+                  "text": "„Bitte … tut mir nichts“, flüstert sie.",
+                  "npc": "Kräuterfrau Hedwig",
+                  "tip": {
+                    "key": "fertigkeit:medicine",
+                    "text": "Heilkunde: Wunden versorgen. Hilfsbereitschaft lohnt sich in dieser Geschichte."
+                  }
+                }
+              ]
+            },
+            {
+              "id": "wissen",
+              "kind": "narrate",
+              "enter": [
+                {
+                  "text": "Hedwig erzählt, was sie weiß. Über Hexen, Wölfe und das Dorf.",
+                  "npc": "Kräuterfrau Hedwig"
+                }
+              ],
+              "clues": [
+                "huette",
+                "silber"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "irrlichter",
+          "title": "Irrlichter im Moor",
+          "rooms": [
+            "harzwald",
+            "teufelskanzel"
+          ],
+          "pflicht": false,
+          "dauer_min": 20,
+          "mindestDauer": "lang",
+          "dark": true,
+          "ziel": "Das Moor sicher durchqueren",
+          "travel": "Der kürzeste Weg zum Brocken führt durchs Moor. Kleine Lichter tanzen über dem Wasser.",
+          "clues": [
+            {
+              "id": "moor",
+              "byTruth": {
+                "A": "a_moor",
+                "B": "b_moor",
+                "C": "c_moor",
+                "D": "d_moor"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "geister",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "specter",
+                  "count": 1,
+                  "perExtraPlayer": 1,
+                  "name": "Irrlicht"
+                }
+              ],
+              "enter": [
+                {
+                  "text": "Die Lichter kommen näher – und bekommen Gesichter!"
+                }
+              ],
+              "done": [
+                {
+                  "text": "Das letzte Irrlicht verlischt mit einem Seufzer. Vorher flüstert es noch etwas …"
+                }
+              ],
+              "clue": "moor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "akt3",
+      "title": "Walpurgisnacht",
+      "level": 3,
+      "scenes": [
+        {
+          "id": "aufstieg",
+          "title": "Der Aufstieg zum Brocken",
+          "rooms": [
+            "teufelskanzel",
+            "harzwald"
+          ],
+          "extraRooms": {
+            "lang": [
+              "waldweg",
+              "teufelskanzel"
+            ]
+          },
+          "pflicht": true,
+          "dauer_min": 7,
+          "mindestDauer": "kurz",
+          "dark": true,
+          "ziel": "Den Brocken hinaufsteigen",
+          "travel": "Walpurgisnacht. Auf dem Gipfel des Brocken leuchtet grünes Feuer. Die Dorfleute sind verschwunden – alle.",
+          "clues": [
+            {
+              "id": "aufstieg",
+              "byTruth": {
+                "A": "a_aufstieg",
+                "B": "b_aufstieg",
+                "C": "c_aufstieg",
+                "D": "d_aufstieg"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "fledermaeuse",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "swarm-of-bats",
+                  "count": 1,
+                  "name": "Fledermausschwarm"
+                },
+                {
+                  "monster": "wolf",
+                  "count": 1,
+                  "perExtraPlayer": 1,
+                  "name": "Wolf"
+                }
+              ],
+              "enter": [
+                {
+                  "text": "Ein Schwarm Fledermäuse stürzt kreischend aus einer Felsspalte!",
+                  "tip": {
+                    "key": "monstermerkmal:swarm",
+                    "text": "Ein Schwarm sind viele kleine Tiere: Waffen treffen nur ein paar (halber Schaden). Wird er kleiner, beißt er schwächer."
+                  }
+                }
+              ],
+              "done": [
+                {
+                  "text": "Am Weg liegt etwas, das jemand verloren hat …"
+                }
+              ],
+              "clue": "aufstieg"
+            },
+            {
+              "id": "gipfel",
+              "kind": "reach",
+              "target": "exit",
+              "enter": [
+                {
+                  "text": "Ihr hört Trommeln und Gesang. Nur noch ein Stück bis zum Gipfel."
+                }
+              ]
+            },
+            {
+              "id": "rast",
+              "kind": "choice",
+              "enter": [
+                {
+                  "text": "Unter einem Felsvorsprung, kurz vor dem Gipfel, findet ihr Schutz vor dem Wind."
+                }
+              ],
+              "choices": [
+                {
+                  "id": "rasten",
+                  "label": "Kräfte sammeln für die Nacht",
+                  "detail": "Kurze Rast: alle heilen vollständig",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Ihr teilt Hedwigs Kräuterbrot und wärmt euch aneinander. Als die Trommeln lauter werden, seid ihr bereit."
+                      }
+                    ],
+                    "heal": 0,
+                    "endScene": true
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tanzplatz",
+          "title": "Der Hexentanzplatz",
+          "rooms": [
+            "hexentanzplatz"
+          ],
+          "pflicht": true,
+          "dauer_min": 8,
+          "mindestDauer": "kurz",
+          "ziel": "Die wahre Hexe entlarven und besiegen",
+          "npcs": [
+            {
+              "npc": "gerwin"
+            }
+          ],
+          "travel": "Der Hexentanzplatz. Ein Kreis aus Felsen, hell erleuchtet vom grünen Hexenfeuer. In der Mitte die Dorfleute – in Trance.",
+          "steps": [
+            {
+              "id": "ankunft",
+              "kind": "narrate",
+              "enter": [
+                {
+                  "text": "Die Dorfleute tanzen mit leeren Augen um das Feuer. Unter ihnen: Adelgund, Pfarrer Anselm, Wirt Bodo und die stille Liese."
+                },
+                {
+                  "text": "Einer von ihnen tanzt nicht. Eine Stimme wispert aus dem Feuer: „Nennt mich beim Namen – wenn ihr könnt.“"
+                },
+                {
+                  "text": "Wer ist die Hexe?",
+                  "tip": {
+                    "key": "hinweis",
+                    "text": "Schaut euch eure Hinweise auf dem Handy an. Eine falsche Anklage kostet euch Lebenspunkte – und trifft einen Unschuldigen."
+                  }
+                }
+              ]
+            },
+            {
+              "id": "anklage",
+              "kind": "choice",
+              "choices": [
+                {
+                  "id": "adelgund_richtig",
+                  "label": "Frau Adelgund ist die Hexe!",
+                  "detail": "Nennt sie vor allen beim Namen",
+                  "truths": [
+                    "A"
+                  ],
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "„Frau Adelgund! Wir kennen dich!“ Eure Stimmen hallen über den Tanzplatz. Das grüne Feuer flackert."
+                      }
+                    ],
+                    "set": [
+                      "hexe_genannt"
+                    ],
+                    "goto": "enthuellung"
+                  }
+                },
+                {
+                  "id": "adelgund_falsch",
+                  "label": "Frau Adelgund ist die Hexe!",
+                  "detail": "Nennt sie vor allen beim Namen",
+                  "truths": [
+                    "B",
+                    "C",
+                    "D"
+                  ],
+                  "unless": [
+                    "falsch_adelgund"
+                  ],
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "„Frau Adelgund! Wir kennen dich!“ – doch nichts geschieht. Frau Adelgund starrt euch verwirrt und verletzt an."
+                      },
+                      {
+                        "text": "Aus dem Dunkel kichert es. Grüne Blitze zucken und treffen euch!"
+                      }
+                    ],
+                    "set": [
+                      "falsch_beschuldigt",
+                      "falsch_adelgund"
+                    ],
+                    "damage": "1d6",
+                    "goto": "anklage"
+                  }
+                },
+                {
+                  "id": "anselm_richtig",
+                  "label": "Pfarrer Anselm ist die Hexe!",
+                  "detail": "Nennt sie vor allen beim Namen",
+                  "truths": [
+                    "B"
+                  ],
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "„Pfarrer Anselm! Wir kennen dich!“ Eure Stimmen hallen über den Tanzplatz. Das grüne Feuer flackert."
+                      }
+                    ],
+                    "set": [
+                      "hexe_genannt"
+                    ],
+                    "goto": "enthuellung"
+                  }
+                },
+                {
+                  "id": "anselm_falsch",
+                  "label": "Pfarrer Anselm ist die Hexe!",
+                  "detail": "Nennt sie vor allen beim Namen",
+                  "truths": [
+                    "A",
+                    "C",
+                    "D"
+                  ],
+                  "unless": [
+                    "falsch_anselm"
+                  ],
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "„Pfarrer Anselm! Wir kennen dich!“ – doch nichts geschieht. Pfarrer Anselm starrt euch verwirrt und verletzt an."
+                      },
+                      {
+                        "text": "Aus dem Dunkel kichert es. Grüne Blitze zucken und treffen euch!"
+                      }
+                    ],
+                    "set": [
+                      "falsch_beschuldigt",
+                      "falsch_anselm"
+                    ],
+                    "damage": "1d6",
+                    "goto": "anklage"
+                  }
+                },
+                {
+                  "id": "bodo_richtig",
+                  "label": "Wirt Bodo ist die Hexe!",
+                  "detail": "Nennt sie vor allen beim Namen",
+                  "truths": [
+                    "C"
+                  ],
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "„Wirt Bodo! Wir kennen dich!“ Eure Stimmen hallen über den Tanzplatz. Das grüne Feuer flackert."
+                      }
+                    ],
+                    "set": [
+                      "hexe_genannt"
+                    ],
+                    "goto": "enthuellung"
+                  }
+                },
+                {
+                  "id": "bodo_falsch",
+                  "label": "Wirt Bodo ist die Hexe!",
+                  "detail": "Nennt sie vor allen beim Namen",
+                  "truths": [
+                    "A",
+                    "B",
+                    "D"
+                  ],
+                  "unless": [
+                    "falsch_bodo"
+                  ],
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "„Wirt Bodo! Wir kennen dich!“ – doch nichts geschieht. Wirt Bodo starrt euch verwirrt und verletzt an."
+                      },
+                      {
+                        "text": "Aus dem Dunkel kichert es. Grüne Blitze zucken und treffen euch!"
+                      }
+                    ],
+                    "set": [
+                      "falsch_beschuldigt",
+                      "falsch_bodo"
+                    ],
+                    "damage": "1d6",
+                    "goto": "anklage"
+                  }
+                },
+                {
+                  "id": "liese_richtig",
+                  "label": "Die stille Liese ist die Hexe!",
+                  "detail": "Nennt sie vor allen beim Namen",
+                  "truths": [
+                    "D"
+                  ],
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "„Die stille Liese! Wir kennen dich!“ Eure Stimmen hallen über den Tanzplatz. Das grüne Feuer flackert."
+                      }
+                    ],
+                    "set": [
+                      "hexe_genannt"
+                    ],
+                    "goto": "enthuellung"
+                  }
+                },
+                {
+                  "id": "liese_falsch",
+                  "label": "Die stille Liese ist die Hexe!",
+                  "detail": "Nennt sie vor allen beim Namen",
+                  "truths": [
+                    "A",
+                    "B",
+                    "C"
+                  ],
+                  "unless": [
+                    "falsch_liese"
+                  ],
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "„Die stille Liese! Wir kennen dich!“ – doch nichts geschieht. Die stille Liese starrt euch verwirrt und verletzt an."
+                      },
+                      {
+                        "text": "Aus dem Dunkel kichert es. Grüne Blitze zucken und treffen euch!"
+                      }
+                    ],
+                    "set": [
+                      "falsch_beschuldigt",
+                      "falsch_liese"
+                    ],
+                    "damage": "1d6",
+                    "goto": "anklage"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "enthuellung",
+              "kind": "narrate",
+              "twist": true,
+              "enter": [
+                {
+                  "text": "Die Trommeln verstummen. Die Dorfleute erwachen und weichen schreiend zurück."
+                }
+              ]
+            },
+            {
+              "id": "werwolf",
+              "kind": "choice",
+              "enter": [
+                {
+                  "text": "Der Werwolf springt euch in den Weg. Hinter ihm lacht die Vettel."
+                }
+              ],
+              "choices": [
+                {
+                  "id": "kaempfen",
+                  "label": "Gegen den Werwolf kämpfen",
+                  "detail": "Der Silberstaub macht eure Waffen gefährlich für ihn",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Ihr streut den Silberstaub auf eure Klingen. Er glitzert im grünen Licht."
+                      }
+                    ],
+                    "fight": [
+                      {
+                        "monster": "werewolf-hybrid",
+                        "count": 1,
+                        "name": "Der Werwolf",
+                        "boss": true
+                      }
+                    ],
+                    "goto": "atem"
+                  }
+                },
+                {
+                  "id": "erloesen",
+                  "label": "Den Menschen im Wolf erreichen",
+                  "detail": "Überzeugen gegen SG 14",
+                  "check": {
+                    "skill": "persuasion",
+                    "dc": 14,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Ihr ruft ihn beim Namen, erinnert ihn an sein Leben im Dorf. Der Wolf zögert … winselt … und legt sich zu euren Füßen."
+                        },
+                        {
+                          "text": "„Nein! Du gehörst mir!“, kreischt die Vettel.",
+                          "npc": "Die Grüne Vettel"
+                        }
+                      ],
+                      "set": [
+                        "werwolf_erloest"
+                      ],
+                      "goto": "hexe"
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Der Wolf brüllt. Nichts Menschliches ist mehr in seinen Augen."
+                        }
+                      ],
+                      "fight": [
+                        {
+                          "monster": "werewolf-hybrid",
+                          "count": 1,
+                          "name": "Der Werwolf",
+                          "boss": true
+                        }
+                      ],
+                      "goto": "atem"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "atem",
+              "kind": "choice",
+              "enter": [
+                {
+                  "text": "Der Werwolf bricht zusammen und wird wieder zum Menschen – erschöpft, aber lebendig."
+                }
+              ],
+              "choices": [
+                {
+                  "id": "durchatmen",
+                  "label": "Kurz durchatmen",
+                  "detail": "Hedwigs Kräutertrank: alle heilen 10 TP",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Ihr trinkt den bitteren Kräutertrank der Kräuterfrau. Neue Kraft strömt durch eure Glieder."
+                      }
+                    ],
+                    "heal": 10,
+                    "set": [
+                      "werwolf_erloest"
+                    ],
+                    "goto": "hexe"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "hexe",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "green-hag",
+                  "count": 1,
+                  "name": "Die Grüne Vettel",
+                  "boss": true
+                },
+                {
+                  "monster": "specter",
+                  "count": 0,
+                  "perExtraPlayer": 1,
+                  "name": "Geist der Wilden Jagd"
+                }
+              ],
+              "set": [
+                "hexe_besiegt"
+              ],
+              "enter": [
+                {
+                  "text": "Die Grüne Vettel reißt die Arme hoch. Aus dem Himmel stürzt die Wilde Jagd – Geisterreiter auf Nebelpferden!"
+                },
+                {
+                  "text": "„Diese Nacht gehört mir!“",
+                  "npc": "Die Grüne Vettel"
+                }
+              ],
+              "done": [
+                {
+                  "text": "Mit einem letzten Schrei zerfällt die Vettel zu Moos und Asche. Das grüne Feuer erlischt."
+                }
+              ]
+            },
+            {
+              "id": "morgen",
+              "kind": "narrate",
+              "enter": [
+                {
+                  "text": "Die Sonne geht über dem Brocken auf. Die Verschwundenen erwachen zwischen den Felsen – blass, aber am Leben."
+                },
+                {
+                  "text": "Gemeinsam steigt ihr hinab nach Elend."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "endings": [
+    {
+      "id": "scheitern",
+      "title": "Eine zweite Chance",
+      "kind": "scheitern",
+      "requires": [
+        "niederlage_boss"
+      ],
+      "text": [
+        {
+          "text": "Ihr erwacht in Hedwigs Hütte. Sie hat euch im Morgengrauen vom Berg geholt."
+        },
+        {
+          "text": "Die Vettel lebt noch – aber bis zur nächsten Walpurgisnacht ist Zeit. Versucht es noch einmal!"
+        }
+      ]
+    },
+    {
+      "id": "erloest",
+      "title": "Der Fluch ist gebrochen",
+      "kind": "sieg",
+      "requires": [
+        "hexe_besiegt",
+        "werwolf_erloest",
+        "hedwig_gerettet"
+      ],
+      "unless": [
+        "falsch_beschuldigt"
+      ],
+      "text": [
+        {
+          "text": "Die Hexe ist fort, der Werwolf wieder ein Mensch, und niemand wurde zu Unrecht beschuldigt."
+        },
+        {
+          "text": "Das Dorf entschuldigt sich bei Hedwig und baut ihr eine neue Hütte. Jede Walpurgisnacht feiert Elend nun ein Fest – ohne Angst."
+        }
+      ]
+    },
+    {
+      "id": "gerechtigkeit",
+      "title": "Die wahre Hexe",
+      "kind": "sieg",
+      "requires": [
+        "hexe_besiegt"
+      ],
+      "unless": [
+        "falsch_beschuldigt"
+      ],
+      "text": [
+        {
+          "text": "Ihr habt die wahre Hexe entlarvt, ohne einen Unschuldigen anzuklagen."
+        },
+        {
+          "text": "Die Verschwundenen kehren heim. In Elend erzählt man sich noch lange von den klugen Fremden."
+        }
+      ]
+    },
+    {
+      "id": "bittersuess",
+      "title": "Ein bitterer Morgen",
+      "kind": "bittersuess",
+      "requires": [
+        "hexe_besiegt",
+        "falsch_beschuldigt"
+      ],
+      "text": [
+        {
+          "text": "Die Hexe ist besiegt. Doch vor allen habt ihr jemanden beschuldigt, der unschuldig war."
+        },
+        {
+          "text": "Das Dorf wird Zeit brauchen, um das zu vergessen. Manche schauen euch nicht mehr in die Augen."
+        }
+      ]
+    },
+    {
+      "id": "morgengrauen",
+      "title": "Morgengrauen",
+      "kind": "sieg",
+      "text": [
+        {
+          "text": "Die Sonne geht über dem Brocken auf. Was in dieser Nacht wirklich geschah, erzählt jeder im Dorf ein bisschen anders."
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "wilde_jagd",
+      "title": "Die Wilde Jagd",
+      "narration": [
+        {
+          "text": "Hörner schallen durch die Nacht. Geisterreiter jagen über den Kamm – und sie haben euch gesehen!"
+        }
+      ],
+      "fight": [
+        {
+          "monster": "specter",
+          "count": 1,
+          "perExtraPlayer": 1,
+          "name": "Geist der Wilden Jagd"
+        }
+      ]
+    }
+  ]
+}
