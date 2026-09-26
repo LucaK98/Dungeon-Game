@@ -84,6 +84,10 @@ export class GameController {
   private storyChoices: StoryChoiceOffer[] = [];
   private choiceWaiter: ((choice: { id: string; playerId: PlayerId }) => void) | undefined;
   private fightWaiter: ((winner: "party" | "enemy") => void) | undefined;
+  /** Monsters spawned as bosses (they never flee from a trick). */
+  private bossIds = new Set<string>();
+  /** The last enemies ran away instead of being beaten (changes the victory text). */
+  private enemiesFled = false;
   private waiters: { pred: () => boolean; resolve: () => void }[] = [];
   /** Free text from a phone goes to the DM. */
   onFreeText: ((playerId: PlayerId, hero: Creature, text: string) => void) | undefined;
@@ -127,6 +131,41 @@ export class GameController {
 
   heroes(): Creature[] {
     return this.session.partyIds.map((id) => this.battle.creatures[id]!).filter(Boolean);
+  }
+
+  // ---------------------------------------------------------------- free actions in a fight
+
+  /** Enemies still standing in the current fight (for the game master). */
+  enemiesInFight(): { id: string; name: string; hp: number; maxHp: number; boss: boolean }[] {
+    if (this.mode !== "combat") return [];
+    const involved = new Set(this.battle.combat?.order.map((o) => o.creatureId) ?? []);
+    return Object.values(this.battle.creatures)
+      .filter((c) => c.side === "enemy" && involved.has(c.id) && isActive(c))
+      .map((c) => ({ id: c.id, name: c.name, hp: c.hp, maxHp: c.maxHp, boss: this.bossIds.has(c.id) }));
+  }
+
+  /** A trick worked: the next attack against this enemy has advantage. */
+  distract(enemyId: string, heroName: string): boolean {
+    const enemy = this.battle.creatures[enemyId];
+    if (!enemy || this.mode !== "combat" || !isActive(enemy) || enemy.side !== "enemy") return false;
+    addEffect(enemy, "distracted", 99, enemyId);
+    this.addLog([{ text: `🎭 ${heroName} lenkt ${enemy.name} ab: Der nächste Angriff auf ${enemy.name} hat Vorteil.`, glossarKeys: ["abgelenkt", "vorteil"] }]);
+    this.broadcast();
+    return true;
+  }
+
+  /** A trick worked: all ordinary enemies flee (bosses stay). Ends the fight if nobody is left. */
+  enemiesFlee(): string[] {
+    const fleeing = this.enemiesInFight().filter((e) => !e.boss);
+    if (!fleeing.length || fleeing.length !== this.enemiesInFight().length) return [];
+    for (const e of fleeing) delete this.battle.creatures[e.id];
+    this.addLog([{ text: `🏃 ${fleeing.map((e) => e.name).join(", ")} ${fleeing.length > 1 ? "fliehen" : "flieht"}!`, glossarKeys: [] }]);
+    // End the fight first, then redraw (the order still lists the creatures that just left).
+    this.enemiesFled = true;
+    this.checkWinner();
+    this.emit("changed");
+    this.broadcast();
+    return fleeing.map((e) => e.name);
   }
 
   /** Another phone took over this player's hero (the old phone lost its ID). */
@@ -266,7 +305,8 @@ export class GameController {
     endCombat(this.battle);
     const lines: ExplainedLine[] = [];
     if (winner === "party") {
-      lines.push({ text: "🏆 Sieg! Alle Gegner sind besiegt.", glossarKeys: [] });
+      lines.push({ text: this.enemiesFled ? "🏆 Sieg! Die Gegner sind geflohen." : "🏆 Sieg! Alle Gegner sind besiegt.", glossarKeys: [] });
+      this.enemiesFled = false;
     } else {
       lines.push({ text: "💀 Die Helden sind gefallen … doch das Schicksal gibt ihnen eine zweite Chance.", glossarKeys: [] });
     }
@@ -768,7 +808,8 @@ export class GameController {
   /** Turn order for the initiative bar (TV) and the phones. */
   orderEntries(): OrderEntry[] {
     const active = this.active();
-    return (this.battle.combat?.order ?? []).map((o) => {
+    // Creatures that left the fight (fled) are skipped.
+    return (this.battle.combat?.order ?? []).filter((o) => this.battle.creatures[o.creatureId]).map((o) => {
       const c = this.battle.creatures[o.creatureId]!;
       return {
         id: c.id,
@@ -950,6 +991,7 @@ export class GameController {
         m.pos = pos;
         this.battle.creatures[m.id] = m;
         spawned.push(m);
+        if (g.boss) this.bossIds.add(m.id);
       }
     }
     for (const a of opts.allies ?? []) {

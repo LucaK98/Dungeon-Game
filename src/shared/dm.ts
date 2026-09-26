@@ -27,6 +27,8 @@ export interface DmContext {
   minutesPlanned: number;
   /** Hit points the heroes lost in this scene, relative to their maximum (0..n). */
   hardship: number;
+  /** Set while a fight is running: the enemies still standing. */
+  combat?: { enemies: { id: string; name: string; hp: number; maxHp: number; boss: boolean }[] };
   eventsUsed: string[];
 }
 
@@ -58,6 +60,12 @@ export interface DmResponse {
   trigger_event?: string;
   choose_ending?: string | null;
   set_flags?: string[];
+  /**
+   * Effect of a successful trick in a fight (free action + roll). Applied by the code:
+   * "distract" gives advantage on the next attack against one enemy, "flee" makes all
+   * ordinary enemies run away (never bosses).
+   */
+  combat_effect?: { kind: "distract"; target: string } | { kind: "flee" };
   next: DmNext;
 }
 

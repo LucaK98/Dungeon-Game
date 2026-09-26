@@ -116,8 +116,9 @@ async function playStory(opts: { story?: Story; seed: number; duration: "kurz" |
       game.handle(pid, chest.action);
       continue;
     }
-    if (opts.freeText && game.mode !== "combat" && botRng.int(1, 12) === 1) {
-      game.handle(pid, { kind: "free_text", text: "Ich untersuche die Wand nach geheimen Zeichen" });
+    if (opts.freeText && botRng.int(1, 12) === 1) {
+      const text = game.mode === "combat" ? "Ich werfe dem Gegner Sand in die Augen und lenke ihn ab" : "Ich untersuche die Wand nach geheimen Zeichen";
+      game.handle(pid, { kind: "free_text", text });
       await new Promise((r) => setTimeout(r, 0));
     }
     const map = game.map;

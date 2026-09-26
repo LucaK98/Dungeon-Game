@@ -8,7 +8,10 @@ import { SKILL_IDS } from "../../shared/rules";
 import type { Ending, Scene, Story } from "../../shared/story";
 import { actOf, sceneById } from "../planner";
 import { pickEnding } from "../scripted";
+import { canFlee } from "../combat-tricks";
 import { resolveClue } from "../validate";
+
+export { canFlee };
 
 export const SYSTEM_PROMPT = `Du bist die Spielleitung (Dungeon Master) eines Fantasy-Abenteuers für Einsteiger, die zum ersten Mal ein Rollenspiel spielen. Die Gruppe sitzt vor dem Fernseher, jede Person steuert einen Helden mit dem Handy.
 
@@ -22,6 +25,8 @@ So erzählst du:
 - Nach einer Probe erzählst du, was aus dem Erfolg oder Misserfolg folgt. Misserfolge sind nie das Ende, sondern machen die Lage nur schwieriger oder lustiger.
 - Nichtspielerfiguren sprechen über npc_name und npc_text, in ihrer eigenen Art.
 - Tempo: Liegt die Gruppe hinter der geplanten Zeit, erzähle knapper und führe sie zum Ziel. Liegt sie gut in der Zeit, darfst du ausschmücken.
+- Im Kampf entscheidet nur das Programm über Treffer, Schaden und Besiegen (über die Knöpfe „Angreifen“ und „Zaubern“ auf dem Handy). Erzähle NIE, dass ein Gegner getroffen, verletzt, besiegt wird oder flieht – es sei denn, du setzt combat_effect. Will ein Held mit einer freien Aktion einfach angreifen, sag ihm freundlich, dass er dafür „⚔️ Angreifen“ auf dem Handy nutzt, und verlange keine Probe.
+- Tricks im Kampf (ablenken, täuschen, einschüchtern, zum Aufgeben überreden) brauchen immer eine Probe. Nur wenn sie gelingt, wählst du combat_effect: „ablenken“ mit einem Ziel (der nächste Angriff auf dieses Ziel hat Vorteil) oder „flucht“ (alle Gegner rennen davon, der Kampf ist vorbei – nur erlaubt, wenn im Kontext „Flucht möglich: ja“ steht). Erzähle genau das, was der Effekt bewirkt, nicht mehr.
 - Antworte nur mit dem verlangten JSON.`;
 
 /** Flags the AI may set in this scene: the ones the story's keyword reactions could set, with their meaning. */
@@ -88,6 +93,9 @@ export function buildPrompt(story: Story, ctx: DmContext, trigger: DmTrigger, sc
     `SCHON GEFUNDENE HINWEISE: ${found.length ? found.join(" | ") : "keine"}`,
     clues.length ? `ERLAUBTE HINWEISE (reveal_clue = id): ${clues.map((c) => `${c.id}: ${c.text}`).join(" | ")}` : "ERLAUBTE HINWEISE: keine",
     flags.length ? `ERLAUBTE MERKER (set_flags), wenn die Helden so etwas tun: ${flags.map((f) => `${f.flag} = ${f.meaning}`).join(" | ")}` : "",
+    ctx.combat
+      ? `KAMPF LÄUFT. Gegner: ${ctx.combat.enemies.map((e) => `${e.id} = ${e.name} (${e.hp}/${e.maxHp} TP${e.boss ? ", Anführer" : ""})`).join("; ")}. Flucht möglich: ${canFlee(ctx) ? "ja" : "nein"}`
+      : "",
     `ZEIT: ${Math.round(ctx.minutesPlayed)} von geplant ${Math.round(ctx.minutesPlanned)} Minuten bis Ende dieser Szene`,
     trigger.kind === "story_end" ? `MÖGLICHE ENDEN: ${eligibleEndings(story, ctx).map((e) => `${e.id} (${e.title})`).join(", ")}` : "",
     `DREHBUCH-VORSCHLAG (Inhalt beibehalten, frei formulieren): ${scripted.narration || "–"}`,
@@ -114,6 +122,10 @@ export function responseSchema(story: Story, ctx: DmContext, trigger: DmTrigger)
     if (clues.length) properties.reveal_clue = S("id eines erlaubten Hinweises oder none", { enum: ["none", ...clues.map((c) => c.id)] });
     const flags = allowedFlags(scene);
     if (flags.length) properties.set_flags = { type: "ARRAY", items: S("Merker", { enum: flags.map((f) => f.flag) }) };
+  }
+  if (trigger.kind === "roll_result" && trigger.success && ctx.combat?.enemies.length) {
+    properties.combat_effect = S("Wirkung des gelungenen Tricks im Kampf", { enum: ["keiner", "ablenken", ...(canFlee(ctx) ? ["flucht"] : [])] });
+    properties.combat_target = S("id des abgelenkten Gegners (nur bei ablenken)", { enum: ctx.combat.enemies.map((e) => e.id) });
   }
   if (trigger.kind === "story_end") properties.ending = S("id des Endes", { enum: eligibleEndings(story, ctx).map((e) => e.id) });
   return { type: "OBJECT", properties, required: ["narration"] };

@@ -5,6 +5,8 @@
  */
 import type { DmContext, DmResponse, DmTrigger, DungeonMaster } from "../shared/dm";
 import type { Ending, Narration, Story } from "../shared/story";
+import { getSkill } from "../engine/data";
+import { canFlee } from "./combat-tricks";
 import { sceneById } from "./planner";
 
 export function narrationText(lines: Narration[]): string {
@@ -36,6 +38,31 @@ export function pickEnding(story: Story, truth: string, flags: string[]): Ending
   );
 }
 
+const ATTACK_WORDS = /greif|schlag|hau |haue|stech|schieß|schiess|angriff|attack|töte|kämpf/;
+const SCARE_WORDS = /einschücht|droh|brüll|erschreck|verjag|verscheuch/;
+const TRICK_WORDS = /ablenk|täusch|trick|bluff|verwirr|lock|list|werf.*sand|stolper/;
+
+/** Free actions during a fight: attacks go through the buttons, tricks get a roll and a real effect. */
+function combatFreeText(text: string, hero: string, playerId: string): DmResponse {
+  const t = text.toLowerCase();
+  if (SCARE_WORDS.test(t) || TRICK_WORDS.test(t)) {
+    const skill = SCARE_WORDS.test(t) ? "intimidation" : "deception";
+    return respond([{ text: `${hero} versucht es mit einem Trick. Gelingt die Probe?` }], {
+      request_roll: { playerId, ability: getSkill(skill).ability, skill, dc: 13 },
+      next: "await_roll",
+    });
+  }
+  if (ATTACK_WORDS.test(t)) {
+    return respond([
+      {
+        text: `${hero} will angreifen – dafür gibt es den Knopf „⚔️ Angreifen“ auf dem Handy. Nur so wird der Schaden richtig ausgewürfelt.`,
+        tip: { key: "angriffswurf", text: "Freie Aktionen eignen sich im Kampf für Tricks: ablenken, täuschen oder einschüchtern." },
+      },
+    ]);
+  }
+  return respond([{ text: `${hero} versucht: „${text.slice(0, 80)}“ – doch mitten im Kampf bewirkt das nichts.` }, { text: "Im Kampf helfen Tricks wie Ablenken, Täuschen oder Einschüchtern." }]);
+}
+
 export class ScriptedDM implements DungeonMaster {
   constructor(private story: Story) {}
 
@@ -62,6 +89,7 @@ export class ScriptedDM implements DungeonMaster {
 
       case "free_text": {
         const said = words(trigger.text);
+        if (ctx.combat?.enemies.length) return combatFreeText(trigger.text, trigger.heroName, trigger.playerId);
         const hit = (scene.keywords ?? []).find((k) => k.words.some((w) => said.some((s) => s.startsWith(w))));
         if (hit) {
           return respond(hit.response, {
@@ -77,6 +105,15 @@ export class ScriptedDM implements DungeonMaster {
       }
 
       case "roll_result":
+        if (ctx.combat?.enemies.length && trigger.success) {
+          if (trigger.skill === "intimidation" && canFlee(ctx)) {
+            return respond([{ text: `${trigger.heroName} brüllt so furchterregend, dass die Gegner Hals über Kopf davonlaufen!` }], { combat_effect: { kind: "flee" } });
+          }
+          const target = ctx.combat.enemies[0]!;
+          return respond([{ text: `Der Trick gelingt! ${target.name} ist abgelenkt – der nächste Angriff auf ${target.name} hat Vorteil.` }], {
+            combat_effect: { kind: "distract", target: target.id },
+          });
+        }
         return respond([
           trigger.success
             ? { text: `Geschafft! ${trigger.heroName} gelingt es.` }

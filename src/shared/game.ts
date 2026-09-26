@@ -71,7 +71,9 @@ export type EffectId =
   | "disengage"
   | "turned"
   /** Carries a burning torch: bright light around (night scenes). */
-  | "torch";
+  | "torch"
+  /** Tricked by a free action: the next attack against it has advantage. */
+  | "distracted";
 
 export interface ActiveEffect {
   id: EffectId;

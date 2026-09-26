@@ -2623,5 +2623,15 @@
       "monster:werewolf-hybrid",
       "immunitaet"
     ]
+  },
+  "abgelenkt": {
+    "titel": "Abgelenkt",
+    "kurz": "Ein ausgetrickster Gegner passt nicht auf.",
+    "lang": "Mit einer freien Aktion könnt ihr im Kampf einen Trick versuchen: Sand werfen, ablenken, täuschen. Gelingt die Probe, ist ein Gegner abgelenkt: Der nächste Angriff auf ihn hat Vorteil. Wer Gegner einschüchtert, kann gewöhnliche Feinde sogar in die Flucht schlagen – Anführer und Endgegner lassen sich davon aber nicht beeindrucken. Schaden macht ihr im Kampf immer über „⚔️ Angreifen“ oder Zauber.",
+    "beispiel": "Pip wirft dem Räuber Sand in die Augen (Täuschen, geschafft). Brunhild greift den Räuber danach mit Vorteil an.",
+    "siehe_auch": [
+      "vorteil",
+      "freie_aktion"
+    ]
   }
 }

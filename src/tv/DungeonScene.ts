@@ -163,6 +163,12 @@ export class DungeonScene extends Phaser.Scene {
 
   /** Called by the host after the state changed. */
   refresh(): void {
+    // Creatures that left the game (fled, or an NPC that turned into an enemy) simply fade out.
+    for (const [id, f] of this.figures) {
+      if (this.session.battle.creatures[id]) continue;
+      this.figures.delete(id);
+      this.tweens.add({ targets: f.container, alpha: 0, duration: 600, onComplete: () => f.container.destroy() });
+    }
     for (const c of Object.values(this.session.battle.creatures)) {
       const f = this.figures.get(c.id);
       if (c.dead && f) {

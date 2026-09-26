@@ -98,6 +98,7 @@ export function attackReasons(battle: Battle, attacker: Creature, target: Creatu
   if (!canSee(battle, attacker, target)) r.push(disadvantage("Zu dunkel: du siehst das Ziel nicht", "dunkelheit"));
   if (!canSee(battle, target, attacker)) r.push(advantage("Das Ziel sieht dich im Dunkeln nicht", "dunkelheit"));
   if (hasEffect(target, "guiding-bolt")) r.push(advantage("Lenkendes Geschoss leuchtet auf dem Ziel", "zauber:guiding-bolt"));
+  if (hasEffect(target, "distracted")) r.push(advantage("Ziel ist abgelenkt", "abgelenkt"));
 
   if (ranged) {
     const enemyNear = Object.values(battle.creatures).some(
@@ -164,7 +165,7 @@ export function resolveAttack(
   const targetAc = sumParts(targetAcParts);
 
   // Guiding bolt's light is used up by the next attack.
-  target.effects = target.effects.filter((e) => e.id !== "guiding-bolt");
+  target.effects = target.effects.filter((e) => e.id !== "guiding-bolt" && e.id !== "distracted");
 
   let crit = roll.natural >= critThreshold(attacker);
   const fumble = roll.natural === 1;

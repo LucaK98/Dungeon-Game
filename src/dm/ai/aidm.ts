@@ -13,7 +13,7 @@ import { SKILL_IDS, type SkillId } from "../../shared/rules";
 import type { Narration, Story } from "../../shared/story";
 import { sceneById } from "../planner";
 import { ScriptedDM } from "../scripted";
-import { allowedClues, allowedFlags, buildPrompt, eligibleEndings, responseSchema, SYSTEM_PROMPT } from "./prompt";
+import { allowedClues, allowedFlags, buildPrompt, canFlee, eligibleEndings, responseSchema, SYSTEM_PROMPT } from "./prompt";
 import { LlmError, type LlmProvider } from "./provider";
 
 export type AiStatus = { kind: "ok"; model: string } | { kind: "thinking" } | { kind: "pause"; reason: string };
@@ -63,6 +63,15 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
     const ok = allowedFlags(scene).map((f) => f.flag);
     const flags = Array.isArray(o.set_flags) ? o.set_flags.filter((f): f is string => typeof f === "string" && ok.includes(f)) : [];
     if (flags.length && earned) out.set_flags = flags.slice(0, 3);
+  }
+  if (trigger.kind === "roll_result" && trigger.success && ctx.combat?.enemies.length) {
+    const effect = str(o.combat_effect, 20);
+    const target = str(o.combat_target, 40);
+    if (effect === "flucht" && canFlee(ctx)) out.combat_effect = { kind: "flee" };
+    if (effect === "ablenken") {
+      const enemy = ctx.combat.enemies.find((e) => e.id === target) ?? ctx.combat.enemies[0]!;
+      out.combat_effect = { kind: "distract", target: enemy.id };
+    }
   }
   if (trigger.kind === "scene_start") {
     // Keep the scripted beginner tips; the AI replaces only the plain text.

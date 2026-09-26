@@ -128,6 +128,7 @@ export class Director {
       minutesPlanned: plannedMinutes(this.story, this.state.plan.slice(0, this.state.sceneIndex + 1)),
       hardship,
       eventsUsed: [...this.state.eventsUsed],
+      ...(this.game.mode === "combat" ? { combat: { enemies: this.game.enemiesInFight() } } : {}),
     };
   }
 
@@ -452,7 +453,11 @@ export class Director {
     // The DM wants a roll for this idea: the same hero rolls, then the DM tells what follows.
     const skill = roll.skill as SkillId;
     const r = await this.game.check(hero, skill, roll.dc, "Freie Aktion");
-    await this.askDm({ kind: "roll_result", text, playerId, heroName: hero.name, skill, dc: roll.dc, total: r.total, success: r.success });
+    const after = await this.askDm({ kind: "roll_result", text, playerId, heroName: hero.name, skill, dc: roll.dc, total: r.total, success: r.success });
+    // A trick in a fight has a real effect – decided by the DM, carried out by the rules.
+    const effect = r.success ? after.combat_effect : undefined;
+    if (effect?.kind === "distract") this.game.distract(effect.target, hero.name);
+    if (effect?.kind === "flee") this.game.enemiesFlee();
   }
 
   private async finish(): Promise<StoryResult> {
