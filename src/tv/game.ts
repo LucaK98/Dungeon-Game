@@ -65,6 +65,8 @@ export interface GameEvents {
   narration(lines: Narration[]): void;
   /** A new map was loaded (next scene): the board must rebuild. */
   mapChanged(): void;
+  /** A boss enters: the board shows it off. */
+  spotlight(creatureId: string): void;
 }
 
 export interface ControllerOptions {
@@ -1349,6 +1351,8 @@ export class GameController {
       }
       this.fightWaiter = (winner) => resolve({ winner, spawned });
       this.emit("changed");
+      const boss = spawned.find((m) => this.bossIds.has(m.id));
+      if (boss) this.emit("spotlight", boss.id);
       if (this.mode === "combat") return;
       // Start the fight even if the monsters stand a bit further away.
       this.forceCombat([...spawned.map((m) => m.id), ...Object.values(this.battle.creatures).filter((c) => c.side === "party" && c.kind === "monster" && !c.dead).map((c) => c.id)]);

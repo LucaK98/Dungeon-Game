@@ -83,7 +83,8 @@ function pack(entries: Entry[]): number {
 function main(): void {
   const src = sourceDir();
   const entries: Entry[] = collect().map(({ name, source }) => {
-    const file = join(src, source);
+    // "custom:" tiles are drawn for this game by scripts/assets/draw-custom.ts.
+    const file = source.startsWith("custom:") ? join(ROOT, "scripts/assets/custom", source.slice(7)) : join(src, source);
     if (!existsSync(file)) throw new Error(`${name}: ${source} not found in ${src}`);
     return { name, source, png: readPng(file), x: 0, y: 0 };
   });

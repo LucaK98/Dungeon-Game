@@ -84,7 +84,11 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       turn: (name, color, free) => game.events.emit("turn", name, color, free),
       roll: (r) => {
         game.events.emit("roll", r);
-        if (scene.sys.isActive() && r.hits?.length) scene.showHits(r.hits);
+        if (scene.sys.isActive() && r.hits?.length) {
+          scene.showHits(r.hits);
+          const big = r.hits.some((h) => !h.miss && !h.heal && (h.crit || h.amount >= 10));
+          if (big) scene.shake(r.hits.some((h) => h.crit));
+        }
       },
       roomRevealed: (name) => scene.showRoomName(name),
       combat: (started) => {
@@ -95,6 +99,9 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         // The UI scene may not exist yet (story intro): keep the lines until it is ready.
         if (uiReady) game.events.emit("narration", lines);
         else early.push(...lines);
+      },
+      spotlight: (id) => {
+        if (scene.sys.isActive()) scene.spotlight(id);
       },
       mapChanged: () => {
         if (scene.sys.isActive() || scene.sys.isPaused()) scene.scene.restart();

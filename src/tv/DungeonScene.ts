@@ -8,6 +8,7 @@ import type { Creature } from "../shared/game";
 import { cellIndex, type DungeonMap } from "../shared/map";
 import { THEMES } from "../map/modules";
 import { assetUrl } from "../ui/atlas";
+import { Ambience } from "./ambience";
 import { crisp, prepareTiles, RES, TILES, UP } from "./render";
 import type { GameSession } from "./session";
 
@@ -31,7 +32,11 @@ const TORCH_LIGHT = 3.5;
 
 interface Figure {
   container: Phaser.GameObjects.Container;
+  /** The sprites: breathes, turns around and hops, independent of the ring and HP bar. */
+  body: Phaser.GameObjects.Container;
   hpBar?: Phaser.GameObjects.Graphics;
+  /** Last square, to face the walking direction. */
+  lastX?: number;
 }
 
 export class DungeonScene extends Phaser.Scene {
@@ -47,6 +52,10 @@ export class DungeonScene extends Phaser.Scene {
   private camTarget = new Phaser.Math.Vector2();
   private lastLight = 0;
   private fogDirty = true;
+  private ambience!: Ambience;
+  /** A boss entrance: the camera looks at it until then. */
+  private spotlightUntil = 0;
+  private lastLook = 0;
 
   constructor(private getSession: () => GameSession) {
     super("dungeon");
@@ -64,8 +73,11 @@ export class DungeonScene extends Phaser.Scene {
     this.torches = [];
     prepareTiles(this);
 
+    this.ambience = new Ambience(this, () => this.session, (x, y, frame) => this.tile(x, y, frame));
+    this.ambience.start();
     this.bakeMap(map);
     this.drawObjects(map);
+    for (const t of this.torches) this.ambience.torchSparks(t.x, t.y - 0.6);
     for (const c of Object.values(this.session.battle.creatures)) this.addFigure(c);
     this.createLighting(map);
 
@@ -136,14 +148,19 @@ export class DungeonScene extends Phaser.Scene {
     ring.fillStyle(0x000000, 0.35).fillEllipse(0, 11, 26, 9);
     if (c.appearance) ring.lineStyle(2, color, 1).strokeEllipse(0, 11, 26, 9);
     container.add(ring);
+    // The body's origin is at the feet, so breathing stretches it upwards.
+    const body = this.add.container(0, 12);
+    container.add(body);
     if (c.appearance) {
       // No name labels: the coloured ring shows whose figure it is.
-      for (const frame of dollFrames(c.appearance.look)) container.add(this.tile(0, 0, frame));
+      for (const frame of dollFrames(c.appearance.look)) body.add(this.tile(0, -12, frame));
     } else if (c.monsterId) {
-      container.add(this.tile(0, 0, `monster.${c.monsterId}`));
+      body.add(this.tile(0, -12, `monster.${c.monsterId}`));
     }
     container.setScale(n);
-    const figure: Figure = { container };
+    // Idle: everyone breathes, each at their own pace.
+    this.tweens.add({ targets: body, scaleY: 1.035, scaleX: 0.99, duration: Phaser.Math.Between(1100, 1600), yoyo: true, repeat: -1, ease: "Sine.easeInOut", delay: Phaser.Math.Between(0, 1200) });
+    const figure: Figure = { container, body, lastX: c.pos.x };
     if (c.kind === "monster") {
       figure.hpBar = this.add.graphics();
       container.add(figure.hpBar);
@@ -159,8 +176,14 @@ export class DungeonScene extends Phaser.Scene {
     const x = (c.pos.x + n / 2) * TILE;
     const y = (c.pos.y + n / 2) * TILE;
     f.container.setDepth(100 + (c.pos.y + n - 1) * 10 + 5);
-    if (animate) this.tweens.add({ targets: f.container, x, y, duration: 220, ease: "Sine.easeInOut" });
-    else f.container.setPosition(x, y);
+    const moved = Math.abs(f.container.x - x) > 1 || Math.abs(f.container.y - y) > 1;
+    if (animate && moved) {
+      this.tweens.add({ targets: f.container, x, y, duration: 220, ease: "Sine.easeInOut" });
+      // A little hop per step, facing the way it walks.
+      this.tweens.add({ targets: f.body, y: 9, duration: 110, yoyo: true, ease: "Quad.easeOut" });
+      if (f.lastX !== undefined && c.pos.x !== f.lastX) this.face(f, c.pos.x > f.lastX ? 1 : -1, c);
+    } else if (!animate) f.container.setPosition(x, y);
+    f.lastX = c.pos.x;
     if (f.hpBar) {
       f.hpBar.clear();
       if (c.hp < c.maxHp) {
@@ -192,7 +215,7 @@ export class DungeonScene extends Phaser.Scene {
       }
     }
     this.fogDirty = true;
-    this.focusParty(false);
+    if (this.time.now > this.spotlightUntil) this.focusParty(false);
   }
 
   /** Floating damage/heal numbers and a red flash on hit targets. */
@@ -211,7 +234,7 @@ export class DungeonScene extends Phaser.Scene {
         .setDepth(6000);
       this.tweens.add({ targets: label, y: pos.y - 52, alpha: 0, delay: 250 + i * 120, duration: 1300, ease: "Cubic.easeOut", onComplete: () => label.destroy() });
       if (f && !hit.miss && !hit.heal) {
-        const images = f.container.list.filter((o): o is Phaser.GameObjects.Image => o instanceof Phaser.GameObjects.Image);
+        const images = f.body.list.filter((o): o is Phaser.GameObjects.Image => o instanceof Phaser.GameObjects.Image);
         images.forEach((img) => img.setTintFill(0xff3030));
         this.tweens.add({ targets: f.container, x: pos.x + 3, duration: 50, yoyo: true, repeat: 2 });
         this.time.delayedCall(160, () => images.forEach((img) => img.clearTint()));
@@ -219,8 +242,34 @@ export class DungeonScene extends Phaser.Scene {
     });
   }
 
+  /** Heroes look right by default, the DCSS monsters to the left. */
+  private face(f: Figure, dir: 1 | -1, c: Creature): void {
+    const natural = c.kind === "pc" ? 1 : -1;
+    f.body.list.forEach((o) => (o as Phaser.GameObjects.Image).setFlipX(dir !== natural));
+  }
+
+  /** Big hits shake the screen. */
+  shake(strong: boolean): void {
+    this.cameras.main.shake(strong ? 320 : 180, strong ? 0.008 : 0.004);
+  }
+
+  /** A boss appears: the camera glides over to it and zooms in a little, then back to the heroes. */
+  spotlight(id: string): void {
+    const f = this.figures.get(id);
+    const c = this.session.battle.creatures[id];
+    if (!c?.pos) return;
+    const n = sizeInSquares(c.size);
+    this.camTarget.set(f ? f.container.x : (c.pos.x + n / 2) * TILE, f ? f.container.y : (c.pos.y + n / 2) * TILE);
+    this.spotlightUntil = this.time.now + 2600;
+    const cam = this.cameras.main;
+    const base = ZOOM * RES;
+    this.tweens.add({ targets: cam, zoom: base * 1.3, duration: 900, ease: "Sine.easeInOut", yoyo: true, hold: 1000, onComplete: () => cam.setZoom(base) });
+    if (f) this.tweens.add({ targets: f.body, scaleX: 1.25, scaleY: 1.25, duration: 300, yoyo: true, delay: 700, ease: "Back.easeOut" });
+  }
+
   /** In combat the initiative bar takes the left edge; the map moves next to it. */
   setCombatLayout(on: boolean): void {
+    this.ambience?.setCombat(on);
     const left = on ? 340 : 0;
     this.cameras.main.setViewport(Math.round(left * RES), 0, Math.round((BOARD_WIDTH - left) * RES), Math.round(BOARD_HEIGHT * RES));
     this.applyBounds();
@@ -336,6 +385,18 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   override update(time: number): void {
+    this.ambience.update(time);
+    if (time > this.spotlightUntil && this.spotlightUntil > 0) {
+      this.spotlightUntil = 0;
+      this.focusParty(false);
+    }
+    // Monsters look around now and then.
+    if (time - this.lastLook > 1400) {
+      this.lastLook = time;
+      const monsters = Object.values(this.session.battle.creatures).filter((c) => c.kind === "monster" && !c.dead && this.figures.has(c.id));
+      const c = monsters[Math.floor(Math.random() * monsters.length)];
+      if (c && Math.random() < 0.6) this.face(this.figures.get(c.id)!, Math.random() < 0.5 ? 1 : -1, c);
+    }
     // Torch animation and light at ~15 fps is plenty and cheap.
     if (time - this.lastLight > 66) {
       this.lastLight = time;
