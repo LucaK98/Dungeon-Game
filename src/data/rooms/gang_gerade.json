@@ -1,0 +1,19 @@
+{
+  "id": "gang_gerade",
+  "name": "Steinerner Gang",
+  "theme": "stone",
+  "tags": [
+    "corridor"
+  ],
+  "description": "Ein schlichter Gang aus grauem Stein.",
+  "map": [
+    "#EEE#",
+    "#...#",
+    "t...t",
+    "#...#",
+    "#...#",
+    "t...t",
+    "#...#",
+    "#EEE#"
+  ]
+}

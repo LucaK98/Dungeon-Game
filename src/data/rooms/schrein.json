@@ -1,0 +1,19 @@
+{
+  "id": "schrein",
+  "name": "Vergessener Schrein",
+  "theme": "crypt",
+  "tags": [
+    "rest",
+    "npc"
+  ],
+  "description": "Ein kleiner Schrein mit Altar. Hier fühlt man sich seltsam geborgen.",
+  "map": [
+    "###EEE###",
+    "#t.....t#",
+    "#.......#",
+    "#..,A,..#",
+    "#..,n,..#",
+    "#.......#",
+    "#########"
+  ]
+}

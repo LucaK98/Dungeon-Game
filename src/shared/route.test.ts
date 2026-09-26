@@ -8,8 +8,9 @@ describe("parseRoute", () => {
   });
 
   it("parses the TV route", () => {
-    expect(parseRoute("#/tv")).toEqual({ view: "tv", net: "local" });
-    expect(parseRoute("#/tv?net=peer")).toEqual({ view: "tv", net: "peer" });
+    expect(parseRoute("#/tv")).toEqual({ view: "tv", net: "local", demo: false });
+    expect(parseRoute("#/tv?net=peer")).toEqual({ view: "tv", net: "peer", demo: false });
+    expect(parseRoute("#/tv?demo")).toEqual({ view: "tv", net: "local", demo: true });
   });
 
   it("parses the phone route with room code", () => {
@@ -18,6 +19,6 @@ describe("parseRoute", () => {
   });
 
   it("ignores unknown transports", () => {
-    expect(parseRoute("#/tv?net=carrier-pigeon")).toEqual({ view: "tv", net: "local" });
+    expect(parseRoute("#/tv?net=carrier-pigeon")).toEqual({ view: "tv", net: "local", demo: false });
   });
 });

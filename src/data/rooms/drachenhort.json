@@ -1,0 +1,23 @@
+{
+  "id": "drachenhort",
+  "name": "Der Hort des Drachen",
+  "theme": "lair",
+  "tags": [
+    "boss",
+    "treasure"
+  ],
+  "description": "Eine riesige, glühend heiße Höhle voller Gold. Hier schläft der Drache auf seinem Schatz.",
+  "map": [
+    "#######EEE#######",
+    "##....,,,,,....##",
+    "#..g..,,,,,..g..#",
+    "#....,,,,,,,....#",
+    "#..,,,,,,,,,,,..#",
+    "#..,,,,,X,,,,,..#",
+    "#..,,,,,,,,,,,..#",
+    "#.g..,,,,,,,..g.#",
+    "#....,,,n,,,....#",
+    "##..C.,,,,,.C..##",
+    "#################"
+  ]
+}

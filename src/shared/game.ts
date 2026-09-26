@@ -10,7 +10,8 @@ import type {
   Size,
   SkillId,
 } from "./rules";
-import type { Ability, BreakdownPart } from "./types";
+import type { DollLook } from "./doll";
+import type { Ability, BreakdownPart, PlayerId } from "./types";
 
 export interface GridPos {
   x: number;
@@ -142,6 +143,9 @@ export interface Creature {
   stable: boolean;
   dead: boolean;
   pos?: GridPos;
+  /** Heroes: which phone controls them and how they look. */
+  playerId?: PlayerId;
+  appearance?: { look: DollLook; color: string };
 }
 
 export interface D20Roll {

@@ -1,0 +1,18 @@
+{
+  "id": "schatzkammer",
+  "name": "Schatzkammer",
+  "theme": "castle",
+  "tags": [
+    "treasure"
+  ],
+  "description": "Eine kleine, verschlossene Kammer mit Truhen.",
+  "map": [
+    "###E###",
+    "#.....#",
+    "#C.g.C#",
+    "#.....#",
+    "#g.p.g#",
+    "#..C..#",
+    "#######"
+  ]
+}

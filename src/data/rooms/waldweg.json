@@ -1,0 +1,22 @@
+{
+  "id": "waldweg",
+  "name": "Waldweg",
+  "theme": "forest",
+  "tags": [
+    "outdoor",
+    "corridor",
+    "fight"
+  ],
+  "description": "Ein schmaler Pfad durch dichten Wald. Hier könnte ein Hinterhalt lauern.",
+  "map": [
+    "####EEE####",
+    "#T..,,,..T#",
+    "#...,,,m..#",
+    "#.T.,,,...#",
+    "#...,,,.T.#",
+    "#m..,,,...#",
+    "#.T.,,,..T#",
+    "#...,,,...#",
+    "####EEE####"
+  ]
+}

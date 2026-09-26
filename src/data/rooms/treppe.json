@@ -1,0 +1,16 @@
+{
+  "id": "treppe",
+  "name": "Treppe in die Tiefe",
+  "theme": "stone",
+  "tags": [
+    "corridor"
+  ],
+  "description": "Eine steinerne Treppe führt hinab in die Dunkelheit.",
+  "map": [
+    "#EEE#",
+    "#...#",
+    "t...t",
+    "#.>.#",
+    "#####"
+  ]
+}

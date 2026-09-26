@@ -1,0 +1,24 @@
+{
+  "id": "bruecke",
+  "name": "Die Brücke am Wolfsbach",
+  "theme": "meadow",
+  "tags": [
+    "npc",
+    "outdoor",
+    "fight"
+  ],
+  "description": "Ein reißender Bach, über den nur eine schmale Steinbrücke führt. Am anderen Ufer wartet der Oger.",
+  "map": [
+    "#####~~~~~#####",
+    "#....~~~~~....#",
+    "#.T..~~~~~..T.#",
+    "#....--=--....#",
+    "E,,,,,,=,,,,,,E",
+    "E,,,,,,=,n,,,,E",
+    "E,,,,,,=,,,,,,E",
+    "#....--=--....#",
+    "#.T..~~~~~..T.#",
+    "#....~~~~~....#",
+    "#####~~~~~#####"
+  ]
+}

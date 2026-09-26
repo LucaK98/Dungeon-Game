@@ -1,0 +1,25 @@
+{
+  "id": "verbranntes_dorf",
+  "name": "Das verbrannte Dorf",
+  "theme": "village",
+  "tags": [
+    "npc",
+    "outdoor",
+    "rest"
+  ],
+  "description": "Rauchende Ruinen einfacher Häuser. Überlebende kauern zwischen den Trümmern.",
+  "map": [
+    "#################",
+    "#,,,,,,,,,,,,,,,#",
+    "#,###,,,,,,,###,#",
+    "#,#.',,,n,,,'.#,#",
+    "#,###,,,,,,,###,#",
+    "E,,,,,,,F,,,,,,,E",
+    "E,,,,,,,,,,,,,,,E",
+    "#,###,,,,,,,###,#",
+    "#,#.',,n,,,,'.#,#",
+    "#,###,,,,,,,###,#",
+    "#,,,,,,,,,,,,,,,#",
+    "######EEEEE######"
+  ]
+}

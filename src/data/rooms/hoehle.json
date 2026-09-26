@@ -1,0 +1,20 @@
+{
+  "id": "hoehle",
+  "name": "Tropfsteinhöhle",
+  "theme": "cave",
+  "tags": [
+    "fight"
+  ],
+  "description": "Eine feuchte Höhle mit Pfützen. Es tropft von der Decke.",
+  "map": [
+    "####EEE####",
+    "##...,,..##",
+    "#..m.,,.m.#",
+    "#.O..--...E",
+    "E...----..E",
+    "E..m.--.O.E",
+    "#.........#",
+    "##..,,,..##",
+    "####EEE####"
+  ]
+}

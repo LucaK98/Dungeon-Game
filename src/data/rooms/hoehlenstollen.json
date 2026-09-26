@@ -1,0 +1,24 @@
+{
+  "id": "hoehlenstollen",
+  "name": "Höhlenstollen im Drachenfels",
+  "theme": "cave",
+  "tags": [
+    "corridor",
+    "trap",
+    "fight"
+  ],
+  "description": "Enge, feuchte Stollen, in denen Kobolde Fallen gestellt haben.",
+  "map": [
+    "###EEE#####",
+    "##.,,,.####",
+    "#..,m,...##",
+    "#.,,,,^...#",
+    "##.,,,,,..#",
+    "###.,,m,..E",
+    "##..^,,,..E",
+    "#..,,,,,.##",
+    "#.m,,,..###",
+    "##.,,,.####",
+    "###EEE#####"
+  ]
+}

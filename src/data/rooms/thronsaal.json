@@ -1,0 +1,23 @@
+{
+  "id": "thronsaal",
+  "name": "Thronsaal",
+  "theme": "throne",
+  "tags": [
+    "npc",
+    "rest"
+  ],
+  "description": "Ein hoher Saal mit rotem Teppich, Säulen und dem Thron von König Ortwin. Banner hängen an den Wänden.",
+  "map": [
+    "###B###t###B###",
+    "#......H......#",
+    "#.K.........K.#",
+    "#.....,n,.....#",
+    "#.K...,,,...K.#",
+    "#.....,,,.....#",
+    "#.K...,,,...K.#",
+    "#.....,,,.....#",
+    "#.K...,,,...K.#",
+    "#.....,,,.....#",
+    "###t###EEE#t###"
+  ]
+}

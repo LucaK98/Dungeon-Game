@@ -1,0 +1,20 @@
+{
+  "id": "brunnenhof",
+  "name": "Verlassener Brunnenhof",
+  "theme": "meadow",
+  "tags": [
+    "rest",
+    "outdoor"
+  ],
+  "description": "Ein ruhiger Innenhof mit einem alten Brunnen. Ein guter Ort für eine Rast.",
+  "map": [
+    "####EEE####",
+    "#,,,,,,,,,#",
+    "#,T.....T,#",
+    "E,...F...,E",
+    "E,.......,E",
+    "E,T.....T,E",
+    "#,,,,,,,,,#",
+    "####EEE####"
+  ]
+}

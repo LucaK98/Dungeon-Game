@@ -2,7 +2,7 @@ import { NET_KINDS, type NetKind } from "./transport";
 
 export type Route =
   | { view: "home" }
-  | { view: "tv"; net: NetKind }
+  | { view: "tv"; net: NetKind; demo: boolean }
   | { view: "play"; net: NetKind; room: string | null };
 
 /**
@@ -20,7 +20,7 @@ export function parseRoute(hash: string): Route {
 
   switch (path.replace(/\/+$/, "")) {
     case "/tv":
-      return { view: "tv", net };
+      return { view: "tv", net, demo: params.has("demo") };
     case "/play": {
       const room = params.get("room")?.trim().toUpperCase() || null;
       return { view: "play", net, room };

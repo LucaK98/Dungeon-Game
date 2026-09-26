@@ -1,0 +1,21 @@
+{
+  "id": "turnierplatz",
+  "name": "Turnierplatz",
+  "theme": "meadow",
+  "tags": [
+    "fight",
+    "outdoor"
+  ],
+  "description": "Eine Wiese mit Schranken und Zuschauerbänken. Strohpuppen stehen zum Üben bereit.",
+  "map": [
+    "###############",
+    "#,,,,,,,,,,,,,#",
+    "#,..m.....m..,#",
+    "E,...........,E",
+    "E,....bbb....,E",
+    "E,...........,E",
+    "#,..m.....m..,#",
+    "#,,,,,,,,,,,,,#",
+    "######EEE######"
+  ]
+}

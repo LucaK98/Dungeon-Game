@@ -1,0 +1,18 @@
+{
+  "id": "lager",
+  "name": "Vorratslager",
+  "theme": "castle",
+  "tags": [
+    "treasure"
+  ],
+  "description": "Ein Lager voller Kisten und Fässer. Vielleicht findet man etwas Nützliches.",
+  "map": [
+    "###E###",
+    "#bb.bb#",
+    "#.....#",
+    "E..p..E",
+    "#b...b#",
+    "#bb.bb#",
+    "###E###"
+  ]
+}

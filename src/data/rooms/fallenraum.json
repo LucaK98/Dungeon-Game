@@ -1,0 +1,20 @@
+{
+  "id": "fallenraum",
+  "name": "Raum der Druckplatten",
+  "theme": "stone",
+  "tags": [
+    "trap"
+  ],
+  "description": "Ein verdächtig leerer Raum. Die Bodenplatten sehen nicht alle gleich aus.",
+  "map": [
+    "####EEE####",
+    "#.........#",
+    "#.^.^...^.#",
+    "E.........E",
+    "E..^..^...E",
+    "E.........E",
+    "#.^...^.^.#",
+    "#....p....#",
+    "###########"
+  ]
+}

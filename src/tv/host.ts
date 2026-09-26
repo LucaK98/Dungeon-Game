@@ -3,6 +3,7 @@
  * decides everything. Phones only send wishes.
  */
 import { createTransport, type GameTransport } from "../net";
+import { defaultLook } from "../shared/doll";
 import type { GameEvent } from "../shared/events";
 import { MAX_PLAYERS, type LobbyPlayer, type LobbyState } from "../shared/lobby";
 import { sanitizeProfile } from "./profile";
@@ -85,6 +86,23 @@ export class GameHost {
     this.lobby.players = this.lobby.players.filter((p) => p.connected);
     this.lobby.phase = "playing";
     this.changed();
+  }
+
+  /** Fills the lobby with four example heroes (for #/tv?demo). */
+  useDemoParty(): void {
+    const heroes: [string, string, string, 1 | 2, string][] = [
+      ["Brunhild", "fighter", "human", 2, "#e6194b"],
+      ["Siegfried", "paladin", "human", 1, "#3cb44b"],
+      ["Ilmarin", "wizard", "elf", 1, "#4363d8"],
+      ["Pip", "rogue", "halfling", 2, "#ffe119"],
+    ];
+    this.lobby.players = heroes.map(([name, classId, raceId, variant, color], i) => ({
+      id: `demo-${i}`,
+      profile: { name, classId, raceId, look: defaultLook(classId, raceId, variant), color },
+      ready: true,
+      connected: true,
+    }));
+    this.lobby.phase = "playing";
   }
 
   private player(id: PlayerId): LobbyPlayer | undefined {

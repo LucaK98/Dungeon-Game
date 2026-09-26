@@ -1,0 +1,20 @@
+{
+  "id": "kreuzung",
+  "name": "Kreuzung",
+  "theme": "stone",
+  "tags": [
+    "corridor"
+  ],
+  "description": "Vier Gänge treffen sich an einer kleinen Säulenhalle.",
+  "map": [
+    "###EEE###",
+    "#.......#",
+    "#.K...K.#",
+    "E.......E",
+    "E...m...E",
+    "E.......E",
+    "#.K...K.#",
+    "#.......#",
+    "###EEE###"
+  ]
+}

@@ -21,6 +21,12 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
       return;
     }
     host = started;
+    if (route.demo) {
+      // Test mode: four pregenerated heroes, straight to the board.
+      host.useDemoParty();
+      void showBoard();
+      return;
+    }
     if (host.lobby.phase === "playing") void showBoard();
     else
       stopView = renderLobby(root, host, () => {

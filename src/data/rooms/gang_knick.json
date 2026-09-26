@@ -1,0 +1,18 @@
+{
+  "id": "gang_knick",
+  "name": "Gangbiegung",
+  "theme": "stone",
+  "tags": [
+    "corridor"
+  ],
+  "description": "Ein Gang, der um eine Ecke biegt.",
+  "map": [
+    "#EEE####",
+    "#...####",
+    "#...####",
+    "#......E",
+    "#......E",
+    "#......E",
+    "########"
+  ]
+}

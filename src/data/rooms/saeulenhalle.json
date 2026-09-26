@@ -1,0 +1,21 @@
+{
+  "id": "saeulenhalle",
+  "name": "Säulenhalle",
+  "theme": "stone",
+  "tags": [
+    "fight",
+    "corridor"
+  ],
+  "description": "Eine große Halle, deren Decke von vielen Säulen getragen wird.",
+  "map": [
+    "#####EEE#####",
+    "#...........#",
+    "#.K..K..K..K#",
+    "#...........#",
+    "E..m.....m..E",
+    "E...........E",
+    "E.K..K..K..KE",
+    "#...........#",
+    "#####EEE#####"
+  ]
+}

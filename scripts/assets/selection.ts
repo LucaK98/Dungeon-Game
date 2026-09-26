@@ -146,5 +146,89 @@ export const MONSTERS: Record<string, string> = {
   "giant-spider": "monster/animals/wolf_spider.png",
 };
 
-/** Everything else: dungeon, items, effects. Filled in phase A3. */
-export const MISC: Record<string, string> = {};
+/** "name.0" … "name.(n-1)" from "dir/prefix_<start+i>.png". */
+function variants(name: string, prefix: string, count: number, start = 0): Record<string, string> {
+  return Object.fromEntries(Array.from({ length: count }, (_, i) => [`${name}.${i}`, `${prefix}_${start + i}.png`]));
+}
+
+/**
+ * Map tiles. Floors and walls come in themes (castle, cave, …) with a few variants each,
+ * so rooms don't look like wallpaper.
+ */
+export const MISC: Record<string, string> = {
+  // Floors
+  ...variants("floor.grass", "dungeon/floor/grass/grass", 3),
+  "floor.grass.3": "dungeon/floor/grass/grass_flowers_yellow_1.png",
+  "floor.grass.4": "dungeon/floor/grass/grass_flowers_red_1.png",
+  "floor.grass.5": "dungeon/floor/grass/grass_flowers_blue_1.png",
+  ...variants("floor.path", "dungeon/floor/grass/grass0-dirt-mix", 3, 1),
+  ...variants("floor.dirt", "dungeon/floor/dirt", 3),
+  ...variants("floor.castle", "dungeon/floor/rect_gray", 4),
+  ...variants("floor.marble", "dungeon/floor/white_marble", 4),
+  ...variants("floor.cave", "dungeon/floor/pebble_brown", 4),
+  ...variants("floor.lair", "dungeon/floor/volcanic_floor", 4),
+  ...variants("floor.crypt", "dungeon/floor/tomb", 4),
+  ...variants("floor.village", "dungeon/floor/grey_dirt", 4),
+  ...variants("floor.sand", "dungeon/floor/sand", 4, 1),
+  ...variants("floor.mud", "dungeon/floor/mud", 4),
+  ...variants("floor.stone", "dungeon/floor/limestone", 4),
+  // Walls
+  ...variants("wall.castle", "dungeon/wall/stone_brick", 4, 1),
+  ...variants("wall.brick", "dungeon/wall/brick_brown", 4),
+  ...variants("wall.cave", "dungeon/wall/brick_dark", 4),
+  ...variants("wall.lair", "dungeon/wall/volcanic_wall", 4),
+  ...variants("wall.crypt", "dungeon/wall/tomb", 4),
+  ...variants("wall.hedge", "dungeon/wall/wall_vines", 4),
+  ...variants("wall.stone", "dungeon/wall/stone_gray", 4),
+  ...variants("wall.church", "dungeon/wall/church", 4),
+  // Water (a stone bridge is drawn with castle floor)
+  "water.deep": "dungeon/water/deep_water.png",
+  "water.deep.1": "dungeon/water/deep_water_2.png",
+  "water.shallow": "dungeon/water/shallow_water.png",
+  "water.shallow.1": "dungeon/water/shallow_water_2.png",
+  // Objects
+  "tree.0": "dungeon/trees/tree_1_red.png",
+  "tree.1": "dungeon/trees/tree_2_yellow.png",
+  "tree.2": "dungeon/trees/mangrove_1.png",
+  "tree.3": "dungeon/trees/mangrove_2.png",
+  "tree.4": "dungeon/trees/tree_1_yellow.png",
+  "door.closed": "dungeon/doors/closed_door.png",
+  "door.open": "dungeon/doors/open_door.png",
+  "gate.closed": "dungeon/doors/gate_closed_middle.png",
+  "gate.open": "dungeon/doors/gate_open_middle.png",
+  "chest.closed": "dungeon/chest_2_closed.png",
+  "chest.open": "dungeon/chest_2_open.png",
+  "chest.gold": "dungeon/chest.png",
+  box: "dungeon/large_box.png",
+  boulder: "dungeon/boulder.png",
+  ...variants("torch", "dungeon/wall/torches/torch", 5),
+  banner: "dungeon/wall/banners/banner_1.png",
+  "statue.sword": "dungeon/statues/statue_sword.png",
+  "statue.dragon": "dungeon/statues/statue_dragon.png",
+  "statue.hero": "dungeon/statues/statue_ancient_hero.png",
+  "statue.princess": "dungeon/statues/statue_princess.png",
+  column: "dungeon/statues/crumbled_column.png",
+  pedestal: "dungeon/statues/pedestal.png",
+  altar: "dungeon/altars/altar_shining_one.png",
+  throne: "dungeon/statues/statue_bases.png",
+  "stairs.down": "dungeon/gateways/stone_stairs_down.png",
+  "stairs.up": "dungeon/gateways/stone_stairs_up.png",
+  arch: "dungeon/gateways/stone_arch.png",
+  "trap.arrow": "dungeon/traps/trap_arrow.png",
+  "trap.plate": "dungeon/traps/pressure_plate.png",
+  "trap.net": "dungeon/traps/trap_net.png",
+  fountain: "dungeon/blue_fountain.png",
+  "fountain.dry": "dungeon/dry_fountain.png",
+  // Items on the ground
+  "item.potion": "item/potion/ruby.png",
+  "item.gold": "item/gold/gold_pile_10.png",
+  "item.key": "item/misc/key.png",
+  "item.lamp": "item/misc/misc_lantern.png",
+  "item.lance": "player/hand_right/lance.png",
+  // Decals and effects
+  ...variants("blood", "misc/blood/blood_puddle_red", 2, 1),
+  ...variants("fire", "effect/cloud_fire", 3),
+  ...variants("flame", "effect/flame", 3),
+  "magic.bolt": "effect/magic_bolt_1.png",
+  ...variants("sparkle", "effect/gold_sparkles", 3, 1),
+};

@@ -1,0 +1,23 @@
+{
+  "id": "burghof",
+  "name": "Burghof von Rheineck",
+  "theme": "castle",
+  "tags": [
+    "start",
+    "npc"
+  ],
+  "description": "Ein sonniger Burghof mit Brunnen, Rasenflächen und Bäumen. Hier werden die Helden zu Rittern geschlagen.",
+  "map": [
+    "#t#####EEE#####t#",
+    "#,,,,,,,,,,,,,,,#",
+    "#,T,,,,,,,,,,,T,#",
+    "#,,,...F...,,,,,#",
+    "E,P,.......,,P,,E",
+    "E,,,...n...,,,,,E",
+    "E,P,.......,,P,,E",
+    "#,,,,,,,,,,,,,,,#",
+    "#,T,,,,,C,,,,,T,#",
+    "#,,,,,,,,,,,,,,,#",
+    "#B######EEE####B#"
+  ]
+}

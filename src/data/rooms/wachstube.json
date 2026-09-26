@@ -1,0 +1,19 @@
+{
+  "id": "wachstube",
+  "name": "Wachstube",
+  "theme": "castle",
+  "tags": [
+    "fight"
+  ],
+  "description": "Eine Stube mit Tischen und Kisten, in der Wachen würfeln.",
+  "map": [
+    "####EEE####",
+    "#b.......b#",
+    "#..m...m..#",
+    "E....b....E",
+    "E.m.....m.E",
+    "E.........E",
+    "#b...C...b#",
+    "###########"
+  ]
+}
