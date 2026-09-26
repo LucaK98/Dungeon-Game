@@ -36,6 +36,8 @@ export type DmTrigger =
   | { kind: "step_start" }
   | { kind: "step_done" }
   | { kind: "free_text"; text: string; playerId: PlayerId; heroName: string }
+  /** The roll the DM asked for after a free action is done. */
+  | { kind: "roll_result"; text: string; playerId: PlayerId; heroName: string; skill: string; dc: number; total: number; success: boolean }
   | { kind: "scene_end" }
   | { kind: "story_end" };
 

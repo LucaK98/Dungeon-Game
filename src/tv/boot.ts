@@ -7,6 +7,7 @@ import { GameHost } from "./host";
 import { renderLobby } from "./lobby-view";
 import { readSave } from "./save";
 import { setSpeechEnabled, speechEnabled } from "./speech";
+import { settingsScreen } from "./settings";
 import { howToPlay, pickDuration, pickStory, titleScreen } from "./start-screens";
 
 export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>): () => void {
@@ -47,6 +48,11 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
     for (;;) {
       const save = readSave();
       const choice = await titleScreen(root, { canContinue: !!save, speech: speechEnabled(), onSpeech: setSpeechEnabled });
+      if (closed) return;
+      if (choice === "settings") {
+        await settingsScreen(root);
+        continue;
+      }
       if (closed) return;
       if (choice === "howto") {
         await howToPlay(root);

@@ -500,3 +500,21 @@ body.tip-mode::after {
 .seat-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .seat-btn { display: flex; align-items: center; gap: 10px; justify-content: flex-start; font-size: 1.1rem; }
 .seat-dot { width: 18px; height: 18px; border-radius: 50%; flex: none; border: 2px solid rgba(255, 255, 255, 0.6); }
+
+/* TV settings (AI game master) */
+.settings { max-width: 1100px; text-align: left; }
+.settings-providers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5vh; }
+.story-card.provider.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
+.settings-ai { display: flex; flex-direction: column; gap: 1.4vh; margin-top: 2vh; }
+.settings-ai label { display: flex; flex-direction: column; gap: 0.6vh; font-size: 2.2vh; }
+.settings-input { font-size: 2.4vh; padding: 1vh 1.4vh; border-radius: 10px; border: 2px solid #5a4d42; background: #1b1714; color: #f3e9d2; flex: 1; min-width: 0; }
+.settings-status { font-size: 2.2vh; min-height: 3vh; }
+.settings-warn { font-size: 2vh; color: #e0a526; }
+
+/* DM lab */
+.dm-lab { padding: 16px; max-width: 1400px; margin: 0 auto; color: #f3e9d2; }
+.lab-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lab-form select { font-size: 16px; padding: 6px; }
+.lab-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin: 12px 0; }
+.lab-card { background: #1b1714; border: 1px solid #5a4d42; border-radius: 12px; padding: 12px; }
+.lab-card pre, .lab-prompt { white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow: auto; }

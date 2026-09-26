@@ -5,6 +5,7 @@ import type { OrderEntry, RollOutcome } from "../shared/view";
 import { speak } from "./speech";
 import { assetUrl } from "../ui/atlas";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "./DungeonScene";
+import type { AiStatus } from "../dm/ai/aidm";
 
 const FONT = "system-ui, sans-serif";
 
@@ -28,6 +29,8 @@ export class UiScene extends Phaser.Scene {
     if (!this.textures.exists("tiles")) this.load.atlas("tiles", assetUrl("atlas.png"), assetUrl("atlas.json"));
   }
 
+  private aiBadge: Phaser.GameObjects.Text | undefined;
+
   create(): void {
     this.orderBar = this.add.container(20, 150);
     this.banner = this.add
@@ -39,6 +42,7 @@ export class UiScene extends Phaser.Scene {
     this.rollBox = this.add.container(BOARD_WIDTH - 40, 40);
     this.chapter = this.add.text(24, 20, "", { fontFamily: FONT, fontSize: "26px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 });
     this.narrationBox = this.add.container(0, 0).setAlpha(0);
+    this.aiBadge = this.add.text(BOARD_WIDTH - 24, BOARD_HEIGHT - 20, "", { fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 }).setOrigin(1, 1);
 
     const onRoom = (name: string) => this.showBanner(name);
     const onTurn = (name: string, color?: string) => this.showTurn(name, color);
@@ -50,6 +54,8 @@ export class UiScene extends Phaser.Scene {
       if (!this.telling) void this.tell();
     };
     const onChapter = (text: string) => this.chapter.setText(text);
+    const onAi = (s: AiStatus | undefined) => this.showAiStatus(s);
+    this.game.events.on("ai-status", onAi);
     this.game.events.on("narration", onNarration);
     this.game.events.on("chapter", onChapter);
     this.game.events.on("room-name", onRoom);
@@ -67,7 +73,28 @@ export class UiScene extends Phaser.Scene {
       this.game.events.off("combat", onCombat);
       this.game.events.off("narration", onNarration);
       this.game.events.off("chapter", onChapter);
+      this.game.events.off("ai-status", onAi);
     });
+  }
+
+  /** Small corner note: is the AI telling the story, or is it taking a break (limit/offline)? */
+  private showAiStatus(s: AiStatus | undefined): void {
+    if (!this.aiBadge) return;
+    this.tweens.killTweensOf(this.aiBadge);
+    if (!s) {
+      this.aiBadge.setText("");
+      return;
+    }
+    if (s.kind === "thinking") {
+      this.aiBadge.setText("🧠 Der Spielleiter denkt nach …").setColor("#f3e9d2").setAlpha(1);
+      return;
+    }
+    if (s.kind === "ok") {
+      this.aiBadge.setText("🧠 KI-Spielleitung").setColor("#8f8574").setAlpha(0.8);
+      return;
+    }
+    this.aiBadge.setText("☕ Der Spielleiter macht kurz Pause – das Drehbuch erzählt weiter").setColor("#e0a526").setAlpha(1);
+    this.tweens.add({ targets: this.aiBadge, alpha: 0.6, delay: 8000, duration: 1000 });
   }
 
   /** Tells the queued narration line by line with a typewriter effect (and reads it aloud). */

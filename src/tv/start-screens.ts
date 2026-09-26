@@ -90,16 +90,15 @@ export interface TitleOptions {
   canContinue: boolean;
   speech: boolean;
   onSpeech: (on: boolean) => void;
-  onSettings?: () => void;
 }
 
-export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new" | "continue" | "howto"> {
+export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new" | "continue" | "howto" | "settings"> {
   return new Promise((resolve) => {
     const newGame = h("button", { class: "tv-btn primary big", type: "button", textContent: "▶ Neues Abenteuer" });
     const howto = h("button", { class: "tv-btn", type: "button", textContent: "❓ Wie spielt man das?" });
     const cont = h("button", { class: "tv-btn", type: "button", textContent: "💾 Gespeichertes Spiel fortsetzen", hidden: !opts.canContinue });
     const speech = h("button", { class: "tv-btn small", type: "button" });
-    const settings = h("button", { class: "tv-btn small", type: "button", textContent: "⚙️ Einstellungen", hidden: !opts.onSettings });
+    const settings = h("button", { class: "tv-btn small", type: "button", textContent: "⚙️ Einstellungen" });
     let speechOn = opts.speech;
     const renderSpeech = () => (speech.textContent = speechOn ? "🔊 Vorlesen: an" : "🔈 Vorlesen: aus");
     renderSpeech();
@@ -108,7 +107,6 @@ export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new
       opts.onSpeech(speechOn);
       renderSpeech();
     });
-    settings.addEventListener("click", () => opts.onSettings?.());
     const art = h("div", { class: "title-art" }, spriteCanvas("monster.red-dragon-wyrmling", 8, "title-dragon"));
     const s = screen(
       root,
@@ -123,13 +121,14 @@ export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new
         h("p", { class: "credits" }, "5E compatible · enthält Material aus dem SRD 5.1 (CC-BY-4.0) · Grafik: Dungeon Crawl Stone Soup (CC0)"),
       ),
     );
-    const done = (v: "new" | "continue" | "howto") => {
+    const done = (v: "new" | "continue" | "howto" | "settings") => {
       s.close();
       resolve(v);
     };
     newGame.addEventListener("click", () => done("new"));
     howto.addEventListener("click", () => done("howto"));
     cont.addEventListener("click", () => done("continue"));
+    settings.addEventListener("click", () => done("settings"));
   });
 }
 

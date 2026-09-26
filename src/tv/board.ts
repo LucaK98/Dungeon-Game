@@ -2,6 +2,8 @@ import Phaser from "phaser";
 import { Director, newStoryState, type StoryResult, type StoryState } from "../dm/director";
 import { sceneById, sceneRooms } from "../dm/planner";
 import { ScriptedDM } from "../dm/scripted";
+import { AiDM, type AiStatus } from "../dm/ai/aidm";
+import { countAiCall, loadAiSettings, providersFrom } from "../dm/ai/settings";
 import { randomRng, seededRng, type Rng } from "../engine/rng";
 import type { Creature } from "../shared/game";
 import type { Duration, Story } from "../shared/story";
@@ -100,7 +102,22 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     if (opts.story) {
       const { story, duration } = opts.story;
       const state = opts.resume ? structuredClone(opts.resume.state) : newStoryState(story, rng, duration);
-      const director = new Director(story, state, c, new ScriptedDM(story), rng, {
+      const providers = providersFrom(loadAiSettings());
+      let aiStatus: AiStatus | undefined = providers ? { kind: "ok", model: providers[0]!.model } : undefined;
+      const showAi = () => game.events.emit("ai-status", aiStatus);
+      const dm = providers
+        ? new AiDM(story, providers, {
+            onCall: countAiCall,
+            onStatus: (s) => {
+              aiStatus = s;
+              showAi();
+            },
+          })
+        : new ScriptedDM(story);
+      // Also after the UI scene restarts (new map).
+      game.events.on("ui-ready", showAi);
+      if (uiReady) showAi();
+      const director = new Director(story, state, c, dm, rng, {
         duration,
         onSave: (saved) => {
           writeSave({ savedAt: Date.now(), state: { ...saved, minutesBefore: director.minutesPlayed() }, heroes: c.heroes().map((h) => structuredClone(h)), players: host.lobby.players });

@@ -18,6 +18,7 @@ import type { GameController } from "../tv/game";
 import { actOf, planScenes, plannedMinutes, sceneById, sceneRooms, tempoCheck } from "./planner";
 import { pickEnding } from "./scripted";
 import { resolveClue, validateResponse } from "./validate";
+import { SKILL_IDS, type SkillId } from "../shared/rules";
 
 export interface StoryState {
   storyId: string;
@@ -444,7 +445,13 @@ export class Director {
 
   private async freeText(playerId: PlayerId, hero: Creature, text: string): Promise<void> {
     if (!this.scene || this.finished) return;
-    await this.askDm({ kind: "free_text", text, playerId, heroName: hero.name });
+    const res = await this.askDm({ kind: "free_text", text, playerId, heroName: hero.name });
+    const roll = res.request_roll;
+    if (!roll?.skill || !SKILL_IDS.includes(roll.skill as SkillId) || this.finished) return;
+    // The DM wants a roll for this idea: the same hero rolls, then the DM tells what follows.
+    const skill = roll.skill as SkillId;
+    const r = await this.game.check(hero, skill, roll.dc, "Freie Aktion");
+    await this.askDm({ kind: "roll_result", text, playerId, heroName: hero.name, skill, dc: roll.dc, total: r.total, success: r.success });
   }
 
   private async finish(): Promise<StoryResult> {

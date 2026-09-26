@@ -36,6 +36,20 @@ Mit `?net=local|peer|supabase` wird die Verbindungsart gewählt. Standard: `loca
 
 Testmodus ohne Handys: `#/tv?demo` startet direkt mit vier Beispiel-Helden. Auf dem Spielbrett baut **R** einen neuen Zufalls-Dungeon, **F** startet einen Demo-Kampf gegen drei Goblins (die Helden kämpfen dann von selbst).
 
+### KI-Spielleitung (optional, kostenlos)
+
+Ohne KI erzählt das Drehbuch. Mit KI erzählt die Spielleitung frei, spielt die Nebenfiguren, reagiert auf **Freie Aktionen** (z. B. „Ich biete der Wache ein Goldstück an“), verlangt dafür passende Proben und wählt am Ende den Ausklang. Regeln, Zahlen, Kämpfe und die Geschichte selbst bleiben im Code.
+
+1. Kostenlosen Schlüssel in [Google AI Studio](https://aistudio.google.com) erstellen.
+2. Am Fernseher: **⚙️ Einstellungen → Gemini** → Schlüssel einfügen → **Verbindung testen** → Speichern.
+3. Modell und Ausweich-Modell sind frei wählbar (Standard `gemini-flash-latest`, bei Limit `gemini-flash-lite-latest`), weil Google die Gratis-Modelle regelmäßig wechselt. „Verbindung testen“ füllt die Liste mit den Modellen, die der Schlüssel nutzen darf.
+
+Sicherheit: Der Schlüssel liegt **nur im Browser-Speicher des Fernsehers/Laptops**, wird nie an die Handys geschickt und gehört nie ins Repo. Er geht nur an Google, im Header `x-goog-api-key`. Es gibt keine Formatprüfung (Schlüssel dürfen mit `AQ.` oder `AIza` beginnen). Nur auf eigenen Geräten verwenden.
+
+Sparsam: höchstens ein KI-Aufruf pro Spieleraktion, Bewegung und normale Angriffe laufen ohne KI. Der Zähler „KI-Aufrufe heute“ steht in den Einstellungen. Bei Limit (429), Zeitüberschreitung oder kaputter Antwort erzählt automatisch das Drehbuch weiter („Der Spielleiter macht kurz Pause“); das Spiel stoppt nie. Jede KI-Antwort wird geprüft: Sie darf nur Hinweise der ausgewürfelten Wahrheit verraten, nur erlaubte Merker setzen und nur passende Enden wählen.
+
+**DM-Labor:** `#/dm-lab` schickt denselben Spielmoment an alle eingerichteten Modelle (plus Drehbuch) und zeigt die Antworten nebeneinander.
+
 ## Befehle
 
 | Befehl | Was passiert |

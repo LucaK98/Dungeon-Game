@@ -9,6 +9,9 @@ import { createSession } from "../tv/session";
 import { Director, newStoryState, type StoryResult } from "./director";
 import { allScenes, planScenes, sceneById, tempoCheck } from "./planner";
 import { ScriptedDM } from "./scripted";
+import type { DungeonMaster } from "../shared/dm";
+import { AiDM } from "./ai/aidm";
+import { LlmError, type LlmProvider } from "./ai/provider";
 import storyJson from "./stories/drachenfels.json";
 
 const STORY = storyJson as unknown as Story;
@@ -45,7 +48,7 @@ function walkDistances(map: DungeonMap, goals: { x: number; y: number }[]): Map<
 }
 
 /** Plays the story with simple bots that use the same messages as the phones. */
-async function playStory(opts: { seed: number; duration: "kurz" | "mittel" | "lang"; truth?: string; players?: number; slow?: boolean }) {
+async function playStory(opts: { seed: number; duration: "kurz" | "mittel" | "lang"; truth?: string; players?: number; slow?: boolean; dm?: DungeonMaster; freeText?: boolean }) {
   let clock = 0;
   const rng: Rng = seededRng(opts.seed);
   const botRng = seededRng(opts.seed + 1000);
@@ -62,7 +65,7 @@ async function playStory(opts: { seed: number; duration: "kurz" | "mittel" | "la
   const narration: string[] = [];
   game.on({ narration: (lines) => narration.push(...lines.map((l) => l.text)) });
   let result: StoryResult | undefined;
-  const director = new Director(STORY, state, game, new ScriptedDM(STORY), rng, { duration: opts.duration, ...(opts.slow ? { now: () => clock } : {}), onEnd: (r) => (result = r) });
+  const director = new Director(STORY, state, game, opts.dm ?? new ScriptedDM(STORY), rng, { duration: opts.duration, ...(opts.slow ? { now: () => clock } : {}), onEnd: (r) => (result = r) });
   const run = director.run();
   let guard = 0;
   while (!result && guard++ < 20000) {
@@ -110,6 +113,10 @@ async function playStory(opts: { seed: number; duration: "kurz" | "mittel" | "la
     if (chest) {
       game.handle(pid, chest.action);
       continue;
+    }
+    if (opts.freeText && game.mode !== "combat" && botRng.int(1, 12) === 1) {
+      game.handle(pid, { kind: "free_text", text: "Ich untersuche die Wand nach geheimen Zeichen" });
+      await new Promise((r) => setTimeout(r, 0));
     }
     const map = game.map;
     const creatures = Object.values(game.session.battle.creatures);
@@ -261,4 +268,38 @@ describe("playing story 1", () => {
     const { result } = await playStory({ seed: 3, duration: "kurz", players: 1 });
     expect(result).toBeDefined();
   }, 60_000);
+});
+
+describe("AI game master in a whole story", () => {
+  it("finishes the story even when the AI answers badly, hits limits or asks for rolls", async () => {
+    const rng = seededRng(77);
+    let calls = 0;
+    let statusPause = 0;
+    const flaky: LlmProvider = {
+      id: "gemini",
+      model: "fake-flash",
+      async complete(req) {
+        calls++;
+        const n = rng.int(1, 6);
+        if (n === 1) throw new LlmError("limit", "429");
+        if (n === 2) return { nonsense: true };
+        if (n === 3) throw new LlmError("timeout", "slow");
+        const wantsRoll = req.prompt.includes("möchte etwas Eigenes tun");
+        return {
+          narration: "Die Fackeln flackern, und ein kalter Wind weht durch die Halle.",
+          npc_name: "",
+          npc_text: "",
+          ...(wantsRoll ? { roll_skill: "investigation", roll_dc: 12, reveal_clue: "gibt-es-nicht" } : {}),
+          ...(req.prompt.includes("MÖGLICHE ENDEN") ? { ending: "erfunden" } : {}),
+        };
+      },
+    };
+    const dm = new AiDM(STORY, [flaky], { cooldownMs: 0, onStatus: (s) => s.kind === "pause" && statusPause++ });
+    const { result, narration } = await playStory({ seed: 5, duration: "kurz", dm, freeText: true });
+    expect(result).toBeDefined();
+    expect(STORY.endings.some((e) => e.id === result!.ending.id)).toBe(true);
+    expect(calls).toBeGreaterThan(3);
+    expect(statusPause).toBeGreaterThan(0);
+    expect(narration.some((t) => t.includes("kalter Wind"))).toBe(true);
+  }, 60000);
 });

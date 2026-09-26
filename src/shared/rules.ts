@@ -57,6 +57,11 @@ export type SkillId =
   | "stealth"
   | "survival";
 
+export const SKILL_IDS: readonly SkillId[] = [
+  "acrobatics", "animal-handling", "arcana", "athletics", "deception", "history", "insight", "intimidation", "investigation",
+  "medicine", "nature", "perception", "performance", "persuasion", "religion", "sleight-of-hand", "stealth", "survival",
+];
+
 export type Size = "tiny" | "small" | "medium" | "large" | "huge" | "gargantuan";
 
 /** Dice expression like "1d8+2", "3d4+3", "2d6" or "5". */

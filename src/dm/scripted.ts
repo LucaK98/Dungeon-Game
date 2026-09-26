@@ -76,6 +76,13 @@ export class ScriptedDM implements DungeonMaster {
         ]);
       }
 
+      case "roll_result":
+        return respond([
+          trigger.success
+            ? { text: `Geschafft! ${trigger.heroName} gelingt es.` }
+            : { text: `Leider nicht. ${trigger.heroName} versucht es, aber es klappt nicht.` },
+        ]);
+
       case "scene_end": {
         // Improvised event: after the big fight, if it was too easy, or if the group is well ahead of time.
         const events = this.story.events ?? [];

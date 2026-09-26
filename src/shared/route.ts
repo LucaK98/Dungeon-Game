@@ -2,6 +2,7 @@ import { NET_KINDS, type NetKind } from "./transport";
 
 export type Route =
   | { view: "home" }
+  | { view: "dm-lab" }
   | { view: "tv"; net: NetKind; demo: boolean }
   | { view: "play"; net: NetKind; room: string | null };
 
@@ -24,6 +25,8 @@ export function parseRoute(hash: string, fallbackNet: NetKind = "local"): Route 
   const net: NetKind = NET_KINDS.includes(netParam as NetKind) ? (netParam as NetKind) : fallbackNet;
 
   switch (path.replace(/\/+$/, "")) {
+    case "/dm-lab":
+      return { view: "dm-lab" };
     case "/tv":
       return { view: "tv", net, demo: params.has("demo") };
     case "/play": {

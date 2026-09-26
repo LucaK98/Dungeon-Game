@@ -1,0 +1,120 @@
+/**
+ * What the AI game master gets to read: the rules for telling the story (system prompt)
+ * and a small context of the current moment (< 3,000 tokens). Also the JSON schema of its answer.
+ */
+import { nameOf } from "../../engine/names";
+import type { DmContext, DmResponse, DmTrigger } from "../../shared/dm";
+import { SKILL_IDS } from "../../shared/rules";
+import type { Ending, Scene, Story } from "../../shared/story";
+import { actOf, sceneById } from "../planner";
+import { pickEnding } from "../scripted";
+import { resolveClue } from "../validate";
+
+export const SYSTEM_PROMPT = `Du bist die Spielleitung (Dungeon Master) eines Fantasy-Abenteuers für Einsteiger, die zum ersten Mal ein Rollenspiel spielen. Die Gruppe sitzt vor dem Fernseher, jede Person steuert einen Helden mit dem Handy.
+
+So erzählst du:
+- Immer auf Deutsch, lebendig und bildhaft, aber kurz: 2 bis 4 Sätze, gut zum Vorlesen. Sprich die Gruppe mit „ihr“ an oder nenne die Helden beim Namen.
+- Familienfreundlich: spannend, gern mit Humor, nichts Grausames oder Explizites.
+- Zahlen und Regeln macht das Programm: Erfinde keine Werte, keinen Schaden, keine Monster, keine Gegenstände und keine Belohnungen.
+- Bleib beim Ziel der aktuellen Szene. Weichen die Helden ab, lass es kurz zu und lenke sie freundlich zurück.
+- Die geheime Wahrheit verrätst du NIE direkt. Die Gruppe erfährt sie nur über Hinweise, und zwar nur über die erlaubten Hinweise aus dem Kontext, höchstens einen pro Antwort, und nur wenn die Helden ihn sich verdient haben (gute Idee oder gelungene Probe).
+- Freie Aktionen: Ist unsicher, ob etwas klappt, verlange eine Probe (roll_skill und roll_dc; leicht 10, mittel 13, schwer 16). Ist es sicher oder unwichtig, beschreibe einfach, was passiert. Unmögliches biegst du freundlich ab.
+- Nach einer Probe erzählst du, was aus dem Erfolg oder Misserfolg folgt. Misserfolge sind nie das Ende, sondern machen die Lage nur schwieriger oder lustiger.
+- Nichtspielerfiguren sprechen über npc_name und npc_text, in ihrer eigenen Art.
+- Tempo: Liegt die Gruppe hinter der geplanten Zeit, erzähle knapper und führe sie zum Ziel. Liegt sie gut in der Zeit, darfst du ausschmücken.
+- Antworte nur mit dem verlangten JSON.`;
+
+/** Flags the AI may set in this scene: the ones the story's keyword reactions could set, with their meaning. */
+export function allowedFlags(scene: Scene): { flag: string; meaning: string }[] {
+  const out: { flag: string; meaning: string }[] = [];
+  for (const k of scene.keywords ?? []) {
+    for (const f of k.set ?? []) {
+      if (!out.some((o) => o.flag === f)) out.push({ flag: f, meaning: `${k.words.slice(0, 4).join("/")}: ${k.response.map((r) => r.text).join(" ").slice(0, 160)}` });
+    }
+  }
+  return out;
+}
+
+/** Clues the AI may reveal here (already mapped to this game's truth), not yet found. */
+export function allowedClues(story: Story, scene: Scene, ctx: DmContext): { id: string; text: string }[] {
+  const refs = [...(scene.clues ?? []).map((c) => c.id), ...(scene.keywords ?? []).flatMap((k) => (k.clue ? [k.clue] : []))];
+  const out: { id: string; text: string }[] = [];
+  for (const ref of refs) {
+    const id = resolveClue({ story, scene, truth: ctx.truth, eventsUsed: [] }, ref);
+    if (!id || ctx.cluesFound.includes(id) || out.some((o) => o.id === id)) continue;
+    out.push({ id, text: story.clues.find((c) => c.id === id)!.text });
+  }
+  return out;
+}
+
+/** Endings that fit the truth and what happened (the AI picks one of these at the end). */
+export function eligibleEndings(story: Story, ctx: DmContext): Ending[] {
+  const has = (f: string) => ctx.flags.includes(f);
+  const list = story.endings.filter((e) => (!e.truths || e.truths.includes(ctx.truth)) && (e.requires ?? []).every(has) && !(e.unless ?? []).some(has));
+  return list.length ? list : [pickEnding(story, ctx.truth, ctx.flags)];
+}
+
+function triggerText(t: DmTrigger): string {
+  switch (t.kind) {
+    case "scene_start":
+      return "Eine neue Szene beginnt. Erzähle stimmungsvoll, wo die Helden ankommen und was sie sehen, und mach das Ziel der Szene deutlich.";
+    case "free_text":
+      return `${t.heroName} möchte etwas Eigenes tun: „${t.text}“. Entscheide, was passiert (bei unsicherem Ausgang: Probe verlangen).`;
+    case "roll_result":
+      return `${t.heroName} hat für „${t.text}“ eine Probe auf ${nameOf("skills", t.skill)} (SG ${t.dc}) gewürfelt: ${t.total} → ${t.success ? "ERFOLG" : "MISSERFOLG"}. Erzähle die Folgen.`;
+    case "story_end":
+      return "Das Abenteuer ist zu Ende. Wähle das passende Ende (ending) und erzähle einen kurzen Ausklang, der auf das zurückblickt, was die Helden erlebt haben.";
+    default:
+      return `Ereignis: ${t.kind}`;
+  }
+}
+
+export function buildPrompt(story: Story, ctx: DmContext, trigger: DmTrigger, scripted: DmResponse): string {
+  const scene = sceneById(story, ctx.sceneId);
+  const { act } = actOf(story, scene.id);
+  const truth = story.truths.find((t) => t.id === ctx.truth);
+  const npcs = (scene.npcs ?? []).map((n) => story.npcs.find((x) => x.id === n.npc)).filter((n) => !!n);
+  const clues = allowedClues(story, scene, ctx);
+  const flags = allowedFlags(scene);
+  const found = ctx.cluesFound.map((id) => story.clues.find((c) => c.id === id)?.text).filter(Boolean);
+  const lines = [
+    `GESCHICHTE: ${story.title} – ${story.description}`,
+    `GEHEIME WAHRHEIT (nie direkt verraten): ${truth ? `${truth.title}: ${truth.summary}` : "–"}`,
+    `Wendung schon enthüllt: ${ctx.twistRevealed ? "ja" : "nein"}`,
+    `KAPITEL: ${act.title} · SZENE ${ctx.sceneIndex + 1} von ${ctx.sceneCount}: ${scene.title}`,
+    `ZIEL DER SZENE: ${scene.ziel}`,
+    npcs.length ? `NICHTSPIELERFIGUREN HIER: ${npcs.map((n) => `${n.name} (${n.description})`).join("; ")}` : "",
+    `HELDEN: ${ctx.players.map((p) => `${p.name} (${nameOf("classes", p.classId)}, ${p.hp}/${p.maxHp} TP)`).join("; ")}`,
+    `SCHON GEFUNDENE HINWEISE: ${found.length ? found.join(" | ") : "keine"}`,
+    clues.length ? `ERLAUBTE HINWEISE (reveal_clue = id): ${clues.map((c) => `${c.id}: ${c.text}`).join(" | ")}` : "ERLAUBTE HINWEISE: keine",
+    flags.length ? `ERLAUBTE MERKER (set_flags), wenn die Helden so etwas tun: ${flags.map((f) => `${f.flag} = ${f.meaning}`).join(" | ")}` : "",
+    `ZEIT: ${Math.round(ctx.minutesPlayed)} von geplant ${Math.round(ctx.minutesPlanned)} Minuten bis Ende dieser Szene`,
+    trigger.kind === "story_end" ? `MÖGLICHE ENDEN: ${eligibleEndings(story, ctx).map((e) => `${e.id} (${e.title})`).join(", ")}` : "",
+    `DREHBUCH-VORSCHLAG (Inhalt beibehalten, frei formulieren): ${scripted.narration || "–"}`,
+    `JETZT: ${triggerText(trigger)}`,
+  ];
+  return lines.filter(Boolean).join("\n");
+}
+
+const S = (description: string, extra: Record<string, unknown> = {}) => ({ type: "STRING", description, ...extra });
+
+export function responseSchema(story: Story, ctx: DmContext, trigger: DmTrigger): Record<string, unknown> {
+  const scene = sceneById(story, ctx.sceneId);
+  const properties: Record<string, unknown> = {
+    narration: S("Erzähltext, 2–4 Sätze, Deutsch"),
+    npc_name: S("Name der sprechenden Nichtspielerfigur, sonst leer"),
+    npc_text: S("Was sie sagt, sonst leer"),
+  };
+  if (trigger.kind === "free_text") {
+    properties.roll_skill = S("Fertigkeit für eine Probe oder none", { enum: ["none", ...SKILL_IDS] });
+    properties.roll_dc = { type: "INTEGER", description: "Schwierigkeit 8–18, 0 wenn keine Probe" };
+  }
+  if (trigger.kind === "free_text" || trigger.kind === "roll_result") {
+    const clues = allowedClues(story, scene, ctx);
+    if (clues.length) properties.reveal_clue = S("id eines erlaubten Hinweises oder none", { enum: ["none", ...clues.map((c) => c.id)] });
+    const flags = allowedFlags(scene);
+    if (flags.length) properties.set_flags = { type: "ARRAY", items: S("Merker", { enum: flags.map((f) => f.flag) }) };
+  }
+  if (trigger.kind === "story_end") properties.ending = S("id des Endes", { enum: eligibleEndings(story, ctx).map((e) => e.id) });
+  return { type: "OBJECT", properties, required: ["narration"] };
+}

@@ -22,6 +22,11 @@ async function render(): Promise<void> {
       teardown = startPlay(app, route);
       break;
     }
+    case "dm-lab": {
+      const { startDmLab } = await import("./dm/ai/lab");
+      teardown = startDmLab(app);
+      break;
+    }
     case "home":
       renderHome();
       break;
