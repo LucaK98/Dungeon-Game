@@ -69,7 +69,9 @@ export type EffectId =
   | "ray-of-frost"
   | "dodge"
   | "disengage"
-  | "turned";
+  | "turned"
+  /** Carries a burning torch: bright light around (night scenes). */
+  | "torch";
 
 export interface ActiveEffect {
   id: EffectId;
@@ -255,6 +257,14 @@ export interface CombatState {
 export interface Battle {
   creatures: Record<string, Creature>;
   combat?: CombatState;
+  /** Set in night/dark scenes: only these places (and carried torches) are lit. */
+  darkness?: { lights: LightSource[] };
+}
+
+export interface LightSource {
+  x: number;
+  y: number;
+  radiusFt: number;
 }
 
 export interface SpellTargetResult {

@@ -26,7 +26,7 @@ import { castSpell, spellSaveDcParts, validateCast } from "./spells";
 
 export type CombatAction =
   | { type: "move"; path: GridPos[] }
-  | { type: "attack"; targetId: string; optionId: string; smiteSlot?: number; dragonSlayer?: boolean }
+  | { type: "attack"; targetId: string; optionId: string; smiteSlot?: number; dragonSlayer?: boolean; silvered?: boolean }
   | { type: "cast"; spellId: string; slotLevel?: number; targetIds: string[] }
   | { type: "save-action"; actionId: string; targetIds: string[] }
   | { type: "dash"; bonus?: boolean }
@@ -131,6 +131,7 @@ export function perform(rng: Rng, battle: Battle, actorId: string, action: Comba
       const attack = resolveAttack(rng, battle, actor, target, option, {
         ...(smiteSlot ? { smiteSlot } : {}),
         ...(action.dragonSlayer ? { dragonSlayer: true } : {}),
+        ...(action.silvered ? { silvered: true } : {}),
       });
       // The smite slot is only spent on a hit.
       if (smiteSlot && attack.hit && option.kind === "melee") actor.pc!.spellSlots[smiteSlot - 1]!--;

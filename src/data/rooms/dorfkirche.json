@@ -1,0 +1,21 @@
+{
+  "id": "dorfkirche",
+  "name": "Dorfkirche",
+  "theme": "church",
+  "tags": [
+    "npc",
+    "rest"
+  ],
+  "description": "Bunte Fenster, harte Bänke, der Duft von Kerzenwachs.",
+  "map": [
+    "####EEE####",
+    "#t..,,,..t#",
+    "#.b.,,,.b.#",
+    "#.b.,,,.b.#",
+    "E.b.,,,.b.E",
+    "#...,,,...#",
+    "#..,,n,,..#",
+    "#t..,A,..t#",
+    "###########"
+  ]
+}

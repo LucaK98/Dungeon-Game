@@ -1,0 +1,25 @@
+{
+  "id": "harzdorf",
+  "name": "Dorfplatz von Elend",
+  "theme": "village",
+  "tags": [
+    "start",
+    "npc",
+    "outdoor"
+  ],
+  "description": "Ein kleines Harzdorf. Die Leute tuscheln und schauen misstrauisch.",
+  "map": [
+    "#t#####EEE#####t#",
+    "#,P,,,,,,,,,,,,,#",
+    "#,###,,,,,,,###,#",
+    "#,#.',,,n,,,'.#,#",
+    "#,###,,,,,,,###,#",
+    "E,P,,,,,F,,,,,n,E",
+    "E,P,,,,,,,,,,,,,E",
+    "#,###,,,,,,,###,#",
+    "#,#.',,n,,n,'.#,#",
+    "#,###,,,,,,,###,#",
+    "#,P,,,,,,,,,,,,,#",
+    "######EEEEE######"
+  ]
+}

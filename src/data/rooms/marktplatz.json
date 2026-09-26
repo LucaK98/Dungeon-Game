@@ -1,0 +1,24 @@
+{
+  "id": "marktplatz",
+  "name": "Marktplatz von Hammelstein",
+  "theme": "town",
+  "tags": [
+    "start",
+    "npc",
+    "outdoor"
+  ],
+  "description": "Fachwerkhäuser, ein Brunnen, Marktstände – und überall huschen Ratten.",
+  "map": [
+    "#t#####EEE#####t#",
+    "#,,,,,,,,,,,,,,,#",
+    "#,b,,.......,,b,#",
+    "#,,,.........,,,#",
+    "E,P,....F....,,,E",
+    "E,P,....n....,n,E",
+    "E,P,.........,,,E",
+    "#,P,.........,,,#",
+    "#,b,,...n...,,b,#",
+    "#,,,,,,,,,,,,,,,#",
+    "#B######EEE####B#"
+  ]
+}

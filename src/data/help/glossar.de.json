@@ -685,11 +685,12 @@
   "dunkelsicht": {
     "titel": "Dunkelsicht",
     "kurz": "Im Dunkeln sehen, als wäre es dämmrig.",
-    "lang": "Elfen, Zwerge und viele Monster können im Dunkeln bis zu 12 Felder weit sehen, allerdings nur in Grautönen. Menschen und Halblinge brauchen eine Fackel. In Höhlen und nachts im Wald ist das ein großer Vorteil.",
+    "lang": "Elfen, Zwerge und viele Monster können im Dunkeln bis 18 m (12 Felder) weit sehen, allerdings nur in Grautönen. Menschen und Halblinge brauchen eine Fackel. In Höhlen und nachts im Wald ist das ein großer Vorteil.",
     "siehe_auch": [
       "volk:elf",
       "volk:dwarf",
-      "gegenstand:torch"
+      "gegenstand:torch",
+      "dunkelheit"
     ]
   },
   "klasse:fighter": {
@@ -1563,9 +1564,10 @@
   "gegenstand:torch": {
     "titel": "Fackel",
     "kurz": "Spendet Licht in dunklen Gängen.",
-    "lang": "Eine Fackel leuchtet 4 Felder hell und noch 4 weitere schwach. Menschen und Halblinge brauchen sie im Dunkeln, Elfen und Zwerge sehen auch so.",
+    "lang": "Eine brennende Fackel leuchtet 6 m (4 Felder) weit hell. Anzünden oder Löschen kostet keine Aktion. Menschen und Halblinge brauchen sie in der Nacht, Elfen und Zwerge sehen auch so.",
     "siehe_auch": [
-      "dunkelsicht"
+      "dunkelsicht",
+      "dunkelheit"
     ]
   },
   "gegenstand:rope-hempen-50-feet": {
@@ -2459,10 +2461,12 @@
   "monstermerkmal:swarm": {
     "titel": "Schwarm",
     "kurz": "Viele kleine Tiere, die wie ein Wesen kämpfen.",
-    "lang": "Ein Schwarm kann sich durch enge Lücken quetschen und andere Felder betreten. Er erholt sich nicht und kann nicht festgehalten werden.",
+    "lang": "Ein Schwarm (z. B. Ratten oder Fledermäuse) wird schwächer, je mehr Tiere fallen: Hat er nur noch die Hälfte seiner Trefferpunkte oder weniger, würfelt er nur noch halb so viele Schadenswürfel. Heilen kann er sich nicht. Hiebe, Stiche und Schläge treffen immer nur ein paar Tiere, deshalb macht normaler Waffenschaden nur halb so viel (Resistenz). Feuer und Zauber wirken voll.",
+    "beispiel": "Rattenschwarm mit 24 TP beißt mit 2W6. Bei 12 TP oder weniger nur noch mit 1W6.",
     "siehe_auch": [
       "monster:swarm-of-rats",
-      "monster:swarm-of-bats"
+      "monster:swarm-of-bats",
+      "resistenz"
     ]
   },
   "monstermerkmal:undead-fortitude": {
@@ -2597,6 +2601,27 @@
     "siehe_auch": [
       "probe",
       "fertigkeit"
+    ]
+  },
+  "dunkelheit": {
+    "titel": "Dunkelheit und Licht",
+    "kurz": "Wer das Ziel nicht sieht, trifft schlechter.",
+    "lang": "Nachts oder in finsteren Stollen seht ihr nur, was beleuchtet ist: Fackeln an den Wänden oder eine Fackel, die ein Held trägt (6 m Licht). Elfen und Zwerge haben Dunkelsicht und sehen auch so bis 18 m weit. Greifst du ein Ziel an, das du nicht sehen kannst, hast du Nachteil. Sieht dein Ziel dich nicht, hast du Vorteil. Tipp: Zündet am Handy unter „Gegenstände“ eine Fackel an – das kostet keine Aktion.",
+    "beispiel": "Brunhild (Mensch, ohne Fackel) greift einen Wolf im Dunkeln an: Nachteil. Mit Fackel: normaler Wurf.",
+    "siehe_auch": [
+      "dunkelsicht",
+      "gegenstand:torch",
+      "vorteil",
+      "nachteil"
+    ]
+  },
+  "gegenstand:silberstaub": {
+    "titel": "Silberstaub",
+    "kurz": "Macht eure Waffen zu Silberwaffen.",
+    "lang": "Die Kräuterfrau bestäubt eure Klingen mit geweihtem Silber. Werwölfe und manche Geister spüren normale Waffen kaum – gegen versilberte Waffen sind sie aber verwundbar. Der Staub wirkt für die ganze Gruppe, solange einer von euch den Beutel trägt.",
+    "siehe_auch": [
+      "monster:werewolf-hybrid",
+      "immunitaet"
     ]
   }
 }

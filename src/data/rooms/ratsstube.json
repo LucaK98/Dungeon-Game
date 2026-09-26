@@ -1,0 +1,20 @@
+{
+  "id": "ratsstube",
+  "name": "Ratsstube im Rathaus",
+  "theme": "tavern",
+  "tags": [
+    "npc"
+  ],
+  "description": "Getäfelte Wände, ein langer Tisch, darauf Urkunden und ein Siegel.",
+  "map": [
+    "####EEE####",
+    "#t.,,,,,.t#",
+    "#..,,,,,..#",
+    "#.bb,n,bb.#",
+    "#..,,,,,..#",
+    "E..,,H,,..E",
+    "#..,,,,,..#",
+    "#t.,,,,,.t#",
+    "####EEE####"
+  ]
+}

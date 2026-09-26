@@ -1,0 +1,20 @@
+{
+  "id": "vorratskeller",
+  "name": "Vorratskeller",
+  "theme": "stone",
+  "tags": [
+    "fight"
+  ],
+  "description": "Fässer, Säcke, Spinnweben. Es quiekt in allen Ecken.",
+  "map": [
+    "####EEE####",
+    "#b.,,,,,.b#",
+    "#..,,m,,..#",
+    "#.b,,,,,b.#",
+    "E..m,,,m..E",
+    "#.b,,,,,b.#",
+    "#..,,C,,..#",
+    "#bb.....bb#",
+    "###########"
+  ]
+}

@@ -79,6 +79,14 @@ export const THEMES: Record<Theme, ThemeStyle> = {
   lair: { floor: "floor.lair", alt: "floor.cave", wall: "wall.lair", corridor: "floor.cave", outdoor: false },
   crypt: { floor: "floor.crypt", alt: "floor.stone", wall: "wall.crypt", corridor: "floor.crypt", outdoor: false },
   stone: { floor: "floor.stone", alt: "floor.castle", wall: "wall.stone", corridor: "floor.stone", outdoor: false },
+  /** Stadtgassen: cobblestones between brick houses. */
+  town: { floor: "floor.stone", alt: "floor.village", wall: "wall.brick", corridor: "floor.stone", outdoor: true },
+  /** Bergstollen: dug tunnels with loose earth. */
+  mine: { floor: "floor.dirt", alt: "floor.cave", wall: "wall.cave", corridor: "floor.dirt", outdoor: false },
+  /** Brocken summit / Hexentanzplatz: bare rock and sand under the sky. */
+  peak: { floor: "floor.sand", alt: "floor.stone", wall: "wall.stone", corridor: "floor.path", outdoor: true },
+  church: { floor: "floor.marble", alt: "floor.castle", wall: "wall.church", corridor: "floor.castle", outdoor: false },
+  tavern: { floor: "floor.castle", alt: "floor.village", wall: "wall.brick", corridor: "floor.dirt", outdoor: false },
 };
 
 /** How many variants each frame family has in the atlas (see scripts/assets/selection.ts). */

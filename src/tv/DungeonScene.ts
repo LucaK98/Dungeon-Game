@@ -18,6 +18,12 @@ const ZOOM = 2;
 /** Darkness per cell: unexplored = black, indoor = dim, outdoor (daylight) = almost clear. */
 const DARK_INDOOR = 0.72;
 const DARK_OUTDOOR = 0.1;
+/** Night scenes: almost black outside the light. */
+const DARK_NIGHT = 0.9;
+/** Light circle (in squares) of a hero at night: torch, darkvision (dim), nothing. */
+const NIGHT_TORCH = 6.5;
+const NIGHT_DARKVISION = 3.5;
+const NIGHT_NONE = 1.8;
 const HERO_LIGHT = 5.5;
 const TORCH_LIGHT = 3.5;
 
@@ -257,7 +263,7 @@ export class DungeonScene extends Phaser.Scene {
         unexplored.fillStyle = "#000";
         unexplored.fillRect(x, y, 1, 1);
       } else {
-        fog.fillStyle = `rgba(0,0,0,${this.indoorCell(map, i) ? DARK_INDOOR : DARK_OUTDOOR})`;
+        fog.fillStyle = `rgba(0,0,0,${map.dark ? DARK_NIGHT : this.indoorCell(map, i) ? DARK_INDOOR : DARK_OUTDOOR})`;
         fog.fillRect(x, y, 1, 1);
       }
     }
@@ -281,7 +287,14 @@ export class DungeonScene extends Phaser.Scene {
       const f = this.figures.get(id);
       const x = f ? f.container.x / TILE : c.pos.x + 0.5;
       const y = f ? f.container.y / TILE : c.pos.y + 0.5;
-      erase(x, y, HERO_LIGHT + Math.sin(time / 180 + x) * 0.12);
+      const radius = !this.session.map.dark
+        ? HERO_LIGHT
+        : c.effects.some((e) => e.id === "torch")
+          ? NIGHT_TORCH
+          : c.darkvisionFt > 0
+            ? NIGHT_DARKVISION
+            : NIGHT_NONE;
+      erase(x, y, radius + Math.sin(time / 180 + x) * 0.12);
     }
     for (const t of this.torches) {
       const flicker = Math.sin(time / 90 + t.phase) * 0.15 + Math.sin(time / 37 + t.phase * 3) * 0.1;

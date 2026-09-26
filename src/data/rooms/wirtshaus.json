@@ -1,0 +1,21 @@
+{
+  "id": "wirtshaus",
+  "name": "Wirtshaus „Zum Brockenhexchen“",
+  "theme": "tavern",
+  "tags": [
+    "npc",
+    "rest"
+  ],
+  "description": "Rauch, Bier, laute Stimmen. Der Wirt poliert Krüge.",
+  "map": [
+    "#####EEE#####",
+    "#t.,,,,,,,.t#",
+    "#.b.,,,,,.b.#",
+    "#...,,,,,...#",
+    "E.b.,,n,,.b.E",
+    "#...,,,,,...#",
+    "#.bbb,,,bbb.#",
+    "#t...,n,...t#",
+    "#############"
+  ]
+}

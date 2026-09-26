@@ -484,6 +484,8 @@ async function main(): Promise<void> {
     { id: "gold", kind: "gear" },
     // Story item (not SRD): see src/dm/stories/drachenfels.json
     { id: "drachenlanze", kind: "gear" },
+    // Story item (not SRD): walpurgisnacht.json – makes weapons count as silvered.
+    { id: "silberstaub", kind: "gear" },
     ...pick(eq, ["torch", "rope-hempen-50-feet", "healers-kit"], "equipment").map(
       (e): ItemDef => ({ id: e.index, kind: "gear" }),
     ),

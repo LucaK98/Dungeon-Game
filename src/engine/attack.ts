@@ -4,6 +4,7 @@
 import type { AttackOption, AttackResult, Battle, Creature, DamageLine, DamageResult } from "../shared/game";
 import type { DamagePart, DamageType } from "../shared/rules";
 import type { BreakdownPart } from "../shared/types";
+import { canSee } from "./vision";
 import { advantage, d20Part, disadvantage, rollD20, sumParts, type AdvReason } from "./core";
 import { parseDice, rollDice, rollDie } from "./dice";
 import { acParts, damageCreature, distanceFt, hasCondition, hasEffect, isIncapacitated } from "./combat";
@@ -59,6 +60,12 @@ export function rollDamage(rng: Rng, input: DamageInput, target?: Creature): Dam
   return { lines, total: lines.reduce((s, l) => s + l.final, 0), crit: !!input.crit };
 }
 
+/** "2d6" → "1d6" (weakened swarm). */
+function halveDice(p: DamagePart): DamagePart {
+  const m = /^(\d+)d(\d+)$/.exec(p.dice);
+  return m ? { ...p, dice: `${Math.max(1, Math.floor(Number(m[1]) / 2))}d${m[2]}` } : p;
+}
+
 // ---------------------------------------------------------------- advantage
 
 function hasAllyNear(battle: Battle, attacker: Creature, target: Creature): boolean {
@@ -88,6 +95,8 @@ export function attackReasons(battle: Battle, attacker: Creature, target: Creatu
   }
   if (hasCondition(target, "invisible")) r.push(disadvantage("Ziel ist unsichtbar", "zustand:invisible"));
   if (hasEffect(target, "dodge")) r.push(disadvantage("Ziel weicht aus", "ausweichen"));
+  if (!canSee(battle, attacker, target)) r.push(disadvantage("Zu dunkel: du siehst das Ziel nicht", "dunkelheit"));
+  if (!canSee(battle, target, attacker)) r.push(advantage("Das Ziel sieht dich im Dunkeln nicht", "dunkelheit"));
   if (hasEffect(target, "guiding-bolt")) r.push(advantage("Lenkendes Geschoss leuchtet auf dem Ziel", "zauber:guiding-bolt"));
 
   if (ranged) {
@@ -122,6 +131,8 @@ export interface AttackOptions {
   extraReasons?: AdvReason[];
   /** Double damage against dragons (Drachenlanze). */
   dragonSlayer?: boolean;
+  /** Silvered weapon (Silberstaub): counts as magical against werewolves & co. */
+  silvered?: boolean;
 }
 
 function critThreshold(attacker: Creature): number {
@@ -178,7 +189,9 @@ export function resolveAttack(
   };
   if (!hit) return result;
 
-  const dmgParts: DamagePart[] = [...option.damage];
+  // Swarms get weaker as they shrink: half the dice at half hit points or less.
+  const weakSwarm = attacker.traits.includes("swarm") && attacker.hp <= attacker.maxHp / 2;
+  const dmgParts: DamagePart[] = weakSwarm ? option.damage.map(halveDice) : [...option.damage];
   const bonus = [...option.damageBonus];
   if (sneakAttackAllowed(battle, attacker, target, option, roll.mode)) {
     const lvl = attacker.pc!.level;
@@ -194,7 +207,7 @@ export function resolveAttack(
 
   const damage = rollDamage(
     rng,
-    { parts: dmgParts, bonus, crit: result.crit, magical: !!option.magical },
+    { parts: dmgParts, bonus, crit: result.crit, magical: !!option.magical || (!!opts.silvered && option.source === "weapon") },
     target,
   );
   if (opts.dragonSlayer && target.creatureType === "dragon") {

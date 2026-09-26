@@ -2,6 +2,7 @@ import type { Story } from "../../shared/story";
 import drachenfels from "./drachenfels.json";
 
 /** All playable stories, in menu order. */
+// Draft, not in the menu yet: ./rattenfaenger.json ("Der Rattenfänger von Hammelstein").
 export const STORIES: Story[] = [drachenfels as unknown as Story];
 
 export function getStory(id: string): Story | undefined {

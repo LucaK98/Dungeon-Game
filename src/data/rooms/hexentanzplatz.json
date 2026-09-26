@@ -1,0 +1,24 @@
+{
+  "id": "hexentanzplatz",
+  "name": "Hexentanzplatz auf dem Brocken",
+  "theme": "peak",
+  "tags": [
+    "boss",
+    "outdoor"
+  ],
+  "description": "Ein Kreis aus Felsen, in der Mitte ein Opferstein. Grünes Feuer flackert.",
+  "map": [
+    "#######EEE#######",
+    "#,,,,,,,,,,,,,,,#",
+    "#,,O,,,,.,,,,O,,#",
+    "#,,,,.......,,,,#",
+    "#,O,...m.m...,O,#",
+    "#,,,...,A,...,,,#",
+    "#,,,....X....,,,#",
+    "#,O,.........,O,#",
+    "#,,,,..n.n..,,,,#",
+    "#,,O,,,,,,,,,O,,#",
+    "#t,,,,,,,,,,,,,t#",
+    "#################"
+  ]
+}

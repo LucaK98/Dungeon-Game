@@ -199,7 +199,8 @@ export function applyDamage(rng: Rng, c: Creature, amount: number, ctx: DamageCo
 /** Heals and wakes up unconscious characters. */
 export function heal(c: Creature, amount: number): HpChange {
   const change = blankChange(c);
-  if (c.dead || amount <= 0) return change;
+  // Swarms can't regain hit points (SRD).
+  if (c.dead || amount <= 0 || c.traits.includes("swarm")) return change;
   const wasDown = c.hp === 0;
   c.hp = Math.min(c.maxHp, c.hp + amount);
   change.after = c.hp;

@@ -128,6 +128,8 @@ export interface Scene {
   /** Shortest game setting that includes this optional scene. */
   mindestDauer: Duration;
   ziel: string;
+  /** Night scene: darkness rules (light, darkvision) apply. */
+  dark?: boolean;
   /** Short line shown while travelling here. */
   travel?: string;
   npcs?: { npc: string; room?: number }[];

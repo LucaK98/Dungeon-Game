@@ -213,6 +213,7 @@ export class Director {
       const npc = this.story.npcs.find((x) => x.id === n.npc)!;
       return { id: npc.id, name: npc.name, monster: npc.monster, room: n.room ?? 0 };
     });
+    if (scene.dark) map.dark = true;
     this.game.loadMap(map, npcs);
     this.lowestHpRatio = 1;
     this.updateView();

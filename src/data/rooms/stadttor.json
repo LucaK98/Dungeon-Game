@@ -1,0 +1,22 @@
+{
+  "id": "stadttor",
+  "name": "Das Stadttor",
+  "theme": "town",
+  "tags": [
+    "corridor",
+    "outdoor",
+    "npc"
+  ],
+  "description": "Das Tor steht offen. Dahinter führt ein Pfad hinauf zum Koppelberg.",
+  "map": [
+    "#t###EEE###t#",
+    "#,,,,,,,,,,,#",
+    "#,,,.....,,,#",
+    "E,,,..n..,,,E",
+    "#,,,.....,,,#",
+    "##########'##",
+    "#,,,,,,,,,,,#",
+    "#,,,,,,,,,,,#",
+    "#####EEE#####"
+  ]
+}

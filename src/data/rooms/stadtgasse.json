@@ -1,0 +1,22 @@
+{
+  "id": "stadtgasse",
+  "name": "Enge Gasse",
+  "theme": "town",
+  "tags": [
+    "corridor",
+    "outdoor",
+    "fight"
+  ],
+  "description": "Eine krumme Gasse zwischen windschiefen Häusern.",
+  "map": [
+    "###EEE###",
+    "#b.,,,..#",
+    "#..,,,.b#",
+    "#.m,,,..#",
+    "E..,,,..E",
+    "#..,,,m.#",
+    "#b.,,,..#",
+    "#..,,,.b#",
+    "###EEE###"
+  ]
+}

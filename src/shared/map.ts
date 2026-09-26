@@ -17,7 +17,7 @@ import type { GridPos } from "./game";
  */
 export type ModuleChar = string;
 
-export type Theme = "castle" | "throne" | "meadow" | "forest" | "village" | "cave" | "lair" | "crypt" | "stone";
+export type Theme = "castle" | "throne" | "meadow" | "forest" | "village" | "cave" | "lair" | "crypt" | "stone" | "town" | "mine" | "peak" | "church" | "tavern";
 
 export type RoomTag = "start" | "corridor" | "treasure" | "trap" | "boss" | "outdoor" | "rest" | "npc" | "fight";
 
@@ -81,6 +81,8 @@ export interface PlacedRoom {
 }
 
 export interface DungeonMap {
+  /** Night / no daylight: only torches and carried light make things visible. */
+  dark?: boolean;
   width: number;
   height: number;
   /** Row-major, width × height. */

@@ -1,0 +1,22 @@
+{
+  "id": "pfeiferhalle",
+  "name": "Halle des Pfeifers",
+  "theme": "lair",
+  "tags": [
+    "boss"
+  ],
+  "description": "Eine riesige Höhlenhalle. Auf einem Felsthron sitzt eine bunte Gestalt mit einer Flöte. Dahinter: die Kinder.",
+  "map": [
+    "#######EEE#######",
+    "#t.....,,,.....t#",
+    "#..n.n.,,,.n.n..#",
+    "#.....,,,,,.....#",
+    "#..,,,,,,,,,,,..#",
+    "#..,,,,,X,,,,,..#",
+    "#..,,m,,,,,m,,..#",
+    "#....,,,,,,,....#",
+    "#.O..,,,,,,,..O.#",
+    "#t.....,,,.....t#",
+    "#################"
+  ]
+}

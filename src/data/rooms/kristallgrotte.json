@@ -1,0 +1,21 @@
+{
+  "id": "kristallgrotte",
+  "name": "Glitzernde Grotte",
+  "theme": "cave",
+  "tags": [
+    "treasure",
+    "rest"
+  ],
+  "description": "Kristalle funkeln an den Wänden. Hier ist es still und friedlich.",
+  "map": [
+    "####EEE####",
+    "#..,,,,,..#",
+    "#.g,,,,,p.#",
+    "E..,,-,,..E",
+    "#..,---,..#",
+    "#..,,-,,..#",
+    "#.C,,,,,g.#",
+    "#..,,,,,..#",
+    "####EEE####"
+  ]
+}

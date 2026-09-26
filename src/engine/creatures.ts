@@ -332,7 +332,8 @@ export function createMonster(monsterId: string, id: string, opts: { name?: stri
       toHit: [{ label: "Angriffsbonus", value: a.attackBonus ?? 0, glossarKey: "angriffsbonus" }],
       damage: [{ dice: split.dice, type: first!.type }, ...rest],
       damageBonus: split.flat ? [{ label: "Bonus", value: split.flat, glossarKey: "schaden" }] : [],
-      reachFt: a.kind === "melee" ? (a.reachFt ?? 5) : 0,
+      // Reach 0 (swarms attack in their own space) counts as the neighbouring square here.
+      reachFt: a.kind === "melee" ? a.reachFt || 5 : 0,
       ...(a.rangeFt ? { rangeFt: a.rangeFt } : {}),
       ...(a.kind === "melee" && a.rangeFt ? { thrown: true } : {}),
     });

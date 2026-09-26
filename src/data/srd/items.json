@@ -23,5 +23,9 @@
   {
     "id": "drachenlanze",
     "kind": "gear"
+  },
+  {
+    "id": "silberstaub",
+    "kind": "gear"
   }
 ]

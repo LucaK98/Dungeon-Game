@@ -1,0 +1,24 @@
+{
+  "id": "bergstollen",
+  "name": "Stollen im Berg",
+  "theme": "mine",
+  "tags": [
+    "corridor",
+    "fight",
+    "trap"
+  ],
+  "description": "Alte Bergmannsstollen, gestützt von morschen Balken. Von fern klingt eine Flöte.",
+  "map": [
+    "###EEE#####",
+    "##.,,,..###",
+    "#..,m,...##",
+    "#.b,,,,^..#",
+    "##.,,,,,..#",
+    "###.,,m,..E",
+    "##..^,,,..E",
+    "#..,,,,,.b#",
+    "#.m,,,..###",
+    "##.,,,.####",
+    "###EEE#####"
+  ]
+}

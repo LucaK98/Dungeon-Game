@@ -1,0 +1,22 @@
+{
+  "id": "kraeuterhuette",
+  "name": "Hütte der Kräuterfrau",
+  "theme": "forest",
+  "tags": [
+    "npc",
+    "outdoor",
+    "rest"
+  ],
+  "description": "Eine schiefe Hütte am Waldrand. Überall hängen Kräuterbündel.",
+  "map": [
+    "####EEE####",
+    "#T..,,,..T#",
+    "#.###,###.#",
+    "#.#.'n.#..#",
+    "#.#####.T.#",
+    "E...,,,...E",
+    "#.T.,,,.T.#",
+    "#...,p,...#",
+    "####EEE####"
+  ]
+}

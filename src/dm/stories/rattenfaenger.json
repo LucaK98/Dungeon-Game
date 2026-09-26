@@ -1,0 +1,1737 @@
+{
+  "id": "rattenfaenger",
+  "title": "Der Rattenfänger von Hammelstein",
+  "subtitle": "Ein Stadt-Abenteuer",
+  "description": "Ein fremder Pfeifer befreit Hammelstein von den Ratten – doch der Bürgermeister zahlt nicht. In der Nacht verschwinden alle Kinder. Folgt der Melodie in den Berg. Hier hilft Reden oft mehr als Kämpfen.",
+  "recommended": false,
+  "cover": [
+    "monster.swarm-of-rats",
+    "monster.rat",
+    "wall.brick.0"
+  ],
+  "intro": [
+    {
+      "text": "Hammelstein, ein Städtchen an der Weser. Fachwerk, Kopfsteinpflaster, eine Kirche mit schiefem Turm."
+    },
+    {
+      "text": "Seit Wochen gehört die Stadt nicht mehr den Menschen, sondern den Ratten. Sie fressen das Korn, beißen die Hunde und tanzen nachts auf den Tischen."
+    },
+    {
+      "text": "Ihr seid Reisende, gerade angekommen. Auf dem Marktplatz drängt sich die halbe Stadt …"
+    }
+  ],
+  "truths": [
+    {
+      "id": "A",
+      "title": "Der Rattenkönig im Rathaus",
+      "summary": "Bürgermeister Gierlich hat die Ratten selbst mit einem Zauber herbeigerufen, damit die Leute fliehen und er ihre Häuser billig kaufen kann. Der Pfeifer ist der Gute: Er hält die Kinder im Berg in Sicherheit, bis die Wahrheit ans Licht kommt.",
+      "reveal": [
+        {
+          "text": "Der Pfeifer steht auf und lässt die Flöte sinken."
+        },
+        {
+          "text": "„Ich bin nicht euer Feind. Euer Bürgermeister hat die Ratten gerufen – mit einem Zauber aus seinem Keller. Er wollte, dass die Leute fliehen und ihm ihre Häuser für ein paar Taler verkaufen.“",
+          "npc": "Der bunte Pfeifer"
+        },
+        {
+          "text": "„Die Kinder sind hier sicher. Ich gebe sie zurück, sobald die Stadt die Wahrheit kennt.“",
+          "npc": "Der bunte Pfeifer"
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "title": "Die Seuche",
+      "summary": "Mit den Ratten kam eine Krankheit, der schwarze Husten. Der Pfeifer hat die Kinder in den Berg gebracht, wo die Luft rein ist, um sie vor der Seuche zu retten. Er hat es nur schlecht erklärt.",
+      "reveal": [
+        {
+          "text": "Der Pfeifer hebt die Hände. „Halt! Hört mich an!“",
+          "npc": "Der bunte Pfeifer"
+        },
+        {
+          "text": "„Die Ratten haben den schwarzen Husten gebracht. Wäre ich gegangen, wären die Kinder krank geworden. Hier oben ist die Luft rein.“",
+          "npc": "Der bunte Pfeifer"
+        },
+        {
+          "text": "Ihr seht genauer hin: Die Kinder schlafen friedlich, mit roten Wangen. Keines hustet."
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "title": "Der Feenhandel",
+      "summary": "Der Pfeifer ist ein Feenwesen. Für Feen ist ein Versprechen heilig: Der Bürgermeister hat tausend Taler versprochen und gebrochen. Jetzt nimmt der Pfeifer sich den Lohn – die Kinder. Er gibt sie zurück, wenn der Lohn bezahlt wird … oder wenn jemand anderes mit ihm tanzt, für immer.",
+      "reveal": [
+        {
+          "text": "Der Pfeifer lacht, und seine Augen werden grün wie Moos."
+        },
+        {
+          "text": "„Ein Versprechen ist ein Versprechen. Tausend Taler waren abgemacht. Wer nicht zahlt, zahlt mit dem, was ihm am liebsten ist.“",
+          "npc": "Der bunte Pfeifer"
+        },
+        {
+          "text": "Sein Blick wandert zu euch. „Oder tanzt einer von euch mit mir – für immer?“",
+          "npc": "Der bunte Pfeifer"
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "title": "Der Verräter im Rat",
+      "summary": "Der Pfeifer ist ein verfluchter Barde, der Kinder stiehlt, um sich ihre Lebenskraft zu nehmen. Ratsherr Knauf hilft ihm heimlich: Er hat ihm nachts das Stadttor aufgeschlossen, gegen Gold.",
+      "reveal": [
+        {
+          "text": "Der Pfeifer grinst böse. „Ihr seid weit gekommen. Weiter als euer feiner Ratsherr gedacht hat.“",
+          "npc": "Der bunte Pfeifer"
+        },
+        {
+          "text": "„Ja, Knauf hat mir das Tor geöffnet. Für einen Beutel Gold verkauft er seine eigene Stadt.“",
+          "npc": "Der bunte Pfeifer"
+        },
+        {
+          "text": "„Und jetzt – tanzt!“ Er setzt die Flöte an.",
+          "npc": "Der bunte Pfeifer"
+        }
+      ]
+    }
+  ],
+  "npcs": [
+    {
+      "id": "buergermeister",
+      "name": "Bürgermeister Gierlich",
+      "monster": "noble",
+      "description": "Ein dicker Mann mit goldener Amtskette und kleinen, flinken Augen.",
+      "secretGoal": "Je nach Wahrheit: Er hat die Ratten selbst gerufen – oder ist nur geizig."
+    },
+    {
+      "id": "pfeifer",
+      "name": "Der bunte Pfeifer",
+      "monster": "spy",
+      "description": "Ein schlanker Fremder in einem Mantel aus bunten Flicken, mit einer silbernen Flöte.",
+      "secretGoal": "Je nach Wahrheit: Retter, Feenwesen oder Kinderdieb."
+    },
+    {
+      "id": "hanne",
+      "name": "Marktfrau Hanne",
+      "monster": "commoner",
+      "description": "Eine resolute Frau mit Kohlkorb, die alles weiß, was in der Stadt passiert.",
+      "secretGoal": "Sie will ihre Tochter Lina zurück."
+    },
+    {
+      "id": "knauf",
+      "name": "Ratsherr Knauf",
+      "monster": "noble",
+      "description": "Ein hagerer Ratsherr im roten Mantel, der ständig an seinen Ringen dreht.",
+      "secretGoal": "Je nach Wahrheit: harmloser Wichtigtuer oder Verräter."
+    },
+    {
+      "id": "jakob",
+      "name": "Jakob",
+      "monster": "commoner",
+      "description": "Ein Junge mit Krücke. Er konnte den anderen Kindern nicht folgen.",
+      "secretGoal": "Er will beweisen, dass er mutig ist."
+    },
+    {
+      "id": "bertram",
+      "name": "Torwächter Bertram",
+      "monster": "guard",
+      "description": "Ein müder Wächter, der sich schämt, weil er in der Nacht eingeschlafen ist.",
+      "secretGoal": "Er will seinen Fehler wiedergutmachen."
+    }
+  ],
+  "clues": [
+    {
+      "id": "lied",
+      "text": "Jakob: Die Melodie macht müde. Aber als die Kirchturmglocke schlug, blieben alle kurz stehen – laute Musik bricht den Bann.",
+      "truth": null
+    },
+    {
+      "id": "wachs",
+      "text": "Die Kobolde tragen Wachs in den Ohren. Gegen die Flöte hilft es, nicht hinzuhören.",
+      "truth": null
+    },
+    {
+      "id": "a_markt",
+      "text": "Hanne: Der Bürgermeister hat in den letzten Wochen viele Häuser gekauft – ganz billig, von Leuten, die vor den Ratten geflohen sind.",
+      "truth": "A"
+    },
+    {
+      "id": "b_markt",
+      "text": "Hanne: Die Ratten hatten rote Augen und kahle Stellen. Mein Nachbar hustet seitdem schwarz.",
+      "truth": "B"
+    },
+    {
+      "id": "c_markt",
+      "text": "Wo der Pfeifer gegangen ist, wachsen kleine Blumen zwischen den Pflastersteinen.",
+      "truth": "C"
+    },
+    {
+      "id": "d_markt",
+      "text": "Hanne: Ratsherr Knauf hat dem Pfeifer vorhin heimlich zugenickt, als der Bürgermeister nicht hinsah.",
+      "truth": "D"
+    },
+    {
+      "id": "a_keller",
+      "text": "In einer Kiste im Rathauskeller: Rattenköder mit dem Siegel des Bürgermeisters – und ein Zauberbuch mit Eselsohren.",
+      "truth": "A"
+    },
+    {
+      "id": "b_keller",
+      "text": "Tote Ratten mit schwarzen Beulen. Das sieht nach einer bösen Krankheit aus.",
+      "truth": "B"
+    },
+    {
+      "id": "c_keller",
+      "text": "Ein Ring aus Pilzen mitten im Keller – ein Feenring. Daneben ein Vertrag über 1000 Taler, unterschrieben vom Bürgermeister.",
+      "truth": "C"
+    },
+    {
+      "id": "d_keller",
+      "text": "Eine Kellertür ist von innen aufgebrochen. Frische Spuren führen zum Haus von Ratsherr Knauf.",
+      "truth": "D"
+    },
+    {
+      "id": "a_zeuge",
+      "text": "Jakob: Der Pfeifer hat geweint, als er ging. Er sagte: ‚Der wahre Rattenkönig sitzt im Rathaus.‘",
+      "truth": "A"
+    },
+    {
+      "id": "b_zeuge",
+      "text": "Jakob: Der Pfeifer hat mir ein Tuch gegeben: ‚Halte dir Mund und Nase zu, bis die Luft wieder rein ist.‘",
+      "truth": "B"
+    },
+    {
+      "id": "c_zeuge",
+      "text": "Jakob: Er hat gelacht wie ein Kind und gesungen: ‚Ein Handel ist ein Handel. Tausend Taler oder ein Kind.‘",
+      "truth": "C"
+    },
+    {
+      "id": "d_zeuge",
+      "text": "Jakob: Ein Mann mit Laterne hat ihnen das Tor aufgeschlossen. Er trug einen roten Mantel, wie die Ratsherren.",
+      "truth": "D"
+    },
+    {
+      "id": "a_pfad",
+      "text": "Ein Zettel im Gras, in schöner Schrift: ‚Wer gerecht ist, fragt den Bürgermeister nach seinen Häusern.‘",
+      "truth": "A"
+    },
+    {
+      "id": "b_pfad",
+      "text": "Am Pfad liegen frisch gepflückte Kräuter gegen Fieber – als wollte jemand Kranke heilen.",
+      "truth": "B"
+    },
+    {
+      "id": "c_pfad",
+      "text": "Winzige Tanzspuren im Mondlicht, viel zu leicht für Menschen. Hier haben Feen gefeiert.",
+      "truth": "C"
+    },
+    {
+      "id": "d_pfad",
+      "text": "Eine zerbrochene Laterne mit dem Wappen von Ratsherr Knauf.",
+      "truth": "D"
+    },
+    {
+      "id": "a_stollen",
+      "text": "Ein Kobold zetert: ‚Der Pfeifer zahlt gut! Der Bürgermeister zahlt nie!‘",
+      "truth": "A"
+    },
+    {
+      "id": "b_stollen",
+      "text": "Die Kobolde tragen Tücher vor dem Mund und murmeln etwas von ‚schwarzem Husten‘.",
+      "truth": "B"
+    },
+    {
+      "id": "c_stollen",
+      "text": "Ein Kobold kichert: ‚Die Fee will ihren Lohn! Kein Lohn, kein Kind!‘",
+      "truth": "C"
+    },
+    {
+      "id": "d_stollen",
+      "text": "Ein Kobold prahlt: ‚Der Mann im roten Mantel bringt uns Gold, damit wir den Weg bewachen.‘",
+      "truth": "D"
+    },
+    {
+      "id": "a_rat",
+      "text": "Im Grundbuch der Stadt: vierzehn Häuser auf den Namen Gierlich – alle in diesem Monat gekauft.",
+      "truth": "A"
+    },
+    {
+      "id": "b_rat",
+      "text": "Ein Brief des Stadtarztes an den Rat: ‚Seuchengefahr! Keller schließen!‘ – ungeöffnet.",
+      "truth": "B"
+    },
+    {
+      "id": "c_rat",
+      "text": "In der Stadtchronik: Vor hundert Jahren hat Hammelstein schon einmal einen Spielmann um seinen Lohn betrogen.",
+      "truth": "C"
+    },
+    {
+      "id": "d_rat",
+      "text": "Auf Knaufs Schreibtisch: eine Karte des Koppelbergs mit einem Kreuz – und ein leerer Goldbeutel.",
+      "truth": "D"
+    },
+    {
+      "id": "a_diebe",
+      "text": "Ein Dieb gesteht: ‚Der Bürgermeister zahlt uns, damit wir leere Häuser ausräumen.‘",
+      "truth": "A"
+    },
+    {
+      "id": "b_diebe",
+      "text": "Die Diebe husten schwarz und haben Fieber. Einer bittet euch um Hilfe.",
+      "truth": "B"
+    },
+    {
+      "id": "c_diebe",
+      "text": "Die Diebe fliehen schreiend vor einem grünen Irrlicht, das nur ihr sehen könnt.",
+      "truth": "C"
+    },
+    {
+      "id": "d_diebe",
+      "text": "Die Diebe tragen rote Halstücher – die Farbe von Ratsherr Knauf.",
+      "truth": "D"
+    },
+    {
+      "id": "a_grotte",
+      "text": "In der Grotte: eine Kinderzeichnung vom Rathaus, darüber eine riesige Ratte mit Amtskette.",
+      "truth": "A"
+    },
+    {
+      "id": "b_grotte",
+      "text": "Ein Vorrat an Kräutertee, Decken und Brot – jemand hat hier liebevoll für viele Kinder gesorgt.",
+      "truth": "B"
+    },
+    {
+      "id": "c_grotte",
+      "text": "Ein Ring aus leuchtenden Pilzen. Wer hineintritt, hört leise Feenmusik.",
+      "truth": "C"
+    },
+    {
+      "id": "d_grotte",
+      "text": "Ein Kinderschuh, daneben Knaufs goldener Siegelring.",
+      "truth": "D"
+    }
+  ],
+  "acts": [
+    {
+      "id": "akt1",
+      "title": "Die Rattenplage",
+      "level": 1,
+      "scenes": [
+        {
+          "id": "marktplatz",
+          "title": "Der Marktplatz von Hammelstein",
+          "rooms": [
+            "marktplatz"
+          ],
+          "pflicht": true,
+          "dauer_min": 8,
+          "mindestDauer": "kurz",
+          "ziel": "Mit dem Bürgermeister sprechen",
+          "npcs": [
+            {
+              "npc": "buergermeister"
+            },
+            {
+              "npc": "pfeifer"
+            },
+            {
+              "npc": "hanne"
+            }
+          ],
+          "clues": [
+            {
+              "id": "markt",
+              "byTruth": {
+                "A": "a_markt",
+                "B": "b_markt",
+                "C": "c_markt",
+                "D": "d_markt"
+              }
+            }
+          ],
+          "keywords": [
+            {
+              "words": [
+                "ratte",
+                "ratten",
+                "plage"
+              ],
+              "response": [
+                {
+                  "text": "Hanne schimpft: „Ratten im Brot, Ratten in den Betten! Und der Rat tut nichts!“",
+                  "npc": "Marktfrau Hanne"
+                }
+              ]
+            },
+            {
+              "words": [
+                "pfeifer",
+                "flöte",
+                "musik",
+                "name"
+              ],
+              "response": [
+                {
+                  "text": "Der Pfeifer lächelt nur. „Namen sind wie Melodien. Man verschenkt sie nicht einfach.“",
+                  "npc": "Der bunte Pfeifer"
+                }
+              ],
+              "set": [
+                "pfeifer_gefragt"
+              ]
+            }
+          ],
+          "steps": [
+            {
+              "id": "hingehen",
+              "kind": "reach",
+              "target": "buergermeister",
+              "enter": [
+                {
+                  "text": "Auf dem Brunnenrand steht Bürgermeister Gierlich und ruft: „Wer uns von den Ratten befreit, bekommt tausend Taler!“",
+                  "npc": "Bürgermeister Gierlich"
+                },
+                {
+                  "text": "Geht zum Bürgermeister.",
+                  "tip": {
+                    "key": "freie_aktion",
+                    "text": "Neue Geschichte, gleiche Regeln: Wer dran ist, tippt auf ein helles Feld. Mit „Freie Aktion“ könnt ihr auch eigene Ideen ausprobieren."
+                  }
+                }
+              ]
+            },
+            {
+              "id": "pfeifer",
+              "kind": "narrate",
+              "enter": [
+                {
+                  "text": "Da tritt ein Fremder im bunten Flickenmantel vor. „Tausend Taler? Abgemacht.“",
+                  "npc": "Der bunte Pfeifer"
+                },
+                {
+                  "text": "Er setzt eine silberne Flöte an die Lippen. Eine Melodie, süß und seltsam – und aus allen Löchern kommen die Ratten und folgen ihm zum Fluss."
+                },
+                {
+                  "text": "Als der Pfeifer zurückkommt, verschränkt der Bürgermeister die Arme. „Tausend Taler? Für ein bisschen Flötenspiel? Hier hast du zehn.“",
+                  "npc": "Bürgermeister Gierlich"
+                },
+                {
+                  "text": "Die Augen des Pfeifers werden dunkel. „Ihr werdet es bereuen, Hammelstein.“",
+                  "npc": "Der bunte Pfeifer"
+                }
+              ],
+              "clues": [
+                "markt"
+              ]
+            },
+            {
+              "id": "lohn",
+              "kind": "choice",
+              "enter": [
+                {
+                  "text": "Alle schauen euch an. Ihr seid Fremde – vielleicht hört man auf euch?"
+                }
+              ],
+              "choices": [
+                {
+                  "id": "fuersprechen",
+                  "label": "Für den Pfeifer sprechen",
+                  "detail": "Überzeugen gegen SG 12",
+                  "check": {
+                    "skill": "persuasion",
+                    "dc": 12,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "„Ein Versprechen ist ein Versprechen!“ Einige Leute nicken. Der Bürgermeister wird rot. Der Pfeifer verneigt sich knapp vor euch."
+                        }
+                      ],
+                      "set": [
+                        "pfeifer_vertraut"
+                      ],
+                      "goto": "nacht"
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Der Bürgermeister lacht euch aus. „Fremde haben hier nichts zu sagen!“",
+                          "npc": "Bürgermeister Gierlich"
+                        }
+                      ],
+                      "goto": "nacht"
+                    }
+                  }
+                },
+                {
+                  "id": "schweigen",
+                  "label": "Sich heraushalten",
+                  "detail": "Das ist nicht eure Sache",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Ihr schweigt. Der Pfeifer mustert euch lange, dann geht er, ohne ein Wort."
+                      }
+                    ],
+                    "goto": "nacht"
+                  }
+                },
+                {
+                  "id": "fragen",
+                  "label": "Den Pfeifer genau beobachten",
+                  "detail": "Motiv erkennen gegen SG 11",
+                  "unless": [
+                    "pfeifer_beobachtet"
+                  ],
+                  "check": {
+                    "skill": "insight",
+                    "dc": 11,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Ihr seht es genau: Der Pfeifer ist nicht wütend. Er ist traurig – wie jemand, der das schon oft erlebt hat."
+                        }
+                      ],
+                      "set": [
+                        "pfeifer_beobachtet"
+                      ],
+                      "goto": "lohn"
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Sein Gesicht verrät nichts. Nur die Flöte in seiner Hand zittert leise."
+                        }
+                      ],
+                      "set": [
+                        "pfeifer_beobachtet"
+                      ],
+                      "goto": "lohn"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "nacht",
+              "kind": "narrate",
+              "enter": [
+                {
+                  "text": "In der Nacht erwacht ihr von einer Melodie. Süß, lockend, von überall und nirgends."
+                },
+                {
+                  "text": "Durch die Fenster seht ihr sie: alle Kinder der Stadt, im Nachthemd, barfuß. Sie tanzen hinter dem Pfeifer her, zum Stadttor hinaus."
+                },
+                {
+                  "text": "Als ihr auf der Straße seid, ist es still. Nur Mütter weinen. Hanne schreit nach ihrer Tochter Lina.",
+                  "tip": {
+                    "key": "hinweis",
+                    "text": "Hinweise, die ihr findet, stehen auf dem Handy im Tab „Hinweise“. Sammelt sie – die Geschichte ist vielleicht nicht so, wie sie scheint."
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "keller",
+          "title": "Ratten im Rathauskeller",
+          "rooms": [
+            "stadtgasse",
+            "vorratskeller"
+          ],
+          "pflicht": true,
+          "dauer_min": 7,
+          "mindestDauer": "kurz",
+          "ziel": "Die übrigen Ratten vertreiben und den Keller durchsuchen",
+          "travel": "Am Morgen: Nicht alle Ratten sind fort. Aus dem Keller des Rathauses kommt ein gewaltiges Quieken.",
+          "clues": [
+            {
+              "id": "keller",
+              "byTruth": {
+                "A": "a_keller",
+                "B": "b_keller",
+                "C": "c_keller",
+                "D": "d_keller"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "ratten",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "swarm-of-rats",
+                  "count": 1,
+                  "name": "Rattenschwarm"
+                },
+                {
+                  "monster": "giant-rat",
+                  "count": 1,
+                  "perExtraPlayer": 1,
+                  "name": "Riesenratte"
+                }
+              ],
+              "enter": [
+                {
+                  "text": "Ein brodelnder Teppich aus Ratten wälzt sich euch entgegen!"
+                },
+                {
+                  "text": "Ein ganzer Schwarm!",
+                  "tip": {
+                    "key": "monstermerkmal:swarm",
+                    "text": "Ein Schwarm sind viele kleine Tiere. Schwerter und Pfeile treffen immer nur ein paar davon (halber Schaden). Hat der Schwarm die Hälfte seiner TP verloren, beißt er schwächer."
+                  }
+                }
+              ],
+              "done": [
+                {
+                  "text": "Die letzten Ratten fliehen in die Kanäle. Endlich Ruhe."
+                }
+              ]
+            },
+            {
+              "id": "suchen",
+              "kind": "check",
+              "check": {
+                "skill": "investigation",
+                "dc": 12,
+                "who": "one",
+                "title": "Den Keller durchsuchen",
+                "success": {
+                  "narration": [
+                    {
+                      "text": "Hinter einem Fass entdeckt ihr etwas, das niemand finden sollte …"
+                    }
+                  ],
+                  "set": [
+                    "beweis_keller"
+                  ]
+                },
+                "failure": {
+                  "narration": [
+                    {
+                      "text": "Staub, Spinnweben, Rattendreck. Erst beim Hinausgehen fällt euch etwas auf …"
+                    }
+                  ]
+                }
+              },
+              "enter": [
+                {
+                  "text": "Warum war ausgerechnet dieser Keller so voller Ratten?"
+                }
+              ],
+              "clue": "keller"
+            }
+          ]
+        },
+        {
+          "id": "ratsstube",
+          "title": "In der Ratsstube",
+          "rooms": [
+            "ratsstube"
+          ],
+          "pflicht": false,
+          "dauer_min": 15,
+          "mindestDauer": "mittel",
+          "ziel": "Mit Ratsherr Knauf sprechen und die Stadtbücher prüfen",
+          "npcs": [
+            {
+              "npc": "knauf"
+            }
+          ],
+          "travel": "Der Rat tagt. Vielleicht verraten die Stadtbücher mehr.",
+          "clues": [
+            {
+              "id": "rat",
+              "byTruth": {
+                "A": "a_rat",
+                "B": "b_rat",
+                "C": "c_rat",
+                "D": "d_rat"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "hingehen",
+              "kind": "reach",
+              "target": "knauf",
+              "enter": [
+                {
+                  "text": "Ratsherr Knauf empfängt euch und dreht nervös an seinen Ringen. „Was wollt ihr? Wir sind beschäftigt!“",
+                  "npc": "Ratsherr Knauf"
+                }
+              ]
+            },
+            {
+              "id": "befragen",
+              "kind": "choice",
+              "clue": "rat",
+              "choices": [
+                {
+                  "id": "druck",
+                  "label": "Knauf unter Druck setzen",
+                  "detail": "Einschüchtern gegen SG 13",
+                  "check": {
+                    "skill": "intimidation",
+                    "dc": 13,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Knauf wird bleich und schiebt euch die Stadtbücher hin. „Da! Lest selbst!“",
+                          "npc": "Ratsherr Knauf"
+                        }
+                      ],
+                      "set": [
+                        "knauf_eingeschuechtert"
+                      ],
+                      "endScene": true
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "„Raus hier!“ Doch beim Hinausgehen werft ihr einen Blick auf seinen Schreibtisch."
+                        }
+                      ],
+                      "endScene": true
+                    }
+                  }
+                },
+                {
+                  "id": "buecher",
+                  "label": "Heimlich in den Büchern lesen",
+                  "detail": "Nachforschung gegen SG 12",
+                  "check": {
+                    "skill": "investigation",
+                    "dc": 12,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Während Knauf redet, blättert einer von euch in den Stadtbüchern."
+                        }
+                      ],
+                      "endScene": true
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Knauf klappt das Buch zu – aber ein Blatt ist schon herausgerutscht."
+                        }
+                      ],
+                      "endScene": true
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "akt2",
+      "title": "Die Spur der Kinder",
+      "level": 2,
+      "scenes": [
+        {
+          "id": "zeugen",
+          "title": "Der Junge am Tor",
+          "rooms": [
+            "stadtgasse",
+            "stadttor"
+          ],
+          "pflicht": true,
+          "dauer_min": 7,
+          "mindestDauer": "kurz",
+          "ziel": "Mit Jakob sprechen, dem einzigen Kind, das zurückblieb",
+          "npcs": [
+            {
+              "npc": "jakob",
+              "room": 1
+            },
+            {
+              "npc": "bertram",
+              "room": 1
+            }
+          ],
+          "travel": "Ein Kind ist zurückgeblieben: Jakob, der mit der Krücke nicht mithalten konnte.",
+          "clues": [
+            {
+              "id": "zeuge",
+              "byTruth": {
+                "A": "a_zeuge",
+                "B": "b_zeuge",
+                "C": "c_zeuge",
+                "D": "d_zeuge"
+              }
+            },
+            {
+              "id": "lied",
+              "byTruth": {
+                "A": "lied",
+                "B": "lied",
+                "C": "lied",
+                "D": "lied"
+              }
+            }
+          ],
+          "keywords": [
+            {
+              "words": [
+                "bertram",
+                "wache",
+                "tor",
+                "schlüssel"
+              ],
+              "response": [
+                {
+                  "text": "Torwächter Bertram senkt den Kopf. „Ich bin eingeschlafen. Die Melodie … ich konnte nicht anders.“",
+                  "npc": "Torwächter Bertram"
+                }
+              ],
+              "set": [
+                "bertram_gefragt"
+              ]
+            }
+          ],
+          "steps": [
+            {
+              "id": "hingehen",
+              "kind": "reach",
+              "target": "jakob",
+              "enter": [
+                {
+                  "text": "Am Stadttor sitzt ein Junge mit Krücke und starrt zum Koppelberg hinauf."
+                }
+              ]
+            },
+            {
+              "id": "mut",
+              "kind": "check",
+              "check": {
+                "skill": "persuasion",
+                "dc": 10,
+                "who": "one",
+                "title": "Jakob Mut machen",
+                "success": {
+                  "narration": [
+                    {
+                      "text": "„Ihr holt sie zurück? Wirklich?“ Jakob wischt sich die Tränen ab und erzählt alles.",
+                      "npc": "Jakob"
+                    }
+                  ],
+                  "set": [
+                    "jakob_hilft"
+                  ]
+                },
+                "failure": {
+                  "narration": [
+                    {
+                      "text": "Jakob schluchzt lange. Dann flüstert er doch, was er gesehen hat.",
+                      "npc": "Jakob"
+                    }
+                  ]
+                }
+              },
+              "enter": [
+                {
+                  "text": "Jakob zittert. „Ich wollte mit … aber meine Beine …“",
+                  "npc": "Jakob"
+                }
+              ]
+            },
+            {
+              "id": "erzaehlen",
+              "kind": "narrate",
+              "enter": [
+                {
+                  "text": "Jakob erzählt von der Nacht, von der Melodie und vom Weg hinauf zum Berg.",
+                  "npc": "Jakob"
+                }
+              ],
+              "clues": [
+                "zeuge",
+                "lied"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "diebe",
+          "title": "Diebe in der Nacht",
+          "rooms": [
+            "stadtgasse",
+            "marktplatz"
+          ],
+          "pflicht": false,
+          "dauer_min": 15,
+          "mindestDauer": "mittel",
+          "ziel": "Die Diebe aufhalten, die leere Häuser plündern",
+          "travel": "In der Nacht schleichen Gestalten durch die Gassen und brechen in Häuser ein, deren Familien die Kinder suchen.",
+          "clues": [
+            {
+              "id": "diebe",
+              "byTruth": {
+                "A": "a_diebe",
+                "B": "b_diebe",
+                "C": "c_diebe",
+                "D": "d_diebe"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "kampf",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "bandit",
+                  "count": 2,
+                  "perExtraPlayer": 1,
+                  "name": "Dieb"
+                }
+              ],
+              "enter": [
+                {
+                  "text": "„Da sind welche! Schnappt sie!“ Maskierte Männer ziehen Knüppel.",
+                  "npc": "Dieb"
+                }
+              ],
+              "done": [
+                {
+                  "text": "Die Diebe liegen am Boden oder rennen davon. Einer lässt etwas fallen …"
+                }
+              ],
+              "clue": "diebe"
+            }
+          ]
+        },
+        {
+          "id": "bergpfad",
+          "title": "Der Pfad zum Koppelberg",
+          "rooms": [
+            "stadttor",
+            "bergpfad"
+          ],
+          "pflicht": true,
+          "dauer_min": 6,
+          "mindestDauer": "kurz",
+          "ziel": "Den Spuren der Kinder zum Berg folgen",
+          "savePoint": true,
+          "travel": "Ihr brecht auf. Der Pfad windet sich steil den Koppelberg hinauf.",
+          "clues": [
+            {
+              "id": "pfad",
+              "byTruth": {
+                "A": "a_pfad",
+                "B": "b_pfad",
+                "C": "c_pfad",
+                "D": "d_pfad"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "spuren",
+              "kind": "check",
+              "check": {
+                "skill": "survival",
+                "dc": 12,
+                "who": "one",
+                "title": "Den Spuren folgen",
+                "success": {
+                  "narration": [
+                    {
+                      "text": "Kleine nackte Füße, dazwischen ein Paar spitze Stiefel. Ihr findet den Weg sicher."
+                    }
+                  ]
+                },
+                "failure": {
+                  "narration": [
+                    {
+                      "text": "Ihr verirrt euch zwischen den Felsen. Steine poltern herab und treffen euch!"
+                    }
+                  ],
+                  "damage": "1d4"
+                }
+              },
+              "enter": [
+                {
+                  "text": "Der Wind hat die Spuren fast verweht.",
+                  "tip": {
+                    "key": "fertigkeit:survival",
+                    "text": "Überleben: Spuren lesen, den Weg finden. Einer von euch würfelt für die Gruppe."
+                  }
+                }
+              ]
+            },
+            {
+              "id": "fund",
+              "kind": "narrate",
+              "enter": [
+                {
+                  "text": "Am Wegrand liegt etwas im Gras."
+                }
+              ],
+              "clues": [
+                "pfad"
+              ]
+            },
+            {
+              "id": "hoehle",
+              "kind": "reach",
+              "target": "exit",
+              "enter": [
+                {
+                  "text": "Oben im Fels klafft ein Stolleneingang. Von drinnen klingt ganz leise eine Flöte."
+                }
+              ],
+              "done": [
+                {
+                  "text": "Ihr steht vor dem dunklen Stollen. Ab hier ist es finster."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "grotte",
+          "title": "Die glitzernde Grotte",
+          "rooms": [
+            "bergpfad",
+            "kristallgrotte"
+          ],
+          "pflicht": false,
+          "dauer_min": 20,
+          "mindestDauer": "lang",
+          "dark": true,
+          "ziel": "Einen sicheren Rastplatz finden",
+          "travel": "Ein Seitengang führt in eine Grotte. Hier könntet ihr rasten – wenn sie leer ist.",
+          "clues": [
+            {
+              "id": "grotte",
+              "byTruth": {
+                "A": "a_grotte",
+                "B": "b_grotte",
+                "C": "c_grotte",
+                "D": "d_grotte"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "fledermaeuse",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "swarm-of-bats",
+                  "count": 1,
+                  "perExtraPlayer": 1,
+                  "name": "Fledermausschwarm"
+                }
+              ],
+              "enter": [
+                {
+                  "text": "Es ist stockfinster. Über euch flattert und kreischt es!",
+                  "tip": {
+                    "key": "dunkelheit",
+                    "text": "Im Dunkeln trefft ihr schlecht. Zündet auf dem Handy eine Fackel an (kostet keine Aktion). Elfen und Zwerge sehen auch ohne Licht."
+                  }
+                }
+              ],
+              "clue": "grotte"
+            },
+            {
+              "id": "rast",
+              "kind": "choice",
+              "choices": [
+                {
+                  "id": "rasten",
+                  "label": "Rasten",
+                  "detail": "Alle erholen sich vollständig",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Ihr rastet zwischen den Kristallen. Wunden schließen sich, Mut kehrt zurück."
+                      }
+                    ],
+                    "heal": 0,
+                    "endScene": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "akt3",
+      "title": "Im Koppelberg",
+      "level": 3,
+      "scenes": [
+        {
+          "id": "stollen",
+          "title": "Die Stollen der Kobolde",
+          "rooms": [
+            "bergstollen",
+            "gang_knick"
+          ],
+          "extraRooms": {
+            "lang": [
+              "gang_gerade",
+              "bergstollen"
+            ]
+          },
+          "pflicht": true,
+          "dauer_min": 8,
+          "mindestDauer": "kurz",
+          "dark": true,
+          "ziel": "Durch die dunklen Stollen zur Halle gelangen",
+          "travel": "Die Stollen sind finster. Nur eure Fackeln – und das ferne Flötenspiel.",
+          "clues": [
+            {
+              "id": "stollen",
+              "byTruth": {
+                "A": "a_stollen",
+                "B": "b_stollen",
+                "C": "c_stollen",
+                "D": "d_stollen"
+              }
+            },
+            {
+              "id": "wachs",
+              "byTruth": {
+                "A": "wachs",
+                "B": "wachs",
+                "C": "wachs",
+                "D": "wachs"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "kobolde",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "kobold",
+                  "count": 3,
+                  "perExtraPlayer": 1,
+                  "name": "Kobold"
+                }
+              ],
+              "enter": [
+                {
+                  "text": "Kleine Augen glühen im Dunkeln. „Keiner stört den Pfeifer!“, kreischt ein Kobold.",
+                  "npc": "Kobold"
+                },
+                {
+                  "text": "Macht Licht!",
+                  "tip": {
+                    "key": "dunkelheit",
+                    "text": "Kobolde sehen im Dunkeln, ihr vielleicht nicht. Wer ein Ziel nicht sieht, hat Nachteil. Eine brennende Fackel leuchtet 6 m weit."
+                  }
+                }
+              ],
+              "done": [
+                {
+                  "text": "Die Kobolde flüchten tiefer in den Berg. Einer ist zu langsam und plappert."
+                }
+              ],
+              "clues": [
+                "stollen",
+                "wachs"
+              ]
+            },
+            {
+              "id": "weiter",
+              "kind": "reach",
+              "target": "exit",
+              "enter": [
+                {
+                  "text": "Die Flöte wird lauter. Folgt dem Gang bis zum Ende."
+                }
+              ],
+              "done": [
+                {
+                  "text": "Vor euch öffnet sich eine riesige Halle."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "halle",
+          "title": "Die Halle des Pfeifers",
+          "rooms": [
+            "pfeiferhalle"
+          ],
+          "pflicht": true,
+          "dauer_min": 9,
+          "mindestDauer": "kurz",
+          "ziel": "Die Kinder befreien",
+          "npcs": [
+            {
+              "npc": "pfeifer"
+            }
+          ],
+          "travel": "Ihr tretet in die Halle.",
+          "keywords": [
+            {
+              "words": [
+                "lohn",
+                "taler",
+                "gold",
+                "bezahlen",
+                "versprechen"
+              ],
+              "response": [
+                {
+                  "text": "Der Pfeifer horcht auf. „Ihr redet vom Lohn? Endlich jemand, der zuhört.“",
+                  "npc": "Der bunte Pfeifer"
+                }
+              ],
+              "set": [
+                "lohn_angesprochen"
+              ]
+            }
+          ],
+          "steps": [
+            {
+              "id": "ankunft",
+              "kind": "narrate",
+              "twist": true,
+              "enter": [
+                {
+                  "text": "Fackeln aus grünem Feuer. In der Mitte schlafen die Kinder im Kreis, eng aneinander. Lina, Hannes Tochter, hält einen Stoffhasen."
+                },
+                {
+                  "text": "Auf einem Felsthron sitzt der Pfeifer und spielt leise. Dann sieht er euch."
+                }
+              ]
+            },
+            {
+              "id": "entscheidung",
+              "kind": "choice",
+              "choices": [
+                {
+                  "id": "angriff",
+                  "label": "Angreifen!",
+                  "detail": "Für die Kinder!",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Ihr zieht die Waffen. Der Pfeifer springt auf und bläst einen schrillen Ton – Ratten quellen aus den Wänden!"
+                      }
+                    ],
+                    "fight": [
+                      {
+                        "monster": "bandit-captain",
+                        "count": 1,
+                        "name": "Der bunte Pfeifer",
+                        "boss": true
+                      },
+                      {
+                        "monster": "giant-rat",
+                        "count": 1,
+                        "perExtraPlayer": 1,
+                        "name": "Riesenratte"
+                      }
+                    ],
+                    "set": [
+                      "pfeifer_besiegt"
+                    ],
+                    "goto": "kinder"
+                  }
+                },
+                {
+                  "id": "duell",
+                  "label": "Musik-Duell: seine Melodie übertönen",
+                  "detail": "Auftreten gegen SG 14 (Charisma)",
+                  "truths": [
+                    "A",
+                    "B",
+                    "C"
+                  ],
+                  "check": {
+                    "skill": "performance",
+                    "dc": 14,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Ihr singt, klatscht, trommelt – lauter und fröhlicher als die Flöte! Die Kinder blinzeln und erwachen."
+                        },
+                        {
+                          "text": "Der Pfeifer senkt die Flöte und lächelt. „Ihr habt gewonnen. Nehmt sie mit.“",
+                          "npc": "Der bunte Pfeifer"
+                        }
+                      ],
+                      "set": [
+                        "kinder_geweckt"
+                      ],
+                      "goto": "kinder"
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Eure Stimmen gehen in der Melodie unter. Der Pfeifer runzelt die Stirn. „Genug! Wer nicht hören will, muss fühlen!“",
+                          "npc": "Der bunte Pfeifer"
+                        }
+                      ],
+                      "fight": [
+                        {
+                          "monster": "bandit-captain",
+                          "count": 1,
+                          "name": "Der bunte Pfeifer",
+                          "boss": true
+                        },
+                        {
+                          "monster": "giant-rat",
+                          "count": 1,
+                          "perExtraPlayer": 1,
+                          "name": "Riesenratte"
+                        }
+                      ],
+                      "set": [
+                        "pfeifer_besiegt"
+                      ],
+                      "goto": "kinder"
+                    }
+                  }
+                },
+                {
+                  "id": "duell_d",
+                  "label": "Musik-Duell: seine Melodie übertönen",
+                  "detail": "Auftreten gegen SG 14 (Charisma)",
+                  "truths": [
+                    "D"
+                  ],
+                  "check": {
+                    "skill": "performance",
+                    "dc": 14,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Eure Musik bricht den Bann! Die Kinder erwachen und rennen hinter euch in Sicherheit."
+                        },
+                        {
+                          "text": "„Nein! Meine Kinder!“ Ohne seinen Zauber ist der Pfeifer schwach – aber er greift trotzdem an!",
+                          "npc": "Der bunte Pfeifer"
+                        }
+                      ],
+                      "fight": [
+                        {
+                          "monster": "spy",
+                          "count": 1,
+                          "name": "Der bunte Pfeifer",
+                          "boss": true
+                        }
+                      ],
+                      "set": [
+                        "kinder_geweckt",
+                        "pfeifer_besiegt"
+                      ],
+                      "goto": "kinder"
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Die Flöte ist stärker. Der Pfeifer lacht. „Tanzt!“",
+                          "npc": "Der bunte Pfeifer"
+                        }
+                      ],
+                      "fight": [
+                        {
+                          "monster": "bandit-captain",
+                          "count": 1,
+                          "name": "Der bunte Pfeifer",
+                          "boss": true
+                        },
+                        {
+                          "monster": "giant-rat",
+                          "count": 1,
+                          "perExtraPlayer": 1,
+                          "name": "Riesenratte"
+                        }
+                      ],
+                      "set": [
+                        "pfeifer_besiegt"
+                      ],
+                      "goto": "kinder"
+                    }
+                  }
+                },
+                {
+                  "id": "floete",
+                  "label": "Die Flöte zerbrechen",
+                  "detail": "Fingerfertigkeit gegen SG 15",
+                  "check": {
+                    "skill": "sleight-of-hand",
+                    "dc": 15,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Blitzschnell greift ihr zu – die silberne Flöte zerbricht mit einem hellen Klang! Die grünen Flammen erlöschen, die Kinder erwachen."
+                        }
+                      ],
+                      "set": [
+                        "floete_zerbrochen"
+                      ],
+                      "goto": "kinder"
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Der Pfeifer ist schneller. „Ungeschickt!“",
+                          "npc": "Der bunte Pfeifer"
+                        }
+                      ],
+                      "fight": [
+                        {
+                          "monster": "bandit-captain",
+                          "count": 1,
+                          "name": "Der bunte Pfeifer",
+                          "boss": true
+                        },
+                        {
+                          "monster": "giant-rat",
+                          "count": 1,
+                          "perExtraPlayer": 1,
+                          "name": "Riesenratte"
+                        }
+                      ],
+                      "set": [
+                        "pfeifer_besiegt"
+                      ],
+                      "goto": "kinder"
+                    }
+                  }
+                },
+                {
+                  "id": "entlarven",
+                  "label": "Beweise gegen den Bürgermeister vorlegen",
+                  "detail": "Überzeugen gegen SG 11",
+                  "truths": [
+                    "A"
+                  ],
+                  "requires": [
+                    "beweis_keller"
+                  ],
+                  "check": {
+                    "skill": "persuasion",
+                    "dc": 11,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Ihr zeigt die Köder mit dem Siegel. Der Pfeifer atmet auf. „Endlich glaubt mir jemand.“",
+                          "npc": "Der bunte Pfeifer"
+                        },
+                        {
+                          "text": "„Bringt die Kinder heim – und den Bürgermeister vor Gericht.“",
+                          "npc": "Der bunte Pfeifer"
+                        }
+                      ],
+                      "set": [
+                        "buergermeister_entlarvt"
+                      ],
+                      "goto": "kinder"
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "„Worte! Nichts als Worte!“ Der Pfeifer glaubt euch nicht und greift an.",
+                          "npc": "Der bunte Pfeifer"
+                        }
+                      ],
+                      "fight": [
+                        {
+                          "monster": "bandit-captain",
+                          "count": 1,
+                          "name": "Der bunte Pfeifer",
+                          "boss": true
+                        },
+                        {
+                          "monster": "giant-rat",
+                          "count": 1,
+                          "perExtraPlayer": 1,
+                          "name": "Riesenratte"
+                        }
+                      ],
+                      "set": [
+                        "pfeifer_besiegt"
+                      ],
+                      "goto": "kinder"
+                    }
+                  }
+                },
+                {
+                  "id": "zuhoeren",
+                  "label": "Dem Pfeifer zuhören",
+                  "detail": "Motiv erkennen gegen SG 12",
+                  "truths": [
+                    "B"
+                  ],
+                  "check": {
+                    "skill": "insight",
+                    "dc": 12,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Ihr glaubt ihm. Gemeinsam plant ihr: Die Kinder bleiben, bis die Stadt gereinigt ist – ihr holt einen Heiler."
+                        }
+                      ],
+                      "set": [
+                        "seuche_erkannt"
+                      ],
+                      "goto": "kinder"
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Ihr zögert zu lange. Der Pfeifer hält euch für Feinde.",
+                          "npc": "Der bunte Pfeifer"
+                        }
+                      ],
+                      "fight": [
+                        {
+                          "monster": "bandit-captain",
+                          "count": 1,
+                          "name": "Der bunte Pfeifer",
+                          "boss": true
+                        },
+                        {
+                          "monster": "giant-rat",
+                          "count": 1,
+                          "perExtraPlayer": 1,
+                          "name": "Riesenratte"
+                        }
+                      ],
+                      "set": [
+                        "pfeifer_besiegt"
+                      ],
+                      "goto": "kinder"
+                    }
+                  }
+                },
+                {
+                  "id": "zahlen",
+                  "label": "Den versprochenen Lohn zahlen",
+                  "detail": "Gebt ihm all euer Gold",
+                  "truths": [
+                    "C"
+                  ],
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Ihr legt alles Gold, das ihr habt, vor den Thron. Der Pfeifer zählt … und lacht hell."
+                      },
+                      {
+                        "text": "„Nicht tausend Taler. Aber ein ehrliches Herz ist mehr wert. Der Handel gilt!“",
+                        "npc": "Der bunte Pfeifer"
+                      }
+                    ],
+                    "gold": -1000,
+                    "set": [
+                      "lohn_gezahlt"
+                    ],
+                    "goto": "kinder"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "kinder",
+              "kind": "narrate",
+              "enter": [
+                {
+                  "text": "Die Kinder reiben sich die Augen. „Wo sind wir? Ist schon Morgen?“"
+                },
+                {
+                  "text": "Ihr führt sie aus dem Berg, hinab nach Hammelstein. Die Glocken läuten, als die Stadt euch kommen sieht."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "endings": [
+    {
+      "id": "scheitern",
+      "title": "Eine zweite Chance",
+      "kind": "scheitern",
+      "requires": [
+        "niederlage_boss"
+      ],
+      "text": [
+        {
+          "text": "Ihr erwacht am Fuß des Berges. Jakob hat euch gefunden und Hilfe geholt."
+        },
+        {
+          "text": "Die Kinder sind noch im Berg. Die Flöte spielt noch. Versucht es noch einmal!"
+        }
+      ]
+    },
+    {
+      "id": "gerechtigkeit",
+      "title": "Der Rattenkönig",
+      "kind": "friedlich",
+      "requires": [
+        "buergermeister_entlarvt"
+      ],
+      "truths": [
+        "A"
+      ],
+      "text": [
+        {
+          "text": "Vor der ganzen Stadt muss Bürgermeister Gierlich gestehen. Die Häuser gehen an ihre Besitzer zurück."
+        },
+        {
+          "text": "Der Pfeifer bekommt seinen Lohn aus Gierlichs Truhe – und spielt beim Fest zum Tanz."
+        }
+      ]
+    },
+    {
+      "id": "heilung",
+      "title": "Die reine Luft",
+      "kind": "friedlich",
+      "requires": [
+        "seuche_erkannt"
+      ],
+      "truths": [
+        "B"
+      ],
+      "text": [
+        {
+          "text": "Ihr holt einen Heiler, die Keller werden ausgeräuchert, der schwarze Husten verschwindet."
+        },
+        {
+          "text": "Eine Woche später führt der Pfeifer die Kinder gesund nach Hause. Die Stadt nennt ihn nun den Retter von Hammelstein."
+        }
+      ]
+    },
+    {
+      "id": "feenlohn",
+      "title": "Ein Handel ist ein Handel",
+      "kind": "friedlich",
+      "requires": [
+        "lohn_gezahlt"
+      ],
+      "truths": [
+        "C"
+      ],
+      "text": [
+        {
+          "text": "Der Pfeifer verschwindet in einem Wirbel aus Blüten. Die Kinder sind frei."
+        },
+        {
+          "text": "Der Bürgermeister muss euch das Gold ersetzen – das hat die Stadt beschlossen. Und nie wieder bricht Hammelstein ein Versprechen."
+        }
+      ]
+    },
+    {
+      "id": "bann_gebrochen",
+      "title": "Die zerbrochene Flöte",
+      "kind": "sieg",
+      "requires": [
+        "floete_zerbrochen"
+      ],
+      "text": [
+        {
+          "text": "Ohne seine Flöte ist der Pfeifer nur ein Mann in einem bunten Mantel. Er verschwindet im Berg und wird nie wieder gesehen."
+        },
+        {
+          "text": "Die Kinder sind frei. Jakob bekommt die Hälfte der Flöte als Andenken."
+        }
+      ]
+    },
+    {
+      "id": "verraeter",
+      "title": "Der Verräter im roten Mantel",
+      "kind": "sieg",
+      "requires": [
+        "pfeifer_besiegt"
+      ],
+      "truths": [
+        "D"
+      ],
+      "text": [
+        {
+          "text": "Der Pfeifer ist besiegt. In Hammelstein wartet schon die Stadtwache auf Ratsherr Knauf."
+        },
+        {
+          "text": "Knauf wird aus der Stadt gejagt. Ihr aber bekommt die Ehrenbürgerschaft – und Hanne kocht euch ein Festmahl."
+        }
+      ]
+    },
+    {
+      "id": "lied",
+      "title": "Das stärkere Lied",
+      "kind": "friedlich",
+      "requires": [
+        "kinder_geweckt"
+      ],
+      "text": [
+        {
+          "text": "Eure Musik hat den Bann gebrochen. Die Kinder singen euer Lied noch Jahre später."
+        },
+        {
+          "text": "Der Pfeifer zieht weiter. Manchmal, in stillen Nächten, hört man seine Flöte – aber sie lockt niemanden mehr."
+        }
+      ]
+    },
+    {
+      "id": "sieg",
+      "title": "Die Kinder von Hammelstein",
+      "kind": "sieg",
+      "requires": [
+        "pfeifer_besiegt"
+      ],
+      "text": [
+        {
+          "text": "Der Pfeifer ist besiegt, die Kinder sind frei."
+        },
+        {
+          "text": "Hammelstein feiert drei Tage lang. Und der Bürgermeister zahlt euch – diesmal ohne zu murren."
+        }
+      ]
+    },
+    {
+      "id": "heimkehr",
+      "title": "Heimkehr",
+      "kind": "sieg",
+      "text": [
+        {
+          "text": "Die Kinder sind wieder zu Hause. Was mit dem Pfeifer geschah, erzählt man sich in Hammelstein noch lange, jeder ein bisschen anders."
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "rattenwelle",
+      "title": "Die Ratten kommen zurück",
+      "narration": [
+        {
+          "text": "Auf dem Heimweg quillt es aus einem Gully: Die Ratten haben euch gefunden!"
+        }
+      ],
+      "fight": [
+        {
+          "monster": "swarm-of-rats",
+          "count": 1,
+          "name": "Rattenschwarm"
+        },
+        {
+          "monster": "giant-rat",
+          "count": 0,
+          "perExtraPlayer": 1,
+          "name": "Riesenratte"
+        }
+      ]
+    }
+  ]
+}

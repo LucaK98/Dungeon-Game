@@ -1,0 +1,20 @@
+{
+  "id": "teufelskanzel",
+  "name": "Felsen am Brockenpfad",
+  "theme": "peak",
+  "tags": [
+    "corridor",
+    "outdoor"
+  ],
+  "description": "Granitblöcke türmen sich zu seltsamen Formen. Der Wind pfeift.",
+  "map": [
+    "####EEE####",
+    "#O..,,,.OO#",
+    "#...,,,...#",
+    "#O..,,,..O#",
+    "E...,,,...E",
+    "#.O.,,,...#",
+    "#...,,,.O.#",
+    "####EEE####"
+  ]
+}

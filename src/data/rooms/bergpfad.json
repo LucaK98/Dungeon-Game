@@ -1,0 +1,21 @@
+{
+  "id": "bergpfad",
+  "name": "Pfad am Koppelberg",
+  "theme": "peak",
+  "tags": [
+    "corridor",
+    "outdoor"
+  ],
+  "description": "Ein steiniger Pfad windet sich den Berg hinauf. Kleine Fußspuren im Staub.",
+  "map": [
+    "####EEE####",
+    "#O..,,,..O#",
+    "#...,,,...#",
+    "#.O.,,,...#",
+    "E...,,,.m.E",
+    "#...,,,.O.#",
+    "#O..,,,...#",
+    "#...,,,..O#",
+    "####EEE####"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "harzwald",
+  "name": "Nachtwald im Harz",
+  "theme": "forest",
+  "tags": [
+    "outdoor",
+    "fight"
+  ],
+  "description": "Knorrige Fichten, Nebel am Boden. Irgendwo heult ein Wolf.",
+  "map": [
+    "#####EEE#####",
+    "#T..,,,,..T.#",
+    "#..T,,,,.m..#",
+    "#.T.,,,,..T.#",
+    "E...,,m,,...E",
+    "#.T.,,,,..T.#",
+    "#..m,,,,.T..#",
+    "#T..,,,,..T.#",
+    "#####EEE#####"
+  ]
+}

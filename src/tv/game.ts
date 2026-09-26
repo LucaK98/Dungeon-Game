@@ -4,7 +4,7 @@
  */
 import { perform, type ActionOutcome, type CombatAction } from "../engine/actions";
 import { inRange } from "../engine/attack";
-import { applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, heal, isActive, nextTurn, newTurn, squaresOf, startCombat } from "../engine/combat";
+import { addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, squaresOf, startCombat } from "../engine/combat";
 import { savingThrow, skillCheck, sumParts } from "../engine/core";
 import { getSpell } from "../engine/data";
 import { averageOf, parseDice, rollDice } from "../engine/dice";
@@ -361,6 +361,10 @@ export class GameController {
       this.sendTo(playerId, { type: "action_error", reason: "Erst würfeln!" });
       return;
     }
+    if (action.kind === "use_item" && action.itemId === "torch") {
+      this.toggleTorch(hero);
+      return;
+    }
     switch (action.kind) {
       case "end_turn":
         this.endTurn();
@@ -390,6 +394,8 @@ export class GameController {
             engineAction.dragonSlayer = true;
             this.lanceUsed.add(hero.id);
           }
+          // Silberstaub (Walpurgisnacht): the whole group's weapons count as silvered.
+          if (this.heroes().some((h) => h.pc?.inventory.some((i) => i.itemId === "silberstaub" && i.qty > 0))) engineAction.silvered = true;
         }
         const prompt = this.promptFor(hero, action);
         const run = () => {
@@ -685,6 +691,20 @@ export class GameController {
   }
 
   // ---------------------------------------------------------------- views
+
+  /** Lighting or putting out a torch is a free object interaction. */
+  private toggleTorch(hero: Creature): void {
+    if (!hero.pc?.inventory.some((i) => i.itemId === "torch" && i.qty > 0)) return;
+    if (hasEffect(hero, "torch")) {
+      hero.effects = hero.effects.filter((e) => e.id !== "torch");
+      this.addLog([{ text: `${hero.name} löscht die Fackel.`, glossarKeys: ["gegenstand:torch"] }]);
+    } else {
+      addEffect(hero, "torch", 600, hero.id);
+      this.addLog([{ text: `🔥 ${hero.name} zündet eine Fackel an. Jetzt seht ihr 6 m weit.`, glossarKeys: ["gegenstand:torch", "dunkelheit"] }]);
+    }
+    this.emit("changed");
+    this.broadcast();
+  }
 
   private addLog(lines: ExplainedLine[]): void {
     this.log.push(...lines);
@@ -1001,6 +1021,14 @@ export class GameController {
       this.battle.creatures[c.id] = c;
     }
     for (const h of this.heroes()) if (h.pos) revealAround(this.map, h.pos);
+    // Night: the torches on the walls are the only fixed light.
+    if (map.dark) {
+      const lights = Object.entries(map.overlays).flatMap(([k, o]) => {
+        const i = Number(k);
+        return o.startsWith("torch") ? [{ x: i % map.width, y: Math.floor(i / map.width), radiusFt: 15 }] : [];
+      });
+      this.battle.darkness = { lights };
+    } else delete this.battle.darkness;
     this.mode = "explore";
     delete this.battle.combat;
     this.emit("mapChanged");
@@ -1142,6 +1170,23 @@ export class GameController {
         action: { kind: "use_item", itemId: "potion-of-healing" },
         targets: targets.map((t) => ({ id: t.id, name: t.id === me.id ? `${t.name} (du)` : t.name, detail: `TP ${t.hp}/${t.maxHp}` })),
         pick: { min: 1, max: 1, repeat: false },
+      });
+    }
+
+    // Night: light a torch (free) – otherwise enemies in the dark are hard to hit.
+    if (this.map.dark && pc.inventory.some((i) => i.itemId === "torch" && i.qty > 0)) {
+      const lit = hasEffect(me, "torch");
+      choices.push({
+        id: "item:torch",
+        group: "item",
+        label: lit ? "🔥 Fackel löschen" : "🔥 Fackel anzünden",
+        detail: lit ? "Deine Fackel leuchtet 6 m weit" : "Licht im Umkreis von 6 m – im Dunkeln trefft ihr sonst schlechter",
+        glossarKey: "dunkelheit",
+        cost: "free",
+        enabled: mine,
+        ...(notMine ? { reason: notMine } : {}),
+        ...(!lit && me.darkvisionFt === 0 ? { recommended: true } : {}),
+        action: { kind: "use_item", itemId: "torch" },
       });
     }
 
