@@ -137,6 +137,10 @@ export function defaultLook(classId: string, raceId: string, variant: 1 | 2 = 1)
     wizard: { body: "robe_blue", weapon: "magestaff", head: "wizard" },
     rogue: { body: "leather", weapon: "rapier", cloak: "black" },
     cleric: { body: "scalemail", weapon: "mace", shield: "holy" },
+    bard: { body: "jacket", weapon: "rapier", cloak: "red", head: "hood_red" },
+    ranger: { body: "leather_green", weapon: "bow", cloak: "green", head: "hood" },
+    druid: { body: "robe_green", weapon: "staff", shield: "round" },
+    monk: { body: "robe_white" },
   };
   return withAutoParts({ base, hair, ...(beard ? { beard } : {}), ...(byClass[classId] ?? {}) });
 }

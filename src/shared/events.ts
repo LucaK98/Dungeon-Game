@@ -13,12 +13,18 @@ export type FeatureId =
   | "disengage"
   | "dodge"
   | "hide"
-  | "stand-up";
+  | "stand-up"
+  | "bardic-inspiration"
+  | "wild-shape"
+  | "martial-arts"
+  | "flurry-of-blows"
+  | "patient-defense"
+  | "step-of-the-wind";
 
 /** Anything a phone can ask the host to do. The host validates everything. */
 export type PlayerAction =
   | { kind: "move"; to: { x: number; y: number } }
-  | { kind: "attack"; targetId: string; optionId: string; smiteSlot?: number }
+  | { kind: "attack"; targetId: string; optionId: string; smiteSlot?: number; stun?: boolean }
   | { kind: "cast"; spellId: string; slotLevel?: number; targetIds: string[] }
   | { kind: "use_item"; itemId: string; targetId?: string }
   | { kind: "feature"; feature: FeatureId; targetId?: string; amount?: number; bonus?: boolean }

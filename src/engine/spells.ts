@@ -57,6 +57,7 @@ export function maxTargets(spell: SpellDef, slot: number): number {
     case "mass-healing-word":
       return 6;
     case "burning-hands":
+    case "thunderwave":
     case "sleep":
       return 99;
     default:
@@ -76,13 +77,14 @@ export interface CastRequest {
 export function validateCast(battle: Battle, caster: Creature, req: CastRequest): string | undefined {
   const pc = caster.pc;
   if (!pc || !pc.spells.includes(req.spellId)) return "Diesen Zauber kennst du nicht.";
+  if (caster.effects.some((e) => e.id === "wild-shape")) return "Als Wolf kannst du nicht zaubern.";
   const spell = getSpell(req.spellId);
   const slot = spell.level === 0 ? 0 : (req.slotLevel ?? spell.level);
   if (spell.level > 0) {
     if (slot < spell.level) return "Der Zauberplatz ist zu niedrig.";
     if ((pc.spellSlots[slot - 1] ?? 0) <= 0) return "Du hast keinen passenden Zauberplatz mehr.";
   }
-  const targets = spell.rangeFt === "self" && spell.id !== "burning-hands" ? [caster.id] : req.targetIds;
+  const targets = spell.rangeFt === "self" && !spell.area ? [caster.id] : req.targetIds;
   if (!targets.length) return "Wähle ein Ziel.";
   if (targets.length > maxTargets(spell, slot || 1)) return "Zu viele Ziele.";
   for (const id of targets) {
@@ -99,7 +101,7 @@ export function castSpell(rng: Rng, battle: Battle, caster: Creature, req: CastR
   const spell = getSpell(req.spellId);
   const slot = spell.level === 0 ? 0 : (req.slotLevel ?? spell.level);
   if (slot > 0) caster.pc!.spellSlots[slot - 1]!--;
-  let targetIds = spell.rangeFt === "self" && spell.id !== "burning-hands" ? [caster.id] : req.targetIds;
+  let targetIds = spell.rangeFt === "self" && !spell.area ? [caster.id] : req.targetIds;
   // Fireball: the chosen creature is the centre; everyone on its side within the blast is hit.
   if (spell.id === "fireball" && targetIds[0]) {
     const centre = battle.creatures[targetIds[0]]!;
@@ -174,6 +176,12 @@ export function castSpell(rng: Rng, battle: Battle, caster: Creature, req: CastR
         damage.total = damage.lines.reduce((s, l) => s + l.final, 0);
       }
       const hp = damageCreature(rng, battle, t, damage.total, { types: [spell.damage.type] });
+      // Vicious Mockery: a failed save also spoils the next attack (disadvantage).
+      if (spell.id === "vicious-mockery" && !save.success && !t.dead) {
+        addEffect(t, "hampered", 2, caster.id);
+        result.targets.push({ targetId: id, save, damage, hp, applied: "hampered" });
+        continue;
+      }
       result.targets.push({ targetId: id, save, damage, hp });
     }
     return result;
@@ -243,6 +251,13 @@ export function castSpell(rng: Rng, battle: Battle, caster: Creature, req: CastR
         const total = Math.max(1, sumParts(parts));
         const hp = heal(t, total);
         result.targets.push({ targetId: id, heal: { parts, total }, hp });
+      }
+      return result;
+    }
+    case "hunters-mark": {
+      for (const id of targetIds) {
+        addEffect(target(id), "hunters-mark", spell.durationRounds, caster.id);
+        result.targets.push({ targetId: id, applied: "hunters-mark" });
       }
       return result;
     }

@@ -20,7 +20,7 @@ export interface GridPos {
 
 export type Side = "party" | "enemy" | "neutral";
 
-export type FightingStyle = "defense" | "dueling";
+export type FightingStyle = "defense" | "dueling" | "archery";
 
 /** Limited-use features ("Second Wind", "Lay on Hands" pool, …). */
 export interface Resource {
@@ -104,7 +104,13 @@ export type EffectId =
   /** … or keeping watch and walking up and down. */
   | "on-guard"
   /** Caught off guard when the fight starts: loses its first turn. */
-  | "surprised";
+  | "surprised"
+  /** Hunter's Mark: the ranger's weapon hits deal +1d6 against it. */
+  | "hunters-mark"
+  /** A druid in the shape of a wolf (bite attack, extra hit points). */
+  | "wild-shape"
+  /** Monk: Patient Defense (like dodging, as a bonus action). */
+  | "patient-defense";
 
 export interface ActiveEffect {
   id: EffectId;
@@ -261,6 +267,10 @@ export interface AttackResult {
   hp?: HpChange;
   /** The rogue halved the damage with their reaction. */
   uncannyDodge?: boolean;
+  /** The monk caught part of a missile (damage reduced by this much). */
+  deflected?: number;
+  /** Stunning Strike (monk): the target's save and whether it is stunned. */
+  stun?: { save: CheckResult; stunned: boolean; dc: number };
 }
 
 export interface TurnState {
@@ -271,6 +281,8 @@ export interface TurnState {
   /** Rogue sneak attack / smite: once per turn. */
   sneakAttackUsed: boolean;
   attacksLeft: number;
+  /** Took the Attack action this turn (monk bonus strikes need it). */
+  attacked?: boolean;
 }
 
 export interface InitiativeEntry {

@@ -50,7 +50,11 @@
     "paladin": "Ritter",
     "wizard": "Magier",
     "rogue": "Schurke",
-    "cleric": "Kleriker"
+    "cleric": "Kleriker",
+    "bard": "Barde",
+    "ranger": "Waldläufer",
+    "druid": "Druide",
+    "monk": "Mönch"
   },
   "subclasses": {
     "fighter": "Meisterkämpfer",
@@ -99,7 +103,39 @@
     "ability-score-improvement": "Attributswerterhöhung",
     "extra-attack": "Zusätzlicher Angriff",
     "uncanny-dodge": "Unheimliches Ausweichen",
-    "destroy-undead-cr-1-2": "Untote zerstören"
+    "destroy-undead-cr-1-2": "Untote zerstören",
+    "spellcasting-bard": "Zauberwirken (Barde)",
+    "bardic-inspiration-d6": "Bardische Inspiration",
+    "bardic-inspiration": "Bardische Inspiration",
+    "jack-of-all-trades": "Alleskönner",
+    "song-of-rest-d6": "Lied der Rast",
+    "bard-college": "Bardenschule",
+    "bard-expertise-1": "Expertise",
+    "bardic-inspiration-d8": "Bardische Inspiration (stärker)",
+    "font-of-inspiration": "Quelle der Inspiration",
+    "favored-enemy-1-type": "Bevorzugter Feind",
+    "natural-explorer-1-terrain-type": "Naturkundiger",
+    "ranger-fighting-style": "Kampfstil",
+    "spellcasting-ranger": "Zauberwirken (Waldläufer)",
+    "ranger-archetype": "Waldläufer-Archetyp: Jäger",
+    "primeval-awareness": "Urtümliches Gespür",
+    "colossus-slayer": "Kolossjäger",
+    "druidic": "Druidisch",
+    "spellcasting-druid": "Zauberwirken (Druide)",
+    "wild-shape": "Tiergestalt",
+    "druid-circle": "Druidenzirkel",
+    "wild-shape-improvement": "Bessere Tiergestalt",
+    "unarmored-defense-monk": "Abwehr ohne Rüstung",
+    "martial-arts": "Kampfkunst",
+    "ki": "Ki",
+    "unarmored-movement-1": "Bewegung ohne Rüstung",
+    "flurry-of-blows": "Schlaghagel",
+    "patient-defense": "Geduldige Abwehr",
+    "step-of-the-wind": "Schritt des Windes",
+    "monastic-tradition": "Klostertradition",
+    "deflect-missiles": "Geschosse abwehren",
+    "slow-fall": "Langsamer Fall",
+    "stunning-strike": "Betäubender Schlag"
   },
   "fightingStyles": {
     "defense": "Verteidigung",
@@ -140,7 +176,8 @@
     "shortsword": "Kurzschwert",
     "warhammer": "Kriegshammer",
     "longbow": "Langbogen",
-    "unarmed": "Waffenloser Schlag"
+    "unarmed": "Waffenloser Schlag",
+    "wolf-bite": "Wolfsbiss"
   },
   "armor": {
     "leather-armor": "Lederrüstung",
@@ -174,7 +211,11 @@
     "divine-favor": "Göttliche Gunst",
     "scorching-ray": "Sengender Strahl",
     "fireball": "Feuerball",
-    "mass-healing-word": "Massen-Heilendes Wort"
+    "mass-healing-word": "Massen-Heilendes Wort",
+    "vicious-mockery": "Gehässiger Spott",
+    "produce-flame": "Flammen erzeugen",
+    "thunderwave": "Donnerwoge",
+    "hunters-mark": "Mal des Jägers"
   },
   "monsters": {
     "rat": "Ratte",

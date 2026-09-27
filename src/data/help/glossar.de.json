@@ -2849,5 +2849,388 @@
       "trefferpunkte",
       "zauberplaetze"
     ]
+  },
+  "klasse:bard": {
+    "titel": "Barde",
+    "kurz": "Musiker und Geschichtenerzähler: macht Freunde stärker und Gegner unsicher.",
+    "lang": "Der Barde zaubert mit seiner Stimme und seinem Charme (Charisma). Mit Bardischer Inspiration schenkt er einem Freund Vorteil auf den nächsten Wurf, mit Gehässigem Spott verunsichert er Gegner, und er kann heilen. Außerdem ist er in fast allem ein bisschen geübt (Alleskönner). Gut für Spieler, die gern reden und die Gruppe unterstützen.",
+    "beispiel": "Mira singt für Brunhild: Brunhild würfelt ihren nächsten Angriff zweimal und nimmt den besseren Wurf.",
+    "siehe_auch": [
+      "merkmal:bardic-inspiration-d6",
+      "zauber:vicious-mockery",
+      "charisma"
+    ]
+  },
+  "klasse:ranger": {
+    "titel": "Waldläufer",
+    "kurz": "Jäger und Spurenleser mit Pfeil und Bogen.",
+    "lang": "Der Waldläufer ist ein Meisterschütze (Kampfstil Bogenschießen: +2 auf Fernkampfangriffe) und kennt sich in der Wildnis aus. Ab Stufe 2 zaubert er ein wenig: Mit dem Mal des Jägers macht jeder Treffer gegen ein Ziel 1W6 mehr Schaden. Ab Stufe 3 trifft er verletzte Gegner besonders hart (Kolossjäger), ab Stufe 5 schießt er zweimal.",
+    "beispiel": "Mal des Jägers auf den Oger, dann Langbogen: 1W8 + 3 + 1W6.",
+    "siehe_auch": [
+      "zauber:hunters-mark",
+      "merkmal:colossus-slayer",
+      "kampfstil"
+    ]
+  },
+  "klasse:druid": {
+    "titel": "Druide",
+    "kurz": "Hüter der Natur: heilt, ruft Flammen und Donner – und wird zum Wolf.",
+    "lang": "Der Druide zaubert mit der Kraft der Natur (Weisheit). Er kann heilen, Flammen erzeugen und mit einer Donnerwoge alle um sich herum treffen. Ab Stufe 2 verwandelt er sich in einen Wolf (Tiergestalt): Dann beißt er, hat zusätzliche Trefferpunkte, kann aber nicht zaubern. Gut für Spieler, die gern vielseitig sind.",
+    "beispiel": "Der Druide wird zum Wolf, springt vor die Gruppe und fängt die Treffer ab.",
+    "siehe_auch": [
+      "merkmal:wild-shape",
+      "zauber:produce-flame",
+      "zauber:thunderwave"
+    ]
+  },
+  "klasse:monk": {
+    "titel": "Mönch",
+    "kurz": "Kämpft ohne Rüstung und Waffen – blitzschnell mit Fäusten und Füßen.",
+    "lang": "Der Mönch ist schnell und schwer zu treffen, obwohl er keine Rüstung trägt (Abwehr ohne Rüstung: 10 + Geschicklichkeit + Weisheit). Nach einem Angriff kann er als Bonusaktion noch einmal zuschlagen (Kampfkunst). Ab Stufe 2 hat er Ki-Punkte für Schlaghagel, Geduldige Abwehr oder Schritt des Windes. Ab Stufe 5 kann er Gegner betäuben.",
+    "beispiel": "Angriff mit der Faust, dann Schlaghagel: drei Schläge in einem Zug!",
+    "siehe_auch": [
+      "merkmal:martial-arts",
+      "merkmal:ki",
+      "merkmal:unarmored-defense-monk"
+    ]
+  },
+  "merkmal:spellcasting-bard": {
+    "titel": "Zauberwirken (Barde)",
+    "kurz": "Der Barde zaubert mit Charisma.",
+    "lang": "Seine Zauber kommen aus Musik und Worten. Wie gut sie wirken, hängt vom Charisma ab. Zauberplätze kommen nach einer langen Rast zurück.",
+    "beispiel": "",
+    "siehe_auch": [
+      "zauberplaetze",
+      "charisma"
+    ]
+  },
+  "merkmal:bardic-inspiration-d6": {
+    "titel": "Bardische Inspiration",
+    "kurz": "Ein Lied für einen Freund: Vorteil auf seinen nächsten Wurf.",
+    "lang": "Als Bonusaktion inspiriert der Barde einen Freund in bis zu 12 Feldern. Dessen nächster Angriff oder nächste Probe wird mit Vorteil gewürfelt (zweimal würfeln, der bessere Wurf zählt). So oft wie der Charisma-Modifikator (mindestens einmal), dann nach einer langen Rast wieder – ab Stufe 5 schon nach jeder Rast. (Im Regelwerk gibt es dafür einen Bonuswürfel; wir machen es einfacher.)",
+    "beispiel": "Brunhild würfelt 4 und 17 – die 17 zählt.",
+    "siehe_auch": [
+      "vorteil",
+      "bonusaktion"
+    ]
+  },
+  "merkmal:bardic-inspiration-d8": {
+    "titel": "Bardische Inspiration (stärker)",
+    "kurz": "Ab Stufe 5 wird die Inspiration mächtiger.",
+    "lang": "Die Bardische Inspiration kommt jetzt nach jeder Rast zurück (Quelle der Inspiration).",
+    "beispiel": "",
+    "siehe_auch": [
+      "merkmal:bardic-inspiration-d6"
+    ]
+  },
+  "merkmal:font-of-inspiration": {
+    "titel": "Quelle der Inspiration",
+    "kurz": "Die Inspiration kommt schon nach einer kurzen Rast zurück.",
+    "lang": "Ab Stufe 5 füllt sich die Bardische Inspiration bei jeder Rast wieder auf.",
+    "beispiel": "",
+    "siehe_auch": [
+      "merkmal:bardic-inspiration-d6",
+      "rast"
+    ]
+  },
+  "merkmal:jack-of-all-trades": {
+    "titel": "Alleskönner",
+    "kurz": "In allem ein bisschen geübt.",
+    "lang": "Bei jeder Probe, in der der Barde nicht geübt ist, bekommt er trotzdem den halben Übungsbonus dazu.",
+    "beispiel": "Athletik ohne Übung: 🎲 12 + 0 (Stärke) + 1 (Alleskönner) = 13.",
+    "siehe_auch": [
+      "uebungsbonus",
+      "probe"
+    ]
+  },
+  "merkmal:song-of-rest-d6": {
+    "titel": "Lied der Rast",
+    "kurz": "Ein Lied, das bei der Rast beim Erholen hilft.",
+    "lang": "Bei uns erholt sich die Gruppe am Lagerfeuer ohnehin ganz – das Lied macht den Abend nur schöner.",
+    "beispiel": "",
+    "siehe_auch": [
+      "rast"
+    ]
+  },
+  "merkmal:bard-college": {
+    "titel": "Bardenschule",
+    "kurz": "Die Schule, in der der Barde gelernt hat.",
+    "lang": "Ab Stufe 3 gehört der Barde einer Schule an. Bei uns ist das die Schule des Wissens: Er ist in zwei Fertigkeiten besonders gut (Expertise).",
+    "beispiel": "",
+    "siehe_auch": [
+      "expertise"
+    ]
+  },
+  "merkmal:bard-expertise-1": {
+    "titel": "Expertise (Barde)",
+    "kurz": "In zwei Fertigkeiten besonders gut.",
+    "lang": "Ab Stufe 3 zählt bei Überzeugen und Auftreten der doppelte Übungsbonus.",
+    "beispiel": "",
+    "siehe_auch": [
+      "expertise"
+    ]
+  },
+  "merkmal:favored-enemy-1-type": {
+    "titel": "Bevorzugter Feind",
+    "kurz": "Der Waldläufer kennt eine Art Gegner besonders gut.",
+    "lang": "Er weiß, wie diese Wesen denken und wo sie sich verstecken. (Bei uns vor allem Geschichte und Stimmung – erzähl, welchen Feind du jagst!)",
+    "beispiel": "",
+    "siehe_auch": [
+      "klasse:ranger"
+    ]
+  },
+  "merkmal:natural-explorer-1-terrain-type": {
+    "titel": "Naturkundiger",
+    "kurz": "Zu Hause in der Wildnis.",
+    "lang": "Der Waldläufer verirrt sich nicht und findet Spuren und Nahrung. (Bei uns vor allem Stimmung.)",
+    "beispiel": "",
+    "siehe_auch": [
+      "klasse:ranger"
+    ]
+  },
+  "merkmal:ranger-fighting-style": {
+    "titel": "Kampfstil (Waldläufer)",
+    "kurz": "Bogenschießen: +2 auf Fernkampfangriffe.",
+    "lang": "Ab Stufe 2 hat der Waldläufer den Kampfstil Bogenschießen und trifft mit Bogen und Armbrust besser.",
+    "beispiel": "Langbogen: 🎲 11 + 3 + 2 (Übung) + 2 (Bogenschießen) = 18.",
+    "siehe_auch": [
+      "kampfstil",
+      "angriffswurf"
+    ]
+  },
+  "merkmal:spellcasting-ranger": {
+    "titel": "Zauberwirken (Waldläufer)",
+    "kurz": "Ab Stufe 2 ein wenig Naturmagie.",
+    "lang": "Der Waldläufer zaubert mit Weisheit: Mal des Jägers und Heilende Hand.",
+    "beispiel": "",
+    "siehe_auch": [
+      "zauber:hunters-mark",
+      "zauberplaetze"
+    ]
+  },
+  "merkmal:ranger-archetype": {
+    "titel": "Waldläufer-Archetyp: Jäger",
+    "kurz": "Ab Stufe 3 wird der Waldläufer zum Jäger.",
+    "lang": "Er bekommt den Kolossjäger: Gegen Verletzte trifft er härter.",
+    "beispiel": "",
+    "siehe_auch": [
+      "merkmal:colossus-slayer"
+    ]
+  },
+  "merkmal:primeval-awareness": {
+    "titel": "Urtümliches Gespür",
+    "kurz": "Spürt, ob gefährliche Wesen in der Nähe sind.",
+    "lang": "Bei uns vor allem Stimmung – frag den Spielleiter, was du spürst!",
+    "beispiel": "",
+    "siehe_auch": [
+      "klasse:ranger"
+    ]
+  },
+  "merkmal:colossus-slayer": {
+    "titel": "Kolossjäger",
+    "kurz": "Einmal pro Zug +1W8 Schaden gegen einen schon verletzten Gegner.",
+    "lang": "Wenn der Waldläufer einen Gegner mit einer Waffe trifft, der schon Trefferpunkte verloren hat, macht er einmal pro Zug 1W8 zusätzlichen Schaden.",
+    "beispiel": "Der Oger blutet schon: 1W8 + 3 + 1W8 (Kolossjäger).",
+    "siehe_auch": [
+      "schaden",
+      "merkmal:ranger-archetype"
+    ]
+  },
+  "merkmal:druidic": {
+    "titel": "Druidisch",
+    "kurz": "Die geheime Sprache der Druiden.",
+    "lang": "Druiden können sich damit Botschaften hinterlassen, die sonst niemand versteht.",
+    "beispiel": "",
+    "siehe_auch": [
+      "klasse:druid"
+    ]
+  },
+  "merkmal:spellcasting-druid": {
+    "titel": "Zauberwirken (Druide)",
+    "kurz": "Der Druide zaubert mit Weisheit.",
+    "lang": "Seine Zauber kommen aus der Natur. Wie gut sie wirken, hängt von der Weisheit ab.",
+    "beispiel": "",
+    "siehe_auch": [
+      "zauberplaetze",
+      "weisheit"
+    ]
+  },
+  "merkmal:wild-shape": {
+    "titel": "Tiergestalt",
+    "kurz": "Der Druide verwandelt sich in einen Wolf.",
+    "lang": "Ab Stufe 2 kann sich der Druide mit einer Aktion in einen Wolf verwandeln: Er bekommt 11 zusätzliche Trefferpunkte (die Trefferpunkte des Wolfs) und beißt mit +4 für 2W4 + 2 Schaden. Solange er Wolf ist, kann er nicht zaubern. Sind die Trefferpunkte des Wolfs weg, wird er wieder zum Menschen. Zweimal pro Rast.",
+    "beispiel": "Der Wolf steckt 9 Schaden ein – der Druide selbst bleibt unverletzt.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "aktion"
+    ]
+  },
+  "merkmal:druid-circle": {
+    "titel": "Druidenzirkel",
+    "kurz": "Der Kreis, dem der Druide angehört.",
+    "lang": "Bei uns ist das der Zirkel des Landes – vor allem für die Geschichte deines Helden.",
+    "beispiel": "",
+    "siehe_auch": [
+      "klasse:druid"
+    ]
+  },
+  "merkmal:wild-shape-improvement": {
+    "titel": "Bessere Tiergestalt",
+    "kurz": "Die Tiergestalt wird geübter.",
+    "lang": "Ab Stufe 4 kennt der Druide seine Tiergestalt besser. (Bei uns bleibt es beim Wolf.)",
+    "beispiel": "",
+    "siehe_auch": [
+      "merkmal:wild-shape"
+    ]
+  },
+  "merkmal:unarmored-defense-monk": {
+    "titel": "Abwehr ohne Rüstung",
+    "kurz": "Ohne Rüstung schwer zu treffen: RK = 10 + Geschicklichkeit + Weisheit.",
+    "lang": "Solange der Mönch keine Rüstung und keinen Schild trägt, ist seine Rüstungsklasse 10 plus Geschicklichkeits- und Weisheitsmodifikator.",
+    "beispiel": "10 + 3 (Geschicklichkeit) + 2 (Weisheit) = RK 15.",
+    "siehe_auch": [
+      "ruestungsklasse",
+      "weisheit"
+    ]
+  },
+  "merkmal:martial-arts": {
+    "titel": "Kampfkunst",
+    "kurz": "Fäuste als Waffe – und nach dem Angriff noch ein Extraschlag.",
+    "lang": "Der Mönch schlägt waffenlos mit 1W4 (ab Stufe 5 1W6) und nimmt Geschicklichkeit statt Stärke. Nach dem Angriff mit der Aktion darf er als Bonusaktion noch einmal waffenlos zuschlagen.",
+    "beispiel": "Kurzschwert, dann Faust: zwei Angriffe in einem Zug.",
+    "siehe_auch": [
+      "bonusaktion",
+      "angriffswurf"
+    ]
+  },
+  "merkmal:ki": {
+    "titel": "Ki",
+    "kurz": "Innere Kraft für besondere Techniken.",
+    "lang": "Ab Stufe 2 hat der Mönch so viele Ki-Punkte wie seine Stufe. Damit bezahlt er Schlaghagel, Geduldige Abwehr, Schritt des Windes und (ab Stufe 5) den Betäubenden Schlag. Ki kommt nach jeder Rast zurück.",
+    "beispiel": "",
+    "siehe_auch": [
+      "merkmal:flurry-of-blows",
+      "merkmal:patient-defense",
+      "merkmal:step-of-the-wind"
+    ]
+  },
+  "merkmal:unarmored-movement-1": {
+    "titel": "Bewegung ohne Rüstung",
+    "kurz": "Ohne Rüstung schneller: +2 Felder.",
+    "lang": "Ab Stufe 2 bewegt sich der Mönch ohne Rüstung und Schild 2 Felder weiter.",
+    "beispiel": "",
+    "siehe_auch": [
+      "bewegung"
+    ]
+  },
+  "merkmal:flurry-of-blows": {
+    "titel": "Schlaghagel",
+    "kurz": "Für 1 Ki zwei Faustschläge als Bonusaktion.",
+    "lang": "Nach dem Angriff mit der Aktion kann der Mönch 1 Ki ausgeben und als Bonusaktion zweimal waffenlos zuschlagen.",
+    "beispiel": "",
+    "siehe_auch": [
+      "merkmal:ki",
+      "merkmal:martial-arts"
+    ]
+  },
+  "merkmal:patient-defense": {
+    "titel": "Geduldige Abwehr",
+    "kurz": "Für 1 Ki Ausweichen als Bonusaktion.",
+    "lang": "Angriffe gegen den Mönch haben bis zu seinem nächsten Zug Nachteil – und er kann trotzdem angreifen.",
+    "beispiel": "",
+    "siehe_auch": [
+      "merkmal:ki",
+      "ausweichen"
+    ]
+  },
+  "merkmal:step-of-the-wind": {
+    "titel": "Schritt des Windes",
+    "kurz": "Für 1 Ki doppelte Bewegung als Bonusaktion.",
+    "lang": "Der Mönch spurtet als Bonusaktion und kann sich in diesem Zug doppelt so weit bewegen.",
+    "beispiel": "",
+    "siehe_auch": [
+      "merkmal:ki",
+      "spurt"
+    ]
+  },
+  "merkmal:monastic-tradition": {
+    "titel": "Klostertradition",
+    "kurz": "Die Schule des Mönchs.",
+    "lang": "Bei uns ist das der Weg der offenen Hand – vor allem für die Geschichte deines Helden.",
+    "beispiel": "",
+    "siehe_auch": [
+      "klasse:monk"
+    ]
+  },
+  "merkmal:deflect-missiles": {
+    "titel": "Geschosse abwehren",
+    "kurz": "Fängt Pfeile und Bolzen teilweise ab.",
+    "lang": "Ab Stufe 3 verringert der Mönch den Schaden eines Fernkampftreffers um 1W10 + Geschicklichkeit + Stufe (einmal pro Runde, mit seiner Reaktion).",
+    "beispiel": "Ein Pfeil trifft für 7 – der Mönch fängt 9 ab: kein Schaden!",
+    "siehe_auch": [
+      "reaktion",
+      "schaden"
+    ]
+  },
+  "merkmal:slow-fall": {
+    "titel": "Langsamer Fall",
+    "kurz": "Fällt weich.",
+    "lang": "Der Mönch nimmt bei Stürzen weniger Schaden. (Bei uns vor allem Stimmung.)",
+    "beispiel": "",
+    "siehe_auch": [
+      "klasse:monk"
+    ]
+  },
+  "merkmal:stunning-strike": {
+    "titel": "Betäubender Schlag",
+    "kurz": "Für 1 Ki: Der Gegner verliert vielleicht seinen nächsten Zug.",
+    "lang": "Ab Stufe 5 kann der Mönch nach einem Nahkampftreffer 1 Ki ausgeben. Der Gegner macht einen Rettungswurf auf Konstitution (SG 8 + Übung + Weisheit). Schafft er ihn nicht, ist er betäubt und verliert seinen nächsten Zug.",
+    "beispiel": "",
+    "siehe_auch": [
+      "merkmal:ki",
+      "rettungswurf",
+      "zustand:stunned"
+    ]
+  },
+  "zauber:vicious-mockery": {
+    "titel": "Gehässiger Spott",
+    "kurz": "Eine fiese Beleidigung mit Magie: Schaden und der nächste Angriff geht eher daneben.",
+    "lang": "Zaubertrick des Barden, 12 Felder weit. Das Ziel macht einen Rettungswurf auf Weisheit. Misslingt er, bekommt es 1W4 psychischen Schaden (ab Stufe 5 2W4) und hat Nachteil auf seinen nächsten Angriff.",
+    "beispiel": "„Dein Schwert ist so stumpf wie dein Verstand!“ – 3 Schaden, und der Goblin trifft schlechter.",
+    "siehe_auch": [
+      "rettungswurf",
+      "vorteil",
+      "zaubertrick"
+    ]
+  },
+  "zauber:produce-flame": {
+    "titel": "Flammen erzeugen",
+    "kurz": "Eine Flamme in der Hand, die man werfen kann.",
+    "lang": "Zaubertrick des Druiden. Fernkampf-Zauberangriff auf ein Ziel in 6 Feldern: 1W8 Feuerschaden (ab Stufe 5 2W8).",
+    "beispiel": "",
+    "siehe_auch": [
+      "zaubertrick",
+      "angriffswurf"
+    ]
+  },
+  "zauber:thunderwave": {
+    "titel": "Donnerwoge",
+    "kurz": "Ein Donnerschlag trifft alle direkt um dich herum.",
+    "lang": "Zauber des 1. Grades (Barde, Druide). Alle Gegner in 3 Feldern um dich machen einen Rettungswurf auf Konstitution: 2W8 Schallschaden, bei Erfolg die Hälfte.",
+    "beispiel": "Drei Kobolde um den Druiden – bumm, alle fliegen durcheinander.",
+    "siehe_auch": [
+      "rettungswurf",
+      "zauberplaetze"
+    ]
+  },
+  "zauber:hunters-mark": {
+    "titel": "Mal des Jägers",
+    "kurz": "Markiert ein Ziel: jeder Waffentreffer +1W6 Schaden.",
+    "lang": "Zauber des 1. Grades für Waldläufer, als Bonusaktion. Bis die Konzentration endet, macht jeder Treffer mit einer Waffe gegen das markierte Ziel 1W6 zusätzlichen Schaden.",
+    "beispiel": "",
+    "siehe_auch": [
+      "konzentration",
+      "bonusaktion"
+    ]
   }
 }

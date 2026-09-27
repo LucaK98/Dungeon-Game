@@ -5,7 +5,7 @@ import type { AttackOption, AttackResult, Battle, Creature, DamageLine, DamageRe
 import type { DamagePart, DamageType } from "../shared/rules";
 import type { BreakdownPart } from "../shared/types";
 import { canSee } from "./vision";
-import { advantage, d20Part, disadvantage, rollD20, sumParts, type AdvReason } from "./core";
+import { abilityMod, advantage, d20Part, disadvantage, rollD20, sumParts, type AdvReason } from "./core";
 import { parseDice, rollDice, rollDie } from "./dice";
 import { acParts, damageCreature, distanceFt, hasCondition, hasEffect, isActive, isIncapacitated } from "./combat";
 import type { Rng } from "./rng";
@@ -205,6 +205,13 @@ export function resolveAttack(
     if (battle.combat?.turn.creatureId === attacker.id) battle.combat.turn.sneakAttackUsed = true;
   }
   if (option.source === "weapon" && hasEffect(attacker, "divine-favor")) dmgParts.push({ dice: "1d4", type: "radiant" });
+  // Hunter's Mark: +1d6 on weapon hits against the marked creature.
+  if (option.source === "weapon" && target.effects.some((e) => e.id === "hunters-mark" && e.sourceId === attacker.id)) dmgParts.push({ dice: "1d6", type: option.damage[0]!.type });
+  // Colossus Slayer (ranger, Hunter): once per turn +1d8 against a creature that is already hurt.
+  if (option.source === "weapon" && attacker.pc?.features.includes("colossus-slayer") && target.hp < target.maxHp && !(battle.combat?.turn.creatureId === attacker.id && battle.combat.turn.sneakAttackUsed)) {
+    dmgParts.push({ dice: "1d8", type: option.damage[0]!.type });
+    if (battle.combat?.turn.creatureId === attacker.id) battle.combat.turn.sneakAttackUsed = true;
+  }
   if (opts.smiteSlot && option.kind === "melee") {
     const undeadBonus = target.creatureType === "undead" ? 1 : 0;
     dmgParts.push({ dice: `${Math.min(5, 1 + opts.smiteSlot + undeadBonus)}d8`, type: "radiant" });
@@ -218,6 +225,19 @@ export function resolveAttack(
   if (opts.dragonSlayer && target.creatureType === "dragon") {
     for (const l of damage.lines) l.final *= 2;
     damage.total *= 2;
+  }
+  // Deflect Missiles (monk, level 3): a ranged weapon hit is reduced by 1d10 + Dex + level (reaction).
+  if (target.pc?.features.includes("deflect-missiles") && option.kind === "ranged" && option.source !== "spell" && battle.combat && !battle.combat.reactionUsed[target.id] && damage.total > 0 && isActive(target)) {
+    battle.combat.reactionUsed[target.id] = true;
+    const cut = Math.min(damage.total, rollDamage(rng, { parts: [{ dice: "1d10", type: "bludgeoning" }] }).total + abilityMod(target.abilities.DEX) + target.pc.level);
+    let left = cut;
+    for (const l of damage.lines) {
+      const off = Math.min(l.final, left);
+      l.final -= off;
+      left -= off;
+    }
+    damage.total -= cut;
+    result.deflected = cut;
   }
   // Uncanny Dodge (rogue, level 5): the first hit each round is halved (uses the reaction).
   if (target.pc?.features.includes("uncanny-dodge") && battle.combat && !battle.combat.reactionUsed[target.id] && damage.total > 0 && isActive(target)) {

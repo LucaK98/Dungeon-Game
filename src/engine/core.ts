@@ -103,6 +103,9 @@ export function skillParts(c: Creature, skill: SkillId): BreakdownPart[] {
       value: c.proficiencyBonus * (expert ? 2 : 1),
       glossarKey: expert ? "expertise" : "uebungsbonus",
     });
+  } else if (c.pc?.features.includes("jack-of-all-trades")) {
+    // Bard: half the proficiency bonus on every check without proficiency.
+    parts.push({ label: "Alleskönner", value: Math.floor(c.proficiencyBonus / 2), glossarKey: "merkmal:jack-of-all-trades" });
   }
   return parts;
 }

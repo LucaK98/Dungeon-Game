@@ -27,7 +27,13 @@ import { castSpell, spellSaveDcParts, validateCast } from "./spells";
 
 export type CombatAction =
   | { type: "move"; path: GridPos[] }
-  | { type: "attack"; targetId: string; optionId: string; smiteSlot?: number; dragonSlayer?: boolean; silvered?: boolean }
+  | { type: "attack"; targetId: string; optionId: string; smiteSlot?: number; dragonSlayer?: boolean; silvered?: boolean; stun?: boolean }
+  | { type: "bardic-inspiration"; targetId: string }
+  | { type: "wild-shape" }
+  | { type: "martial-arts"; targetId: string }
+  | { type: "flurry-of-blows"; targetId: string }
+  | { type: "patient-defense" }
+  | { type: "step-of-the-wind" }
   | { type: "cast"; spellId: string; slotLevel?: number; targetIds: string[] }
   | { type: "save-action"; actionId: string; targetIds: string[] }
   | { type: "dash"; bonus?: boolean }
@@ -53,9 +59,31 @@ export type ActionDetail =
   | { kind: "simple"; what: "dash" | "disengage" | "dodge" | "action-surge" | "stand-up" }
   | { kind: "hide"; check: CheckResult }
   | { kind: "heal"; what: "second-wind" | "lay-on-hands" | "potion"; targetId: string; parts: BreakdownPart[]; total: number; hp: HpChange }
-  | { kind: "turn-undead"; dc: number; results: { targetId: string; save: CheckResult; turned: boolean; destroyed?: boolean }[] };
+  | { kind: "turn-undead"; dc: number; results: { targetId: string; save: CheckResult; turned: boolean; destroyed?: boolean }[] }
+  | { kind: "boost"; what: "bardic-inspiration" | "wild-shape" | "patient-defense" | "step-of-the-wind"; targetId: string }
+  | { kind: "strikes"; what: "martial-arts" | "flurry-of-blows"; attacks: AttackResult[] };
 
 const fail = (reason: string): ActionOutcome => ({ ok: false, reason });
+
+/** The druid's wolf shape (SRD wolf: 11 hit points, bite +4, 2d4+2). */
+const WOLF_HP = 11;
+function wolfBite(): import("../shared/game").AttackOption {
+  return {
+    id: "wolf-bite",
+    sourceId: "wolf-bite",
+    source: "monster",
+    kind: "melee",
+    toHit: [{ label: "Wolfsbiss", value: 4, glossarKey: "merkmal:wild-shape" }],
+    damage: [{ dice: "2d4", type: "piercing" }],
+    damageBonus: [{ label: "Wolf", value: 2, glossarKey: "merkmal:wild-shape" }],
+    reachFt: 5,
+  };
+}
+
+/** Save DC of the monk's ki features: 8 + proficiency + Wisdom. */
+function kiDc(c: Creature): number {
+  return 8 + c.proficiencyBonus + abilityMod(c.abilities.WIS);
+}
 
 function spend(battle: Battle, actor: Creature, cost: "action" | "bonus"): string | undefined {
   const turn = battle.combat?.turn;
@@ -113,7 +141,10 @@ export function perform(rng: Rng, battle: Battle, actorId: string, action: Comba
       const option = actor.attacks.find((a) => a.id === action.optionId);
       if (!option) return fail("Diese Waffe hast du nicht.");
       if (!inRange(actor, target, option)) return fail(`${target.name} ist außer Reichweite.`);
+      if (action.stun && !(actor.pc?.features.includes("stunning-strike") && option.kind === "melee")) return fail("Betäubender Schlag geht nur als Mönch ab Stufe 5, im Nahkampf.");
+      if (action.stun && (actor.pc!.resources["ki"]?.max ?? 0) - (actor.pc!.resources["ki"]?.used ?? 0) <= 0) return fail("Kein Ki mehr übrig.");
       if (turn && turn.creatureId === actorId) {
+        turn.attacked = true;
         if (turn.attacksLeft > 0) {
           turn.attacksLeft--;
         } else {
@@ -137,7 +168,83 @@ export function perform(rng: Rng, battle: Battle, actorId: string, action: Comba
       });
       // The smite slot is only spent on a hit.
       if (smiteSlot && attack.hit && option.kind === "melee") actor.pc!.spellSlots[smiteSlot - 1]!--;
+      // Stunning Strike: on a hit, 1 ki; the target must make a Constitution save or is stunned.
+      if (action.stun && attack.hit && !target.dead && target.hp > 0) {
+        actor.pc!.resources["ki"]!.used++;
+        const dc = kiDc(actor);
+        const save = savingThrow(rng, target, "CON", dc);
+        if (!save.success) addCondition(target, { id: "stunned", rounds: 1, sourceId: actor.id });
+        attack.stun = { save, stunned: !save.success, dc };
+      }
       return { ...ok, cost: "action", kind: "attack", attack };
+    }
+
+    case "bardic-inspiration": {
+      const target = battle.creatures[action.targetId];
+      if (!target || target.dead || target.id === actor.id) return fail("Wähle einen Freund.");
+      if (distanceFt(actor, target) > 60) return fail(`${target.name} ist zu weit weg (höchstens 12 Felder).`);
+      const resErr = useResource(actor, "bardic-inspiration");
+      if (resErr) return fail(resErr);
+      const err = spend(battle, actor, "bonus");
+      if (err) {
+        actor.pc!.resources["bardic-inspiration"]!.used--;
+        return fail(err);
+      }
+      addEffect(target, "helped", 99, actor.id);
+      return { ...ok, cost: "bonus", kind: "boost", what: "bardic-inspiration", targetId: target.id };
+    }
+
+    case "wild-shape": {
+      if (actor.effects.some((e) => e.id === "wild-shape")) return fail("Du bist schon in Tiergestalt.");
+      const resErr = useResource(actor, "wild-shape");
+      if (resErr) return fail(resErr);
+      const err = spend(battle, actor, "action");
+      if (err) {
+        actor.pc!.resources["wild-shape"]!.used--;
+        return fail(err);
+      }
+      // As a wolf: the wolf's hit points on top, and its bite.
+      actor.tempHp = Math.max(actor.tempHp, WOLF_HP);
+      addEffect(actor, "wild-shape", 600, actor.id);
+      actor.attacks = [...actor.attacks.filter((a) => a.id !== "wolf-bite"), wolfBite()];
+      return { ...ok, cost: "action", kind: "boost", what: "wild-shape", targetId: actor.id };
+    }
+
+    case "martial-arts":
+    case "flurry-of-blows": {
+      if (!actor.pc?.features.includes("martial-arts")) return fail("Nur Mönche können das.");
+      if (turn && turn.creatureId === actorId && !turn.attacked) return fail("Erst mit der Aktion angreifen – dann kommt der Extraschlag.");
+      const target = battle.creatures[action.targetId];
+      const fist = actor.attacks.find((a) => a.id === "unarmed");
+      if (!target || target.dead || !fist) return fail("Ungültiges Ziel.");
+      if (!inRange(actor, target, fist)) return fail(`${target.name} ist außer Reichweite.`);
+      const flurry = action.type === "flurry-of-blows";
+      if (flurry) {
+        const resErr = useResource(actor, "ki");
+        if (resErr) return fail(resErr);
+      }
+      const err = spend(battle, actor, "bonus");
+      if (err) {
+        if (flurry) actor.pc.resources["ki"]!.used--;
+        return fail(err);
+      }
+      const attacks = [resolveAttack(rng, battle, actor, target, fist)];
+      if (flurry && !target.dead && target.hp > 0) attacks.push(resolveAttack(rng, battle, actor, target, fist));
+      return { ...ok, cost: "bonus", kind: "strikes", what: action.type, attacks };
+    }
+
+    case "patient-defense":
+    case "step-of-the-wind": {
+      const resErr = useResource(actor, "ki");
+      if (resErr) return fail(resErr);
+      const err = spend(battle, actor, "bonus");
+      if (err) {
+        actor.pc!.resources["ki"]!.used--;
+        return fail(err);
+      }
+      if (action.type === "patient-defense") addEffect(actor, "dodge", 99, actor.id);
+      else if (turn) turn.movementLeftFt += currentSpeedFt(actor);
+      return { ...ok, cost: "bonus", kind: "boost", what: action.type, targetId: actor.id };
     }
 
     case "cast": {

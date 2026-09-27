@@ -20,6 +20,10 @@ const ABILITY_PRIORITY: Record<string, Ability[]> = {
   wizard: ["INT", "CON", "DEX", "WIS", "CHA", "STR"],
   rogue: ["DEX", "CON", "CHA", "WIS", "INT", "STR"],
   cleric: ["WIS", "CON", "STR", "CHA", "DEX", "INT"],
+  bard: ["CHA", "DEX", "CON", "WIS", "INT", "STR"],
+  ranger: ["DEX", "WIS", "CON", "STR", "INT", "CHA"],
+  druid: ["WIS", "CON", "DEX", "INT", "CHA", "STR"],
+  monk: ["DEX", "WIS", "CON", "STR", "INT", "CHA"],
 };
 const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
 
@@ -29,6 +33,8 @@ interface Loadout {
   weapons: string[];
   skills: SkillId[];
   expertise?: SkillId[];
+  /** From which level the expertise applies (rogue 1, bard 3). */
+  expertiseFrom?: number;
   fightingStyle?: FightingStyle;
   /** Spells by the character level from which they are known. */
   spells?: [level: number, ids: string[]][];
@@ -77,6 +83,35 @@ const LOADOUTS: Record<string, Loadout> = {
       [5, ["mass-healing-word"]],
     ],
   },
+  bard: {
+    armor: "leather-armor",
+    shield: false,
+    weapons: ["rapier", "dagger"],
+    skills: ["performance", "persuasion", "deception"],
+    expertise: ["persuasion", "performance"],
+    expertiseFrom: 3,
+    spells: [[1, ["vicious-mockery", "healing-word", "cure-wounds", "sleep", "thunderwave"]]],
+  },
+  ranger: {
+    armor: "leather-armor",
+    shield: false,
+    weapons: ["longbow", "shortsword"],
+    skills: ["survival", "perception", "stealth"],
+    fightingStyle: "archery",
+    spells: [[2, ["hunters-mark", "cure-wounds"]]],
+  },
+  druid: {
+    armor: "leather-armor",
+    shield: true,
+    weapons: ["quarterstaff", "javelin"],
+    skills: ["nature", "medicine"],
+    spells: [[1, ["produce-flame", "cure-wounds", "healing-word", "thunderwave"]]],
+  },
+  monk: {
+    shield: false,
+    weapons: ["shortsword", "dagger"],
+    skills: ["acrobatics", "stealth"],
+  },
 };
 
 /** Highest level a hero can reach. */
@@ -96,6 +131,9 @@ export function isProficientWithWeapon(pc: Pick<PcInfo, "classId" | "raceId">, w
   if (pc.raceId === "dwarf" && ["battleaxe", "handaxe", "warhammer"].includes(w.id)) return true;
   if (pc.classId === "rogue" && ["longsword", "rapier", "shortsword"].includes(w.id)) return true;
   if (pc.classId === "wizard" && ["dagger", "quarterstaff", "crossbow-light"].includes(w.id)) return true;
+  if (pc.classId === "bard" && ["longsword", "rapier", "shortsword"].includes(w.id)) return true;
+  if (pc.classId === "druid" && ["club", "dagger", "javelin", "mace", "quarterstaff", "spear"].includes(w.id)) return true;
+  if (pc.classId === "monk" && w.id === "shortsword") return true;
   return false;
 }
 
@@ -105,7 +143,9 @@ export function weaponAttack(c: Pick<Creature, "abilities" | "proficiencyBonus">
   const thrown = w.properties.includes("thrown");
   const str = abilityMod(c.abilities.STR);
   const dex = abilityMod(c.abilities.DEX);
-  const ability: Ability = w.ranged ? "DEX" : finesse && dex > str ? "DEX" : "STR";
+  // Monks may use Dexterity with their simple weapons and short swords (Martial Arts).
+  const monkWeapon = c.pc.classId === "monk" && !w.properties.includes("two-handed") && !w.properties.includes("heavy") && (w.category === "simple" || w.id === "shortsword");
+  const ability: Ability = w.ranged ? "DEX" : (finesse || monkWeapon) && dex > str ? "DEX" : "STR";
   const mod = modPart(c as Creature, ability);
   const toHit: BreakdownPart[] = [mod];
   if (isProficientWithWeapon(c.pc, w)) toHit.push(profPart(c.proficiencyBonus));
@@ -113,6 +153,7 @@ export function weaponAttack(c: Pick<Creature, "abilities" | "proficiencyBonus">
   const twoHanded = !c.pc.shield && w.versatileDice;
   const damage: DamagePart[] = [{ dice: twoHanded ? w.versatileDice! : w.damage.dice, type: w.damage.type }];
   const damageBonus: BreakdownPart[] = [mod];
+  if (c.pc.fightingStyle === "archery" && w.ranged) toHit.push({ label: "Bogenschießen", value: 2, glossarKey: "kampfstil" });
   if (c.pc.fightingStyle === "dueling" && !w.ranged && !w.properties.includes("two-handed")) {
     damageBonus.push({ label: "Duellieren", value: 2, glossarKey: "kampfstil" });
   }
@@ -133,7 +174,21 @@ export function weaponAttack(c: Pick<Creature, "abilities" | "proficiencyBonus">
 }
 
 function unarmedStrike(c: Creature): AttackOption {
-  const mod = modPart(c, "STR");
+  // Monks: Martial Arts – Dexterity if better, and a real damage die (1d4, 1d6 from level 5).
+  const monk = c.pc?.classId === "monk";
+  const mod = modPart(c, monk && c.abilities.DEX > c.abilities.STR ? "DEX" : "STR");
+  if (monk) {
+    return {
+      id: "unarmed",
+      sourceId: "unarmed",
+      source: "unarmed",
+      kind: "melee",
+      toHit: [mod, profPart(c.proficiencyBonus)],
+      damage: [{ dice: (c.pc?.level ?? 1) >= 5 ? "1d6" : "1d4", type: "bludgeoning" }],
+      damageBonus: [mod],
+      reachFt: 5,
+    };
+  }
   return {
     id: "unarmed",
     sourceId: "unarmed",
@@ -147,7 +202,7 @@ function unarmedStrike(c: Creature): AttackOption {
 }
 
 /** Armour class of the equipment, without temporary effects. */
-export function armorClassParts(abilities: AbilityScores, pc: Pick<PcInfo, "armorId" | "shield" | "fightingStyle" | "gear">): BreakdownPart[] {
+export function armorClassParts(abilities: AbilityScores, pc: Pick<PcInfo, "armorId" | "shield" | "fightingStyle" | "gear"> & { classId?: string }): BreakdownPart[] {
   const dex = abilityMod(abilities.DEX);
   const parts: BreakdownPart[] = [];
   // Magic armour replaces the normal one while it is worn.
@@ -164,6 +219,8 @@ export function armorClassParts(abilities: AbilityScores, pc: Pick<PcInfo, "armo
   } else {
     parts.push({ label: "Grundwert", value: 10, glossarKey: "ruestungsklasse" });
     parts.push({ label: "Geschicklichkeit", value: dex, glossarKey: ABILITY_GLOSSAR.DEX });
+    // Monk: Unarmored Defense adds Wisdom (without armour and shield).
+    if (pc.classId === "monk" && !pc.shield) parts.push({ label: "Weisheit (Abwehr ohne Rüstung)", value: abilityMod(abilities.WIS), glossarKey: "merkmal:unarmored-defense-monk" });
   }
   if (pc.shield) parts.push({ label: "Schild", value: 2, glossarKey: "ruestung:shield" });
   if (pc.fightingStyle === "defense" && armorId) {
@@ -182,7 +239,7 @@ function spellsFor(classId: string, raceId: string, level: number): string[] {
   return [...list];
 }
 
-function resourcesFor(classId: string, level: number): Record<string, Resource> {
+function resourcesFor(classId: string, level: number, cha = 10): Record<string, Resource> {
   const r: Record<string, Resource> = {};
   if (classId === "fighter") {
     r["second-wind"] = { used: 0, max: 1, recharge: "short" };
@@ -191,6 +248,9 @@ function resourcesFor(classId: string, level: number): Record<string, Resource> 
   if (classId === "paladin") r["lay-on-hands"] = { used: 0, max: 5 * level, recharge: "long" };
   if (classId === "cleric" && level >= 2) r["channel-divinity"] = { used: 0, max: 1, recharge: "short" };
   if (classId === "wizard") r["arcane-recovery"] = { used: 0, max: 1, recharge: "long" };
+  if (classId === "bard") r["bardic-inspiration"] = { used: 0, max: Math.max(1, abilityMod(cha)), recharge: level >= 5 ? "short" : "long" };
+  if (classId === "druid" && level >= 2) r["wild-shape"] = { used: 0, max: 2, recharge: "short" };
+  if (classId === "monk" && level >= 2) r["ki"] = { used: 0, max: level, recharge: "short" };
   return r;
 }
 
@@ -240,6 +300,8 @@ export function createCharacter(opts: CharacterOptions): Creature {
   const features = cls.levels.filter((l) => l.level <= level).flatMap((l) => l.features);
   if (opts.classId === "fighter" && level >= 3) features.push("improved-critical");
   if (opts.classId === "cleric") features.push("disciple-of-life");
+  // Our archetypes: the ranger is a Hunter (Colossus Slayer).
+  if (opts.classId === "ranger" && level >= 3) features.push("colossus-slayer");
 
   const skills = new Set<SkillId>([...(opts.skills ?? loadout.skills), ...race.skillProficiencies]);
   const pc: PcInfo = {
@@ -252,7 +314,7 @@ export function createCharacter(opts: CharacterOptions): Creature {
       : {}),
     saveProficiencies: cls.saves,
     skillProficiencies: [...skills],
-    expertise: loadout.expertise ?? [],
+    expertise: level >= (loadout.expertiseFrom ?? 1) ? (loadout.expertise ?? []) : [],
     ...(loadout.armor ? { armorId: loadout.armor } : {}),
     shield: loadout.shield,
     weaponIds: loadout.weapons,
@@ -263,7 +325,7 @@ export function createCharacter(opts: CharacterOptions): Creature {
     spells: spellsFor(cls.id, race.id, level),
     spellSlots: [...levelDef.spellSlots],
     spellSlotsMax: [...levelDef.spellSlots],
-    resources: resourcesFor(cls.id, level),
+    resources: resourcesFor(cls.id, level, abilities.CHA),
     hitDie: cls.hitDie,
     ...(improvements.length ? { improvements, talents } : {}),
   };
@@ -324,7 +386,12 @@ export function refreshAttacks(c: Creature): void {
   ];
   c.baseAc = armorClassParts(c.abilities, pc);
   const trinket = pc.gear?.trinket ? getGear(pc.gear.trinket) : undefined;
-  c.speedFt = getRace(pc.raceId).speedFt + (trinket?.effect === "speed" ? trinket.bonus : 0) + (pc.talents?.includes("flink") ? 10 : 0);
+  c.speedFt =
+    getRace(pc.raceId).speedFt +
+    (trinket?.effect === "speed" ? trinket.bonus : 0) +
+    (pc.talents?.includes("flink") ? 10 : 0) +
+    // Monk: Unarmored Movement (+10 ft from level 2, without armour and shield).
+    (pc.classId === "monk" && pc.level >= 2 && !pc.armorId && !pc.gear?.armor && !pc.shield ? 10 : 0);
 }
 
 /**
@@ -374,6 +441,10 @@ export function pregenCharacter(classId: string, level = 1, id = `pregen-${class
     wizard: { name: "Ilmarin", race: "elf" },
     rogue: { name: "Pip", race: "halfling" },
     cleric: { name: "Thorgrim", race: "dwarf" },
+    bard: { name: "Liesel", race: "human" },
+    ranger: { name: "Falk", race: "elf" },
+    druid: { name: "Eibe", race: "halfling" },
+    monk: { name: "Kian", race: "human" },
   };
   const p = PREGEN[classId];
   if (!p) throw new Error(`no pregen for ${classId}`);

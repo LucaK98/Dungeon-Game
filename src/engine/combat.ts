@@ -427,7 +427,7 @@ export function commitMove(battle: Battle, id: string, path: GridPos[], costFt: 
   if (turn && turn.creatureId === id) turn.movementLeftFt -= costFt;
 }
 
-const CONCENTRATION_EFFECTS: EffectId[] = ["bless", "shield-of-faith", "divine-favor"];
+const CONCENTRATION_EFFECTS: EffectId[] = ["bless", "shield-of-faith", "divine-favor", "hunters-mark"];
 
 /** Ends all effects a caster keeps up by concentration. */
 export function dropConcentration(battle: Battle, casterId: string): void {
@@ -443,5 +443,10 @@ export function damageCreature(rng: Rng, battle: Battle, target: Creature, amoun
   const hadConcentration = target.concentration;
   const change = applyDamage(rng, target, amount, ctx);
   if (hadConcentration && !target.concentration) dropConcentration(battle, target.id);
+  // A druid in wolf shape changes back when the wolf's hit points are gone.
+  if (target.tempHp <= 0 && target.effects.some((e) => e.id === "wild-shape")) {
+    target.effects = target.effects.filter((e) => e.id !== "wild-shape");
+    target.attacks = target.attacks.filter((a) => a.id !== "wolf-bite");
+  }
   return change;
 }

@@ -101,6 +101,24 @@ function heroSpecial(rng: Rng, battle: Battle, c: Creature, target: Creature, lo
   if (pc.resources["second-wind"] && c.hp < c.maxHp / 2 && pc.resources["second-wind"].used === 0) {
     act(rng, battle, c, { type: "second-wind" }, log);
   }
+  const left = (id: string) => (pc.resources[id] ? pc.resources[id].max - pc.resources[id].used : 0);
+  // Bard: inspire a friend nearby (bonus action), then fight on.
+  const friend = alliesOf(battle, c).find((a) => a.id !== c.id && isActive(a) && distanceFt(c, a) <= 60 && !a.effects.some((e) => e.id === "helped"));
+  if (left("bardic-inspiration") && friend) act(rng, battle, c, { type: "bardic-inspiration", targetId: friend.id }, log);
+  // Ranger: mark the target (bonus action).
+  if (pc.spells.includes("hunters-mark") && slot1 && !c.concentration && distanceFt(c, target) <= 90) {
+    act(rng, battle, c, { type: "cast", spellId: "hunters-mark", targetIds: [target.id] }, log);
+  }
+  // Druid: turn into a wolf for the fight.
+  if (left("wild-shape") && !c.effects.some((e) => e.id === "wild-shape") && distanceFt(c, target) <= 30) {
+    act(rng, battle, c, { type: "wild-shape" }, log);
+    return true;
+  }
+  const cantrip = ["produce-flame", "vicious-mockery"].find((s) => pc.spells.includes(s));
+  if (cantrip && !c.effects.some((e) => e.id === "wild-shape") && distanceFt(c, target) > 5 && distanceFt(c, target) <= (cantrip === "produce-flame" ? 30 : 60)) {
+    act(rng, battle, c, { type: "cast", spellId: cantrip, targetIds: [target.id] }, log);
+    return true;
+  }
   if (pc.spells.includes("magic-missile") && slot1 && distanceFt(c, target) <= 120) {
     act(rng, battle, c, { type: "cast", spellId: "magic-missile", targetIds: [target.id, target.id, target.id] }, log);
     return true;
@@ -186,7 +204,7 @@ export function runAutoTurn(rng: Rng, battle: Battle, id: string, ctx: AiContext
   }
 
   // Attack (monsters with multiattack keep going through their list).
-  const sequence = c.multiattack?.length ? c.multiattack : [option.id];
+  const sequence = c.multiattack?.length ? c.multiattack : c.pc?.features.includes("extra-attack") ? [option.id, option.id] : [option.id];
   for (let i = 0; i < sequence.length; i++) {
     if (!target || !isActive(target)) {
       target = pickTarget(battle, c);
@@ -203,6 +221,11 @@ export function runAutoTurn(rng: Rng, battle: Battle, id: string, ctx: AiContext
     if (!o.ok) break;
   }
 
+  // Monks follow up with their fists (Flurry of Blows with ki, otherwise Martial Arts).
+  if (c.pc?.features.includes("martial-arts") && target && isActive(target) && distanceFt(c, target) <= 5) {
+    const ki = c.pc.resources["ki"];
+    act(rng, battle, c, { type: ki && ki.used < ki.max ? "flurry-of-blows" : "martial-arts", targetId: target.id }, log);
+  }
   // Rogues slip away after hitting in melee.
   if (c.pc?.features.includes("cunning-action") && distanceFt(c, target!) <= 5) {
     act(rng, battle, c, { type: "disengage", bonus: true }, log);

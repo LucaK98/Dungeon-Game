@@ -54,7 +54,7 @@ interface Figure {
 
 /** What a figure looks like (to notice new equipment). */
 function lookKey(c: Creature): string {
-  return JSON.stringify([c.appearance?.look ?? null, c.pc?.gear?.weapon ?? null]);
+  return JSON.stringify([c.appearance?.look ?? null, c.pc?.gear?.weapon ?? null, c.effects.some((e) => e.id === "wild-shape")]);
 }
 
 export class DungeonScene extends Phaser.Scene {
@@ -209,7 +209,10 @@ export class DungeonScene extends Phaser.Scene {
     // The body's origin is at the feet, so breathing stretches it upwards.
     const body = this.add.container(0, 12);
     container.add(body);
-    if (c.appearance) {
+    if (c.effects.some((e) => e.id === "wild-shape")) {
+      // A druid in wolf shape.
+      body.add(this.tile(0, -12, "monster.wolf"));
+    } else if (c.appearance) {
       // No name labels: the coloured ring shows whose figure it is.
       for (const frame of dollFrames(c.appearance.look)) body.add(this.tile(0, -12, frame));
     } else if (c.monsterId) {

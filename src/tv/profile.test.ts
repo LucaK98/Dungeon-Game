@@ -9,7 +9,7 @@ describe("profile validation", () => {
   });
 
   it("rejects unknown classes and empty names", () => {
-    expect(sanitizeProfile({ name: "X", classId: "bard", raceId: "human" }, [])).toBeUndefined();
+    expect(sanitizeProfile({ name: "X", classId: "sorcerer", raceId: "human" }, [])).toBeUndefined();
     expect(sanitizeProfile({ name: " ", classId: "fighter", raceId: "human" }, [])).toBeUndefined();
   });
 

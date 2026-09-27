@@ -348,5 +348,93 @@
       "8": "6d4+MOD",
       "9": "7d4+MOD"
     }
+  },
+  {
+    "id": "vicious-mockery",
+    "level": 0,
+    "school": "enchantment",
+    "classes": [
+      "bard"
+    ],
+    "castingTime": "action",
+    "rangeFt": 60,
+    "concentration": false,
+    "durationRounds": 1,
+    "save": {
+      "ability": "WIS",
+      "onSuccess": "none"
+    },
+    "damage": {
+      "type": "psychic",
+      "byCharLevel": {
+        "1": "1d4",
+        "5": "2d4"
+      }
+    }
+  },
+  {
+    "id": "produce-flame",
+    "level": 0,
+    "school": "conjuration",
+    "classes": [
+      "druid"
+    ],
+    "castingTime": "action",
+    "rangeFt": 30,
+    "concentration": false,
+    "durationRounds": 0,
+    "attack": "ranged",
+    "damage": {
+      "type": "fire",
+      "byCharLevel": {
+        "1": "1d8",
+        "5": "2d8"
+      }
+    }
+  },
+  {
+    "id": "thunderwave",
+    "level": 1,
+    "school": "evocation",
+    "classes": [
+      "bard",
+      "druid",
+      "sorcerer",
+      "wizard"
+    ],
+    "castingTime": "action",
+    "rangeFt": "self",
+    "concentration": false,
+    "durationRounds": 0,
+    "save": {
+      "ability": "CON",
+      "onSuccess": "half"
+    },
+    "damage": {
+      "type": "thunder",
+      "bySlot": {
+        "1": "2d8",
+        "2": "3d8",
+        "3": "4d8",
+        "4": "5d8",
+        "5": "6d8"
+      }
+    },
+    "area": {
+      "shape": "cube",
+      "sizeFt": 15
+    }
+  },
+  {
+    "id": "hunters-mark",
+    "level": 1,
+    "school": "divination",
+    "classes": [
+      "ranger"
+    ],
+    "castingTime": "bonus",
+    "rangeFt": 90,
+    "concentration": true,
+    "durationRounds": 600
   }
 ]

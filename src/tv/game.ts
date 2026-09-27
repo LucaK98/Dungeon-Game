@@ -1003,7 +1003,7 @@ export class GameController {
   private toEngineAction(a: PlayerAction): CombatAction | undefined {
     switch (a.kind) {
       case "attack":
-        return { type: "attack", targetId: a.targetId, optionId: a.optionId, ...(a.smiteSlot ? { smiteSlot: a.smiteSlot } : {}) };
+        return { type: "attack", targetId: a.targetId, optionId: a.optionId, ...(a.smiteSlot ? { smiteSlot: a.smiteSlot } : {}), ...(a.stun ? { stun: true } : {}) };
       case "cast":
         return { type: "cast", spellId: a.spellId, targetIds: a.targetIds, ...(a.slotLevel ? { slotLevel: a.slotLevel } : {}) };
       case "use_item":
@@ -1014,6 +1014,10 @@ export class GameController {
             return { type: "lay-on-hands", targetId: a.targetId ?? "", amount: a.amount ?? 0 };
           case "turn-undead":
             return { type: "turn-undead", targetIds: this.enemiesVisible().map((c) => c.id) };
+          case "bardic-inspiration":
+          case "martial-arts":
+          case "flurry-of-blows":
+            return { type: a.feature, targetId: a.targetId ?? "" };
           case "dash":
           case "disengage":
             return { type: a.feature, ...(a.bonus ? { bonus: true } : {}) };
@@ -1050,6 +1054,7 @@ export class GameController {
     if (a.kind === "feature") {
       if (a.feature === "second-wind") return { title: "Durchatmen", sides: 10, glossarKey: "merkmal:second-wind" };
       if (a.feature === "hide") return { title: "Verstecken", sides: 20, glossarKey: "verstecken" };
+      if (a.feature === "martial-arts" || a.feature === "flurry-of-blows") return { title: a.feature === "flurry-of-blows" ? "Schlaghagel" : "Kampfkunst", sides: 20, glossarKey: `merkmal:${a.feature}` };
     }
     void hero;
     return undefined;
@@ -1126,6 +1131,11 @@ export class GameController {
       } else if (o.kind === "heal") {
         dice = o.parts.filter((p) => /^W\d+$/.test(p.label)).map((p) => p.value);
         kept = dice[0] ?? 0;
+      } else if (o.kind === "strikes" && o.attacks[0]) {
+        dice = o.attacks.map((x) => x.roll.natural);
+        kept = o.attacks[0].roll.natural;
+        success = o.attacks.some((x) => x.hit);
+        crit = o.attacks.some((x) => x.crit);
       } else if (o.kind === "hide") {
         dice = o.check.roll.rolls;
         kept = o.check.roll.natural;
@@ -2572,7 +2582,10 @@ export class GameController {
       notMine ?? (cost === "action" && !hasAction ? "Deine Aktion ist in diesem Zug schon verbraucht." : cost === "bonus" && !hasBonus ? "Deine Bonusaktion ist schon verbraucht." : undefined);
 
     // Attacks
-    for (const option of me.attacks.filter((a) => a.source !== "unarmed")) {
+    // Monks fight with their fists (Martial Arts), a druid in wolf shape bites.
+    const wolf = me.effects.some((e) => e.id === "wild-shape");
+    const kiLeft = pc.resources["ki"] ? pc.resources["ki"].max - pc.resources["ki"].used : 0;
+    for (const option of me.attacks.filter((a) => (wolf ? a.id === "wolf-bite" : a.id !== "wolf-bite" && (a.source !== "unarmed" || pc.classId === "monk")))) {
       const targets = enemies.filter((e) => inRange(me, e, option));
       const toHit = sumParts(option.toHit);
       const dmg = `${option.damage.map((d) => d.dice.replace("d", "W")).join(" + ")}${sumParts(option.damageBonus) ? ` + ${sumParts(option.damageBonus)}` : ""}`;
@@ -2580,7 +2593,7 @@ export class GameController {
       choices.push({
         id: `attack:${option.id}`,
         group: "attack",
-        label: `${nameOf("weapons", option.sourceId)}`,
+        label: option.id === "unarmed" ? "👊 Waffenloser Schlag" : option.id === "wolf-bite" ? "🐺 Wolfsbiss" : `${nameOf("weapons", option.sourceId)}`,
         detail: `${toHit >= 0 ? "+" : ""}${toHit} zum Treffen · ${dmg} Schaden${option.kind === "ranged" ? " · Fernkampf" : option.thrown ? " · auch werfen" : ""}`,
         glossarKey: `waffe:${option.sourceId}`,
         cost: "action",
@@ -2589,6 +2602,20 @@ export class GameController {
         action: { kind: "attack", targetId: "", optionId: option.id },
         targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)} · ${Math.round(distanceFt(me, t) / 5)} Felder` })),
       });
+      if (pc.features.includes("stunning-strike") && option.kind === "melee" && kiLeft > 0) {
+        choices.push({
+          id: `stun:${option.id}`,
+          group: "attack",
+          label: `${option.id === "unarmed" ? "Faust" : nameOf("weapons", option.sourceId)} + Betäubender Schlag`,
+          detail: "Bei einem Treffer 1 Ki: Rettungswurf auf Konstitution, sonst verliert der Gegner seinen Zug",
+          glossarKey: "merkmal:stunning-strike",
+          cost: "action",
+          enabled: !reason,
+          ...(reason ? { reason } : {}),
+          action: { kind: "attack", targetId: "", optionId: option.id, stun: true },
+          targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)}` })),
+        });
+      }
       if (pc.features.includes("divine-smite") && option.kind === "melee" && (pc.spellSlots[0] ?? 0) > 0) {
         choices.push({
           id: `smite:${option.id}`,
@@ -2624,7 +2651,7 @@ export class GameController {
       const targets = pool.filter((t) => t.id === me.id || distanceFt(me, t) <= range);
       const n = maxTargets(spell, slot || 1);
       const repeat = spell.id === "magic-missile" || spell.id === "scorching-ray";
-      const area = spell.id === "burning-hands" || spell.id === "sleep";
+      const area = spell.id === "burning-hands" || spell.id === "sleep" || spell.id === "thunderwave";
       const reason =
         costReason(cost) ??
         (slotsLeft <= 0 ? "Keine Zauberplätze mehr. Sie kommen nach einer langen Rast zurück." : targets.length ? undefined : healing ? "Niemand in Reichweite." : "Kein Ziel in Reichweite.");
@@ -2723,6 +2750,37 @@ export class GameController {
       const undead = enemies.filter((e) => e.creatureType === "undead" && distanceFt(me, e) <= 30);
       const left = res["channel-divinity"].max - res["channel-divinity"].used;
       feature("turn-undead", "Untote vertreiben", "Untote in 6 Feldern fliehen", "merkmal:channel-divinity-turn-undead", "action", { kind: "feature", feature: "turn-undead" }, undefined, left <= 0 ? "Schon benutzt." : undead.length ? undefined : "Keine Untoten in der Nähe.");
+    }
+    if (res["bardic-inspiration"]) {
+      const left = res["bardic-inspiration"].max - res["bardic-inspiration"].used;
+      const friends = allies.filter((a) => a.id !== me.id && distanceFt(me, a) <= 60 && !a.effects.some((e) => e.id === "helped"));
+      feature(
+        "bardic-inspiration",
+        `Bardische Inspiration (${left} übrig)`,
+        "Ein Freund bekommt Vorteil auf seinen nächsten Wurf · Bonusaktion",
+        "merkmal:bardic-inspiration-d6",
+        "bonus",
+        { kind: "feature", feature: "bardic-inspiration" },
+        { targets: friends.map((t) => ({ id: t.id, name: t.name, detail: `TP ${t.hp}/${t.maxHp}` })), pick: { min: 1, max: 1, repeat: false } },
+        left <= 0 ? "Aufgebraucht. Kommt nach einer Rast zurück." : friends.length ? undefined : "Kein Freund in 12 Feldern (oder alle sind schon inspiriert).",
+      );
+    }
+    if (res["wild-shape"]) {
+      const left = res["wild-shape"].max - res["wild-shape"].used;
+      feature("wild-shape", `🐺 Tiergestalt: Wolf (${left} übrig)`, "+11 Trefferpunkte als Wolf, Biss +4 (2W4 + 2) · keine Zauber, solange du Wolf bist", "merkmal:wild-shape", "action", { kind: "feature", feature: "wild-shape" }, undefined, wolf ? "Du bist schon ein Wolf." : left <= 0 ? "Aufgebraucht. Kommt nach einer Rast zurück." : undefined);
+    }
+    if (pc.features.includes("martial-arts") && this.mode === "combat") {
+      const fist = me.attacks.find((a) => a.id === "unarmed");
+      const near = fist ? enemies.filter((e) => inRange(me, e, fist)) : [];
+      const attacked = !!turn?.attacked;
+      const needAttack = attacked ? undefined : "Erst mit der Aktion angreifen – dann kommt der Extraschlag.";
+      const targets = { targets: near.map((t) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)}` })), pick: { min: 1, max: 1, repeat: false } };
+      feature("martial-arts", "👊 Kampfkunst: Extraschlag", "Ein waffenloser Schlag · Bonusaktion", "merkmal:martial-arts", "bonus", { kind: "feature", feature: "martial-arts" }, targets, needAttack ?? (near.length ? undefined : "Kein Gegner direkt neben dir."));
+      if (pc.resources["ki"]) {
+        feature("flurry-of-blows", `👊👊 Schlaghagel (1 Ki, ${kiLeft} übrig)`, "Zwei waffenlose Schläge · Bonusaktion", "merkmal:flurry-of-blows", "bonus", { kind: "feature", feature: "flurry-of-blows" }, targets, kiLeft <= 0 ? "Kein Ki mehr. Kommt nach einer Rast zurück." : needAttack ?? (near.length ? undefined : "Kein Gegner direkt neben dir."));
+        feature("patient-defense", `🧘 Geduldige Abwehr (1 Ki)`, "Angriffe gegen dich haben Nachteil · Bonusaktion", "merkmal:patient-defense", "bonus", { kind: "feature", feature: "patient-defense" }, undefined, kiLeft <= 0 ? "Kein Ki mehr." : undefined);
+        feature("step-of-the-wind", `🌬️ Schritt des Windes (1 Ki)`, "Doppelte Bewegung · Bonusaktion", "merkmal:step-of-the-wind", "bonus", { kind: "feature", feature: "step-of-the-wind" }, undefined, kiLeft <= 0 ? "Kein Ki mehr." : undefined);
+      }
     }
     const cunning = pc.features.includes("cunning-action");
     feature("dash", cunning ? "Spurt (Bonusaktion)" : "Spurt", "Doppelt so weit laufen", "spurt", cunning ? "bonus" : "action", { kind: "feature", feature: "dash", bonus: cunning });
@@ -2826,6 +2884,10 @@ const SPELL_FX: Record<string, Pick<ActionFx, "kind" | "element">> = {
   "guiding-bolt": { kind: "spell", element: "radiant" },
   "scorching-ray": { kind: "spell", element: "fire" },
   fireball: { kind: "spell", element: "fire" },
+  "produce-flame": { kind: "spell", element: "fire" },
+  "vicious-mockery": { kind: "spell", element: "force" },
+  thunderwave: { kind: "breath", element: "force" },
+  "hunters-mark": { kind: "buff", element: "radiant" },
   "mass-healing-word": { kind: "heal" },
   "divine-favor": { kind: "buff", element: "radiant" },
   bless: { kind: "buff", element: "radiant" },
@@ -2876,6 +2938,10 @@ function fxOf(battle: import("../shared/game").Battle, actor: Creature, o: Actio
       return [{ from: actor.id, to: [o.targetId], kind: "heal" }];
     case "turn-undead":
       return [{ from: actor.id, to: o.results.map((r) => r.targetId), kind: "turn", element: "radiant" }];
+    case "strikes":
+      return o.attacks.map(fromAttack);
+    case "boost":
+      return [{ from: actor.id, to: [o.targetId], kind: "buff", element: o.what === "wild-shape" ? "poison" : "radiant" }];
     default:
       return [];
   }
@@ -2907,6 +2973,9 @@ function hitsOf(o: ActionOutcome): NonNullable<RollOutcome["hits"]> {
       break;
     case "heal":
       hits.push({ targetId: o.targetId, amount: o.total, heal: true });
+      break;
+    case "strikes":
+      o.attacks.forEach(fromAttack);
       break;
   }
   return hits;

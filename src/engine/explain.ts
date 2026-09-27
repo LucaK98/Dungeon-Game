@@ -130,6 +130,11 @@ export function explainAttack(battle: Battle, r: AttackResult): ExplainedLine[] 
   out.push({ text: `${formatParts(r.parts)} = ${r.total} gegen RK ${r.targetAc} → ${verdict}`, glossarKeys: keys });
   if (r.crit) out.push({ text: "Bei einem kritischen Treffer werden alle Schadenswürfel doppelt gewürfelt.", glossarKeys: ["kritischer_treffer"] });
   if (r.damage) out.push(...explainDamage(r.damage));
+  if (r.deflected) out.push({ text: `🤚 Geschosse abwehren: ${name(battle, r.targetId)} fängt einen Teil ab – ${r.deflected} Schaden weniger.`, glossarKeys: ["merkmal:deflect-missiles"] });
+  if (r.stun) {
+    out.push(...explainCheck(battle, r.targetId, r.stun.save));
+    out.push({ text: r.stun.stunned ? `💫 Betäubender Schlag: ${name(battle, r.targetId)} ist betäubt und verliert seinen nächsten Zug!` : `${name(battle, r.targetId)} schüttelt den Betäubenden Schlag ab.`, glossarKeys: ["merkmal:stunning-strike", "zustand:stunned"] });
+  }
   if (r.uncannyDodge) out.push({ text: `🌀 Unheimliches Ausweichen: ${name(battle, r.targetId)} dreht sich weg – nur der halbe Schaden.`, glossarKeys: ["merkmal:uncanny-dodge"] });
   if (r.hp) out.push(...explainHp(battle, r.hp));
   return out;
@@ -260,6 +265,21 @@ export function explainOutcome(battle: Battle, o: ActionOutcome): ExplainedLine[
       }[o.what];
       return [{ text: txt[0]!, glossarKeys: [txt[1]!] }];
     }
+    case "boost": {
+      const t = name(battle, o.targetId);
+      const txt = {
+        "bardic-inspiration": [`🎵 ${who} inspiriert ${t} mit einem Lied: Vorteil auf den nächsten Wurf!`, "merkmal:bardic-inspiration-d6"],
+        "wild-shape": [`🐺 ${who} verwandelt sich in einen Wolf! (+11 Trefferpunkte als Wolf, Biss +4, 2W4 + 2)`, "merkmal:wild-shape"],
+        "patient-defense": [`🧘 ${who} geht in Abwehrhaltung (1 Ki): Angriffe gegen ${who} haben Nachteil.`, "merkmal:patient-defense"],
+        "step-of-the-wind": [`🌬️ ${who} bewegt sich wie der Wind (1 Ki): doppelte Bewegung.`, "merkmal:step-of-the-wind"],
+      }[o.what];
+      return [{ text: txt[0]!, glossarKeys: [txt[1]!] }];
+    }
+    case "strikes":
+      return [
+        { text: o.what === "flurry-of-blows" ? `👊👊 ${who} entfesselt einen Schlaghagel (1 Ki): zwei schnelle Schläge!` : `👊 ${who} setzt mit der Faust nach (Kampfkunst, Bonusaktion).`, glossarKeys: [o.what === "flurry-of-blows" ? "merkmal:flurry-of-blows" : "merkmal:martial-arts"] },
+        ...o.attacks.flatMap((a) => explainAttack(battle, a)),
+      ];
     case "hide":
       return [
         ...explainCheck(battle, o.actorId, o.check),

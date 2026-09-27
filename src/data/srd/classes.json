@@ -423,5 +423,364 @@
         "cantripsKnown": 4
       }
     ]
+  },
+  {
+    "id": "bard",
+    "hitDie": 8,
+    "saves": [
+      "DEX",
+      "CHA"
+    ],
+    "armor": [
+      "light"
+    ],
+    "weapons": [
+      "simple"
+    ],
+    "skillChoices": {
+      "count": 3,
+      "from": [
+        "acrobatics",
+        "animal-handling",
+        "arcana",
+        "athletics",
+        "deception",
+        "history",
+        "insight",
+        "intimidation",
+        "investigation",
+        "medicine",
+        "nature",
+        "perception",
+        "performance",
+        "persuasion",
+        "religion",
+        "sleight-of-hand",
+        "stealth",
+        "survival"
+      ]
+    },
+    "spellcastingAbility": "CHA",
+    "levels": [
+      {
+        "level": 1,
+        "proficiencyBonus": 2,
+        "features": [
+          "spellcasting-bard",
+          "bardic-inspiration-d6"
+        ],
+        "spellSlots": [
+          2
+        ],
+        "cantripsKnown": 2
+      },
+      {
+        "level": 2,
+        "proficiencyBonus": 2,
+        "features": [
+          "jack-of-all-trades",
+          "song-of-rest-d6"
+        ],
+        "spellSlots": [
+          3
+        ],
+        "cantripsKnown": 2
+      },
+      {
+        "level": 3,
+        "proficiencyBonus": 2,
+        "features": [
+          "bard-college",
+          "bard-expertise-1"
+        ],
+        "spellSlots": [
+          4,
+          2
+        ],
+        "cantripsKnown": 2
+      },
+      {
+        "level": 4,
+        "proficiencyBonus": 2,
+        "features": [
+          "ability-score-improvement"
+        ],
+        "spellSlots": [
+          4,
+          3
+        ],
+        "cantripsKnown": 3
+      },
+      {
+        "level": 5,
+        "proficiencyBonus": 3,
+        "features": [
+          "bardic-inspiration-d8",
+          "font-of-inspiration"
+        ],
+        "spellSlots": [
+          4,
+          3,
+          2
+        ],
+        "cantripsKnown": 3
+      }
+    ]
+  },
+  {
+    "id": "ranger",
+    "hitDie": 10,
+    "saves": [
+      "STR",
+      "DEX"
+    ],
+    "armor": [
+      "light",
+      "medium",
+      "shield"
+    ],
+    "weapons": [
+      "simple",
+      "martial"
+    ],
+    "skillChoices": {
+      "count": 3,
+      "from": [
+        "animal-handling",
+        "athletics",
+        "insight",
+        "investigation",
+        "nature",
+        "perception",
+        "stealth",
+        "survival"
+      ]
+    },
+    "spellcastingAbility": "WIS",
+    "levels": [
+      {
+        "level": 1,
+        "proficiencyBonus": 2,
+        "features": [
+          "favored-enemy-1-type",
+          "natural-explorer-1-terrain-type"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 2,
+        "proficiencyBonus": 2,
+        "features": [
+          "ranger-fighting-style",
+          "spellcasting-ranger"
+        ],
+        "spellSlots": [
+          2
+        ],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 3,
+        "proficiencyBonus": 2,
+        "features": [
+          "ranger-archetype",
+          "primeval-awareness"
+        ],
+        "spellSlots": [
+          3
+        ],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 4,
+        "proficiencyBonus": 2,
+        "features": [
+          "ability-score-improvement"
+        ],
+        "spellSlots": [
+          3
+        ],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 5,
+        "proficiencyBonus": 3,
+        "features": [
+          "extra-attack"
+        ],
+        "spellSlots": [
+          4,
+          2
+        ],
+        "cantripsKnown": 0
+      }
+    ]
+  },
+  {
+    "id": "druid",
+    "hitDie": 8,
+    "saves": [
+      "INT",
+      "WIS"
+    ],
+    "armor": [
+      "light",
+      "medium",
+      "shield"
+    ],
+    "weapons": [],
+    "skillChoices": {
+      "count": 2,
+      "from": [
+        "arcana",
+        "animal-handling",
+        "insight",
+        "medicine",
+        "nature",
+        "perception",
+        "religion",
+        "survival"
+      ]
+    },
+    "spellcastingAbility": "WIS",
+    "levels": [
+      {
+        "level": 1,
+        "proficiencyBonus": 2,
+        "features": [
+          "druidic",
+          "spellcasting-druid"
+        ],
+        "spellSlots": [
+          2
+        ],
+        "cantripsKnown": 2
+      },
+      {
+        "level": 2,
+        "proficiencyBonus": 2,
+        "features": [
+          "wild-shape",
+          "druid-circle"
+        ],
+        "spellSlots": [
+          3
+        ],
+        "cantripsKnown": 2
+      },
+      {
+        "level": 3,
+        "proficiencyBonus": 2,
+        "features": [],
+        "spellSlots": [
+          4,
+          2
+        ],
+        "cantripsKnown": 2
+      },
+      {
+        "level": 4,
+        "proficiencyBonus": 2,
+        "features": [
+          "wild-shape-improvement",
+          "ability-score-improvement"
+        ],
+        "spellSlots": [
+          4,
+          3
+        ],
+        "cantripsKnown": 3
+      },
+      {
+        "level": 5,
+        "proficiencyBonus": 3,
+        "features": [],
+        "spellSlots": [
+          4,
+          3,
+          2
+        ],
+        "cantripsKnown": 3
+      }
+    ]
+  },
+  {
+    "id": "monk",
+    "hitDie": 8,
+    "saves": [
+      "STR",
+      "DEX"
+    ],
+    "armor": [],
+    "weapons": [
+      "simple"
+    ],
+    "skillChoices": {
+      "count": 2,
+      "from": [
+        "acrobatics",
+        "athletics",
+        "history",
+        "insight",
+        "religion",
+        "stealth"
+      ]
+    },
+    "levels": [
+      {
+        "level": 1,
+        "proficiencyBonus": 2,
+        "features": [
+          "unarmored-defense-monk",
+          "martial-arts"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 2,
+        "proficiencyBonus": 2,
+        "features": [
+          "ki",
+          "unarmored-movement-1",
+          "flurry-of-blows",
+          "patient-defense",
+          "step-of-the-wind"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 3,
+        "proficiencyBonus": 2,
+        "features": [
+          "monastic-tradition",
+          "deflect-missiles"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 4,
+        "proficiencyBonus": 2,
+        "features": [
+          "ability-score-improvement",
+          "slow-fall"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 5,
+        "proficiencyBonus": 3,
+        "features": [
+          "extra-attack",
+          "stunning-strike"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      }
+    ]
   }
 ]

@@ -49,11 +49,11 @@ function walkDistances(map: DungeonMap, goals: { x: number; y: number }[]): Map<
 }
 
 /** Plays the story with simple bots that use the same messages as the phones. */
-async function playStory(opts: { story?: Story; seed: number; duration: "kurz" | "mittel" | "lang"; truth?: string; players?: number; slow?: boolean; dm?: DungeonMaster; freeText?: boolean }) {
+async function playStory(opts: { heroes?: { name: string; classId: string; raceId: string }[]; story?: Story; seed: number; duration: "kurz" | "mittel" | "lang"; truth?: string; players?: number; slow?: boolean; dm?: DungeonMaster; freeText?: boolean }) {
   let clock = 0;
   const rng: Rng = seededRng(opts.seed);
   const botRng = seededRng(opts.seed + 1000);
-  const heroes = HEROES.slice(0, opts.players ?? 4);
+  const heroes = opts.heroes ?? HEROES.slice(0, opts.players ?? 4);
   const session = createSession(rng, {
     players: heroes.map((h, i) => ({ playerId: `p${i}`, profile: { ...h, look: defaultLook(h.classId, h.raceId), color: "#fff" } })),
     plan: { path: ["burghof"] },
@@ -314,6 +314,18 @@ for (const STORY of STORIES) {
       expect(endings.filter((e) => e !== "scheitern").length, endings.join(",")).toBeGreaterThan(0);
       if (endings.some((e) => e !== "scheitern")) expect(blows).toBeGreaterThan(0);
     }, 120_000);
+
+    it("works with the newer classes (bard, ranger, druid, monk)", async () => {
+      const heroes = [
+        { name: "Liesel", classId: "bard", raceId: "human" },
+        { name: "Falk", classId: "ranger", raceId: "elf" },
+        { name: "Eibe", classId: "druid", raceId: "halfling" },
+        { name: "Kian", classId: "monk", raceId: "human" },
+      ];
+      const { result, state } = await playStory({ story: STORY, seed: 13, duration: "kurz", heroes });
+      expect(result).toBeDefined();
+      expect(state.sceneIndex).toBeGreaterThanOrEqual(state.plan.length - 1);
+    }, 60_000);
 
     it("works with six players", async () => {
       const { result, state } = await playStory({ story: STORY, seed: 8, duration: "kurz", players: 6 });

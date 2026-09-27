@@ -39,6 +39,10 @@ const CLASS_FACTS: Record<string, string[]> = {
   cleric: ["❤️ mittel", "🛡️ Rüstung und Schild", "✨ heilt die Gruppe"],
   rogue: ["❤️ mittel", "🏹 Bogen und Rapier", "🤫 schleicht und trickst"],
   wizard: ["❤️ wenig Trefferpunkte", "🧥 keine Rüstung", "🔥 starke Zauber"],
+  bard: ["❤️ mittel", "🎵 inspiriert Freunde", "✨ heilt und verspottet"],
+  ranger: ["❤️ viele Trefferpunkte", "🏹 Meisterschütze", "🐾 Jäger der Wildnis"],
+  druid: ["❤️ mittel", "🐺 wird zum Wolf", "🌿 heilt, Feuer und Donner"],
+  monk: ["❤️ mittel", "👊 kämpft mit Fäusten", "💨 schnell, ohne Rüstung"],
 };
 
 export function loadDraft(): Draft | undefined {
