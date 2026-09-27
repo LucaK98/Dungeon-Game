@@ -24,7 +24,7 @@ import { glossaryAnswer } from "../dm/rules-help";
 import type { Creature, GridPos, TurnState } from "../shared/game";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
-import type { ActionChoice, MiniMap, OrderEntry, PlayerView, RollOutcome, RollPrompt, StoryView } from "../shared/view";
+import type { ActionChoice, ActionFx, MiniMap, OrderEntry, PlayerView, RollOutcome, RollPrompt, StoryView } from "../shared/view";
 import type { MonsterGroup, Narration } from "../shared/story";
 import type { CheckResult } from "../shared/game";
 import type { SkillId } from "../shared/rules";
@@ -932,6 +932,7 @@ export class GameController {
       ...(success !== undefined ? { success } : {}),
       ...(crit !== undefined ? { crit } : {}),
       hits: hitsOf(o),
+      fx: fxOf(this.battle, hero, o),
     };
   }
 
@@ -2130,6 +2131,68 @@ export class GameController {
 }
 
 /** Hit point changes of an action, for floating numbers on the board. */
+const SPELL_FX: Record<string, Pick<ActionFx, "kind" | "element">> = {
+  "fire-bolt": { kind: "spell", element: "fire" },
+  "ray-of-frost": { kind: "spell", element: "cold" },
+  "sacred-flame": { kind: "spell", element: "radiant" },
+  "magic-missile": { kind: "spell", element: "force" },
+  "burning-hands": { kind: "breath", element: "fire" },
+  "guiding-bolt": { kind: "spell", element: "radiant" },
+  "scorching-ray": { kind: "spell", element: "fire" },
+  "divine-favor": { kind: "buff", element: "radiant" },
+  bless: { kind: "buff", element: "radiant" },
+  "shield-of-faith": { kind: "buff", element: "radiant" },
+  "cure-wounds": { kind: "heal" },
+  "healing-word": { kind: "heal" },
+  sleep: { kind: "sleep" },
+};
+
+/** What the board shows for an action: weapon swings, arrows, spells. */
+function fxOf(battle: import("../shared/game").Battle, actor: Creature, o: ActionOutcome): ActionFx[] {
+  if (!o.ok) return [];
+  const fromAttack = (a: import("../shared/game").AttackResult): ActionFx => {
+    const attacker = battle.creatures[a.attackerId];
+    const opt = attacker?.attacks.find((x) => x.id === a.optionId);
+    const src = opt?.sourceId ?? "";
+    const ranged = opt?.kind === "ranged";
+    const kind: ActionFx["kind"] = !ranged
+      ? /bite|claw|bites|slam|touch|drain/.test(src)
+        ? "claw"
+        : "melee"
+      : /crossbow/.test(src)
+        ? "bolt"
+        : /bow/.test(src)
+          ? "arrow"
+          : /sling/.test(src)
+            ? "stone"
+            : /fire-bolt|ray|missile|flame|guiding/.test(src)
+              ? "spell"
+              : "thrown";
+    const element = /drain|withering/.test(src) ? "necrotic" : undefined;
+    return { from: a.attackerId, to: [a.targetId], kind, ...(element ? { element } : {}), ...(a.crit ? { crit: true } : {}), ...(!a.hit ? { miss: true } : {}) };
+  };
+  switch (o.kind) {
+    case "attack":
+      return [fromAttack(o.attack)];
+    case "move":
+      return o.opportunityAttacks.map(fromAttack);
+    case "spell": {
+      const look = SPELL_FX[o.spell.spellId] ?? { kind: "spell" as const, element: "force" as const };
+      const targets = o.spell.targets.map((t) => t.targetId);
+      const miss = o.spell.targets.length > 0 && o.spell.targets.every((t) => t.attack && !t.attack.hit);
+      return [{ from: o.spell.casterId, to: targets, ...look, spellId: o.spell.spellId, ...(miss ? { miss: true } : {}) }];
+    }
+    case "save-action":
+      return [{ from: actor.id, to: o.results.map((r) => r.targetId), kind: "breath", element: /fire/.test(o.actionId) ? "fire" : /poison/.test(o.actionId) ? "poison" : /cold/.test(o.actionId) ? "cold" : "fire" }];
+    case "heal":
+      return [{ from: actor.id, to: [o.targetId], kind: "heal" }];
+    case "turn-undead":
+      return [{ from: actor.id, to: o.results.map((r) => r.targetId), kind: "turn", element: "radiant" }];
+    default:
+      return [];
+  }
+}
+
 function hitsOf(o: ActionOutcome): NonNullable<RollOutcome["hits"]> {
   if (!o.ok) return [];
   const hits: NonNullable<RollOutcome["hits"]> = [];

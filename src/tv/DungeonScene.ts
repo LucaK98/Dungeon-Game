@@ -9,6 +9,8 @@ import { cellIndex, type DungeonMap, type MapObject } from "../shared/map";
 import { THEMES } from "../map/modules";
 import { assetUrl } from "../ui/atlas";
 import { Ambience } from "./ambience";
+import { CombatFx } from "./combat-fx";
+import type { ActionFx } from "../shared/view";
 import { crisp, prepareTiles, RES, TILES, UP } from "./render";
 import type { GameSession } from "./session";
 
@@ -58,6 +60,7 @@ export class DungeonScene extends Phaser.Scene {
   private lastLight = 0;
   private fogDirty = true;
   private ambience!: Ambience;
+  private combatFx!: CombatFx;
   /** A boss entrance: the camera looks at it until then. */
   private spotlightUntil = 0;
   private lastLook = 0;
@@ -82,6 +85,12 @@ export class DungeonScene extends Phaser.Scene {
 
     this.ambience = new Ambience(this, () => this.session, (x, y, frame) => this.tile(x, y, frame));
     this.ambience.start();
+    this.combatFx = new CombatFx(this, (id) => {
+      const f = this.figures.get(id);
+      const c = this.session.battle.creatures[id];
+      if (f) return { pos: { x: f.container.x, y: f.container.y }, body: f.body };
+      return c?.pos ? { pos: { x: (c.pos.x + 0.5) * TILE, y: (c.pos.y + 0.5) * TILE } } : undefined;
+    });
     this.bakeMap(map);
     this.drawObjects(map);
     for (const t of this.torches) this.ambience.torchSparks(t.x, t.y - 0.6);
@@ -243,7 +252,7 @@ export class DungeonScene extends Phaser.Scene {
       if (c.dead && f) {
         // Defeated: sink and fade away.
         this.figures.delete(c.id);
-        this.tweens.add({ targets: f.container, alpha: 0, angle: 80, y: f.container.y + 8, duration: 700, delay: 300, onComplete: () => f.container.destroy() });
+        this.tweens.add({ targets: f.container, alpha: 0, angle: 80, y: f.container.y + 8, duration: 700, delay: 700, onComplete: () => f.container.destroy() });
       } else if (!f && !c.dead) this.addFigure(c);
       else if (f) {
         this.placeFigure(c, true);
@@ -309,6 +318,19 @@ export class DungeonScene extends Phaser.Scene {
     else if (kind === "puff") this.ambience.puff(x, y);
     else if (kind === "sparkle") this.ambience.sparkle(x, y);
     else this.ambience.splash(x, y);
+  }
+
+  /** Attack and spell animations; returns the ms until the blow lands. */
+  playFx(list: ActionFx[] | undefined): number {
+    if (!list?.length) return 0;
+    // Everyone turns towards whom they attack.
+    for (const fx of list) {
+      const f = this.figures.get(fx.from);
+      const c = this.session.battle.creatures[fx.from];
+      const t = fx.to[0] ? this.session.battle.creatures[fx.to[0]] : undefined;
+      if (f && c && t?.pos && c.pos && t.pos.x !== c.pos.x && fx.from !== fx.to[0]) this.face(f, t.pos.x > c.pos.x ? 1 : -1, c);
+    }
+    return this.combatFx.play(list);
   }
 
   /** Heroes look right by default, the DCSS monsters to the left. */

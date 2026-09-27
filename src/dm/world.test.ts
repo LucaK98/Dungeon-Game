@@ -236,3 +236,26 @@ describe("things to play with", () => {
     else expect(goblin.hp).toBe(hp);
   });
 });
+
+describe("fight animations", () => {
+  it("every attack tells the board what to animate", async () => {
+    const { game, sent } = setup(9);
+    game.stageFight([{ monster: "goblin", count: 2 }], "on-guard");
+    game.engage(false);
+    // Monsters act on their own (bows or scimitars); heroes pass.
+    for (let i = 0; i < 12 && game.mode === "combat"; i++) {
+      const a = game.active();
+      if (a?.kind === "pc") game.handle(a.playerId!, { kind: "end_turn" });
+    }
+    const rolls = sent.map((s) => s.event).filter((e) => e.type === "roll_result").map((e) => (e.type === "roll_result" ? e.result : undefined));
+    const attacks = rolls.filter((r) => r?.title.includes("greift"));
+    expect(attacks.length).toBeGreaterThan(0);
+    for (const r of attacks) {
+      expect(r!.fx?.length).toBeGreaterThan(0);
+      const fx = r!.fx![0]!;
+      expect(game.session.battle.creatures[fx.from]?.monsterId).toBe("goblin");
+      expect(["melee", "arrow"]).toContain(fx.kind);
+      expect(fx.to.length).toBe(1);
+    }
+  });
+});

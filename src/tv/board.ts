@@ -21,7 +21,7 @@ import { cellIndex } from "../shared/map";
 import { play, setAmbience, unlockSoundOnGesture } from "../ui/sound";
 
 /** Sounds for a roll on the TV: dice first, then what happened. */
-function rollSounds(r: import("../shared/view").RollOutcome): void {
+function rollSounds(r: import("../shared/view").RollOutcome, impactMs = 0): void {
   if (r.title === "Sieg!") return play("victory");
   if (r.title === "Niederlage") return play("defeat");
   const hits = r.hits ?? [];
@@ -33,8 +33,8 @@ function rollSounds(r: import("../shared/view").RollOutcome): void {
   };
   if (r.dice.length) {
     play("dice");
-    setTimeout(after, 420);
-  } else after();
+    setTimeout(after, Math.max(420, impactMs));
+  } else setTimeout(after, impactMs);
 }
 
 export interface BoardOptions {
@@ -121,11 +121,16 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       turn: (name, color, free) => game.events.emit("turn", name, color, free),
       roll: (r) => {
         game.events.emit("roll", r);
-        rollSounds(r);
+        // First the swing, arrow or spell, then the numbers where it lands.
+        const impact = scene.sys.isActive() ? scene.playFx(r.fx) : 0;
+        rollSounds(r, impact);
         if (scene.sys.isActive() && r.hits?.length) {
-          scene.showHits(r.hits);
-          const big = r.hits.some((h) => !h.miss && !h.heal && (h.crit || h.amount >= 10));
-          if (big) scene.shake(r.hits.some((h) => h.crit));
+          const hits = r.hits;
+          scene.time.delayedCall(impact, () => {
+            scene.showHits(hits);
+            const big = hits.some((h) => !h.miss && !h.heal && (h.crit || h.amount >= 10));
+            if (big) scene.shake(hits.some((h) => h.crit));
+          });
         }
       },
       roomRevealed: (name) => scene.showRoomName(name),
@@ -156,7 +161,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     // Characters stroll, guards patrol.
     worldTimer = setInterval(() => c.tickWorld(), 3000);
     // Test hook for browser play-throughs (dev server only, not in the published build).
-    if (import.meta.env.DEV) (window as unknown as { __couchTv?: unknown }).__couchTv = { game: c };
+    if (import.meta.env.DEV) (window as unknown as { __couchTv?: unknown }).__couchTv = { game: c, scene };
 
     if (opts.story) {
       const { story, duration } = opts.story;

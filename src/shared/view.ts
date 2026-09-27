@@ -143,4 +143,19 @@ export interface RollOutcome {
   crit?: boolean;
   /** For the board: who lost or gained hit points. */
   hits?: { targetId: string; amount: number; heal?: boolean; crit?: boolean; miss?: boolean }[];
+  /** For the board: what to animate (who does what to whom). */
+  fx?: ActionFx[];
+}
+
+/** One animation on the board: a sword swing, an arrow, a fire bolt, healing light … */
+export interface ActionFx {
+  from: string;
+  to: string[];
+  kind: "melee" | "claw" | "arrow" | "bolt" | "stone" | "thrown" | "spell" | "breath" | "heal" | "buff" | "turn" | "sleep";
+  /** Colour/look of magic: fire, cold, radiant, force, necrotic, poison. */
+  element?: "fire" | "cold" | "radiant" | "force" | "necrotic" | "poison";
+  /** Spells with their own look (magic missile darts, sacred flame from above, …). */
+  spellId?: string;
+  crit?: boolean;
+  miss?: boolean;
 }
