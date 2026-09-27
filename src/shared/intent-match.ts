@@ -25,6 +25,7 @@ const ATTACK = /\b(greif|angriff|attack|töte|kämpf|erledig|besieg|tritt|trete|
 const SPELL = /\b(zauber|magie|magisch|spruch|beschwör)/;
 const HEAL = /\b(heil|verarzt|wunde|rette|trank)/;
 const SELF = /\b(mich|mir|selbst)\b/;
+const THING = /\b(tür|tor|fass|fässer|kiste|tisch|truhe|wand|schloss|regal|stuhl|hocker|bank|krug|seil|kronleuchter|hebel|brunnen|altar|sarg)\w*/;
 
 /** Extra words per weapon or spell (lower case, word starts). */
 const SYNONYMS: [RegExp, RegExp][] = [
@@ -93,6 +94,8 @@ function mentionedTargets(t: string, targets: NonNullable<ActionChoice["targets"
  */
 export function matchFreeText(text: string, choices: ActionChoice[], meId?: string, trick = false): MatchOutcome {
   const t = ` ${text.toLowerCase()} `.replace(/schlage? vor|vorschlag/g, " ");
+  // "Ich haue ab" is running away, not a blow.
+  if (/\bhau(e|t|en)? ab\b|\babhau/.test(t)) return undefined;
   const melee = has(t, MELEE);
   const ranged = has(t, RANGED);
   const thrown = has(t, THROW);
@@ -129,6 +132,9 @@ export function matchFreeText(text: string, choices: ActionChoice[], meId?: stri
     .filter((x) => x.s >= 1)
     .sort((a, b) => b.s - a.s);
   if (!scored.length) return undefined;
+  // "Ich trete die Tür ein", "Ich werfe das Fass um": about a thing, not an enemy (unless one is named).
+  const aimed = pool.some((c) => mentionedTargets(t, c.targets ?? [], meId).length);
+  if (THING.test(t) && !aimed && !scored.some((x) => x.named)) return undefined;
   // A trick ("Ich stoße ihn um", "Ich werfe ihm Sand in die Augen") stays a trick unless a weapon/spell is named.
   if (trick && !scored.some((x) => x.named)) return undefined;
   const best = scored.find((x) => x.c.enabled && (!x.c.targets || x.c.targets.length));

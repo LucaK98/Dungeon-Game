@@ -71,3 +71,13 @@ describe("free text → own buttons", () => {
     expect(r && "blocked" in r && r.blocked).toContain("Reichweite");
   });
 });
+
+describe("free text: things and running away stay free actions", () => {
+  it("does not attack when a thing is meant or the hero runs off", () => {
+    expect(matchFreeText("Ich haue ab", all, "me")).toBeUndefined();
+    expect(matchFreeText("Ich trete die Tür ein", all, "me")).toBeUndefined();
+    expect(matchFreeText("Ich werfe das Fass um", all, "me")).toBeUndefined();
+    // …but a named enemy is still attacked.
+    expect(matchFreeText("Ich trete Goblin 1 gegen das Fass", all, "me")).toBeDefined();
+  });
+});

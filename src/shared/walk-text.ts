@@ -4,7 +4,7 @@
  */
 const MOVE = /\b(geh|gehe|gehen|lauf|laufe|renn|renne|schleich|schleiche|beweg|bewege|spazier|eile|stürm|stürme|spring|springe|kletter|klettere|näher|nähere|stell mich|stelle mich|lauf|hin zu)\w*/;
 const TOWARDS = /\b(zu|zur|zum|zu den|an den|an die|ans|in die|in den|ins|nach|richtung|hinter|neben|vor|auf den|auf die)\b\s+(.+)/;
-const THEN = /\s*(?:,|\bund dann\b|\bund\b|\bdann\b|\bdanach\b|\bum\b)\s*/;
+const THEN = /\s*(?:,|\bund dann\b|\bund\b|\bdann\b|\bdanach\b)\s*/;
 
 export interface WalkIntent {
   /** Words that name the place or who to go to ("die theke", "den goblin 2"). */
