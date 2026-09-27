@@ -238,7 +238,7 @@ function pickWeather(map: DungeonMap, rng: Rng): Weather | undefined {
   if (outdoor * 2 < themes.length) return themes.some((t) => t === "cave" || t === "mine") ? "dust" : undefined;
   if (map.dark) return rng.next() < 0.6 ? "fireflies" : "fog";
   if (themes.includes("forest")) return rng.next() < 0.6 ? "leaves" : rng.next() < 0.5 ? "rain" : undefined;
-  if (themes.includes("peak")) return rng.next() < 0.5 ? "fog" : "snow";
+  if (themes.includes("peak")) return (["fog", "snow", "wind"] as const)[rng.int(0, 2)];
   const r = rng.next();
-  return r < 0.3 ? "rain" : r < 0.5 ? "fog" : r < 0.65 ? "leaves" : undefined;
+  return r < 0.25 ? "rain" : r < 0.4 ? "fog" : r < 0.5 ? "wind" : r < 0.65 ? "leaves" : undefined;
 }

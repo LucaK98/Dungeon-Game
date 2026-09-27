@@ -119,7 +119,11 @@ export function perform(rng: Rng, battle: Battle, actorId: string, action: Comba
   switch (action.type) {
     case "move": {
       if (currentSpeedFt(actor) === 0) return fail("Du kannst dich gerade nicht bewegen.");
-      const move = planMove(battle, actorId, action.path);
+      // Enemies walk into the heroes' tripwires and stop there.
+      const snares = actor.side === "enemy" ? battle.terrain?.snares : undefined;
+      const caught = snares?.length ? action.path.findIndex((p) => snares.includes(`${p.x},${p.y}`)) : -1;
+      const path = caught >= 0 ? action.path.slice(0, caught + 1) : action.path;
+      const move = planMove(battle, actorId, path);
       if (!move.ok) return fail(move.reason ?? "Bewegung nicht möglich.");
       // Opportunity attacks hit while the creature is still in reach, before it gets away.
       const opportunityAttacks: AttackResult[] = [];
@@ -130,7 +134,7 @@ export function perform(rng: Rng, battle: Battle, actorId: string, action: Comba
         if (battle.combat) battle.combat.reactionUsed[enemyId] = true;
         opportunityAttacks.push(resolveAttack(rng, battle, enemy, actor, option));
       }
-      if (!isIncapacitated(actor)) commitMove(battle, actorId, action.path, move.costFt);
+      if (!isIncapacitated(actor)) commitMove(battle, actorId, path, move.costFt);
       return { ...ok, cost: "move", kind: "move", move, opportunityAttacks };
     }
 

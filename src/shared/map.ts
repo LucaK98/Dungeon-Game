@@ -109,7 +109,8 @@ export type PropId =
   | "rock-ledge";
 
 /** Things lying on the floor that the rules care about. */
-export type SurfaceKind = "puddle" | "oil" | "ice" | "fire";
+/** Mud and warnings (a rock is about to fall there) come from boss arenas. */
+export type SurfaceKind = "puddle" | "oil" | "ice" | "fire" | "mud" | "warn";
 
 export interface Surface {
   kind: SurfaceKind;
@@ -117,7 +118,7 @@ export interface Surface {
   turns?: number;
 }
 
-export type Weather = "rain" | "fog" | "leaves" | "fireflies" | "ash" | "snow" | "dust";
+export type Weather = "rain" | "fog" | "wind" | "leaves" | "fireflies" | "ash" | "snow" | "dust";
 
 export interface PlacedRoom {
   id: string;

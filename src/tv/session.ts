@@ -9,7 +9,8 @@ import type { Battle, Creature, GridPos } from "../shared/game";
 import type { CharacterProfile } from "../shared/lobby";
 import type { DungeonMap } from "../shared/map";
 import { generateWithRetries, randomPlan, type DungeonPlan } from "../map/generate";
-import { partyStartSpots, revealAround } from "../map/walk";
+import { isWalkable, partyStartSpots, revealAround } from "../map/walk";
+import { makeCompanion } from "./companions";
 import { getModule, moduleExits } from "../map/modules";
 
 export interface GameSession {
@@ -37,6 +38,8 @@ export interface SessionOptions {
   noMonsters?: boolean;
   /** Decides the healing potions at the start. */
   difficulty?: Difficulty;
+  /** Buildings of the home village (src/shared/homeland.ts). */
+  village?: string[];
 }
 
 export function createSession(rng: Rng, opts: SessionOptions): GameSession {
@@ -67,9 +70,28 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
       else if (want) c.pc.inventory.push({ itemId: "potion-of-healing", qty: want });
       c.pc.inventory = c.pc.inventory.filter((it) => it.itemId !== "potion-of-healing" || it.qty > 0);
     }
+    // The home village helps (src/shared/homeland.ts).
+    const village = opts.village ?? [];
+    if (c.pc) {
+      const add = (itemId: string, qty: number) => {
+        const have = c.pc!.inventory.find((it) => it.itemId === itemId);
+        if (have) have.qty += qty;
+        else c.pc!.inventory.push({ itemId, qty });
+      };
+      if (village.includes("kraeuterhuette")) {
+        add("potion-of-healing", 1);
+        add("heilkraut", 2);
+      }
+      if (village.includes("taverne")) add("gold", 10);
+      if (village.includes("schmiede")) c.traits.push("dorfschmiede");
+    }
     // A hero from the hero book brings gold and equipment along.
     if (legacy && c.pc) {
-      if (legacy.gold) c.pc.inventory.push({ itemId: "gold", qty: legacy.gold });
+      if (legacy.gold) {
+        const gold = c.pc.inventory.find((it) => it.itemId === "gold");
+        if (gold) gold.qty += legacy.gold;
+        else c.pc.inventory.push({ itemId: "gold", qty: legacy.gold });
+      }
       applyGear(c, legacy.gear);
       c.pc.stories = [...legacy.stories];
       c.pc.badges = [...(legacy.badges ?? [])];
@@ -78,6 +100,12 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
     c.pos = spots[i] ?? spots[0];
     battle.creatures[c.id] = c;
     partyIds.push(c.id);
+    // A tamed animal from the hero book comes along.
+    if (legacy?.companion && c.pos) {
+      const pet = makeCompanion(legacy.companion, c, `pet-${c.id}`);
+      pet.pos = besideFree(map, battle, c.pos);
+      battle.creatures[pet.id] = pet;
+    }
   });
 
   let n = 0;
@@ -107,4 +135,18 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
 
 export function party(session: GameSession): Creature[] {
   return session.partyIds.map((id) => session.battle.creatures[id]!).filter(Boolean);
+}
+
+/** A free walkable square next to (or near) a position – for a companion at its hero's side. */
+export function besideFree(map: DungeonMap, battle: Battle, at: GridPos): GridPos {
+  const taken = (p: GridPos) => Object.values(battle.creatures).some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
+  for (let r = 1; r <= 4; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const p = { x: at.x + dx, y: at.y + dy };
+        if (Math.max(Math.abs(dx), Math.abs(dy)) === r && isWalkable(map, p) && !taken(p)) return p;
+      }
+    }
+  }
+  return at;
 }

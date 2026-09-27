@@ -79,6 +79,8 @@ export interface DirectorOptions {
   camp?: boolean;
   /** The player who defeats the final boss describes the blow (default on). */
   finalBlow?: boolean;
+  /** Before a boss fight the heroes may prepare an ambush (default on). */
+  ambush?: boolean;
 }
 
 /** Questions at the campfire: small, personal, easy to answer for beginners. */
@@ -580,7 +582,13 @@ export class Director {
     const track = setInterval(() => this.trackHardship(), 500);
     // Ordinary enemies may not have noticed the heroes yet: sneak up, talk, or attack.
     const staged = this.world && stealth && !training && !hasBoss && this.game.idle;
-    const { winner, spawned } = staged ? await this.world!.stealthyFight(groups, allies) : await this.game.fight(groups, { training, allies });
+    // A boss can be ambushed: a moment to prepare the room first.
+    const ambush = this.world && stealth && !training && hasBoss && this.game.idle && this.opts.ambush !== false;
+    const { winner, spawned } = staged
+      ? await this.world!.stealthyFight(groups, allies)
+      : ambush
+        ? await this.world!.ambushFight(groups, allies)
+        : await this.game.fight(groups, { training, allies });
     clearInterval(track);
     this.trackHardship();
     if (spawned.some((m) => m.monsterId === "red-dragon-wyrmling" && m.dead)) this.set(["drache_tot"]);

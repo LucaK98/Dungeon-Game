@@ -27,5 +27,45 @@
   {
     "id": "silberstaub",
     "kind": "gear"
+  },
+  {
+    "id": "heilkraut",
+    "kind": "gear"
+  },
+  {
+    "id": "pilz",
+    "kind": "gear"
+  },
+  {
+    "id": "leuchtpilz",
+    "kind": "gear"
+  },
+  {
+    "id": "knochen",
+    "kind": "gear"
+  },
+  {
+    "id": "spinnenseide",
+    "kind": "gear"
+  },
+  {
+    "id": "oelflasche",
+    "kind": "gear"
+  },
+  {
+    "id": "brandflasche",
+    "kind": "gear"
+  },
+  {
+    "id": "leuchttrank",
+    "kind": "gear"
+  },
+  {
+    "id": "staerketrank",
+    "kind": "gear"
+  },
+  {
+    "id": "stolperdraht",
+    "kind": "gear"
   }
 ]

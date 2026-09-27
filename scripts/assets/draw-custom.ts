@@ -819,6 +819,21 @@ function shelf(): Tile {
   return t;
 }
 
+function danger(): Tile {
+  // A red warning circle with cracks: something is about to fall here.
+  const t = new Tile();
+  t.ring(16, 16, 13, 13, 2, () => [230, 40, 30, 220]);
+  t.ring(16, 16, 9, 9, 1, () => [255, 90, 60, 160]);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const d = Math.hypot(x - 16, y - 16);
+    if (d < 12 && t.alpha(x, y) === 0) t.px(x, y, [200, 30, 20, Math.round(70 * (1 - d / 12))]);
+  }
+  t.line(10, 12, 15, 16, [40, 10, 10, 200]);
+  t.line(15, 16, 13, 22, [40, 10, 10, 200]);
+  t.line(15, 16, 22, 14, [40, 10, 10, 200]);
+  return t;
+}
+
 mkdirSync(OUT, { recursive: true });
 barrel().save("barrel.png");
 lever(false).save("lever_off.png");
@@ -865,4 +880,5 @@ ledge("rock").save("rock_ledge.png");
 chicken().save("chicken.png");
 cat().save("cat.png");
 shelf().save("counter.png");
+danger().save("danger.png");
 console.log(`custom tiles → ${OUT}`);

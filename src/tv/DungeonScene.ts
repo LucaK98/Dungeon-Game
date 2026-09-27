@@ -226,10 +226,11 @@ export class DungeonScene extends Phaser.Scene {
       if (this.surfaceImages.has(i)) continue;
       const x = (i % map.width) * TILE;
       const y = Math.floor(i / map.width) * TILE;
-      const frame = s.kind === "fire" ? "fire.0" : s.kind;
-      const img = this.tile(x, y, frame).setOrigin(0).setDepth(s.kind === "fire" ? 100 + Math.floor(i / map.width) * 10 + 6 : 0.9);
+      const frame = s.kind === "fire" ? "fire.0" : s.kind === "mud" ? "floor.mud.0" : s.kind === "warn" ? "danger" : s.kind;
+      const img = this.tile(x, y, frame).setOrigin(0).setDepth(s.kind === "fire" ? 100 + Math.floor(i / map.width) * 10 + 6 : s.kind === "warn" ? 4300 : 0.9);
       img.setAlpha(0);
       this.tweens.add({ targets: img, alpha: s.kind === "fire" ? 0.95 : 0.85, duration: 500 });
+      if (s.kind === "warn") this.tweens.add({ targets: img, scale: img.scale * 1.12, alpha: 0.55, duration: 350, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       if (s.kind === "puddle" || s.kind === "ice") this.tweens.add({ targets: img, alpha: 0.65, duration: 1800 + Math.random() * 800, yoyo: true, repeat: -1, delay: 600, ease: "Sine.easeInOut" });
       if (s.kind === "fire") {
         this.ambience.puff(x / TILE + 0.5, y / TILE + 0.5, 0x3a3430, 8);
@@ -314,9 +315,12 @@ export class DungeonScene extends Phaser.Scene {
     const n = sizeInSquares(c.size);
     const container = this.add.container(0, 0);
     const ring = this.add.graphics();
-    const color = c.appearance ? Phaser.Display.Color.HexStringToColor(c.appearance.color).color : 0x000000;
+    // Companions wear their hero's colour (dashed look: a thinner ring).
+    const owner = c.companion ? this.session.battle.creatures[c.companion.ownerId] : undefined;
+    const tint = c.appearance?.color ?? owner?.appearance?.color;
+    const color = tint ? Phaser.Display.Color.HexStringToColor(tint).color : 0x000000;
     ring.fillStyle(0x000000, 0.35).fillEllipse(0, 11, 26, 9);
-    if (c.appearance) ring.lineStyle(2, color, 1).strokeEllipse(0, 11, 26, 9);
+    if (tint) ring.lineStyle(c.appearance ? 2 : 1.2, color, 1).strokeEllipse(0, 11, 26, 9);
     container.add(ring);
     // The body's origin is at the feet, so breathing stretches it upwards.
     const body = this.add.container(0, 12);
@@ -504,7 +508,7 @@ export class DungeonScene extends Phaser.Scene {
 
   /** Sleeping enemies get a floating 💤, watching ones a 👀. */
   private showMood(f: Figure, c: Creature): void {
-    const mood = c.effects.some((e) => e.id === "asleep") ? "💤" : c.effects.some((e) => e.id === "on-guard") ? "👀" : "";
+    const mood = c.wild ? "❔" : c.effects.some((e) => e.id === "asleep") ? "💤" : c.effects.some((e) => e.id === "on-guard") ? "👀" : "";
     if (!mood) {
       if (f.mood) {
         this.tweens.killTweensOf(f.mood);

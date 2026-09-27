@@ -7,7 +7,7 @@ import type { BreakdownPart } from "../shared/types";
 import { canSee } from "./vision";
 import { abilityMod, advantage, d20Part, disadvantage, rollD20, sumParts, type AdvReason } from "./core";
 import { parseDice, rollDice, rollDie } from "./dice";
-import { coverParts, onHighGround } from "./terrain";
+import { coverParts, onHighGround, weatherAt } from "./terrain";
 import { acParts, damageCreature, distanceFt, hasCondition, hasEffect, isActive, isIncapacitated } from "./combat";
 import type { Rng } from "./rng";
 
@@ -104,6 +104,7 @@ export function attackReasons(battle: Battle, attacker: Creature, target: Creatu
   if (hasEffect(attacker, "hampered")) r.push(disadvantage("Du bist behindert (entwaffnet, geblendet …)", "behindert"));
   if (hasEffect(attacker, "enraged")) r.push(advantage("Wütend: greift mit voller Wucht an", "wuetend"));
 
+  if (ranged && dist > 30 && weatherAt(battle, attacker, target) === "fog") r.push(disadvantage("Nebel: auf die Entfernung siehst du kaum etwas", "wetter"));
   if (ranged && onHighGround(battle, attacker.pos) && !onHighGround(battle, target.pos)) {
     r.push(advantage("Du stehst erhöht und schießt nach unten", "erhoeht"));
   }
@@ -167,6 +168,8 @@ export function resolveAttack(
   const roll = rollD20(rng, reasons, attacker.pc?.raceId === "halfling");
   const parts: BreakdownPart[] = [d20Part(roll), ...option.toHit];
   if (hasEffect(attacker, "bless")) parts.push({ label: "Segen", value: rollDie(rng, 4), glossarKey: "zauber:bless" });
+  // Strong wind blows arrows and bolts off course (not spells).
+  if (option.kind === "ranged" && option.source !== "spell" && weatherAt(battle, attacker, target) === "wind") parts.push({ label: "Wind", value: -2, glossarKey: "wetter" });
   const total = sumParts(parts);
   // Furniture between attacker and target (not on top of a cover spell like "Deckung suchen").
   const targetAcParts = [...acParts(target), ...(hasEffect(target, "cover") ? [] : coverParts(battle, attacker, target))];
@@ -203,6 +206,8 @@ export function resolveAttack(
   const weakSwarm = attacker.traits.includes("swarm") && attacker.hp <= attacker.maxHp / 2;
   const dmgParts: DamagePart[] = weakSwarm ? option.damage.map(halveDice) : [...option.damage];
   const bonus = [...option.damageBonus];
+  // The home village's smithy sharpens every hero's weapons.
+  if (attacker.traits.includes("dorfschmiede") && option.source === "weapon") bonus.push({ label: "Dorfschmiede", value: 1, glossarKey: "heimatdorf" });
   if (sneakAttackAllowed(battle, attacker, target, option, roll.mode)) {
     // 1d6 at level 1, one more every two levels (2d6 at 3, 3d6 at 5).
     const dice = Math.ceil(attacker.pc!.level / 2);

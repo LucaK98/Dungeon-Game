@@ -756,3 +756,20 @@ body.tip-mode::after {
 
 .random-card { border-style: dashed; background: radial-gradient(circle at 50% 20%, #2e2414, var(--panel) 70%); }
 .random-dice { font-size: 9vh; line-height: 1; height: 10vh; animation: bounce 1.6s ease-in-out infinite; }
+
+/* Brewing and tinkering */
+.craft-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
+.craft-row.ready { border-color: rgba(224,165,38,0.6); background: rgba(224,165,38,0.08); }
+.craft-icon { font-size: 1.6rem; width: 2rem; text-align: center; }
+.craft-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.craft-needs { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 0.78rem; }
+.craft-needs .need { color: #b0786a; }
+.craft-needs .need.got { color: #8fd08a; }
+
+/* Companion */
+.companion-card { border: 1px solid rgba(224,165,38,0.5); }
+.companion-card.fallen { opacity: 0.7; filter: grayscale(0.6); }
+.companion-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.companion-head > div { display: flex; flex-direction: column; }
+.companion-icon { font-size: 2rem; }
+.companion-trait { margin: 6px 0 0; font-size: 0.9rem; }

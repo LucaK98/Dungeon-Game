@@ -3319,11 +3319,11 @@
   },
   "kraeuter": {
     "titel": "Heilkräuter",
-    "kurz": "Sammeln und heilen (Heilkunde SG 10).",
-    "lang": "Wo Heilkräuter wachsen, kannst du sie außerhalb von Kämpfen sammeln (Heilkunde SG 10). Gelingt es, reibst du daraus einen Umschlag für den am schwersten Verletzten der Gruppe: Er bekommt 1W4 + 2 Trefferpunkte zurück. Jeder Busch reicht nur einmal.",
+    "kurz": "Sammeln (Heilkunde SG 10) – Zutat für Heiltränke.",
+    "lang": "Wo Heilkräuter wachsen, kannst du sie außerhalb von Kämpfen sammeln (Heilkunde SG 10): Gelingt es, bekommst du zwei Heilkräuter, sonst eins. Zwei Heilkräuter ergeben im Taschen-Tab einen Heiltrank.",
     "siehe_auch": [
-      "trefferpunkte",
-      "fertigkeit:medicine"
+      "brauen",
+      "gegenstand:heilkraut"
     ]
   },
   "pilze": {
@@ -3358,6 +3358,172 @@
     "siehe_auch": [
       "fertigkeit:athletics",
       "deckung"
+    ]
+  },
+  "gegenstand:heilkraut": {
+    "titel": "Heilkraut",
+    "kurz": "Zutat: daraus braut man Heiltränke.",
+    "lang": "Heilkräuter findest du an grünen Kräuterbüschen (Heilkunde SG 10). Zwei Heilkräuter ergeben im Taschen-Tab einen Heiltrank.",
+    "siehe_auch": [
+      "brauen",
+      "kraeuter"
+    ]
+  },
+  "gegenstand:pilz": {
+    "titel": "Pilz",
+    "kurz": "Zutat für den Bärenkraft-Trank.",
+    "lang": "Pilze sammelst du an Pilzstellen in Wald und Höhle. Mit einem Heilkraut wird daraus ein Bärenkraft-Trank.",
+    "siehe_auch": [
+      "brauen",
+      "pilze"
+    ]
+  },
+  "gegenstand:leuchtpilz": {
+    "titel": "Leuchtpilz",
+    "kurz": "Zutat für den Leuchttrank.",
+    "lang": "Leuchtpilze wachsen in Höhlen und schimmern grün. Mit einem Heilkraut wird daraus ein Leuchttrank.",
+    "siehe_auch": [
+      "brauen",
+      "pilze"
+    ]
+  },
+  "gegenstand:knochen": {
+    "titel": "Knochen",
+    "kurz": "Damit zähmt man Hunde und Wölfe.",
+    "lang": "Knochen liegen in Grüften und Höhlen herum (Knochen aufheben) oder bleiben von besiegten Skeletten übrig. Ein hungriger Hund oder Wolf lässt sich damit vielleicht zähmen.",
+    "siehe_auch": [
+      "begleiter"
+    ]
+  },
+  "gegenstand:spinnenseide": {
+    "titel": "Spinnenseide",
+    "kurz": "Zutat für Stolperdraht und Brandflaschen.",
+    "lang": "Spinnennetze kann man vorsichtig einsammeln. Zwei Stück ergeben einen Stolperdraht; mit einer Ölflasche wird eine Brandflasche daraus (die Seide ist die Lunte).",
+    "siehe_auch": [
+      "brauen"
+    ]
+  },
+  "gegenstand:oelflasche": {
+    "titel": "Ölflasche",
+    "kurz": "Öl ausgießen – brennt prima.",
+    "lang": "Aus einer Öllache auf dem Boden kannst du Öl abfüllen. Ausgießen (neben dir oder auf einen Gegner bis 4 Felder) macht eine Öllache, die bei Feuer lichterloh brennt.",
+    "siehe_auch": [
+      "feuer",
+      "brauen"
+    ]
+  },
+  "gegenstand:brandflasche": {
+    "titel": "Brandflasche",
+    "kurz": "Werfen: 2W6 Feuer und der Boden brennt.",
+    "lang": "Wirf die Brandflasche auf einen Gegner bis 6 Felder weit. Er macht einen Rettungswurf auf Geschicklichkeit (SG 12): misslungen 2W6 Feuerschaden, geschafft die Hälfte. Das Feld fängt Feuer. Kostet deine Aktion.",
+    "siehe_auch": [
+      "feuer",
+      "rettungswurf"
+    ]
+  },
+  "gegenstand:leuchttrank": {
+    "titel": "Leuchttrank",
+    "kurz": "Trinken: du leuchtest wie eine Fackel.",
+    "lang": "Wer den Leuchttrank trinkt, leuchtet eine lange Zeit grünlich – so hell wie eine Fackel, aber mit freien Händen.",
+    "siehe_auch": [
+      "dunkelheit"
+    ]
+  },
+  "gegenstand:staerketrank": {
+    "titel": "Bärenkraft-Trank",
+    "kurz": "Trinken: dein nächster Angriff hat Vorteil.",
+    "lang": "Der bittere Trank aus Pilz und Heilkraut macht bärenstark: Dein nächster Angriff hat Vorteil. Im Kampf kostet das Trinken die Bonusaktion.",
+    "siehe_auch": [
+      "vorteil"
+    ]
+  },
+  "gegenstand:stolperdraht": {
+    "titel": "Stolperdraht",
+    "kurz": "Aufstellen: Gegner fallen hin.",
+    "lang": "Spanne den Draht auf einem Feld neben dir. Läuft ein Gegner darüber, bleibt er dort stehen und macht einen Rettungswurf auf Geschicklichkeit (SG 12) – misslingt er, fällt er hin. Ideal, um einen Hinterhalt vorzubereiten.",
+    "siehe_auch": [
+      "hinterhalt",
+      "zustand:prone"
+    ]
+  },
+  "brauen": {
+    "titel": "Brauen und Basteln",
+    "kurz": "Aus Zutaten Tränke und Werkzeug machen – jederzeit.",
+    "lang": "Im Taschen-Tab unter „Brauen & Basteln“ stehen die Rezepte. Hast du die Zutaten, tippst du auf „Herstellen“. Das geht jederzeit, auch wenn du gerade nicht dran bist, und kostet keine Aktion. Zutaten findest du überall: Kräuter, Pilze, Spinnennetze, Öllachen, Knochen.",
+    "siehe_auch": [
+      "gegenstand:heilkraut",
+      "gegenstand:pilz",
+      "gegenstand:spinnenseide",
+      "gegenstand:oelflasche"
+    ]
+  },
+  "monster:mastiff": {
+    "titel": "Hund",
+    "kurz": "Ein treuer Vierbeiner.",
+    "lang": "Hunde bewachen Höfe und Häuser. Mit einem Knochen und etwas Geschick lässt sich ein streunender Hund zähmen – dann kämpft er an eurer Seite.",
+    "beispiel": "RK 12, 5 TP, Biss +3 für 1W6 + 1.",
+    "siehe_auch": [
+      "begleiter"
+    ]
+  },
+  "monster:cat": {
+    "titel": "Katze",
+    "kurz": "Klein, flink und eigensinnig.",
+    "lang": "Katzen lassen sich nichts befehlen – aber mit einem Büschel Heilkraut (Katzenminze!) gewinnt man vielleicht ihr Herz.",
+    "beispiel": "RK 12, 2 TP, Krallen +0 für 1 Schaden.",
+    "siehe_auch": [
+      "begleiter"
+    ]
+  },
+  "monster:raven": {
+    "titel": "Rabe",
+    "kurz": "Ein kluger schwarzer Vogel.",
+    "lang": "Raben lieben Glänzendes. Wer ihnen ein paar Goldmünzen hinlegt, hat vielleicht bald einen gefiederten Späher.",
+    "beispiel": "RK 12, 1 TP, Schnabel +4 für 1 Schaden.",
+    "siehe_auch": [
+      "begleiter"
+    ]
+  },
+  "begleiter": {
+    "titel": "Begleiter",
+    "kurz": "Ein Tier, das mit dir zieht – und kämpft.",
+    "lang": "Streunende Tiere lassen sich zähmen (Mit Tieren umgehen): Hunde und Wölfe mit einem Knochen, Katzen mit einem Heilkraut, Raben mit 3 Goldmünzen. Jeder Begleiter hat einen eigenen Namen und eine besondere Gabe (zum Beispiel Spürnase, Glückskatze, Späher oder Heuler). Er folgt dir, kämpft in eigenen Zügen mit und bleibt auch im nächsten Abenteuer bei dir – aber Vorsicht: Fällt er im Kampf, ist er für immer fort. Jeder Held kann einen Begleiter haben.",
+    "siehe_auch": [
+      "gegenstand:knochen",
+      "fertigkeit:animal-handling"
+    ]
+  },
+  "wetter": {
+    "titel": "Wetter",
+    "kurz": "Regen, Nebel, Wind und Schnee verändern die Regeln draußen.",
+    "lang": "Wetter wirkt nur unter freiem Himmel. 🌧️ Regen: Pfützen entstehen, Feuer geht schnell aus und breitet sich nicht aus. 🌫️ Nebel: Fernangriffe auf mehr als 6 Felder (9 m) haben Nachteil. 🌬️ Wind: Pfeile, Bolzen und Wurfgeschosse −2 auf den Angriff (Zauber nicht), Feuer springt leichter über. ❄️ Schnee: Pfützen sind gefroren und bleiben es – wer drüberläuft, kann ausrutschen.",
+    "siehe_auch": [
+      "feuer",
+      "eis",
+      "nachteil"
+    ]
+  },
+  "hinterhalt": {
+    "titel": "Hinterhalt",
+    "kurz": "Vor dem Endgegner: erst vorbereiten, dann zuschlagen.",
+    "lang": "Hat euch ein Anführer noch nicht bemerkt, dürft ihr einen Hinterhalt vorbereiten, bevor der Kampf beginnt: Öl ausgießen (und später anzünden), Stolperdrähte spannen, Tische für Deckung umwerfen, Tränke trinken, auf erhöhte Plätze klettern. Kommt dem Gegner nicht zu nah, sonst bemerkt er euch sofort. Wenn alle bereit sind, stimmt für „Losschlagen!“ – nach gut zwei Minuten merkt er es von selbst.",
+    "siehe_auch": [
+      "gegenstand:stolperdraht",
+      "gegenstand:oelflasche",
+      "feuer",
+      "deckung",
+      "erhoeht"
+    ]
+  },
+  "boss_arena": {
+    "titel": "Boss-Arena",
+    "kurz": "Je schwächer der Endgegner, desto wilder der Raum.",
+    "lang": "Bei zwei Dritteln und einem Drittel seiner Trefferpunkte beginnt eine neue Phase, und der Raum verändert sich jede Runde: Beim Oger oder Ritter bröckelt die Decke – rote Kreise zeigen eine Runde vorher, wo Steine fallen (Rettungswurf Geschicklichkeit, sonst 2W6 Schaden und umgeworfen). Beim Drachen schießen Flammen aus dem Boden. Bei der Hexe steigt der Sumpf (Schlamm = schwieriges Gelände). Bei der Spinne wachsen Netze. Beim Werwolf und Totenbeschwörer erlöschen die Lichter. Die Gegner meiden die gefährlichen Stellen – ihr solltet es auch!",
+    "siehe_auch": [
+      "feuer",
+      "schwieriges_gelaende",
+      "dunkelheit",
+      "zustand:prone"
     ]
   }
 }

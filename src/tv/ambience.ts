@@ -462,6 +462,10 @@ export class Ambience {
       case "leaves":
         this.emitter(0, 0, "amb-leaf", { emitZone: zone, lifespan: 5500, frequency: every(25000), speedX: { min: 10, max: 24 }, speedY: { min: 6, max: 14 }, rotate: { start: 0, end: 540 }, scale: { min: 0.6, max: 1 }, alpha: { start: 0.95, end: 0 }, tint: [0xc9702a, 0xd8a02a, 0x9a4a1a, 0xa8b83a] }, DEPTH_AIR);
         break;
+      case "wind":
+        this.emitter(0, 0, "amb-streak", { emitZone: zone, lifespan: 900, frequency: every(6000), speedX: { min: 110, max: 170 }, speedY: { min: -6, max: 6 }, scaleX: { min: 1, max: 2 }, alpha: { start: 0, end: 0, onUpdate: (_p, _k, t) => Math.sin(t * Math.PI) * 0.3 }, tint: 0xe8eef8 }, DEPTH_AIR);
+        this.emitter(0, 0, "amb-leaf", { emitZone: zone, lifespan: 2200, frequency: every(40000), speedX: { min: 80, max: 130 }, speedY: { min: -10, max: 14 }, rotate: { start: 0, end: 900 }, scale: { min: 0.5, max: 0.9 }, alpha: { start: 0.9, end: 0 }, tint: [0x9a8a3a, 0x7fa83a, 0xc98a2a] }, DEPTH_AIR);
+        break;
       case "fireflies":
         this.emitter(0, 0, "amb-dot", { emitZone: zone, lifespan: 6000, frequency: every(12000), speedX: { min: -9, max: 9 }, speedY: { min: -9, max: 9 }, scale: { min: 0.1, max: 0.18 }, alpha: { start: 0, end: 0, onUpdate: (p, _k, t) => Math.max(0, Math.sin(t * Math.PI)) * (0.55 + 0.45 * Math.sin(t * 40 + (p.x % 7))) }, tint: [0xd8ff6a, 0xfff07a], blendMode: Phaser.BlendModes.ADD }, DEPTH_GLOW);
         break;

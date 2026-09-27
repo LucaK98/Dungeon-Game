@@ -8,7 +8,7 @@ import { savingThrow } from "../engine/core";
 import { parseDice, rollDice } from "../engine/dice";
 import type { ExplainedLine } from "../engine/explain";
 import type { Rng } from "../engine/rng";
-import { PROPS, propDef, standing } from "../map/props";
+import { isOutdoorCell, PROPS, propDef, standing } from "../map/props";
 import type { Battle, Creature, GridPos } from "../shared/game";
 import { cellIndex, inBounds, type DungeonMap, type MapObject } from "../shared/map";
 
@@ -151,21 +151,30 @@ export function tickWorldSurface(map: DungeonMap, rng: Rng): WorldResult {
   const surface = map.surface;
   if (!surface) return r;
   const burning = Object.entries(surface).filter(([, s]) => s.kind === "fire").map(([k]) => Number(k));
+  let doused = false;
   for (const i of burning) {
     const p = { x: i % map.width, y: Math.floor(i / map.width) };
+    const open = isOutdoorCell(map, i);
+    // Rain puts outdoor fires out fast; wind fans them.
+    const rain = open && map.weather === "rain";
+    const spread = rain ? 0 : open && map.weather === "wind" ? 0.8 : 0.5;
     for (const q of around(p)) {
-      if ((q.x !== p.x || q.y !== p.y) && flammableAt(map, q) && rng.next() < 0.5) igniteCell(map, q, r.lines);
+      if ((q.x !== p.x || q.y !== p.y) && flammableAt(map, q) && rng.next() < spread) igniteCell(map, q, r.lines);
     }
     const s = surface[i]!;
-    s.turns = (s.turns ?? FIRE_TURNS) - 1;
+    s.turns = (s.turns ?? FIRE_TURNS) - (rain ? 2 : 1);
+    if (rain && s.turns <= 0) doused = true;
     if (s.turns <= 0) {
       delete surface[i];
       map.decals ??= {};
       map.decals[i] = "scorch";
     }
   }
+  if (doused) r.lines.push({ text: "🌧️ Der Regen löscht die Flammen.", glossarKeys: ["wetter"] });
   for (const [k, s] of Object.entries(surface)) {
     if (s.kind !== "ice") continue;
+    // In the snow, ice under open sky does not melt.
+    if (map.weather === "snow" && isOutdoorCell(map, Number(k))) continue;
     s.turns = (s.turns ?? ICE_TURNS) - 1;
     if (s.turns <= 0) surface[Number(k)] = { kind: "puddle" };
   }
@@ -215,4 +224,23 @@ export function leaveTrace(map: DungeonMap, rng: Rng, c: Creature, amount: numbe
 export function creaturesOn(battle: Battle, squares: GridPos[]): Creature[] {
   const keys = new Set(squares.map((p) => `${p.x},${p.y}`));
   return Object.values(battle.creatures).filter((c) => c.pos && !c.dead && keys.has(`${c.pos.x},${c.pos.y}`));
+}
+
+/** Weather at work: rain leaves puddles under open sky, snow freezes them. */
+export function weatherTick(map: DungeonMap, rng: Rng): void {
+  if (map.weather !== "rain" && map.weather !== "snow") return;
+  map.surface ??= {};
+  if (map.weather === "snow") {
+    for (const [k, s] of Object.entries(map.surface)) if (s.kind === "puddle" && isOutdoorCell(map, Number(k))) map.surface[Number(k)] = { kind: "ice", turns: 99 };
+    return;
+  }
+  const puddles = Object.values(map.surface).filter((s) => s.kind === "puddle").length;
+  if (puddles >= 14 || rng.next() > 0.3) return;
+  for (let tries = 0; tries < 20; tries++) {
+    const i = rng.int(0, map.cells.length - 1);
+    if (map.cells[i] !== "floor" || map.surface[i] || !isOutdoorCell(map, i) || !map.explored[i]) continue;
+    if (map.objects.some((o) => o.blocking && cellIndex(map, o.x, o.y) === i)) continue;
+    map.surface[i] = { kind: "puddle" };
+    return;
+  }
 }

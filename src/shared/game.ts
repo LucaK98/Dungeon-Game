@@ -12,6 +12,7 @@ import type {
 } from "./rules";
 import type { DollLook } from "./doll";
 import type { Ability, BreakdownPart, PlayerId } from "./types";
+import type { CompanionInfo, CompanionKind } from "./companions";
 
 export interface GridPos {
   x: number;
@@ -187,6 +188,10 @@ export interface Creature {
   /** Heroes: which phone controls them and how they look. */
   playerId?: PlayerId;
   appearance?: { look: DollLook; color: string };
+  /** A tamed animal: whose it is, its name and gift (src/shared/companions.ts). */
+  companion?: CompanionInfo & { ownerId: string };
+  /** A stray animal on the map that could be tamed. */
+  wild?: CompanionKind;
 }
 
 export interface D20Roll {
@@ -320,6 +325,11 @@ export interface Terrain {
   high: string[];
   /** Burning or otherwise dangerous squares that monsters avoid. */
   hazard: string[];
+  /** Tripwires set by the heroes: an enemy walking onto one stops there. */
+  snares?: string[];
+  /** Weather with rules (fog, wind) and the squares under open sky it applies to. */
+  weather?: "fog" | "wind";
+  outdoor?: string[];
 }
 
 export interface LightSource {

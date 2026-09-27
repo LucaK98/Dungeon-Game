@@ -15,13 +15,18 @@ import { createMonster, hardenMonster, MAX_LEVEL } from "../engine/creatures";
 import { DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import { itemIcon, itemTitle, levelGains, type Reward } from "../shared/reward";
 import { GOAL_GOLD, goalById, goalReached } from "../shared/goals";
+import { craft, recipeById } from "../shared/crafting";
+import { COMPANIONS, newCompanion, traitOf } from "../shared/companions";
+import { makeCompanion, placeStray } from "./companions";
+import { arenaFor, arenaRound, type ArenaState } from "./arena";
+import { besideFree } from "./session";
 import { addTotals, newBadges } from "../shared/achievements";
 import { findPath } from "../engine/grid";
 import { isHazard, pathCost, stepCost } from "../engine/terrain";
 import { propDef, propLight, terrainOf } from "../map/props";
 import { nameOf } from "../engine/names";
-import { randomRng, type Rng } from "../engine/rng";
-import { burnCreature, coldHits, creaturesOn, fireHits, ICE_DC, leaveTrace, setAlight, slipOnIce, spillCoals, surfaceKind, tickWorldSurface, type WorldResult } from "./environment";
+import { randomRng, seededRng, type Rng } from "../engine/rng";
+import { burnCreature, coldHits, creaturesOn, fireHits, ICE_DC, leaveTrace, setAlight, slipOnIce, spillCoals, surfaceKind, tickWorldSurface, weatherTick, type WorldResult } from "./environment";
 import { maxTargets, validateCast } from "../engine/spells";
 import { isWalkable, partyStartSpots, revealAround } from "../map/walk";
 import { isLit } from "../engine/vision";
@@ -41,7 +46,7 @@ import type { SkillId } from "../shared/rules";
 import type { DungeonMap, MapObject } from "../shared/map";
 import { applyGear, createCharacter, gearProblem, refreshAttacks } from "../engine/creatures";
 import { scaleGroup } from "../dm/planner";
-import { getModule, moduleExits } from "../map/modules";
+import { getModule, moduleExits, THEMES } from "../map/modules";
 import type { GameSession } from "./session";
 
 export interface StoryChoiceOffer {
@@ -167,8 +172,22 @@ export class GameController {
   training = false;
   private narrationLog: Narration[] = [];
   private lanceUsed = new Set<string>();
-  /** Dice for the room itself (fire spreading, slipping, traces), apart from the game's dice. */
+  /**
+   * Dice for the room itself (fire spreading, slipping, monster tricks), apart from the game's dice.
+   * Seeded from the map, so a game with the same map plays out the same (tests), and every new map differs.
+   */
   private envRng: Rng = randomRng();
+
+  private seedEnv(map: DungeonMap): void {
+    let h = 2166136261;
+    const feed = (s: string) => {
+      for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    };
+    feed(`${map.width}x${map.height}`);
+    for (const f of map.frames) feed(f);
+    for (const o of map.objects) feed(`${o.kind}${o.x},${o.y}`);
+    this.envRng = seededRng(h >>> 0);
+  }
 
   constructor(
     readonly session: GameSession,
@@ -179,6 +198,7 @@ export class GameController {
     private opts: ControllerOptions = {},
   ) {
     for (const c of Object.values(session.battle.creatures)) if (c.pc) this.startLevels.set(c.id, c.pc.level);
+    this.seedEnv(session.map);
   }
 
   destroy(): void {
@@ -288,7 +308,7 @@ export class GameController {
     const near = map.objects.filter((o) => Math.max(Math.abs(o.x - hero.pos!.x), Math.abs(o.y - hero.pos!.y)) <= 8 && (o.kind !== "trap" || o.state === "found") && o.state !== "used");
     const objects = [...new Set(near.map((o) => (o.kind === "prop" ? (propDef(o)?.name ?? "") : (NAMES[o.kind] ?? o.kind))).filter(Boolean))];
     const surfaces = new Set(Object.entries(map.surface ?? {}).filter(([k]) => { const i = Number(k); return Math.max(Math.abs((i % map.width) - hero.pos!.x), Math.abs(Math.floor(i / map.width) - hero.pos!.y)) <= 8; }).map(([, v]) => v.kind));
-    for (const k of surfaces) objects.push({ puddle: "Pfützen", oil: "eine Öllache", ice: "Eis am Boden", fire: "Feuer!" }[k]);
+    for (const k of surfaces) objects.push(({ puddle: "Pfützen", oil: "eine Öllache", ice: "Eis am Boden", fire: "Feuer!", mud: "Schlamm", warn: "bröckelnde Decke" } as Record<string, string>)[k]!);
     const around = [...Array(9).keys()].map((k) => ({ x: hero.pos!.x + (k % 3) - 1, y: hero.pos!.y + Math.floor(k / 3) - 1 }));
     if (around.some((p) => ["water", "deep"].includes(map.cells[cellIndex(map, p.x, p.y)] ?? ""))) objects.push("Wasser");
     if (Object.keys(map.overlays).some((k) => map.overlays[Number(k)]?.startsWith("torch"))) objects.push("Fackeln an den Wänden");
@@ -551,7 +571,11 @@ export class GameController {
       const round = this.battle.combat?.round;
       const start = nextTurn(this.rng, this.battle);
       // A new round: fire spreads and burns down, ice melts.
-      if (this.battle.combat && round !== undefined && this.battle.combat.round !== round) this.tickSurfaces();
+      if (this.battle.combat && round !== undefined && this.battle.combat.round !== round) {
+        this.tickSurfaces();
+        this.arenaTick();
+        if (this.checkWinner()) return;
+      }
       // Starting the turn in flames hurts.
       const now = this.battle.creatures[start.creatureId];
       if (now && isActive(now) && surfaceKind(this.map, now.pos) === "fire") {
@@ -624,7 +648,7 @@ export class GameController {
     this.pending = undefined;
     this.mode = "combat";
     this.lanceUsed.clear();
-    const ids = [...this.heroes().filter((h) => !h.dead).map((h) => h.id), ...enemies.map((e) => e.id)];
+    const ids = [...this.heroes().filter((h) => !h.dead).map((h) => h.id), ...enemies.map((e) => e.id), ...this.alliesInPlay()];
     const combat = startCombat(this.rng, this.battle, ids);
     const lines: ExplainedLine[] = [
       { text: "⚔️ Kampf! Alle würfeln Initiative. Wer am höchsten würfelt, ist zuerst dran.", glossarKeys: ["initiative"] },
@@ -633,7 +657,10 @@ export class GameController {
     this.addLog(lines);
     this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: combat.order[0]!.creatureId, title: "Kampf!", sides: 20, dice: [], kept: 0, lines });
     this.emit("combat", true);
+    this.tricksUsed.clear();
+    this.startArena();
     this.grantBoons();
+    this.companionsAtFightStart();
     // Nobody can act while down or asleep: skip ahead like a normal turn change.
     const first = this.active();
     if (first && !isActive(first)) {
@@ -706,6 +733,16 @@ export class GameController {
       if (delay <= 0) this.endTurn();
       else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
       return;
+    }
+    // Monsters use the room too: flip tables, tip braziers, throw torches, hurl crates.
+    if (this.monsterTrick(monster)) {
+      const turn = this.battle.combat?.turn;
+      if (turn) {
+        turn.actions = 0;
+        turn.attacksLeft = 0;
+      }
+      this.emit("changed");
+      if (this.checkWinner()) return;
     }
     const outcomes = runAutoTurn(this.rng, this.battle, id, { walkable: (p) => isWalkable(this.map, p) && !isHazard(this.battle, p) });
     for (const o of outcomes) {
@@ -885,6 +922,11 @@ export class GameController {
       this.emit("emote", hero.id, action.emoji);
       return;
     }
+    if (action.kind === "craft") {
+      const err = this.craftFor(hero, action.recipe);
+      if (err) this.sendTo(playerId, { type: "action_error", reason: err });
+      return;
+    }
     if (action.kind === "equip" || action.kind === "unequip" || action.kind === "give_gear") {
       const err = action.kind === "equip" ? this.equip(hero, action.gearId) : action.kind === "unequip" ? this.unequip(hero, action.slot) : this.giveGear(hero, action.gearId, action.toId);
       if (err) this.sendTo(playerId, { type: "action_error", reason: err });
@@ -957,6 +999,18 @@ export class GameController {
     }
     if (action.kind === "use_item" && action.itemId === "torch") {
       this.toggleTorch(hero);
+      return;
+    }
+    if (action.kind === "use_item" && CUSTOM_ITEMS.includes(action.itemId)) {
+      this.useCustomItem(playerId, hero, action.itemId, action.targetId);
+      return;
+    }
+    if (action.kind === "tame") {
+      this.tame(playerId, hero, action.creatureId);
+      return;
+    }
+    if (action.kind === "ground") {
+      this.pickUpGround(playerId, hero, action.use, { x: action.x, y: action.y });
       return;
     }
     switch (action.kind) {
@@ -1124,6 +1178,14 @@ export class GameController {
     const lines = explainOutcome(this.battle, o);
     const world = this.worldReacts(o);
     lines.push(...world.lines);
+    // A raven that goes for the eyes leaves its target distracted.
+    if (o.ok && o.kind === "attack" && o.attack.hit && hero.companion?.trait === "augenpicker") {
+      const t = this.battle.creatures[o.attack.targetId];
+      if (t && isActive(t)) {
+        addEffect(t, "distracted", 10, hero.id);
+        lines.push({ text: `🐦‍⬛ ${hero.name} hackt nach den Augen – ${t.name} ist abgelenkt!`, glossarKeys: ["begleiter", "abgelenkt"] });
+      }
+    }
     let dice: number[] = [];
     let kept = 0;
     let success: boolean | undefined;
@@ -1213,6 +1275,7 @@ export class GameController {
     this.addLog(lines);
     this.emit("lines", lines);
     this.walkedThrough(hero, walk);
+    if (this.mode !== "combat") this.companionsFollow(hero);
     this.afterAction();
   }
 
@@ -1221,6 +1284,14 @@ export class GameController {
     if (!c.pos) return;
     if (path.some((p) => surfaceKind(this.map, p) === "ice")) this.publishWorld(c, "Glatteis", slipOnIce(this.envRng, c, this.sg(ICE_DC)));
     if (surfaceKind(this.map, c.pos) === "fire") this.publishWorld(c, "Feuer", burnCreature(this.envRng, c));
+    const wire = c.side === "enemy" ? this.map.objects.find((o) => o.kind === "trap" && o.variant === "wire" && o.state === "found" && o.x === c.pos!.x && o.y === c.pos!.y) : undefined;
+    if (wire) {
+      wire.state = "used";
+      wire.frame = "";
+      const r = slipOnIce(this.envRng, c, this.sg(12));
+      r.lines = r.lines.map((l) => ({ text: l.text.replace("🧊", "🪢").replace("schlittert übers Eis", "stolpert über den Draht").replace("rutscht auf dem Eis aus und fällt hin", "verfängt sich im Stolperdraht und schlägt der Länge nach hin"), glossarKeys: ["gegenstand:stolperdraht", ...l.glossarKeys.filter((k) => k !== "eis")] }));
+      this.publishWorld(c, "Stolperdraht", r);
+    }
   }
 
   /** Shows what the room did (fire, ice …) like a roll: log, phones, floating numbers. */
@@ -1635,6 +1706,7 @@ export class GameController {
             stories: [...(h.pc.stories ?? []), storyTitle],
             badges: [...h.pc.badges],
             totals: { ...h.pc.totals },
+            ...((pet) => (pet?.companion ? { companion: { kind: pet.companion.kind, name: pet.companion.name, trait: pet.companion.trait } } : {}))(this.companionOf(h)),
           },
           savedAt: Date.now(),
         },
@@ -2033,9 +2105,13 @@ export class GameController {
         } else if (r < 0.45) {
           this.addItem(hero, "potion-of-healing", 1);
           lines.push({ text: "Darin: ein Heiltrank, gut in Stroh gepackt!", glossarKeys: ["gegenstand:potion-of-healing"] });
-        } else if (r < 0.6) {
+        } else if (r < 0.55) {
           this.addItem(hero, "torch", 1);
           lines.push({ text: "Darin: eine Fackel.", glossarKeys: ["gegenstand:torch"] });
+        } else if (r < 0.75) {
+          const item = (["heilkraut", "oelflasche", "pilz", "knochen"] as const)[this.rng.int(0, 3)]!;
+          this.addItem(hero, item, 1);
+          lines.push({ text: `Darin: ${itemTitle(item)} – eine Zutat zum Brauen.`, glossarKeys: [`gegenstand:${item}`, "brauen"] });
         } else lines.push({ text: o.prop === "pot" ? "Nur alte Linsen. Und eine sehr empörte Maus." : "Nur Stroh und rostige Nägel.", glossarKeys: [] });
         say("Zerschlagen", lines, "puff");
         return;
@@ -2068,19 +2144,27 @@ export class GameController {
         if (this.triedObject.has(key)) return fail("Du hast hier schon gesucht.");
         h.rollThen("Kräuter sammeln", "medicine", 10, "kraeuter", (ok, lines, check) => {
           this.triedObject.add(key);
+          const n = ok ? 2 : 1;
           if (ok) {
             o.state = "used";
             o.frame = "";
-            const patient = this.heroes().filter((x) => !x.dead && x.hp < x.maxHp).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0] ?? hero;
-            const amount = rollDice(this.rng, parseDice("1d4")).total + 2;
-            const before = patient.hp;
-            heal(patient, amount);
-            lines.push({ text: `🌿 ${hero.name} zerreibt Heilkräuter zu einem Umschlag für ${patient.name}: +${patient.hp - before} Trefferpunkte.`, glossarKeys: ["kraeuter"] });
-            return { ...h.done(this.objectRoll(hero, "Heilkräuter", check, lines), "sparkle"), hits: [{ targetId: patient.id, amount: patient.hp - before, heal: true }] };
           }
-          lines.push({ text: "Das ist … Brennnessel. Autsch, aber nichts passiert.", glossarKeys: [] });
-          return h.done(this.objectRoll(hero, "Heilkräuter", check, lines));
+          this.addItem(hero, "heilkraut", n);
+          lines.push({ text: ok ? `🌿 ${hero.name} pflückt ${n} gute Heilkräuter. (Zwei ergeben im Taschen-Tab einen Heiltrank.)` : `🌿 Viel Unkraut dabei – nur ${n} brauchbares Heilkraut.`, glossarKeys: ["kraeuter", "brauen"] });
+          return h.done(this.objectRoll(hero, "Heilkräuter", check, lines), ok ? "sparkle" : undefined);
         });
+        return;
+      }
+      case "gather": {
+        if (o.prop !== "mushrooms" && o.prop !== "mushrooms-glow" && o.prop !== "web") return;
+        const err = this.spendAction(hero);
+        if (err) return fail(err);
+        const item = o.prop === "web" ? "spinnenseide" : o.prop === "mushrooms-glow" ? "leuchtpilz" : "pilz";
+        const n = o.prop === "web" ? 1 : this.rng.int(1, 2);
+        o.state = "used";
+        o.frame = "";
+        this.addItem(hero, item, n);
+        say("Sammeln", [{ text: o.prop === "web" ? `🕸️ ${hero.name} wickelt vorsichtig Spinnenseide auf einen Stock.` : `🍄 ${hero.name} sammelt ${n} ${o.prop === "mushrooms-glow" ? "Leuchtpilz" : "Pilz"}${n > 1 ? "e" : ""} ein.`, glossarKeys: ["brauen", `gegenstand:${item}`] }], "sparkle");
         return;
       }
       case "eat": {
@@ -2211,6 +2295,455 @@ export class GameController {
     }
   }
 
+  // ---------------------------------------------------------------- brewing, ingredients, tools
+
+  private craftFor(hero: Creature, recipeId: string): string | undefined {
+    const recipe = recipeById(recipeId);
+    const inv = hero.pc?.inventory;
+    if (!recipe || !inv) return "Dieses Rezept gibt es nicht.";
+    if (hero.dead) return "Dafür ist es zu spät.";
+    if (!craft(recipe, inv)) return "Dir fehlen noch Zutaten.";
+    const lines: ExplainedLine[] = [{ text: `⚗️ ${hero.name} stellt her: ${recipe.icon} ${recipe.name}.`, glossarKeys: ["brauen", `gegenstand:${recipe.gives.itemId}`] }];
+    this.addLog(lines);
+    this.emit("lines", lines);
+    const who = { heroId: hero.id, name: hero.name, ...(hero.appearance ? { color: hero.appearance.color } : {}) };
+    this.reward(hero, { kind: "item", ...who, itemId: recipe.gives.itemId, title: itemTitle(recipe.gives.itemId), icon: recipe.icon, qty: recipe.gives.qty });
+    this.bump(hero.id, "objects");
+    this.broadcast();
+    return undefined;
+  }
+
+  private takeItem(hero: Creature, itemId: string): boolean {
+    const entry = hero.pc?.inventory.find((i) => i.itemId === itemId && i.qty > 0);
+    if (!entry) return false;
+    entry.qty--;
+    if (!entry.qty) hero.pc!.inventory = hero.pc!.inventory.filter((i) => i !== entry);
+    return true;
+  }
+
+  private pickUpGround(playerId: PlayerId, hero: Creature, use: "oil" | "bones", at: GridPos): void {
+    const fail = (reason: string) => this.sendTo(playerId, { type: "action_error", reason });
+    if (!hero.pos || Math.max(Math.abs(at.x - hero.pos.x), Math.abs(at.y - hero.pos.y)) > 1) return fail("Dafür musst du direkt daneben stehen.");
+    const i = cellIndex(this.map, at.x, at.y);
+    if (use === "oil" ? this.map.surface?.[i]?.kind !== "oil" : this.map.decals?.[i] !== "bones") return fail("Da ist nichts mehr.");
+    const err = this.spendAction(hero);
+    if (err) return fail(err);
+    if (use === "oil") delete this.map.surface![i];
+    else delete this.map.decals![i];
+    this.addItem(hero, use === "oil" ? "oelflasche" : "knochen", 1);
+    const lines: ExplainedLine[] = [{ text: use === "oil" ? `🫙 ${hero.name} füllt das Öl vom Boden in eine Flasche.` : `🦴 ${hero.name} hebt einen Knochen auf. Irgendein Hund wird sich freuen …`, glossarKeys: [`gegenstand:${use === "oil" ? "oelflasche" : "knochen"}`] }];
+    this.bump(hero.id, "objects");
+    this.publishRoll(this.objectRoll(hero, "Aufheben", undefined, lines));
+    this.addLog(lines);
+    this.afterAction();
+  }
+
+  /** Brewed potions and tinkered tools. */
+  private useCustomItem(playerId: PlayerId, hero: Creature, itemId: string, targetId?: string): void {
+    const fail = (reason: string) => this.sendTo(playerId, { type: "action_error", reason });
+    if (!hero.pc?.inventory.some((i) => i.itemId === itemId && i.qty > 0)) return fail("Das hast du nicht mehr.");
+    const target = targetId ? this.battle.creatures[targetId] : undefined;
+    const lines: ExplainedLine[] = [];
+    let hits: { targetId: string; amount: number }[] = [];
+    let title = itemTitle(itemId);
+    switch (itemId) {
+      case "leuchttrank": {
+        const err = this.spendBonus(hero);
+        if (err) return fail(err);
+        this.takeItem(hero, itemId);
+        addEffect(hero, "torch", 600, "leuchttrank");
+        lines.push({ text: `✨ ${hero.name} trinkt den Leuchttrank und leuchtet grünlich – so hell wie eine Fackel.`, glossarKeys: ["gegenstand:leuchttrank", "dunkelheit"] });
+        break;
+      }
+      case "staerketrank": {
+        const err = this.spendBonus(hero);
+        if (err) return fail(err);
+        this.takeItem(hero, itemId);
+        addEffect(hero, "helped", 100, "staerketrank");
+        lines.push({ text: `🐻 ${hero.name} trinkt den Bärenkraft-Trank. Die Muskeln spannen sich – der nächste Angriff hat Vorteil!`, glossarKeys: ["gegenstand:staerketrank", "vorteil"] });
+        break;
+      }
+      case "stolperdraht": {
+        if (!hero.pos) return;
+        const here = hero.pos;
+        if (this.map.objects.some((o) => o.x === here.x && o.y === here.y && (o.kind === "trap" || o.blocking))) return fail("Hier liegt schon etwas.");
+        const err = this.spendAction(hero);
+        if (err) return fail(err);
+        this.takeItem(hero, itemId);
+        this.map.objects.push({ id: `wire${++this.rollCounter}`, kind: "trap", variant: "wire", x: here.x, y: here.y, frame: "trap.net", blocking: false, state: "found" });
+        lines.push({ text: `🪢 ${hero.name} spannt einen Stolperdraht über den Boden. Wer da drüberläuft, fällt vielleicht hin!`, glossarKeys: ["gegenstand:stolperdraht", "hinterhalt"] });
+        break;
+      }
+      case "oelflasche": {
+        const spot = target?.pos && hero.pos && Math.max(Math.abs(target.pos.x - hero.pos.x), Math.abs(target.pos.y - hero.pos.y)) <= 4 ? target.pos : hero.pos;
+        if (!spot) return;
+        const err = this.spendAction(hero);
+        if (err) return fail(err);
+        this.takeItem(hero, itemId);
+        this.map.surface ??= {};
+        for (const p of [spot, { x: spot.x + 1, y: spot.y }, { x: spot.x, y: spot.y + 1 }]) {
+          if (this.map.cells[cellIndex(this.map, p.x, p.y)] === "floor" && !this.map.surface[cellIndex(this.map, p.x, p.y)]) this.map.surface[cellIndex(this.map, p.x, p.y)] = { kind: "oil" };
+        }
+        lines.push({ text: target && spot === target.pos ? `🫙 ${hero.name} schleudert die Ölflasche vor ${target.name}. Glitschig – und sehr brennbar!` : `🫙 ${hero.name} gießt Öl auf den Boden. Ein Funke genügt …`, glossarKeys: ["gegenstand:oelflasche", "feuer"] });
+        break;
+      }
+      case "brandflasche": {
+        if (!target || !isActive(target) || !target.pos || !hero.pos || distanceFt(hero, target) > 30) return fail("Kein Ziel in Wurfweite (6 Felder).");
+        const err = this.spendAction(hero);
+        if (err) return fail(err);
+        this.takeItem(hero, itemId);
+        title = "Brandflasche";
+        const save = savingThrow(this.rng, target, "DEX", this.sg(12));
+        const dice = rollDice(this.rng, parseDice("2d6"));
+        const dmg = save.success ? Math.floor(dice.total / 2) : dice.total;
+        lines.push({ text: `🔥 ${hero.name} wirft eine Brandflasche auf ${target.name}!`, glossarKeys: ["gegenstand:brandflasche"] });
+        lines.push(...explainCheck(this.battle, target.id, save));
+        lines.push(...explainHp(this.battle, applyDamage(this.rng, target, dmg)));
+        lines.push({ text: `💥 ${dice.dice.join(" + ")} = ${dice.total} Feuerschaden${save.success ? `, halbiert → ${dmg}` : ""}.`, glossarKeys: ["schadensart:fire"] });
+        hits = [{ targetId: target.id, amount: dmg }];
+        this.map.surface ??= {};
+        const i = cellIndex(this.map, target.pos.x, target.pos.y);
+        if (this.map.surface[i]?.kind !== "puddle") this.map.surface[i] = { kind: "fire", turns: 2 };
+        lines.push(...fireHits(this.map, this.envRng, [target.pos]).lines);
+        leaveTrace(this.map, this.envRng, target, dmg);
+        break;
+      }
+      default:
+        return;
+    }
+    this.addLog(lines);
+    this.publishRoll({ ...this.objectRoll(hero, title, undefined, lines), ...(hits.length ? { hits, fx: [{ from: hero.id, to: hits.map((x) => x.targetId), kind: "spell", element: "fire" }] } : {}) });
+    this.emit("changed");
+    this.checkWinner();
+    this.afterAction();
+  }
+
+  /** Items for brewing and tinkering on the phone's action list. */
+  private customItemChoices(me: Creature, enemies: Creature[], mine: boolean, costReason: (cost: "action" | "bonus") => string | undefined): ActionChoice[] {
+    const out: ActionChoice[] = [];
+    const inv = me.pc?.inventory ?? [];
+    const qty = (id: string) => inv.find((i) => i.itemId === id)?.qty ?? 0;
+    const combat = this.mode === "combat";
+    const notMine = mine ? undefined : "Warte, bis du dran bist.";
+    const bonus = combat && this.turnFor(me)?.bonusAction ? "bonus" : combat ? "action" : "free";
+    const add = (itemId: string, label: string, detail: string, cost: "action" | "bonus" | "free", extra: Partial<ActionChoice> = {}) => {
+      const reason = extra.reason ?? (cost === "free" ? notMine : costReason(cost));
+      out.push({ id: `item:${itemId}`, group: "item", label: `${itemIcon(itemId)} ${label} (${qty(itemId)})`, detail, glossarKey: `gegenstand:${itemId}`, cost, enabled: !reason, ...(reason ? { reason } : {}), ...extra, action: { kind: "use_item", itemId } });
+    };
+    const inReach = (ft: number) => enemies.filter((e) => e.pos && me.pos && distanceFt(me, e) <= ft);
+    const targetsOf = (list: Creature[]) => ({ targets: list.map((t) => ({ id: t.id, name: t.name, detail: `TP ${t.hp}/${t.maxHp}` })), pick: { min: 1, max: 1, repeat: false } });
+    if (qty("leuchttrank")) add("leuchttrank", "Leuchttrank trinken", "Du leuchtest wie eine Fackel", bonus);
+    if (qty("staerketrank")) add("staerketrank", "Bärenkraft-Trank trinken", "Dein nächster Angriff hat Vorteil", bonus);
+    if (qty("stolperdraht")) add("stolperdraht", "Stolperdraht hier spannen", "Gegner, die darüberlaufen, fallen vielleicht hin", combat ? "action" : "free");
+    if (qty("brandflasche")) {
+      const t = inReach(30);
+      add("brandflasche", "Brandflasche werfen", "Rettungswurf GE 12 · 2W6 Feuer, der Boden brennt · bis 6 Felder", "action", { ...(t.length ? {} : { reason: costReason("action") ?? "Kein Gegner in Wurfweite." }), ...targetsOf(t) });
+    }
+    if (qty("oelflasche")) {
+      const t = inReach(20);
+      add("oelflasche", t.length ? "Öl vor Gegner schleudern" : "Öl hier ausgießen", t.length ? "Macht eine Öllache am Gegner (bis 4 Felder) – dann Feuer dran!" : "Eine Öllache neben dir – für einen Hinterhalt", combat ? "action" : "free", t.length ? targetsOf(t) : {});
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------- companions
+
+  private mourned = new Set<string>();
+
+  companionOf(hero: Creature): Creature | undefined {
+    return Object.values(this.battle.creatures).find((c) => c.companion?.ownerId === hero.id && !c.dead);
+  }
+
+  /** New map: companions walk in beside their heroes, show their gifts, and strays may be around. */
+  private arriveWithCompanions(): void {
+    const lines: ExplainedLine[] = [];
+    for (const pet of Object.values(this.battle.creatures)) {
+      const info = pet.companion;
+      const owner = info ? this.battle.creatures[info.ownerId] : undefined;
+      if (!info || pet.dead || !owner?.pos) continue;
+      pet.pos = besideFree(this.map, this.battle, owner.pos);
+      pet.effects = [];
+      pet.conditions = [];
+      if (info.trait === "maeusejaeger") {
+        const gold = rollDice(this.envRng, parseDice("1d6")).total;
+        this.addItem(owner, "gold", gold);
+        lines.push({ text: `🐈 ${pet.name} legt ${owner.name} stolz ${gold} Münzen vor die Füße.`, glossarKeys: ["begleiter"] });
+      } else if (info.trait === "elster") {
+        const item = (["heilkraut", "pilz", "spinnenseide", "knochen", "oelflasche"] as const)[this.envRng.int(0, 4)]!;
+        this.addItem(owner, item, 1);
+        lines.push({ text: `🐦‍⬛ ${pet.name} bringt ${owner.name} etwas mit: ${itemTitle(item)}.`, glossarKeys: ["begleiter", `gegenstand:${item}`] });
+      } else if (info.trait === "spaeher") {
+        const hidden = this.map.rooms.map((_, i) => i).filter((i) => i > 0 && !this.map.explored[cellIndex(this.map, Math.floor(this.map.rooms[i]!.x + this.map.rooms[i]!.w / 2), Math.floor(this.map.rooms[i]!.y + this.map.rooms[i]!.h / 2))]);
+        const room = hidden[this.envRng.int(0, Math.max(0, hidden.length - 1))];
+        if (room !== undefined && hidden.length) {
+          const r = this.map.rooms[room]!;
+          for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (this.map.roomOf[cellIndex(this.map, x, y)] === room) this.map.explored[cellIndex(this.map, x, y)] = true;
+          lines.push({ text: `🐦‍⬛ ${pet.name} fliegt voraus und kreist über: ${r.name}.`, glossarKeys: ["begleiter"] });
+        }
+      }
+    }
+    // The kennel keeps companions healthy.
+    if (this.village.includes("zwinger")) for (const pet of Object.values(this.battle.creatures)) if (pet.companion && !pet.dead) pet.hp = pet.maxHp;
+    // A stray animal – only if somebody still has no companion.
+    if (this.heroes().some((h) => !h.dead && !this.companionOf(h))) {
+      const free = (p: GridPos) => isWalkable(this.map, p) && !Object.values(this.battle.creatures).some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
+      const heroSpots = this.heroes().flatMap((h) => (h.pos ? [h.pos] : []));
+      // The village kennel sends a dog along (first map), a travel event may promise an animal.
+      const promised: import("../shared/companions").CompanionKind | undefined = this.pendingStray ?? (this.village.includes("zwinger") && !this.kennelDone ? "dog" : undefined);
+      const lead = heroSpots[0];
+      const stray = promised && lead ? { kind: promised, pos: besideFree(this.map, this.battle, { x: lead.x + 2, y: lead.y }) } : placeStray(this.map, this.envRng, free, heroSpots);
+      if (promised) {
+        this.pendingStray = undefined;
+        this.kennelDone = true;
+      }
+      if (stray) {
+        const def = COMPANIONS[stray.kind];
+        const c = createMonster(def.monster, `wild-${++this.rollCounter}`, { name: `streunende${stray.kind === "dog" || stray.kind === "raven" || stray.kind === "wolf" ? "r" : ""} ${def.name}`, side: "neutral" });
+        c.wild = stray.kind;
+        c.pos = stray.pos;
+        this.battle.creatures[c.id] = c;
+      }
+    }
+    if (lines.length) this.addLog(lines);
+  }
+
+  /** In exploration companions trot after their hero. */
+  private companionsFollow(hero: Creature): void {
+    const pet = this.companionOf(hero);
+    if (!pet?.pos || !hero.pos || !isActive(pet)) return;
+    if (Math.max(Math.abs(pet.pos.x - hero.pos.x), Math.abs(pet.pos.y - hero.pos.y)) <= 1) return;
+    pet.pos = besideFree(this.map, this.battle, hero.pos);
+  }
+
+  /** Taming a stray: the lure is used up (a dog eats the bone either way), Animal Handling decides. */
+  private tame(playerId: PlayerId, hero: Creature, creatureId: string): void {
+    const fail = (reason: string) => this.sendTo(playerId, { type: "action_error", reason });
+    const animal = this.battle.creatures[creatureId];
+    if (!animal?.wild || animal.dead || !animal.pos || !hero.pos) return fail("Das Tier ist weg.");
+    if (Math.max(Math.abs(animal.pos.x - hero.pos.x), Math.abs(animal.pos.y - hero.pos.y)) > 1) return fail("Geh erst ganz nah heran.");
+    if (this.companionOf(hero)) return fail("Du hast schon einen Begleiter.");
+    if (this.mode === "combat") return fail("Mitten im Kampf lässt sich kein Tier zähmen.");
+    const def = COMPANIONS[animal.wild];
+    const hasLure = def.lure.itemId ? hero.pc?.inventory.some((i) => i.itemId === def.lure.itemId && i.qty > 0) : this.goldOf(hero) >= (def.lure.gold ?? 0);
+    if (!hasLure) return fail(`Dafür brauchst du: ${def.lure.label}.`);
+    const dc = this.sg(def.dc);
+    this.ask(playerId, hero, { title: `${def.name} zähmen (Mit Tieren umgehen, SG ${dc})`, sides: 20, glossarKey: "begleiter", need: rollNeed("SG", dc, sumParts(skillParts(hero, "animal-handling"))) }, () => {
+      if (def.lure.itemId) this.takeItem(hero, def.lure.itemId);
+      else this.spendGoldOf(hero, def.lure.gold ?? 0);
+      const check = skillCheck(this.rng, hero, "animal-handling", dc);
+      const lines = explainCheck(this.battle, hero.id, check);
+      if (!check.success) {
+        lines.push({ text: `${def.icon} Der ${def.name === "Katze" ? "Katze schnappt sich das Kraut" : `${def.name} schnappt sich ${def.lure.label}`} – und hält trotzdem Abstand. Vielleicht beim nächsten Mal?`, glossarKeys: ["begleiter"] });
+        return this.objectRoll(hero, "Zähmen", check, lines);
+      }
+      const taken = Object.values(this.battle.creatures).flatMap((c) => (c.companion ? [c.companion.name] : []));
+      const info = newCompanion(animal.wild!, taken, (n) => this.envRng.int(0, n - 1));
+      const pet = makeCompanion(info, hero, `pet-${hero.id}-${++this.rollCounter}`);
+      pet.pos = animal.pos;
+      delete this.battle.creatures[animal.id];
+      this.battle.creatures[pet.id] = pet;
+      const trait = traitOf(info)!;
+      lines.push({ text: `${def.icon} ${def.name === "Katze" ? "Die Katze" : `Der ${def.name}`} schmiegt sich an ${hero.name}. Ab jetzt heißt ${def.name === "Katze" ? "sie" : "er"} ${info.name}!`, glossarKeys: ["begleiter"] });
+      lines.push({ text: `✨ Gabe: ${trait.name} – ${trait.text}`, glossarKeys: ["begleiter"] });
+      this.banner({ icon: def.icon, title: `${info.name} gehört jetzt zu ${hero.name}!`, text: `${trait.name}: ${trait.text}` });
+      setTimeout(() => this.banner(undefined), 6000);
+      this.emit("fx", "sparkle", pet.pos);
+      return this.objectRoll(hero, "Zähmen", check, lines);
+    });
+  }
+
+  /** Companion gifts that act when a fight starts. */
+  private companionsAtFightStart(): void {
+    const lines: ExplainedLine[] = [];
+    for (const pet of Object.values(this.battle.creatures)) {
+      if (!pet.companion || pet.dead || !pet.pos) continue;
+      const owner = this.battle.creatures[pet.companion.ownerId];
+      if (pet.companion.trait === "glueckskatze" && owner && !owner.dead) {
+        addEffect(owner, "helped", 10, pet.id);
+        lines.push({ text: `🍀 ${pet.name} streicht ${owner.name} um die Beine – Glück für den ersten Angriff!`, glossarKeys: ["begleiter", "vorteil"] });
+      }
+      if (pet.companion.trait === "heuler") {
+        const near = Object.values(this.battle.creatures).filter((c) => c.side === "enemy" && isActive(c) && c.pos && distanceFt(pet, c) <= 30);
+        for (const e of near) addEffect(e, "distracted", 10, pet.id);
+        if (near.length) lines.push({ text: `🐺 ${pet.name} heult markerschütternd! Die Gegner zucken zusammen – der nächste Angriff auf sie hat Vorteil.`, glossarKeys: ["begleiter", "abgelenkt"] });
+      }
+    }
+    if (lines.length) this.addLog(lines);
+  }
+
+  /** A fallen companion is mourned once (and gone for good). */
+  private mournCompanions(): void {
+    for (const pet of Object.values(this.battle.creatures)) {
+      if (!pet.companion || !pet.dead || this.mourned.has(pet.id)) continue;
+      this.mourned.add(pet.id);
+      const owner = this.battle.creatures[pet.companion.ownerId];
+      const def = COMPANIONS[pet.companion.kind];
+      const lines: ExplainedLine[] = [{ text: `💔 ${pet.name} ist gefallen. ${owner ? `${owner.name} wird ${def.name === "Katze" ? "sie" : "ihn"} nie vergessen.` : ""}`, glossarKeys: ["begleiter"] }];
+      this.addLog(lines);
+      this.emit("lines", lines);
+      this.banner({ icon: "💔", title: `${pet.name} ist gefallen`, text: `${def.icon} Ein treuer Begleiter bis zuletzt.` });
+      setTimeout(() => this.banner(undefined), 6000);
+    }
+  }
+
+  // ---------------------------------------------------------------- monsters and the room
+
+  /** Buildings of the home village (set by the board, src/shared/homeland.ts). */
+  village: string[] = [];
+  /** The temple's blessing is used once per adventure. */
+  private templeUsed = false;
+  /** The kennel's dog waits only at the adventure's first map. */
+  private kennelDone = false;
+  /** A travel event promised a stray animal at the next map. */
+  pendingStray: import("../shared/companions").CompanionKind | undefined;
+
+  /** Temple: the first hero who goes down this adventure gets straight back up. */
+  private templeBlessing(): void {
+    if (this.templeUsed || !this.village.includes("tempel")) return;
+    const down = this.heroes().find((h) => h.hp === 0 && !h.dead);
+    if (!down) return;
+    this.templeUsed = true;
+    const amount = rollDice(this.envRng, parseDice("1d8")).total + 2;
+    heal(down, amount);
+    const lines: ExplainedLine[] = [{ text: `⛪ Die Gebete aus eurem Heimatdorf wirken: ${down.name} steht wieder auf (+${amount} Trefferpunkte)!`, glossarKeys: ["heimatdorf"] }];
+    this.addLog(lines);
+    this.publishRoll({ ...this.objectRoll(down, "Tempelsegen", undefined, lines), hits: [{ targetId: down.id, amount, heal: true }] });
+  }
+
+  /** The boss fight's arena (it changes as the boss weakens). */
+  private arena: ArenaState | undefined;
+
+  private startArena(): void {
+    const boss = [...this.bossIds].map((id) => this.battle.creatures[id]).find((c) => c && !c.dead);
+    this.arena = boss ? arenaFor(boss) : undefined;
+  }
+
+  private arenaTick(): void {
+    if (!this.arena || this.mode !== "combat") return;
+    const r = arenaRound(this.arena, this.map, this.battle, this.envRng, this.sg(12));
+    if (r.banner) {
+      this.banner(r.banner);
+      setTimeout(() => this.banner(undefined), 7000);
+      this.emit("fx", "shake", undefined);
+    }
+    this.syncWorld();
+    const boss = this.battle.creatures[this.arena.bossId];
+    if (r.lines.length && boss) this.publishWorld(boss, "Die Arena", r);
+    else this.emit("changed");
+  }
+
+  /** Tricks each monster already used this fight (so they don't repeat every turn). */
+  private tricksUsed = new Set<string>();
+
+  /**
+   * A monster uses the furniture. Returns true if that took its action
+   * (flipping a table is quick and does not).
+   */
+  private monsterTrick(m: Creature): boolean {
+    if (!m.pos || !isActive(m) || m.side !== "enemy" || this.envRng.next() > 0.5) return false;
+    const heroes = Object.values(this.battle.creatures).filter((c) => c.side === "party" && isActive(c) && c.pos);
+    if (!heroes.length) return false;
+    const near = (a: GridPos, b: GridPos, d: number) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) <= d;
+    const props = this.map.objects.filter((o) => o.kind === "prop" && o.state !== "used");
+    const smart = m.abilities.INT >= 5;
+    const publish = (title: string, lines: ExplainedLine[], hits: { targetId: string; amount: number }[] = [], fx?: "puff" | "shake" | "sparkle" | "splash", at?: GridPos) => {
+      this.addLog(lines);
+      this.publishRoll({ ...this.objectRoll(m, title, undefined, lines), ...(hits.length ? { hits } : {}) });
+      if (fx) this.emit("fx", fx, at);
+    };
+    const once = (what: string) => {
+      const k = `${m.id}:${what}`;
+      if (this.tricksUsed.has(k)) return false;
+      this.tricksUsed.add(k);
+      return true;
+    };
+
+    // 1. Duck behind a table when the heroes shoot from afar (free).
+    const shooters = heroes.filter((h) => h.attacks.some((a) => a.kind === "ranged" || a.thrown) || (h.pc?.spells.length ?? 0) > 0);
+    const table = props.find((o) => o.prop === "table" && near(o, m.pos!, 1));
+    if (smart && m.creatureType === "humanoid" && table && shooters.some((h) => !near(h.pos!, m.pos!, 1)) && once("flip")) {
+      table.prop = "table-flipped";
+      table.frame = "table.flipped";
+      this.syncWorld();
+      publish("Tisch umgeworfen", [{ text: `🪑 ${m.name} tritt den Tisch um und duckt sich dahinter – volle Deckung gegen Fernangriffe!`, glossarKeys: ["deckung", "tisch"] }], [], "puff", table);
+      return false;
+    }
+
+    // 2. Tip a burning brazier towards the heroes.
+    const brazier = props.find((o) => o.prop === "brazier" && o.variant !== "out" && near(o, m.pos!, 1));
+    const victim = brazier && heroes.find((h) => near(h.pos!, brazier, 3));
+    if (smart && brazier && victim && once("brazier")) {
+      const r = spillCoals(this.map, this.envRng, brazier, victim.pos!);
+      const lines: ExplainedLine[] = [{ text: `🔥 ${m.name} stößt das Kohlebecken um!`, glossarKeys: ["feuer"] }, ...r.lines];
+      const hits: { targetId: string; amount: number }[] = [];
+      for (const c of Object.values(this.battle.creatures)) {
+        if (!c.pos || !isActive(c) || surfaceKind(this.map, c.pos) !== "fire") continue;
+        const b = burnCreature(this.envRng, c);
+        lines.push(...b.lines);
+        hits.push(...b.hits);
+      }
+      this.syncWorld();
+      publish("Kohlebecken", lines, hits, "shake", brazier);
+      return true;
+    }
+
+    // 3. Throw a torch into oil, hay or webs next to a hero.
+    const firebugs = ["kobold", "goblin", "cultist", "cult-fanatic", "bandit", "bandit-captain", "thug"];
+    if (m.monsterId && firebugs.includes(m.monsterId) && this.envRng.next() < 0.6) {
+      const fuel = (p: GridPos) => surfaceKind(this.map, p) === "oil" || props.some((o) => o.x === p.x && o.y === p.y && propDef(o)?.flammable && ["hay", "web", "bush", "thorns"].includes(o.prop ?? ""));
+      const spot = heroes
+        .flatMap((h) => [...Array(9).keys()].map((k) => ({ x: h.pos!.x + (k % 3) - 1, y: h.pos!.y + Math.floor(k / 3) - 1 })))
+        .find((p) => fuel(p) && near(p, m.pos!, 6) && !Object.values(this.battle.creatures).some((c) => c.side === "enemy" && c.pos && near(c.pos, p, 1)));
+      if (spot && once("torch")) {
+        const r = fireHits(this.map, this.envRng, [spot]);
+        const lines: ExplainedLine[] = [{ text: `🔥 ${m.name} schleudert eine brennende Fackel!`, glossarKeys: ["feuer"] }, ...r.lines];
+        const hits: { targetId: string; amount: number }[] = [];
+        for (const c of creaturesOn(this.battle, [spot])) {
+          if (surfaceKind(this.map, c.pos) !== "fire" || !isActive(c)) continue;
+          const b = burnCreature(this.envRng, c);
+          lines.push(...b.lines);
+          hits.push(...b.hits);
+        }
+        this.syncWorld();
+        publish("Brennende Fackel", lines, hits, "puff", spot);
+        return true;
+      }
+    }
+
+    // 4. Big brutes hurl crates, barrels, stools and pots.
+    const big = ["large", "huge", "gargantuan"].includes(m.size) && m.abilities.STR >= 16;
+    const missile = big ? this.map.objects.find((o) => o.state !== "used" && near(o, m.pos!, 1) && (o.kind === "barrel" || (o.kind === "prop" && ["crate", "stool", "pot"].includes(o.prop ?? "")))) : undefined;
+    const aim = missile && heroes.filter((h) => !near(h.pos!, m.pos!, 1) && near(h.pos!, m.pos!, 6)).sort((a, b) => a.hp - b.hp)[0];
+    if (missile && aim) {
+      const str = Math.floor((m.abilities.STR - 10) / 2);
+      const option: AttackOption = {
+        id: "hurl",
+        sourceId: "improvised",
+        source: "weapon",
+        kind: "ranged",
+        toHit: [{ label: "Stärke", value: str, glossarKey: "staerke" }, { label: "Übung", value: m.proficiencyBonus, glossarKey: "uebungsbonus" }],
+        damage: [{ dice: "2d6", type: "bludgeoning" }],
+        damageBonus: [{ label: "Stärke", value: str, glossarKey: "staerke" }],
+        reachFt: 5,
+        rangeFt: { normal: 30 },
+      };
+      const what = missile.kind === "barrel" ? "ein Fass" : missile.prop === "crate" ? "eine Kiste" : missile.prop === "pot" ? "einen Tonkrug" : "einen Hocker";
+      missile.state = "used";
+      missile.blocking = false;
+      missile.frame = missile.kind === "barrel" ? "" : missile.prop === "pot" ? "pot.shards" : "";
+      const attack = resolveAttack(this.rng, this.battle, m, aim, option);
+      const roll = this.outcomeToRoll(m, `${m.name} wirft ${what}`, 20, { ok: true, actorId: m.id, cost: "action", kind: "attack", attack });
+      if (roll.lines[0]) roll.lines[0] = { text: `💪 ${m.name} reißt ${what} hoch und schleudert es auf ${aim.name}!`, glossarKeys: ["werfen", "angriffswurf"] };
+      this.map.decals ??= {};
+      this.map.decals[cellIndex(this.map, aim.pos!.x, aim.pos!.y)] = "debris";
+      this.addLog(roll.lines);
+      this.publishRoll(roll);
+      this.syncWorld();
+      return true;
+    }
+    return false;
+  }
+
   /** Takes gold from this hero (or, if they have too little, from the group). */
   private spendGoldOf(hero: Creature, amount: number): boolean {
     if (this.goldOf(hero) >= amount) {
@@ -2281,10 +2814,14 @@ export class GameController {
         if (!tried) add("search", "📚 Im Bücherregal stöbern", "Nachforschungen SG 12 · Wissen, Hinweise, Verstecktes", "buecherregal", combat ? "action" : "free", combat ? { reason: "Dafür ist im Kampf keine Zeit." } : {});
         break;
       case "herbs":
-        if (!combat && !tried) add("herbs", "🌿 Heilkräuter sammeln", "Heilkunde SG 10 · heilt den am schwersten Verletzten (1W4+2)", "kraeuter", "free");
+        if (!combat && !tried) add("herbs", "🌿 Heilkräuter sammeln", "Heilkunde SG 10 · Zutat für Heiltränke", "kraeuter", "free");
+        break;
+      case "web":
+        add("gather", "🕸️ Spinnenseide sammeln", "Zutat für Stolperdraht und Brandflasche", "brauen", combat ? "action" : "free");
         break;
       case "mushrooms":
       case "mushrooms-glow":
+        add("gather", o.prop === "mushrooms-glow" ? "✨ Leuchtpilze sammeln" : "🍄 Pilze sammeln", "Zutat zum Brauen (Taschen-Tab)", "brauen", combat ? "action" : "free");
         if (!tried) add("eat", o.prop === "mushrooms-glow" ? "🍄 Leuchtpilz essen" : "🍄 Pilz probieren", o.prop === "mushrooms-glow" ? "Man sagt, man leuchtet danach …" : "Lecker, giftig oder komisch? Probier's aus!", "pilze", combat ? "action" : "free");
         break;
       case "candles":
@@ -2314,7 +2851,9 @@ export class GameController {
       if (turn.actions <= 0) return { error: "Du hast deine Aktion schon benutzt." };
       turn.actions--;
     }
-    const check = skillCheck(this.rng, hero, "perception", this.sg(LOOK_DC));
+    // A dog with a keen nose sniffs along.
+    const nose = this.companionOf(hero)?.companion?.trait === "spuernase" ? this.companionOf(hero) : undefined;
+    const check = skillCheck(this.rng, hero, "perception", this.sg(LOOK_DC), nose ? { reasons: [advantage(`${nose.name} schnüffelt mit (Spürnase)`, "begleiter")] } : {});
     const lines = explainCheck(this.battle, hero.id, check);
     const roomIndex = hero.pos ? (this.map.roomOf[cellIndex(this.map, hero.pos.x, hero.pos.y)] ?? -1) : -1;
     const traps = this.map.objects.filter((o) => o.kind === "trap" && o.state === "hidden" && (roomIndex < 0 || o.roomId === this.map.rooms[roomIndex]?.id));
@@ -2381,6 +2920,8 @@ export class GameController {
     this.checkGoals();
     if (this.training) for (const h of this.heroes()) if (h.hp === 0 && !h.dead) h.stable = true;
     this.syncWorld();
+    this.mournCompanions();
+    this.templeBlessing();
     for (const hero of this.heroes()) if (hero.playerId) this.sendView(hero.playerId);
     this.emit("changed");
     const ready = this.waiters.filter((w) => w.pred());
@@ -2432,6 +2973,12 @@ export class GameController {
       party: this.heroes().filter((h) => h.id !== me.id && !h.dead).map((h) => ({ id: h.id, name: h.name, ...(h.appearance ? { color: h.appearance.color } : {}) })),
     };
     if (this.pending?.playerId === playerId) view.pendingRoll = this.pending.prompt;
+    const pet = Object.values(this.battle.creatures).find((c) => c.companion?.ownerId === me.id && (!c.dead || this.mourned.has(c.id)));
+    if (pet?.companion) {
+      const def = COMPANIONS[pet.companion.kind];
+      const trait = traitOf(pet.companion);
+      view.companion = { icon: def.icon, kind: def.name, name: pet.name, trait: trait?.name ?? "", traitText: trait?.text ?? "", hp: pet.hp, maxHp: pet.maxHp, dead: pet.dead };
+    }
     const camp = this.campView(me);
     if (camp) view.camp = camp;
     const goal = this.goalView(me);
@@ -2481,9 +3028,10 @@ export class GameController {
         frames.push(seenCell ? (map.frames[i] ?? "") : "");
         overlays.push(seenCell ? (map.overlays[i] ?? null) : null);
         const surface = map.surface?.[i]?.kind;
-        ground.push(seenCell ? [map.decals?.[i], surface === "fire" ? "fire.0" : surface].filter(Boolean).join("|") : "");
+        const groundFrame = surface === "fire" ? "fire.0" : surface === "mud" ? "floor.mud.0" : surface === "warn" ? "danger" : surface;
+        ground.push(seenCell ? [map.decals?.[i], groundFrame].filter(Boolean).join("|") : "");
         const k = `${x},${y}`;
-        marks += !seenCell ? "." : surface === "fire" ? "f" : surface === "ice" ? "i" : high.has(k) ? "h" : difficult.has(k) && map.cells[i] !== "water" ? "d" : t?.cover[k] ? "c" : ".";
+        marks += !seenCell ? "." : surface === "fire" || surface === "warn" ? "f" : surface === "ice" ? "i" : high.has(k) ? "h" : difficult.has(k) && map.cells[i] !== "water" ? "d" : t?.cover[k] ? "c" : ".";
       }
     }
     const inWindow = (p: GridPos) => p.x >= x0 && p.y >= y0 && p.x < x0 + w && p.y < y0 + h;
@@ -2729,6 +3277,10 @@ export class GameController {
     });
   }
 
+  isBoss(id: string): boolean {
+    return this.bossIds.has(id);
+  }
+
   private alliesInPlay(): string[] {
     return Object.values(this.battle.creatures).filter((c) => c.side === "party" && c.kind === "monster" && !c.dead).map((c) => c.id);
   }
@@ -2861,8 +3413,13 @@ export class GameController {
    */
   /** Fire and ice age by one step; returns whether anything was burning or frozen. */
   private tickSurfaces(): boolean {
+    const weathery = this.map.weather === "rain" || this.map.weather === "snow";
+    if (weathery) weatherTick(this.map, this.envRng);
     const surface = this.map.surface;
-    if (!surface || !Object.values(surface).some((x) => x.kind === "fire" || x.kind === "ice")) return false;
+    if (!surface || !Object.values(surface).some((x) => x.kind === "fire" || x.kind === "ice")) {
+      if (weathery) this.emit("changed");
+      return weathery;
+    }
     const r = tickWorldSurface(this.map, this.envRng);
     if (r.lines.length) {
       this.addLog(r.lines);
@@ -2882,7 +3439,7 @@ export class GameController {
     const heroNear = (p: GridPos, d: number) => heroes.some((h) => Math.max(Math.abs(h.pos!.x - p.x), Math.abs(h.pos!.y - p.y)) <= d);
     for (const c of creatures) {
       if (!c.pos || c.dead) continue;
-      if (c.id.startsWith("npc-") && c.side === "neutral") {
+      if ((c.id.startsWith("npc-") || c.wild) && c.side === "neutral") {
         if (!this.npcHomes.has(c.id)) this.npcHomes.set(c.id, { ...c.pos });
         // Stays put while someone talks to them; otherwise strolls now and then.
         if (heroNear(c.pos, 2) || this.rng.next() > 0.25) continue;
@@ -2984,7 +3541,10 @@ export class GameController {
     this.addLog(lines);
     this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: combat.order[0]!.creatureId, title: "Kampf!", sides: 20, dice: [], kept: 0, lines });
     this.emit("combat", true);
+    this.tricksUsed.clear();
+    this.startArena();
     this.grantBoons();
+    this.companionsAtFightStart();
     const first = this.active();
     if (first && !isActive(first)) {
       this.endTurn();
@@ -3000,6 +3560,7 @@ export class GameController {
     if (this.monsterTimer) clearTimeout(this.monsterTimer);
     this.pending = undefined;
     this.session.map = map;
+    this.seedEnv(map);
     this.findsThisMap = 0;
     this.firstAidThisMap.clear();
     this.npcHomes.clear();
@@ -3007,7 +3568,8 @@ export class GameController {
     this.restedAtFire.clear();
     this.patrolDir.clear();
     this.staged = undefined;
-    for (const c of Object.values(this.battle.creatures)) if (c.kind === "monster") delete this.battle.creatures[c.id];
+    // Monsters stay behind – tamed companions come along (the fallen ones don't).
+    for (const c of Object.values(this.battle.creatures)) if (c.kind === "monster" && (!c.companion || c.dead)) delete this.battle.creatures[c.id];
     const start = map.rooms[0]!;
     const exit = moduleExits(getModule(start.moduleId))[0]?.cells[0] ?? { x: 1, y: 1 };
     const heroSpots = partyStartSpots(map, this.heroes().length, { x: start.x + exit.x, y: start.y + exit.y });
@@ -3025,6 +3587,12 @@ export class GameController {
       this.battle.creatures[c.id] = c;
     }
     for (const h of this.heroes()) if (h.pos) revealAround(this.map, h.pos);
+    // The village's watchtower: scouts have seen every room already.
+    if (this.village.includes("wachturm")) map.explored.fill(true);
+    this.arriveWithCompanions();
+    const weather = WEATHER_NOTE[map.weather ?? ""];
+    if (weather && map.rooms.some((r) => THEMES[r.theme].outdoor)) this.addLog([{ text: weather, glossarKeys: ["wetter"] }]);
+    if (map.weather === "snow") weatherTick(map, this.envRng);
     this.syncWorld();
     this.mode = "explore";
     delete this.battle.combat;
@@ -3069,6 +3637,7 @@ export class GameController {
       next.playerId = h.playerId;
       next.appearance = h.appearance;
       next.pos = h.pos;
+      if (h.traits.includes("dorfschmiede")) next.traits.push("dorfschmiede");
       // Keep found items (potions, gold, the lance).
       for (const item of h.pc.inventory) {
         const own = next.pc!.inventory.find((i) => i.itemId === item.itemId);
@@ -3233,6 +3802,8 @@ export class GameController {
       });
     }
 
+    choices.push(...this.customItemChoices(me, enemies, mine, costReason));
+
     // Night: light a torch (free) – otherwise enemies in the dark are hard to hit.
     if (this.map.dark && pc.inventory.some((i) => i.itemId === "torch" && i.qty > 0)) {
       const lit = hasEffect(me, "torch");
@@ -3374,6 +3945,28 @@ export class GameController {
         choices.push({ id: `door:${o.id}`, group: "look", label: o.state === "open" ? "Tür schließen" : "Tür öffnen", detail: "Direkt neben dir · kostet nichts", glossarKey: "aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
       }
     }
+    // Stray animals next to you can be tamed.
+    for (const c of Object.values(this.battle.creatures)) {
+      if (!c.wild || c.dead || !c.pos || !me.pos || Math.max(Math.abs(c.pos.x - me.pos.x), Math.abs(c.pos.y - me.pos.y)) > 1) continue;
+      const def = COMPANIONS[c.wild];
+      const has = def.lure.itemId ? (pc.inventory.find((i) => i.itemId === def.lure.itemId)?.qty ?? 0) > 0 : this.goldOf(me) >= (def.lure.gold ?? 0);
+      const reason = notMine ?? (this.mode === "combat" ? "Nicht mitten im Kampf." : this.companionOf(me) ? "Du hast schon einen Begleiter." : has ? undefined : `Dafür brauchst du: ${def.lure.label}.`);
+      choices.push({ id: `tame:${c.id}`, group: "look", label: `${def.icon} ${def.name} zähmen`, detail: `Mit Tieren umgehen SG ${this.sg(def.dc)} · kostet ${def.lure.label}`, glossarKey: "begleiter", cost: "free", enabled: !reason, ...(reason ? { reason } : {}), recommended: !reason, action: { kind: "tame", creatureId: c.id } });
+    }
+    // Oil puddles and bones next to you can be picked up.
+    if (me.pos) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const p = { x: me.pos.x + dx, y: me.pos.y + dy };
+          if (p.x < 0 || p.y < 0 || p.x >= this.map.width || p.y >= this.map.height) continue;
+          const i = cellIndex(this.map, p.x, p.y);
+          const cost = this.mode === "combat" ? "action" : "free";
+          const reason = cost === "free" ? notMine : costReason("action");
+          if (this.map.surface?.[i]?.kind === "oil" && !choices.some((c) => c.id === "ground:oil")) choices.push({ id: "ground:oil", group: "look", label: "🫙 Öl abfüllen", detail: "Eine Ölflasche zum Ausgießen oder Brauen", glossarKey: "gegenstand:oelflasche", cost, enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "ground", use: "oil", x: p.x, y: p.y } });
+          if (this.map.decals?.[i] === "bones" && !choices.some((c) => c.id === "ground:bones")) choices.push({ id: "ground:bones", group: "look", label: "🦴 Knochen aufheben", detail: "Damit kann man Hunde und Wölfe zähmen", glossarKey: "gegenstand:knochen", cost, enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "ground", use: "bones", x: p.x, y: p.y } });
+        }
+      }
+    }
     if (this.mode === "combat") {
       const reason = costReason("action");
       choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: "Ein Trick: ablenken, umstoßen, bestechen, betören … · kostet deine Aktion", glossarKey: "freie_aktion", cost: "action", enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "free_text", text: "" } });
@@ -3408,6 +4001,17 @@ export class GameController {
 }
 
 /** Hit point changes of an action, for floating numbers on the board. */
+/** Brewed and tinkered things with their own use (see useCustomItem). */
+const CUSTOM_ITEMS = ["leuchttrank", "staerketrank", "stolperdraht", "oelflasche", "brandflasche"];
+
+/** What the weather means, told when a map begins. */
+const WEATHER_NOTE: Record<string, string> = {
+  rain: "🌧️ Es regnet: Draußen bilden sich Pfützen, und Feuer erlischt schnell.",
+  fog: "🌫️ Dichter Nebel: Draußen haben Fernangriffe auf mehr als 6 Felder Nachteil.",
+  wind: "🌬️ Starker Wind: Draußen treffen Pfeile und Bolzen schlechter (−2), und Feuer breitet sich schneller aus.",
+  snow: "❄️ Es schneit: Pfützen draußen sind zu Eis gefroren – Vorsicht, rutschig!",
+};
+
 /** A coin for the wishing well. */
 const WISH_GOLD = 5;
 

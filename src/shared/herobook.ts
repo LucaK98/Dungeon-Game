@@ -6,6 +6,7 @@ import { GEAR } from "../data/gear";
 import type { CharacterProfile } from "./lobby";
 import { sanitizeBadges, sanitizeTotals, type HeroTotals } from "./achievements";
 import { sanitizeImprovements } from "./improvements";
+import { sanitizeCompanion, type CompanionInfo } from "./companions";
 
 export interface HeroLegacy {
   level: number;
@@ -19,6 +20,8 @@ export interface HeroLegacy {
   totals?: HeroTotals;
   /** Level-4 choices ("asi:STR+2", "talent:zaeh"). */
   improvements?: string[];
+  /** The tamed animal that goes along (gone for good if it fell). */
+  companion?: CompanionInfo;
 }
 
 export interface SavedHero {
@@ -43,6 +46,7 @@ export function sanitizeLegacy(raw: unknown): HeroLegacy | undefined {
   const level = num(l.level, 1, 5);
   const improvements = sanitizeImprovements(l.improvements, level);
   const totals = sanitizeTotals(l.totals);
+  const companion = sanitizeCompanion(l.companion);
   return {
     level,
     gold: num(l.gold, 0, 999),
@@ -52,6 +56,7 @@ export function sanitizeLegacy(raw: unknown): HeroLegacy | undefined {
     ...(badges.length ? { badges } : {}),
     ...(Object.keys(totals).length ? { totals } : {}),
     ...(improvements.length ? { improvements } : {}),
+    ...(companion ? { companion } : {}),
   };
 }
 

@@ -100,8 +100,21 @@ export interface OrderEntry {
   active: boolean;
 }
 
+export interface CompanionView {
+  icon: string;
+  kind: string;
+  name: string;
+  trait: string;
+  traitText: string;
+  hp: number;
+  maxHp: number;
+  dead: boolean;
+}
+
 export interface PlayerView {
   me: Creature;
+  /** The hero's tamed animal (if any). */
+  companion?: CompanionView;
   mode: "explore" | "combat";
   round: number;
   turn: TurnInfo;

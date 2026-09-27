@@ -194,7 +194,17 @@
     "healers-kit": "Heilerausrüstung",
     "gold": "Goldmünzen",
     "drachenlanze": "Drachenlanze",
-    "silberstaub": "Silberstaub"
+    "silberstaub": "Silberstaub",
+    "heilkraut": "Heilkraut",
+    "pilz": "Pilz",
+    "leuchtpilz": "Leuchtpilz",
+    "knochen": "Knochen",
+    "spinnenseide": "Spinnenseide",
+    "oelflasche": "Ölflasche",
+    "brandflasche": "Brandflasche",
+    "leuchttrank": "Leuchttrank",
+    "staerketrank": "Bärenkraft-Trank",
+    "stolperdraht": "Stolperdraht"
   },
   "spells": {
     "fire-bolt": "Feuerpfeil",
@@ -218,6 +228,9 @@
     "hunters-mark": "Mal des Jägers"
   },
   "monsters": {
+    "mastiff": "Hund",
+    "cat": "Katze",
+    "raven": "Rabe",
     "rat": "Ratte",
     "giant-rat": "Riesenratte",
     "swarm-of-rats": "Rattenschwarm",
@@ -253,6 +266,7 @@
   },
   "monsterActions": {
     "bite": "Biss",
+    "beak": "Schnabel",
     "bites": "Bisse",
     "claws": "Klauen",
     "club": "Knüppel",

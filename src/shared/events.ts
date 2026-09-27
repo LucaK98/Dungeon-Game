@@ -31,6 +31,12 @@ export type PlayerAction =
   | { kind: "check"; skill: SkillId }
   | { kind: "interact"; objectId: string; targetId?: string; /** Props: which of their uses ("flip", "throw", "smash", …). */ use?: string }
   | { kind: "free_text"; text: string }
+  /** Brew or tinker something from ingredients (allowed at any time, costs no action). */
+  | { kind: "craft"; recipe: string }
+  /** Lure a stray animal to become your companion. */
+  | { kind: "tame"; creatureId: string }
+  /** Pick something up from the floor next to you: oil from a puddle, bones. */
+  | { kind: "ground"; use: "oil" | "bones"; x: number; y: number }
   /** "Was könnte ich tun?" – asks the game master for ideas (answered with "suggestions"). */
   | { kind: "suggest" }
   /** "Frag den Spielleiter": a rules question (answered with "rules_answer", only to this phone). */

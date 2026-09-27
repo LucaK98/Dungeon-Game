@@ -5,6 +5,7 @@
  */
 import type { Terrain } from "../shared/game";
 import type { DungeonMap, MapObject, PropId } from "../shared/map";
+import { THEMES } from "./modules";
 
 export interface LightDef {
   color: number;
@@ -81,12 +82,20 @@ export function propLight(o: MapObject): LightDef | undefined {
   return def.light;
 }
 
+/** Under open sky (weather applies): rooms of outdoor themes and paths between them. */
+export function isOutdoorCell(map: DungeonMap, i: number): boolean {
+  const room = map.roomOf[i] ?? -1;
+  if (room >= 0) return !!map.rooms[room] && THEMES[map.rooms[room]!.theme].outdoor;
+  return /^(floor\.(path|grass|dirt)|wall\.hedge)/.test(map.frames[i] ?? "");
+}
+
 /** The rules' view of the map's furniture and ground (see engine/terrain.ts). */
 export function terrainOf(map: DungeonMap): Terrain {
   const difficult = new Set<string>();
   const cover: Record<string, number> = {};
   const high = new Set<string>();
   const hazard = new Set<string>();
+  const snares: string[] = [];
   for (let i = 0; i < map.cells.length; i++) {
     if (map.cells[i] === "water") difficult.add(`${i % map.width},${Math.floor(i / map.width)}`);
   }
@@ -98,16 +107,20 @@ export function terrainOf(map: DungeonMap): Terrain {
       if (def.difficult) difficult.add(k);
       if (def.cover) cover[k] = Math.max(cover[k] ?? 0, def.cover);
       if (def.high) high.add(k);
-    } else if (o.kind === "stairs-up" || o.kind === "stairs-down") high.add(k);
+    } else if (o.kind === "trap" && o.variant === "wire" && o.state === "found") snares.push(k);
+    else if (o.kind === "stairs-up" || o.kind === "stairs-down") high.add(k);
     else if (OBJECT_COVER[o.kind] && o.blocking) cover[k] = Math.max(cover[k] ?? 0, OBJECT_COVER[o.kind]!);
   }
   for (const [key, s] of Object.entries(map.surface ?? {})) {
     const i = Number(key);
     const k = `${i % map.width},${Math.floor(i / map.width)}`;
-    if (s.kind === "fire") hazard.add(k);
-    if (s.kind === "ice") difficult.add(k);
+    if (s.kind === "fire" || s.kind === "warn") hazard.add(k);
+    if (s.kind === "ice" || s.kind === "mud") difficult.add(k);
   }
-  return { difficult: [...difficult], cover, high: [...high], hazard: [...hazard] };
+  const weather = map.weather === "fog" || map.weather === "wind" ? map.weather : undefined;
+  const outdoor: string[] = [];
+  if (weather) for (let i = 0; i < map.cells.length; i++) if (map.cells[i] !== "void" && map.cells[i] !== "wall" && isOutdoorCell(map, i)) outdoor.push(`${i % map.width},${Math.floor(i / map.width)}`);
+  return { difficult: [...difficult], cover, high: [...high], hazard: [...hazard], ...(snares.length ? { snares } : {}), ...(weather && outdoor.length ? { weather, outdoor } : {}) };
 }
 
 /** Prop standing on a square (if any). */

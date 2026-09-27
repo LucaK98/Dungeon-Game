@@ -1993,5 +1993,158 @@
       "web-sense",
       "web-walker"
     ]
+  },
+  {
+    "id": "mastiff",
+    "size": "medium",
+    "type": "beast",
+    "ac": 12,
+    "hp": 5,
+    "hitDice": "1d8+1",
+    "speedFt": {
+      "walk": 40
+    },
+    "abilities": {
+      "STR": 13,
+      "DEX": 14,
+      "CON": 12,
+      "INT": 3,
+      "WIS": 12,
+      "CHA": 7
+    },
+    "cr": 0.125,
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "perception": 3
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 13,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "bite",
+        "kind": "melee",
+        "attackBonus": 3,
+        "damage": [
+          {
+            "dice": "1d6+1",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "keen-hearing-and-smell"
+    ]
+  },
+  {
+    "id": "cat",
+    "size": "tiny",
+    "type": "beast",
+    "ac": 12,
+    "hp": 2,
+    "hitDice": "1d4",
+    "speedFt": {
+      "walk": 40
+    },
+    "abilities": {
+      "STR": 3,
+      "DEX": 15,
+      "CON": 10,
+      "INT": 3,
+      "WIS": 12,
+      "CHA": 7
+    },
+    "cr": 0,
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "perception": 3,
+      "stealth": 4
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 13,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "claws",
+        "kind": "melee",
+        "attackBonus": 0,
+        "damage": [
+          {
+            "dice": "1",
+            "type": "slashing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": [
+      "keen-smell"
+    ]
+  },
+  {
+    "id": "raven",
+    "size": "tiny",
+    "type": "beast",
+    "ac": 12,
+    "hp": 1,
+    "hitDice": "1d4-1",
+    "speedFt": {
+      "walk": 10,
+      "fly": 50
+    },
+    "abilities": {
+      "STR": 2,
+      "DEX": 14,
+      "CON": 8,
+      "INT": 2,
+      "WIS": 12,
+      "CHA": 6
+    },
+    "cr": 0,
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "saves": {},
+    "skills": {
+      "perception": 3
+    },
+    "darkvisionFt": 0,
+    "passivePerception": 13,
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "resistsNonmagical": false,
+    "immuneNonmagical": false,
+    "conditionImmunities": [],
+    "actions": [
+      {
+        "id": "beak",
+        "kind": "melee",
+        "attackBonus": 4,
+        "damage": [
+          {
+            "dice": "1",
+            "type": "piercing"
+          }
+        ],
+        "reachFt": 5
+      }
+    ],
+    "traits": []
   }
 ]

@@ -314,6 +314,31 @@ export class World {
     } else game.engage(false);
     return done;
   }
+
+  /**
+   * Before the boss fight: the boss has not noticed the heroes yet. They get a moment to prepare –
+   * pour oil, set tripwires, flip tables, drink potions, take position – then strike when everyone is ready.
+   * Walking too close wakes the boss early.
+   */
+  async ambushFight(groups: MonsterGroup[], allies: { monster: string; name: string }[], seconds = 150): Promise<{ winner: "party" | "enemy"; spawned: Creature[] }> {
+    const game = this.game;
+    const { spawned, done } = game.stageFight(groups, "asleep", { allies });
+    if (!spawned.length) return done;
+    const boss = spawned.find((m) => game.isBoss(m.id)) ?? spawned[0]!;
+    game.narrate([
+      {
+        text: `🤫 ${boss.name} hat euch noch nicht bemerkt. Ihr habt einen Moment, um einen Hinterhalt vorzubereiten!`,
+        tip: { key: "hinterhalt", text: "Gießt Öl aus, spannt Stolperdrähte, werft Tische als Deckung um, trinkt Tränke, stellt euch auf erhöhte Plätze. Kommt dem Gegner nicht zu nah! Wenn alle bereit sind: „Losschlagen!“." },
+      },
+    ]);
+    game.banner({ icon: "🤫", title: "Hinterhalt vorbereiten", text: `${boss.name} ahnt nichts – bereitet euch vor. Nicht zu nah herangehen!` });
+    const expire = setTimeout(() => game.engage(false, "⏳ Genug gewartet – der Gegner wittert euch! Der Kampf beginnt."), seconds * 1000);
+    await game.choose([{ id: "ambush:go", label: "⚔️ Bereit – losschlagen!", detail: "Stimmt ab, wenn alles vorbereitet ist." }], { vote: true });
+    clearTimeout(expire);
+    game.banner(undefined);
+    if (game.hasStagedFight) game.engage(false, "⚔️ Der Hinterhalt ist gestellt – jetzt!");
+    return done;
+  }
 }
 
 function describe(spawned: Creature[]): string {

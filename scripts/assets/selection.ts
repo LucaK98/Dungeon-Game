@@ -144,6 +144,10 @@ export const MONSTERS: Record<string, string> = {
   zombie: "monster/undead/zombies/zombie_small.png",
   ghoul: "monster/undead/ghoul.png",
   "giant-spider": "monster/animals/wolf_spider.png",
+  // Companions (tamed animals)
+  mastiff: "monster/animals/hound.png",
+  cat: "custom:cat.png",
+  raven: "monster/raven.png",
 };
 
 /** "name.0" … "name.(n-1)" from "dir/prefix_<start+i>.png". */
@@ -289,6 +293,7 @@ export const MISC: Record<string, string> = {
   stage: "custom:stage.png",
   "rock-ledge": "custom:rock_ledge.png",
   counter: "custom:counter.png",
+  danger: "custom:danger.png",
   "critter.chicken": "custom:chicken.png",
   "critter.cat": "custom:cat.png",
   // From the DCSS pack.

@@ -64,7 +64,22 @@ export function levelGains(before: Creature, after: Creature): { gains: StatGain
   return { gains, features, spells };
 }
 
-const ITEM_ICONS: Record<string, string> = { "potion-of-healing": "🧪", lance: "🔱", torch: "🔥", rope: "🪢" };
+const ITEM_ICONS: Record<string, string> = {
+  "potion-of-healing": "🧪",
+  lance: "🔱",
+  torch: "🔥",
+  rope: "🪢",
+  heilkraut: "🌿",
+  pilz: "🍄",
+  leuchtpilz: "✨",
+  knochen: "🦴",
+  spinnenseide: "🕸️",
+  oelflasche: "🫙",
+  brandflasche: "🔥",
+  leuchttrank: "💡",
+  staerketrank: "🐻",
+  stolperdraht: "🪢",
+};
 
 export function itemIcon(itemId: string): string {
   return ITEM_ICONS[itemId] ?? "🎒";

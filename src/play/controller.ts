@@ -20,6 +20,8 @@ import { h } from "../ui/dom";
 import { showRollPrompt, type DiceOverlay } from "./dice";
 import { closeSheet, explainedLine, helpButton, maybeHint, openHelp, showRulesAnswer, showSheet } from "./help";
 import { minimapLegend, minimapView } from "./minimap";
+import { canCraft, RECIPES } from "../shared/crafting";
+import { itemIcon } from "../shared/reward";
 import { ABILITY_GLOSSAR } from "../engine/core";
 
 const ABILITY_ICON: Record<string, string> = { STR: "💪", DEX: "🤸", CON: "🫀", INT: "🧠", WIS: "🦉", CHA: "🗣️" };
@@ -702,6 +704,50 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
 
   // ---------------------------------------------------------------- inventory tab
 
+  /** The tamed animal at the top of the hero sheet. */
+  function companionCard(v: PlayerView): HTMLElement[] {
+    const c = v.companion;
+    if (!c) return [];
+    const pct = Math.round(Math.max(0, c.hp / c.maxHp) * 100);
+    return [
+      h(
+        "section",
+        { class: `card companion-card${c.dead ? " fallen" : ""}`, dataset: { help: "begleiter" } },
+        h("div", { class: "companion-head" }, h("span", { class: "companion-icon" }, c.dead ? "💔" : c.icon), h("div", {}, h("strong", {}, c.name), h("span", { class: "muted small" }, `${c.kind === "Katze" ? "Deine Katze" : `Dein ${c.kind}`}${c.dead ? " ist gefallen." : " · folgt dir und kämpft mit"}`))),
+        c.dead ? null : h("div", { class: "hero-hp" }, h("span", { style: `width:${pct}%` }), h("em", {}, `❤️ ${c.hp} / ${c.maxHp}`)),
+        h("p", { class: "companion-trait" }, `✨ ${c.trait}: ${c.traitText}`),
+      ),
+    ];
+  }
+
+  /** Brewing and tinkering: every recipe with its ingredients; always usable, costs no action. */
+  function craftingCard(inventory: { itemId: string; qty: number }[]): HTMLElement {
+    const have = (id: string) => inventory.find((i) => i.itemId === id)?.qty ?? 0;
+    const rows = RECIPES.map((r) => {
+      const ok = canCraft(r, inventory);
+      const needs = Object.entries(r.needs).map(([id, n]) => h("span", { class: `need${have(id) >= n ? " got" : ""}` }, `${itemIcon(id)} ${n}× ${nameOf("items", id)} (${have(id)})`));
+      const btn = h("button", { class: `btn small${ok ? " primary" : " secondary"}`, type: "button", textContent: "Herstellen", disabled: !ok });
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        send({ kind: "craft", recipe: r.id });
+      });
+      return h(
+        "div",
+        { class: `craft-row${ok ? " ready" : ""}`, dataset: { help: `gegenstand:${r.gives.itemId}` } },
+        h("span", { class: "craft-icon" }, r.icon),
+        h("div", { class: "craft-text" }, h("strong", {}, r.name), h("span", { class: "muted small" }, r.text), h("div", { class: "craft-needs" }, ...needs)),
+        btn,
+      );
+    });
+    return h(
+      "section",
+      { class: "card" },
+      h("div", { class: "card-title", dataset: { help: "brauen" } }, "⚗️ Brauen & Basteln"),
+      h("p", { class: "muted small" }, "Geht jederzeit – auch wenn du nicht dran bist – und kostet keine Aktion. Zutaten findest du an Kräutern, Pilzen, Spinnennetzen, Öllachen und Knochen."),
+      h("div", { class: "list" }, ...rows),
+    );
+  }
+
   function renderInventoryTab(me: Creature, v: PlayerView): HTMLElement[] {
     const pc = me.pc!;
     const weapons = me.attacks
@@ -723,7 +769,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       pc.shield ? h("div", { class: "list-row", dataset: { help: "ruestung:shield" } }, h("span", {}, "Schild"), h("strong", {}, "+2 RK")) : null,
     ].filter((x): x is HTMLDivElement => !!x);
     const items = pc.inventory.map((i) => {
-      const row = h("div", { class: "list-row", dataset: { help: `gegenstand:${i.itemId}` } }, h("span", {}, nameOf("items", i.itemId)), h("strong", {}, `× ${i.qty}`));
+      const row = h("div", { class: "list-row", dataset: { help: `gegenstand:${i.itemId}` } }, h("span", {}, `${i.itemId === "gold" ? "💰" : itemIcon(i.itemId)} ${nameOf("items", i.itemId)}`), h("strong", {}, `× ${i.qty}`));
       if (i.itemId === "potion-of-healing") {
         const choice = v.choices.find((c) => c.id === "item:potion");
         if (choice) {
@@ -799,6 +845,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Waffen"), h("div", { class: "list" }, ...weapons)),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Rüstung"), h("div", { class: "list" }, ...(armor.length ? armor : [h("p", { class: "muted" }, "Keine Rüstung")]))),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Gegenstände"), h("div", { class: "list" }, ...items)),
+      craftingCard(pc.inventory),
     ];
   }
 
@@ -827,7 +874,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     renderStatus(view);
     renderTabs();
     const scroll = window.scrollY;
-    const content = tab === "action" ? renderActionTab(view) : tab === "sheet" ? renderSheetTab(me) : tab === "inventory" ? renderInventoryTab(me, view) : renderCluesTab(view);
+    const content = tab === "action" ? renderActionTab(view) : tab === "sheet" ? [...companionCard(view), ...renderSheetTab(me)] : tab === "inventory" ? renderInventoryTab(me, view) : renderCluesTab(view);
     // The same element again (campfire card): leave it in place, so typing is not interrupted.
     const same = content.length === body.childNodes.length && content.every((el, i) => body.childNodes[i] === el);
     if (!same) body.replaceChildren(...content);

@@ -59,4 +59,17 @@ describe("furniture in the rules", () => {
     // With too little movement for the detour through the bush … no path.
     expect(findPath(battle, fighter, (p) => p.x === 2 && p.y === 0, OPEN_FIELD, 1)).toBeUndefined();
   });
+
+  it("weather: fog hides far targets, wind blows arrows off course", () => {
+    const ranger = pregenCharacter("ranger");
+    const goblin = createMonster("goblin", "g");
+    const battle = battleOf([ranger, 0, 5], [goblin, 9, 5]);
+    battle.terrain = { difficult: [], cover: {}, high: [], hazard: [], weather: "fog", outdoor: ["0,5"] };
+    expect(attackReasons(battle, ranger, goblin, bow(ranger)).some((r) => r.glossarKey === "wetter")).toBe(true);
+    goblin.pos = { x: 4, y: 5 };
+    expect(attackReasons(battle, ranger, goblin, bow(ranger)).some((r) => r.glossarKey === "wetter")).toBe(false);
+    battle.terrain.weather = "wind";
+    const r = resolveAttack(scriptedRng([10, 3]), battle, ranger, goblin, bow(ranger));
+    expect(r.parts.some((p) => p.label === "Wind" && p.value === -2)).toBe(true);
+  });
 });

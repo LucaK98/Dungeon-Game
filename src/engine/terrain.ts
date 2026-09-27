@@ -8,9 +8,21 @@ import type { BreakdownPart } from "../shared/types";
 
 const key = (p: GridPos) => `${p.x},${p.y}`;
 
+/** Fast lookups: the terrain lists are plain arrays (they travel as data), cached as sets. */
+const sets = new WeakMap<string[], { size: number; set: Set<string> }>();
+function has(list: string[] | undefined, k: string): boolean {
+  if (!list?.length) return false;
+  let cached = sets.get(list);
+  if (!cached || cached.size !== list.length) {
+    cached = { size: list.length, set: new Set(list) };
+    sets.set(list, cached);
+  }
+  return cached.set.has(k);
+}
+
 /** Movement cost of stepping onto a square, in squares (1 or 2). */
 export function stepCost(battle: Battle, p: GridPos): number {
-  return battle.terrain?.difficult.includes(key(p)) ? 2 : 1;
+  return has(battle.terrain?.difficult, key(p)) ? 2 : 1;
 }
 
 export function pathCost(battle: Battle, path: GridPos[]): number {
@@ -18,11 +30,11 @@ export function pathCost(battle: Battle, path: GridPos[]): number {
 }
 
 export function onHighGround(battle: Battle, p: GridPos | undefined): boolean {
-  return !!p && !!battle.terrain?.high.includes(key(p));
+  return !!p && has(battle.terrain?.high, key(p));
 }
 
 export function isHazard(battle: Battle, p: GridPos): boolean {
-  return !!battle.terrain?.hazard.includes(key(p));
+  return has(battle.terrain?.hazard, key(p));
 }
 
 /**
@@ -53,4 +65,11 @@ export function coverParts(battle: Battle, attacker: Creature, target: Creature)
   const bonus = coverBonus(battle, attacker, target);
   if (!bonus) return [];
   return [{ label: bonus >= 5 ? "Volle Deckung (Möbel)" : "Deckung (Möbel)", value: bonus, glossarKey: "deckung" }];
+}
+
+/** Fog or wind where attacker or target stands under open sky. */
+export function weatherAt(battle: Battle, a: Creature, b: Creature): "fog" | "wind" | undefined {
+  const t = battle.terrain;
+  if (!t?.weather || !a.pos || !b.pos) return undefined;
+  return has(t.outdoor, key(a.pos)) || has(t.outdoor, key(b.pos)) ? t.weather : undefined;
 }
