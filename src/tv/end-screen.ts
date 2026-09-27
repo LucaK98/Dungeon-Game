@@ -38,6 +38,14 @@ export function endScreen(root: HTMLElement, r: StoryResult, onDone: () => void)
       h("h2", {}, "🌟 Eure Highlights"),
       highlights,
       r.recap.bestIdea ? h("p", { class: "best-idea" }, `🎭 Beste Idee: „${r.recap.bestIdea}“`) : "",
+      r.recap.goals?.length
+        ? h(
+            "div",
+            { class: "end-goals" },
+            h("h2", {}, "🤫 Die geheimen Ziele"),
+            ...r.recap.goals.map((g) => h("p", { class: `goal-reveal${g.done ? " done" : ""}`, style: `--player:${g.color}` }, `${g.done ? "✅" : "❌"} ${g.icon} `, h("strong", {}, g.name), ` ${g.reveal}${g.done ? " – geschafft! 💰 +25" : ""}`)),
+          )
+        : "",
       h("h2", {}, "Was wirklich geschah"),
       h("div", { class: "truth" }, h("strong", {}, r.truth.title), h("p", {}, r.truth.summary)),
       h(

@@ -691,3 +691,22 @@ body.tip-mode::after {
 .camp-gold { margin: 0; font-weight: 700; }
 .camp-shop { display: flex; flex-direction: column; gap: 8px; }
 .shop-warn { display: block; color: #f0c36a; font-size: 0.85rem; margin-top: 2px; }
+
+/* ---------------------------------------------------------------- secret goals */
+.goal-card { border: 2px dashed #7a5ab0; background: linear-gradient(180deg, #221a2e, #17131c); }
+.goal-card.done { border: 2px solid #5fbf6d; background: linear-gradient(180deg, #16261a, #121a14); }
+.goal-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.goal-icon { font-size: 1.8rem; }
+.goal-bar { height: 10px; border-radius: 999px; background: #0f0c0a; overflow: hidden; }
+.goal-bar span { display: block; height: 100%; background: linear-gradient(90deg, #7a5ab0, #c9a2ff); border-radius: 999px; }
+.goal-intro { border-color: #9b7ad6; box-shadow: 0 0 40px #9b7ad655; }
+.goal-intro h2 { color: #d9c2ff; text-shadow: none; }
+.goal-big { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 14px; background: #0f0c0a99; text-align: left; font-size: 1.15rem; }
+.goal-big span { font-size: 2.4rem; }
+.gain-pop.goal { background: linear-gradient(180deg, #d9c2ff, #8a62cc); border-color: #f1e6ff; color: #1d0f33; white-space: normal; width: min(90vw, 420px); text-align: center; font-size: 1.05rem; animation-duration: 5.2s; }
+.recap-goals { margin: 12px 0; }
+.goal-reveal { margin: 6px 0; padding: 8px 10px; border-left: 5px solid var(--player); border-radius: 8px; background: #1d1814; }
+.goal-reveal.done { background: #16261a; }
+.end-goals { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1vh 2vh; text-align: left; }
+.end-goals h2 { grid-column: 1 / -1; text-align: center; }
+.end-goals .goal-reveal { font-size: 2.3vh; margin: 0; }

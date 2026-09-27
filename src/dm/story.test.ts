@@ -260,6 +260,8 @@ for (const STORY of STORIES) {
         // Every new chapter starts with a rest at the campfire (4 heroes each time).
         if (result!.ending.id !== "scheitern") expect(campfires).toBe((STORY.acts.length - 1) * 4);
         expect(state.tales?.length ?? 0).toBeGreaterThan(0);
+        // Secret goals: one per hero, revealed at the end.
+        expect(result!.recap.goals?.length).toBe(4);
         expect(result, `ended (${state.sceneIndex}/${state.plan.length})`).toBeDefined();
         // Either all scenes were played, or the final fight was lost ("second chance" ending).
         if (result!.ending.id === "scheitern") expect(state.sceneIndex).toBe(state.plan.length - 1);

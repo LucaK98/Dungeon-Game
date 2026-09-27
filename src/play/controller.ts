@@ -50,6 +50,8 @@ export interface Controller {
   recap(recap: Recap): void;
   /** This hero gained something: a level, equipment, gold or an item. */
   reward(reward: Reward): void;
+  /** A private message for this phone (e.g. "secret goal reached"). */
+  secret(text: string): void;
 }
 
 /** Browser speech recognition (Chrome/Safari/Edge), if available. */
@@ -383,9 +385,24 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     return out;
   }
 
+  function goalCard(g: NonNullable<PlayerView["goal"]>): HTMLElement {
+    const pct = Math.round((Math.min(g.have, g.need) / g.need) * 100);
+    const state = g.done ? "✅ Erfüllt! Am Ende gibt es Bonus-Gold." : g.atEnd ? (g.have >= g.need ? "Bisher geschafft – wird am Ende geprüft." : "❌ Leider verpasst.") : `${g.have} / ${g.need}`;
+    return h(
+      "section",
+      { class: `card goal-card${g.done ? " done" : ""}` },
+      h("div", { class: "card-title", dataset: { help: "geheimes_ziel" } }, "🤫 Dein geheimes Ziel"),
+      h("div", { class: "goal-row" }, h("span", { class: "goal-icon" }, g.icon), h("strong", {}, g.text)),
+      g.atEnd || g.done ? "" : h("div", { class: "goal-bar" }, h("span", { style: `width:${pct}%` })),
+      h("p", { class: "muted small" }, state),
+      h("p", { class: "muted small" }, "Psst – nur du siehst das."),
+    );
+  }
+
   function renderCluesTab(v: PlayerView): HTMLElement[] {
     const clues = v.story?.clues ?? [];
     return [
+      ...(v.goal ? [goalCard(v.goal)] : []),
       h(
         "section",
         { class: "card" },
@@ -770,9 +787,31 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     else if (me.hp < me.maxHp) maybeHint(pid, "first_damage", view.beginnerMode, body);
   }
 
+  let goalShown = false;
+
   return {
     element: root,
+    secret(text) {
+      const pop = h("div", { class: "gain-pop goal" }, text);
+      document.body.append(pop);
+      setTimeout(() => pop.remove(), 5200);
+      play("chime");
+      if ("vibrate" in navigator) navigator.vibrate([60, 40, 60, 40, 60]);
+    },
     setView(v) {
+      // The secret goal is shown once, big, when it arrives.
+      if (v.goal && !goalShown) {
+        goalShown = true;
+        const key = `couch-dungeon.goal:${v.me.id}:${v.goal.text}`;
+        let seen = false;
+        try {
+          seen = !!sessionStorage.getItem(key);
+          sessionStorage.setItem(key, "1");
+        } catch {
+          // ignore
+        }
+        if (!seen) showGoalIntro(v.goal);
+      }
       const becameMine = v.turn.mine && !wasMine;
       wasMine = v.turn.mine;
       view = v;
@@ -842,6 +881,14 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
               ...mine.map(card),
             )
           : "",
+        recap.goals?.length
+          ? h(
+              "div",
+              { class: "recap-goals" },
+              h("h2", {}, "🤫 Die geheimen Ziele"),
+              ...recap.goals.map((g) => h("p", { class: `goal-reveal${g.done ? " done" : ""}`, style: `--player:${g.color}` }, `${g.done ? "✅" : "❌"} ${g.icon} `, h("strong", {}, g.name), ` ${g.reveal}`)),
+            )
+          : "",
         h("h2", {}, "Die Highlights der Gruppe"),
         ...recap.highlights.map(card),
         recap.bestIdea ? h("p", { class: "muted" }, `🎭 Beste Idee: „${recap.bestIdea}“`) : "",
@@ -895,6 +942,26 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       showReward(r);
     },
   };
+
+  function showGoalIntro(g: NonNullable<PlayerView["goal"]>): void {
+    const ok = h("button", { class: "btn primary big", type: "button", textContent: "Psst, verstanden 🤫" });
+    const sheet = h(
+      "div",
+      { class: "reward-sheet" },
+      h(
+        "div",
+        { class: "reward-card goal-intro" },
+        h("div", { class: "reward-burst" }, "🤫"),
+        h("h2", {}, "Dein geheimes Ziel"),
+        h("div", { class: "goal-big" }, h("span", {}, g.icon), h("strong", {}, g.text)),
+        h("p", { class: "reward-sub" }, "Verrate es niemandem! Am Ende wird aufgedeckt – schaffst du es, gibt es 25 Gold. Du findest es jederzeit im Tab „Hinweise“."),
+        ok,
+      ),
+    );
+    ok.addEventListener("click", () => sheet.remove());
+    document.body.append(sheet);
+    if ("vibrate" in navigator) navigator.vibrate([40, 30, 40]);
+  }
 
   /** The big moments: a new level (what got better) or a piece of equipment. */
   function showReward(r: Extract<Reward, { kind: "level" | "gear" }>): void {

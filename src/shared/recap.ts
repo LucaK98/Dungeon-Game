@@ -17,10 +17,15 @@ export interface HeroStats {
   downs: number;
   emotes: number;
   freeActions: number;
+  /** For the secret goals (optional: older saves do not have them). */
+  chests?: number;
+  finds?: number;
+  objects?: number;
+  helps?: number;
 }
 
 export function emptyStats(): HeroStats {
-  return { damageDealt: 0, damageTaken: 0, biggestHit: 0, crits: 0, fumbles: 0, kills: 0, healing: 0, gold: 0, downs: 0, emotes: 0, freeActions: 0 };
+  return { damageDealt: 0, damageTaken: 0, biggestHit: 0, crits: 0, fumbles: 0, kills: 0, healing: 0, gold: 0, downs: 0, emotes: 0, freeActions: 0, chests: 0, finds: 0, objects: 0, helps: 0 };
 }
 
 export interface RecapHero {
@@ -48,6 +53,8 @@ export interface Recap {
   highlights: Highlight[];
   /** The most memorable free action, in the players' own words. */
   bestIdea?: string;
+  /** The secret goals, revealed. */
+  goals?: { heroId: string; name: string; color: string; icon: string; reveal: string; done: boolean }[];
 }
 
 /** Picks up to six highlights, each hero at most twice, only with real numbers. */

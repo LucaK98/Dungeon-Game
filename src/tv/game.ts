@@ -14,6 +14,7 @@ import { runAutoTurn } from "../engine/ai";
 import { createMonster, hardenMonster } from "../engine/creatures";
 import { DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import { itemIcon, itemTitle, levelGains, type Reward } from "../shared/reward";
+import { GOAL_GOLD, goalById, goalReached } from "../shared/goals";
 import { findPath } from "../engine/grid";
 import { nameOf } from "../engine/names";
 import type { Rng } from "../engine/rng";
@@ -311,6 +312,7 @@ export class GameController {
           const h = this.heroByRef(e.target);
           if (!h || h.id === actor.id) break;
           addEffect(h, "helped", 99, actor.id);
+          if (actor.kind === "pc") this.bump(actor.id, "helps");
           lines.push(`🤝 ${actor.name} hilft ${h.name}: Vorteil auf den nächsten Wurf.`);
           break;
         }
@@ -1333,6 +1335,65 @@ export class GameController {
   }
 
   /** Counts what a roll did (damage, kills, crits, healing, bad luck). */
+  // ---------------------------------------------------------------- secret goals
+
+  private goals = new Map<string, string>();
+  private goalsMet = new Set<string>();
+
+  /** Hands out the secret goals (hero id → goal id). */
+  setGoals(goals: Record<string, string>): void {
+    this.goals = new Map(Object.entries(goals).filter(([, id]) => goalById(id)));
+    this.goalsMet.clear();
+    this.broadcast();
+  }
+
+  /** Goals reached during the game: the phone cheers, the TV only says who (not what). */
+  private checkGoals(): void {
+    for (const [heroId, goalId] of this.goals) {
+      const goal = goalById(goalId);
+      if (!goal || goal.atEnd || this.goalsMet.has(heroId) || !goalReached(goal, this.statsOf(heroId))) continue;
+      this.goalsMet.add(heroId);
+      const hero = this.battle.creatures[heroId];
+      if (!hero) continue;
+      this.narrate([{ text: `🤫 ${hero.name} hat heimlich ein geheimes Ziel erfüllt! Was es war, erfahrt ihr am Ende.` }]);
+      this.emit("emote", hero.id, "🤫");
+      if (hero.playerId) this.sendTo(hero.playerId, { type: "secret_message", text: `🤫 Geheimes Ziel erfüllt: ${goal.text} Am Ende gibt es ${GOAL_GOLD} Gold dafür.` });
+    }
+  }
+
+  /** The end: decides the goals, pays the bonus gold, tells everyone what they were. */
+  finalizeGoals(): NonNullable<Recap["goals"]> {
+    const out: NonNullable<Recap["goals"]> = [];
+    for (const [heroId, goalId] of this.goals) {
+      const goal = goalById(goalId);
+      const hero = this.battle.creatures[heroId];
+      if (!goal || !hero) continue;
+      const done = this.goalsMet.has(heroId) || goalReached(goal, this.statsOf(heroId));
+      if (done && !hero.dead) this.addItem(hero, "gold", GOAL_GOLD);
+      out.push({ heroId, name: hero.name, color: hero.appearance?.color ?? "#888", icon: goal.icon, reveal: goal.reveal, done });
+    }
+    if (out.length) {
+      this.narrate([
+        { text: "🤫 Und jetzt die geheimen Ziele:" },
+        ...out.map((g) => ({ text: `${g.done ? "✅" : "❌"} ${g.name} ${g.reveal}${g.done ? ` – geschafft! +${GOAL_GOLD} Gold` : "."}` })),
+      ]);
+    }
+    return out;
+  }
+
+  private goalView(hero: Creature): PlayerView["goal"] {
+    const goal = goalById(this.goals.get(hero.id) ?? "");
+    if (!goal) return undefined;
+    const [have, need] = goal.progress(this.statsOf(hero.id));
+    return { icon: goal.icon, text: goal.text, have, need, done: this.goalsMet.has(hero.id), atEnd: !!goal.atEnd };
+  }
+
+  /** Counts one of the optional numbers (chests, finds, …). */
+  private bump(heroId: string, key: "chests" | "finds" | "objects" | "helps"): void {
+    const s = this.statsOf(heroId);
+    s[key] = (s[key] ?? 0) + 1;
+  }
+
   private track(r: RollOutcome): void {
     const actor = this.battle.creatures[r.creatureId];
     const heroActs = !!actor && actor.kind === "pc";
@@ -1424,6 +1485,7 @@ export class GameController {
     const lines: ExplainedLine[] = [];
     if (o.kind === "chest" && o.state !== "open") {
       this.itemUses++;
+      this.bump(hero.id, "chests");
       o.state = "open";
       o.frame = "chest.open";
       const r = this.rng.next();
@@ -1498,6 +1560,7 @@ export class GameController {
     }
     const at = { x: o.x, y: o.y };
     const done = (r: RollOutcome, fx?: "puff" | "shake" | "sparkle" | "splash") => {
+      this.bump(hero.id, "objects");
       if (fx) this.emit("fx", fx, at);
       this.emit("changed");
       return r;
@@ -1682,6 +1745,7 @@ export class GameController {
     const traps = this.map.objects.filter((o) => o.kind === "trap" && o.state === "hidden" && (roomIndex < 0 || o.roomId === this.map.rooms[roomIndex]?.id));
     const secrets = this.map.objects.filter((o) => o.kind === "secret" && o.state === "hidden" && (roomIndex < 0 || o.roomId === this.map.rooms[roomIndex]?.id));
     if (check.success) {
+      this.bump(hero.id, "finds");
       traps.forEach((t) => (t.state = "found"));
       // Secrets become easy to spot (and can be examined up close).
       secrets.forEach((s) => (s.state = "closed"));
@@ -1739,6 +1803,7 @@ export class GameController {
   }
 
   broadcast(): void {
+    this.checkGoals();
     if (this.training) for (const h of this.heroes()) if (h.hp === 0 && !h.dead) h.stable = true;
     for (const hero of this.heroes()) if (hero.playerId) this.sendView(hero.playerId);
     this.emit("changed");
@@ -1793,6 +1858,8 @@ export class GameController {
     if (this.pending?.playerId === playerId) view.pendingRoll = this.pending.prompt;
     const camp = this.campView(me);
     if (camp) view.camp = camp;
+    const goal = this.goalView(me);
+    if (goal) view.goal = goal;
     if (this.storyView) view.story = { ...this.storyView, narration: this.narrationLog.slice(-4), choices: this.storyChoiceView() };
     return view;
   }

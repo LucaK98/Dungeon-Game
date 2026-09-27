@@ -26,6 +26,7 @@ import { buildHighlights, type Recap } from "../shared/recap";
 import type { Difficulty } from "../shared/difficulty";
 import { getGear } from "../data/gear";
 import { seededRng } from "../engine/rng";
+import { assignGoals } from "../shared/goals";
 import type { CampOffer } from "../tv/game";
 
 export interface StoryState {
@@ -48,6 +49,8 @@ export interface StoryState {
   attitudes?: Record<string, number>;
   /** What the heroes told at the campfire (the game master weaves it in later). */
   tales?: string[];
+  /** Secret goal of each hero (hero id → goal id). */
+  goals?: Record<string, string>;
   /** How tough the world is (older saves: normal). */
   difficulty?: Difficulty;
 }
@@ -251,6 +254,13 @@ export class Director {
 
   async run(): Promise<StoryResult | undefined> {
     this.game.narrate(this.state.sceneIndex === 0 ? this.story.intro : [{ text: "Ihr setzt euer Abenteuer fort …" }]);
+    // Secret goals: handed out once, kept in the save.
+    if (!this.state.goals) {
+      const goalRng = seededRng((this.opts.now ?? Date.now)() + 4711);
+      this.state.goals = assignGoals(this.heroes().filter((h) => h.playerId).map((h) => ({ id: h.id, classId: h.pc?.classId ?? "" })), (n) => goalRng.int(0, Math.max(0, n - 1)));
+      this.game.narrate([{ text: "🤫 Jeder von euch hat auf dem Handy ein geheimes Ziel. Verratet es niemandem – am Ende wird aufgedeckt!", tip: { key: "geheimes_ziel", text: "Dein Ziel steht im Tab „Hinweise“. Schaffst du es, gibt es Bonus-Gold." } }]);
+    }
+    this.game.setGoals(this.state.goals);
     // A new chapter begins with a rest at the campfire (not when a saved game just continues).
     let lastAct = this.state.sceneIndex < this.state.plan.length ? actOf(this.story, this.state.plan[this.state.sceneIndex]!).index : 0;
     while (this.state.sceneIndex < this.state.plan.length) {
@@ -694,7 +704,7 @@ export class Director {
         return { text: c.text, falseLead: !!c.falseLeadFor };
       }),
       missed: relevant.filter((c) => !c.falseLeadFor && !this.state.clues.includes(c.id)).map((c) => ({ text: c.text })),
-      recap: this.recap(ending),
+      recap: { ...this.recap(ending), goals: this.game.finalizeGoals() },
     };
     this.game.sendRecap(result.recap);
     this.game.saveHeroes(this.story.title);

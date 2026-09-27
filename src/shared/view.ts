@@ -109,6 +109,8 @@ export interface PlayerView {
   party?: { id: string; name: string; color?: string }[];
   /** Rest at the campfire between chapters: tell something, shop, then go on. */
   camp?: CampView;
+  /** This hero's secret goal (only on this phone). */
+  goal?: { icon: string; text: string; have: number; need: number; done: boolean; atEnd: boolean };
 }
 
 export interface ShopOffer {

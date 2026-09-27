@@ -2754,5 +2754,26 @@
       "angriffsbonus",
       "schwierigkeitsgrad"
     ]
+  },
+  "rast": {
+    "titel": "Rast am Lagerfeuer",
+    "kurz": "Zwischen zwei Kapiteln ruht ihr euch aus und seid danach wieder bei vollen Kräften.",
+    "lang": "Nach jedem Kapitel schlagt ihr ein Lager auf. Alle bekommen ihre Trefferpunkte, Zauberplätze und Fähigkeiten zurück. Am Feuer beantwortet jeder eine kleine Frage über seinen Helden – der Spielleiter merkt sich das und baut es später in die Geschichte ein. Außerdem kommt die Händlerin vorbei: Dort gibt es Heiltränke, Fackeln und manchmal magische Ausrüstung. Wer fertig ist, tippt „Weiter“.",
+    "beispiel": "Frage: „Wovor hast du heimlich Angst?“ – „Vor Spinnen.“ Zwei Kapitel später … raschelt es im Netz.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "zauberplaetze",
+      "ausruestung"
+    ]
+  },
+  "geheimes_ziel": {
+    "titel": "Geheimes Ziel",
+    "kurz": "Eine kleine Aufgabe nur für dich – die anderen wissen nichts davon.",
+    "lang": "Zu Beginn bekommt jeder Held ein geheimes Ziel aufs Handy, zum Beispiel „Besiege 3 Gegner“ oder „Öffne 2 Truhen“. Du siehst es im Tab „Hinweise“, samt Fortschritt. Schaffst du es, meldet der Fernseher nur, dass du ein Ziel erfüllt hast – aber nicht welches. Am Ende werden alle Ziele aufgedeckt, und wer es geschafft hat, bekommt 25 Gold.",
+    "beispiel": "🎯 „Lande einen kritischen Treffer“ – eine 20 beim Angriff, und das Ziel ist erfüllt.",
+    "siehe_auch": [
+      "kritischer_treffer",
+      "gegenstand:gold"
+    ]
   }
 }
