@@ -111,6 +111,33 @@ export class UiScene extends Phaser.Scene {
       campBox.add([bg, fire, title, info]);
     };
     this.game.events.on("camp", onCamp);
+    // A group vote: one bar per option, filled with the colours of who voted for it.
+    const voteBox = this.add.container(MAP_RIGHT / 2 + 60, 96).setDepth(41);
+    const onVote = (state?: { total: number; cast: number; options: { label: string; voters: { name: string; color: string }[] }[] }) => {
+      voteBox.removeAll(true);
+      if (!state) return;
+      const w = 900;
+      const rowH = 70;
+      const height = 90 + state.options.length * rowH;
+      const bg = this.add.graphics();
+      bg.fillStyle(0x14110f, 0.94).fillRoundedRect(-w / 2, 0, w, height, 22);
+      bg.lineStyle(5, 0x7fd88a, 1).strokeRoundedRect(-w / 2, 0, w, height, 22);
+      const title = this.add.text(-w / 2 + 30, 18, `🗳️ Abstimmung · ${state.cast} von ${state.total} haben abgestimmt`, crisp({ fontFamily: FONT, fontSize: "34px", fontStyle: "bold", color: "#a8e6a3" }));
+      voteBox.add([bg, title]);
+      state.options.forEach((o, i) => {
+        const y = 80 + i * rowH;
+        const bar = this.add.graphics();
+        bar.fillStyle(0x2a241e, 1).fillRoundedRect(-w / 2 + 30, y, w - 60, rowH - 14, 12);
+        const seg = (w - 60) / Math.max(1, state.total);
+        o.voters.forEach((v, j) => {
+          bar.fillStyle(Phaser.Display.Color.HexStringToColor(v.color).color, 0.85).fillRoundedRect(-w / 2 + 30 + j * seg, y, seg - 4, rowH - 14, 12);
+        });
+        const label = this.add.text(-w / 2 + 48, y + (rowH - 14) / 2, o.label, crisp({ fontFamily: FONT, fontSize: "26px", color: "#fff", stroke: "#000", strokeThickness: 5, fixedWidth: w - 220 })).setOrigin(0, 0.5);
+        const n = this.add.text(w / 2 - 48, y + (rowH - 14) / 2, String(o.voters.length), crisp({ fontFamily: FONT, fontSize: "32px", fontStyle: "bold", color: "#ffd75e", stroke: "#000", strokeThickness: 5 })).setOrigin(1, 0.5);
+        voteBox.add([bar, label, n]);
+      });
+    };
+    this.game.events.on("vote", onVote);
     const onReward = (r: Reward, look?: DollLook) => this.queueReward(r, look);
     this.game.events.on("reward", onReward);
     this.game.events.on("order", onOrder);
@@ -131,6 +158,7 @@ export class UiScene extends Phaser.Scene {
       this.game.events.off("log", onLog);
       this.game.events.off("reward", onReward);
       this.game.events.off("camp", onCamp);
+      this.game.events.off("vote", onVote);
       clearTimeout(this.tumbling);
     });
   }

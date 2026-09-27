@@ -51,6 +51,8 @@ const LOG_SIZE = 40;
 const MINIMAP_W = 13;
 const MINIMAP_H = 11;
 const LOOK_DC = 12;
+/** A vote ends this long after the first vote, even if not everyone voted (seconds). */
+const VOTE_S = 40;
 const TRAP_DC = 12;
 
 interface PendingRoll {
@@ -75,6 +77,8 @@ export interface GameEvents {
   spotlight(creatureId: string): void;
   /** A hero has to roll now (the TV shows the waiting die). */
   asked(prompt: RollPrompt, creatureId: string, name: string, color: string | undefined): void;
+  /** A group vote: the options with who voted for them (undefined = vote over). */
+  vote(state: { total: number; cast: number; options: { label: string; voters: { name: string; color: string }[] }[] } | undefined): void;
   /** The campfire rest started, changed (ready count) or ended (undefined). */
   camp(state: { ready: number; total: number } | undefined): void;
   /** A hero gained something: the TV celebrates it. */
@@ -168,6 +172,7 @@ export class GameController {
   destroy(): void {
     this.destroyed = true;
     if (this.monsterTimer) clearTimeout(this.monsterTimer);
+    clearTimeout(this.voteTimer);
   }
 
   on(listener: Partial<GameEvents>): () => void {
@@ -857,6 +862,10 @@ export class GameController {
       const offer = this.storyChoices.find((c) => c.id === action.choiceId);
       if (!offer || !this.choiceWaiter) {
         this.sendTo(playerId, { type: "action_error", reason: "Diese Entscheidung ist nicht mehr offen." });
+        return;
+      }
+      if (this.votes) {
+        this.castVote(playerId, offer.id);
         return;
       }
       const resolve = this.choiceWaiter;
@@ -1860,7 +1869,7 @@ export class GameController {
     if (camp) view.camp = camp;
     const goal = this.goalView(me);
     if (goal) view.goal = goal;
-    if (this.storyView) view.story = { ...this.storyView, narration: this.narrationLog.slice(-4), choices: this.storyChoiceView() };
+    if (this.storyView) view.story = { ...this.storyView, narration: this.narrationLog.slice(-4), choices: this.storyChoiceView(playerId), ...(this.votes ? { vote: { cast: this.votes.size, total: this.voters().length } } : {}) };
     return view;
   }
 
@@ -1986,7 +1995,8 @@ export class GameController {
     this.broadcast();
   }
 
-  private storyChoiceView(): ActionChoice[] {
+  private storyChoiceView(playerId: PlayerId): ActionChoice[] {
+    const votes = this.votes;
     return this.storyChoices.map((c) => ({
       id: `story:${c.id}`,
       group: "story" as const,
@@ -1998,16 +2008,94 @@ export class GameController {
       ...(this.pending ? { reason: "Erst würfeln!" } : this.mode !== "explore" ? { reason: "Erst den Kampf beenden." } : {}),
       recommended: !!c.recommended,
       action: { kind: "story_choice" as const, choiceId: c.id },
+      ...(votes
+        ? {
+            votes: {
+              names: [...votes].filter(([, id]) => id === c.id).map(([pid]) => this.heroOf(pid)?.name ?? "?"),
+              mine: votes.get(playerId) === c.id,
+            },
+          }
+        : {}),
     }));
   }
 
   /** Offers story choices to all phones; resolves with the first pick and who made it. */
-  choose(offers: StoryChoiceOffer[]): Promise<{ id: string; playerId: PlayerId }> {
+  choose(offers: StoryChoiceOffer[], opts: { vote?: boolean } = {}): Promise<{ id: string; playerId: PlayerId }> {
     this.storyChoices = offers;
+    // Big decisions are voted on by everyone (not with only one player at the table).
+    this.votes = opts.vote && this.voters().length > 1 ? new Map() : undefined;
     return new Promise((resolve) => {
       this.choiceWaiter = resolve;
+      this.emitVote();
       this.broadcast();
     });
+  }
+
+  // ---------------------------------------------------------------- group votes
+
+  /** Player → chosen option, while a vote is open. */
+  private votes: Map<PlayerId, string> | undefined;
+  private voteTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Everyone at the table votes, also a knocked-out hero's player. */
+  private voters(): Creature[] {
+    return this.heroes().filter((h) => h.playerId && !h.dead);
+  }
+
+  private emitVote(): void {
+    const votes = this.votes;
+    if (!votes || !this.storyChoices.length) {
+      this.emit("vote", undefined);
+      return;
+    }
+    const total = this.voters().length;
+    this.emit("vote", {
+      total,
+      cast: votes.size,
+      options: this.storyChoices.map((c) => ({
+        label: c.label,
+        voters: [...votes].filter(([, id]) => id === c.id).map(([pid]) => {
+          const h = this.heroOf(pid);
+          return { name: h?.name ?? "?", color: h?.appearance?.color ?? "#888" };
+        }),
+      })),
+    });
+  }
+
+  /** A phone voted (or changed its vote). Decides when all have voted, or 40 s after the first vote. */
+  private castVote(playerId: PlayerId, choiceId: string): void {
+    const votes = this.votes!;
+    votes.set(playerId, choiceId);
+    this.emitVote();
+    if (this.voters().every((h) => votes.has(h.playerId!))) {
+      this.decideVote();
+      return;
+    }
+    this.voteTimer ??= setTimeout(() => this.decideVote(), VOTE_S * 1000);
+    this.broadcast();
+  }
+
+  private decideVote(): void {
+    clearTimeout(this.voteTimer);
+    this.voteTimer = undefined;
+    const votes = this.votes;
+    const resolve = this.choiceWaiter;
+    if (!votes || !resolve || !votes.size) return;
+    const tally = this.storyChoices.map((c) => ({ c, n: [...votes.values()].filter((id) => id === c.id).length }));
+    const most = Math.max(...tally.map((t) => t.n));
+    const tied = tally.filter((t) => t.n === most);
+    // A tie: the recommended option wins, otherwise the one voted for first.
+    const firstVoted = [...votes.values()].find((id) => tied.some((t) => t.c.id === id));
+    const win = (tied.find((t) => t.c.recommended) ?? tied.find((t) => t.c.id === firstVoted) ?? tied[0]!).c;
+    const chooser = [...votes].find(([, id]) => id === win.id)![0];
+    this.votes = undefined;
+    this.choiceWaiter = undefined;
+    this.storyChoices = [];
+    this.addLog([{ text: `🗳️ Abstimmung: ${most} von ${votes.size} für „${win.label}“${tied.length > 1 ? " (Gleichstand – entschieden)" : ""}.`, glossarKeys: ["entscheidung"] }]);
+    this.narrate([{ text: `🗳️ Die Gruppe hat entschieden: ${win.label}` }]);
+    this.emit("vote", undefined);
+    resolve({ id: win.id, playerId: chooser });
+    this.broadcast();
   }
 
   /** Resolves once `pred` is true after some state change. */
@@ -2133,6 +2221,12 @@ export class GameController {
   /** Takes back the open story choice (an event ran out of time, or a fight began). */
   cancelChoice(): void {
     if (!this.choiceWaiter) return;
+    clearTimeout(this.voteTimer);
+    this.voteTimer = undefined;
+    if (this.votes) {
+      this.votes = undefined;
+      this.emit("vote", undefined);
+    }
     const waiter = this.choiceWaiter;
     this.choiceWaiter = undefined;
     this.storyChoices = [];

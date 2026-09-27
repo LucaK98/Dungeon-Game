@@ -65,6 +65,8 @@ export interface ActionChoice {
   targets?: { id: string; name: string; detail: string }[];
   /** How many targets to pick (magic missile: 3 darts, bless: up to 3). */
   pick?: { min: number; max: number; repeat: boolean };
+  /** Group vote: who picked this so far, and whether it is my vote. */
+  votes?: { names: string[]; mine: boolean };
 }
 
 export interface TurnInfo {
@@ -148,6 +150,8 @@ export interface StoryView {
   /** Story decisions anyone may take (group "story"). */
   choices: ActionChoice[];
   clues: { text: string }[];
+  /** A group vote is running: how many have voted, of how many. */
+  vote?: { cast: number; total: number };
 }
 
 export interface RollPrompt {

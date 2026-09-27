@@ -189,3 +189,57 @@ describe("night on the phone map", () => {
     expect(lit.creatures.some((c) => c.id === goblin.id)).toBe(d * 5 <= 20);
   });
 });
+
+describe("group votes", () => {
+  function voteSetup(players = 3) {
+    const rng = seededRng(4);
+    const names = ["Brunhild", "Ilmarin", "Pip"];
+    const session = createSession(rng, {
+      players: names.slice(0, players).map((name, i) => ({ playerId: `p${i + 1}`, profile: { name, classId: "fighter", raceId: "human", look: defaultLook("fighter", "human"), color: "#e6194b" } })),
+      plan: { path: ["burghof"] },
+      noMonsters: true,
+    });
+    const game = new GameController(session, rng, () => {}, () => {}, { monsterDelayMs: 0 });
+    game.start();
+    return game;
+  }
+  const offers = [
+    { id: "a", label: "Kämpfen", detail: "" },
+    { id: "b", label: "Reden", detail: "", recommended: true },
+  ];
+
+  it("waits for everyone and follows the majority, votes may change", async () => {
+    const game = voteSetup();
+    let result: { id: string; playerId: string } | undefined;
+    void game.choose(offers, { vote: true }).then((r) => (result = r));
+    game.handle("p1", { kind: "story_choice", choiceId: "b" });
+    game.handle("p1", { kind: "story_choice", choiceId: "a" });
+    game.handle("p2", { kind: "story_choice", choiceId: "a" });
+    await Promise.resolve();
+    expect(result).toBeUndefined();
+    expect(game.viewFor("p3")!.story).toBeUndefined();
+    game.handle("p3", { kind: "story_choice", choiceId: "b" });
+    await Promise.resolve();
+    expect(result?.id).toBe("a");
+    expect(result?.playerId).toBe("p1");
+  });
+
+  it("a tie goes to the recommended option", async () => {
+    const game = voteSetup(2);
+    let result: { id: string } | undefined;
+    void game.choose(offers, { vote: true }).then((r) => (result = r));
+    game.handle("p1", { kind: "story_choice", choiceId: "a" });
+    game.handle("p2", { kind: "story_choice", choiceId: "b" });
+    await Promise.resolve();
+    expect(result?.id).toBe("b");
+  });
+
+  it("a single player decides at once", async () => {
+    const game = voteSetup(1);
+    let result: { id: string } | undefined;
+    void game.choose(offers, { vote: true }).then((r) => (result = r));
+    game.handle("p1", { kind: "story_choice", choiceId: "a" });
+    await Promise.resolve();
+    expect(result?.id).toBe("a");
+  });
+});

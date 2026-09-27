@@ -474,7 +474,8 @@ export class Director {
         (c.requires ?? []).every((f) => this.has(f)) &&
         !(c.unless ?? []).some((f) => this.has(f)),
     );
-    const pick = await this.game.choose(offered.map((c) => ({ id: c.id, label: c.label, detail: c.detail })));
+    // The story's big decisions: everyone votes.
+    const pick = await this.game.choose(offered.map((c) => ({ id: c.id, label: c.label, detail: c.detail })), { vote: true });
     const choice = offered.find((c) => c.id === pick.id)!;
     const chooser = this.heroOfPlayer(pick.playerId);
     if (choice.check) {

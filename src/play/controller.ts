@@ -340,9 +340,17 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   function choiceButton(c: ActionChoice): HTMLElement {
     const b = h(
       "button",
-      { class: `choice-btn${c.enabled ? "" : " disabled"}${c.recommended ? " recommended" : ""}`, type: "button", dataset: { help: c.glossarKey } },
+      { class: `choice-btn${c.enabled ? "" : " disabled"}${c.recommended ? " recommended" : ""}${c.votes?.mine ? " voted" : ""}`, type: "button", dataset: { help: c.glossarKey } },
       h("span", { class: "choice-label" }, c.label, c.recommended ? h("span", { class: "rec" }, "⭐ Empfohlen") : null),
       h("span", { class: "choice-detail" }, c.enabled ? c.detail : (c.reason ?? c.detail)),
+      c.votes
+        ? h(
+            "span",
+            { class: "vote-line" },
+            c.votes.mine ? h("strong", { class: "vote-mine" }, "✔ Deine Stimme") : "",
+            c.votes.names.length ? `🗳️ ${c.votes.names.join(", ")}` : "",
+          )
+        : null,
       c.cost !== "free" ? h("span", { class: `cost cost-${c.cost}` }, c.cost === "bonus" ? "Bonus" : "Aktion") : null,
     );
     b.addEventListener("click", () => choose(c));
@@ -377,7 +385,13 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         h(
           "section",
           { class: "group story-choices" },
-          h("div", { class: "group-head static" }, h("span", {}, "📖 Wie geht es weiter?"), h("span", { class: "muted" }, "Besprecht euch!")),
+          h(
+            "div",
+            { class: "group-head static" },
+            h("span", {}, st.vote ? "🗳️ Abstimmung: Wie geht es weiter?" : "📖 Wie geht es weiter?"),
+            h("span", { class: "muted" }, st.vote ? `${st.vote.cast} von ${st.vote.total} haben abgestimmt` : "Besprecht euch!"),
+          ),
+          st.vote ? h("p", { class: "muted small vote-hint" }, "Jeder stimmt ab – umentscheiden geht, bis alle abgestimmt haben. Die Mehrheit gewinnt.") : "",
           h("div", { class: "group-body" }, ...st.choices.map(choiceButton)),
         ),
       );

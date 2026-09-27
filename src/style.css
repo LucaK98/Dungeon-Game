@@ -710,3 +710,9 @@ body.tip-mode::after {
 .end-goals { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1vh 2vh; text-align: left; }
 .end-goals h2 { grid-column: 1 / -1; text-align: center; }
 .end-goals .goal-reveal { font-size: 2.3vh; margin: 0; }
+
+/* ---------------------------------------------------------------- votes */
+.choice-btn.voted { border-color: #7fd88a; box-shadow: 0 0 0 2px #7fd88a55 inset; }
+.vote-line { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.85rem; color: #cfe8d2; }
+.vote-mine { color: #8ff09c; }
+.vote-hint { margin: 0 12px 6px; }
