@@ -493,6 +493,9 @@ body.tip-mode::after {
 .pick { display: flex; flex-direction: column; gap: 4vh; align-items: center; width: 100%; }
 .pick h1 { font-size: 6vh; margin: 0; text-align: center; }
 .story-grid, .duration-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(28vw, 1fr)); gap: 3vh; width: 100%; }
+.story-grid { grid-template-columns: repeat(auto-fit, minmax(21vw, 1fr)); gap: 2vh; }
+.story-grid .story-card { font-size: 2.1vh; }
+.story-grid .story-card h2 { font-size: 3.6vh; }
 .story-card, .duration-card {
   display: flex; flex-direction: column; gap: 1.2vh; align-items: flex-start; text-align: left;
   padding: 3vh; border-radius: 2vh; border: 0.5vh solid #4a3e33; background: var(--panel); color: var(--text); cursor: pointer; font-size: 2.4vh; line-height: 1.4;

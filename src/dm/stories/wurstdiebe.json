@@ -1,0 +1,664 @@
+{
+  "id": "wurstdiebe",
+  "title": "Die Wurstdiebe im Brockenhexchen",
+  "subtitle": "Das Einstiegsabenteuer (ca. 10 Minuten)",
+  "description": "Im Keller der Wirtin Hilde verschwinden nachts die Würste. Ein kleines Abenteuer, das euch Schritt für Schritt alles zeigt: laufen, würfeln, reden, kämpfen und zaubern. Perfekt für die allererste Runde.",
+  "recommended": true,
+  "cover": [
+    "monster.giant-rat",
+    "monster.kobold",
+    "chest.closed"
+  ],
+  "intro": [
+    {
+      "text": "Willkommen am Tisch! Dies ist ein kurzes Übungsabenteuer. Keine Sorge: Hier kann kaum etwas schiefgehen."
+    },
+    {
+      "text": "Ihr seid Reisende und sitzt im Wirtshaus „Zum Brockenhexchen“. Draußen regnet es, drinnen knistert das Feuer."
+    },
+    {
+      "text": "Da stürmt die Wirtin aus der Küche, die Schürze voller Mehl …"
+    }
+  ],
+  "truths": [
+    {
+      "id": "A",
+      "title": "Die Rattenbande",
+      "summary": "Eine Bande Riesenratten hat einen Gang aus der alten Kanalisation in den Keller gegraben. Angeführt wird sie von einer besonders fetten Ratte – der „Wurstkönig“.",
+      "reveal": [
+        {
+          "text": "Hinter dem größten Fass raschelt es. Aus einem frisch gegrabenen Loch schieben sich Schnauzen, Schnurrhaare … und eine Ratte, so groß wie ein Hund."
+        },
+        {
+          "text": "Das ist der Wurstkönig – und er will seine Beute nicht hergeben!"
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "title": "Der hungrige Kobold",
+      "summary": "Ein kleiner Kobold namens Knirps ist von seinem Stamm fortgelaufen. Er hat sich im Keller versteckt und nur aus Hunger gestohlen.",
+      "reveal": [
+        {
+          "text": "Hinter dem größten Fass sitzt ein kleiner Kobold, eine halbe Wurst in beiden Händen. Er zittert."
+        },
+        {
+          "text": "„Nicht hauen! Knirps hatte nur … so … Hunger.“",
+          "npc": "Knirps"
+        }
+      ]
+    }
+  ],
+  "clues": [
+    {
+      "id": "a_wirt",
+      "text": "Hilde: Die Würste sind nicht nur weg – die Reste sind angenagt, von vielen kleinen, spitzen Zähnen.",
+      "truth": "A"
+    },
+    {
+      "id": "b_wirt",
+      "text": "Hilde: Seltsam – der Dieb hat jedes Mal die Kellertür wieder ordentlich zugemacht.",
+      "truth": "B"
+    },
+    {
+      "id": "a_spuren",
+      "text": "Im verschütteten Mehl: dutzende winzige Pfotenabdrücke und lange Schwanzspuren.",
+      "truth": "A"
+    },
+    {
+      "id": "b_spuren",
+      "text": "Im verschütteten Mehl: kleine Fußabdrücke mit Krallen – wie von einem Kind, aber schuppig.",
+      "truth": "B"
+    },
+    {
+      "id": "a_keller",
+      "text": "Hinter einem Fass: ein frisch gegrabenes Loch, aus dem es nach Kanal stinkt.",
+      "truth": "A"
+    },
+    {
+      "id": "b_keller",
+      "text": "In einer Ecke: ein Bett aus Kartoffelsäcken und ein Zettel in krakeliger Schrift: „Tut leid. Hunger.“",
+      "truth": "B"
+    },
+    {
+      "id": "a_hof",
+      "text": "Im Hinterhof: ein Gully, dessen Gitter verbogen ist. Darunter quiekt es.",
+      "truth": "A"
+    },
+    {
+      "id": "b_hof",
+      "text": "Im Hinterhof: eine kleine Speerspitze aus Knochen – Koboldarbeit.",
+      "truth": "B"
+    }
+  ],
+  "npcs": [
+    {
+      "id": "hilde",
+      "name": "Wirtin Hilde",
+      "monster": "commoner",
+      "description": "Eine kräftige Wirtin mit roten Wangen und einer Stimme, die man bis zum Brocken hört.",
+      "secretGoal": "Sie will nur ihre Würste zurück – und niemanden verletzen."
+    }
+  ],
+  "acts": [
+    {
+      "id": "akt1",
+      "title": "Die Wurstdiebe",
+      "level": 1,
+      "scenes": [
+        {
+          "id": "schankraum",
+          "title": "Im Schankraum",
+          "rooms": [
+            "wirtshaus"
+          ],
+          "pflicht": true,
+          "dauer_min": 7,
+          "mindestDauer": "kurz",
+          "ziel": "Mit der Wirtin sprechen",
+          "npcs": [
+            {
+              "npc": "hilde"
+            }
+          ],
+          "clues": [
+            {
+              "id": "wirt",
+              "byTruth": {
+                "A": "a_wirt",
+                "B": "b_wirt"
+              }
+            },
+            {
+              "id": "spuren",
+              "byTruth": {
+                "A": "a_spuren",
+                "B": "b_spuren"
+              }
+            }
+          ],
+          "keywords": [
+            {
+              "words": [
+                "wurst",
+                "würste",
+                "essen",
+                "bier"
+              ],
+              "response": [
+                {
+                  "text": "„Die besten Würste im ganzen Harz! Und jede Nacht werden es weniger!“",
+                  "npc": "Wirtin Hilde"
+                }
+              ]
+            }
+          ],
+          "steps": [
+            {
+              "id": "hingehen",
+              "kind": "reach",
+              "target": "hilde",
+              "enter": [
+                {
+                  "text": "„Hilfe! Schon wieder! Die Würste sind weg!“",
+                  "npc": "Wirtin Hilde"
+                },
+                {
+                  "text": "Geht zur Wirtin.",
+                  "tip": {
+                    "key": "bewegung",
+                    "text": "LAUFEN: Tippe auf deinem Handy ein helles Feld der Karte an – deine Figur läuft dorthin. Hier dürfen alle gleichzeitig laufen."
+                  }
+                }
+              ],
+              "done": [
+                {
+                  "text": "Hilde wischt sich die Hände an der Schürze ab."
+                }
+              ]
+            },
+            {
+              "id": "erzaehlen",
+              "kind": "narrate",
+              "enter": [
+                {
+                  "text": "„Jede Nacht fehlen Würste aus meinem Keller. Ich trau mich nicht mehr runter. Helft ihr mir? Es gibt Freibier!“",
+                  "npc": "Wirtin Hilde"
+                },
+                {
+                  "text": "Ihr seht euch den Boden vor der Kellertür an.",
+                  "tip": {
+                    "key": "hinweis",
+                    "text": "HINWEISE: Was ihr herausfindet, steht auf dem Handy im Tab „Hinweise“. Wer ist der Dieb? Das wird bei jedem Spiel neu ausgewürfelt!"
+                  }
+                }
+              ],
+              "clues": [
+                "wirt"
+              ]
+            },
+            {
+              "id": "spurensuche",
+              "kind": "check",
+              "enter": [
+                {
+                  "text": "Vor der Kellertür ist Mehl verschüttet. Sind da Spuren?",
+                  "tip": {
+                    "key": "probe",
+                    "text": "WÜRFELN: Das ist eine Probe. Auf dem Handy siehst du, welche Zahl du brauchst. Tippe auf den Würfel – das Spiel rechnet deinen Bonus dazu. Auch der Fernseher zeigt den Wurf."
+                  }
+                }
+              ],
+              "check": {
+                "skill": "perception",
+                "dc": 10,
+                "who": "one",
+                "title": "Spuren im Mehl",
+                "success": {
+                  "narration": [
+                    {
+                      "text": "Gut aufgepasst! Die Spuren sind deutlich zu erkennen."
+                    }
+                  ]
+                },
+                "failure": {
+                  "narration": [
+                    {
+                      "text": "Erst seht ihr nichts – dann zeigt Hilde mit dem Finger drauf. „Da! Seht ihr das nicht?“",
+                      "npc": "Wirtin Hilde"
+                    }
+                  ]
+                }
+              },
+              "clues": [
+                "spuren"
+              ]
+            },
+            {
+              "id": "abstimmung",
+              "kind": "choice",
+              "enter": [
+                {
+                  "text": "Wie wollt ihr in den Keller gehen?",
+                  "tip": {
+                    "key": "entscheidung",
+                    "text": "ABSTIMMEN: Bei großen Entscheidungen stimmt jeder auf seinem Handy ab. Die Mehrheit gewinnt – ihr könnt euch umentscheiden, bis alle abgestimmt haben."
+                  }
+                }
+              ],
+              "choices": [
+                {
+                  "id": "leise",
+                  "label": "Leise hinunterschleichen",
+                  "detail": "Vielleicht erwischt ihr den Dieb schlafend",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Ihr zieht die Stiefel aus und schleicht die Treppe hinunter. Hilde hält die Luft an."
+                      }
+                    ],
+                    "set": [
+                      "leise"
+                    ]
+                  }
+                },
+                {
+                  "id": "laut",
+                  "label": "Mit Getöse hinunter",
+                  "detail": "Wer auch immer da ist, soll Angst bekommen",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "„HIER KOMMEN DIE HELDEN!“ Die Treppe bebt. Unten raschelt und poltert es."
+                      }
+                    ],
+                    "set": [
+                      "laut"
+                    ]
+                  }
+                },
+                {
+                  "id": "kaese",
+                  "label": "Einen Käse als Köder mitnehmen",
+                  "detail": "Hilde gibt euch ihren stinkendsten Käse",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "„Nehmt den Harzer Roller, den riecht man bis Goslar!“",
+                        "npc": "Wirtin Hilde"
+                      }
+                    ],
+                    "set": [
+                      "kaese"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "hinterhof",
+          "title": "Der Hinterhof",
+          "rooms": [
+            "stadtgasse"
+          ],
+          "pflicht": false,
+          "dauer_min": 6,
+          "mindestDauer": "mittel",
+          "ziel": "Den Hinterhof absuchen",
+          "travel": "Hilde meint, der Dieb könnte auch von draußen kommen.",
+          "clues": [
+            {
+              "id": "hof",
+              "byTruth": {
+                "A": "a_hof",
+                "B": "b_hof"
+              }
+            }
+          ],
+          "steps": [
+            {
+              "id": "hof",
+              "kind": "explore",
+              "enter": [
+                {
+                  "text": "Der Regen hat nachgelassen. Im Hinterhof stapeln sich leere Fässer.",
+                  "tip": {
+                    "key": "umsehen",
+                    "text": "UMSEHEN: Unter „Umgebung“ findest du „Umsehen“ – eine Probe auf Wahrnehmung. Wer gut würfelt, entdeckt Verstecktes."
+                  }
+                }
+              ],
+              "clues": [
+                "hof"
+              ]
+            },
+            {
+              "id": "streuner",
+              "kind": "fight",
+              "fight": [
+                {
+                  "monster": "rat",
+                  "count": 2,
+                  "name": "Streunende Ratte",
+                  "perExtraPlayer": 0
+                }
+              ],
+              "enter": [
+                {
+                  "text": "Zwei Ratten fauchen euch aus einer Pfütze an!",
+                  "tip": {
+                    "key": "initiative",
+                    "text": "KÄMPFEN: Alle würfeln Initiative – links seht ihr die Reihenfolge. Wer dran ist, läuft zur Ratte und tippt auf seine Waffe. Wer zaubern kann, findet seine Zauber unter „✨ Zauber“."
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "keller",
+          "title": "Der Vorratskeller",
+          "rooms": [
+            "treppe",
+            "vorratskeller"
+          ],
+          "pflicht": true,
+          "dauer_min": 6,
+          "mindestDauer": "kurz",
+          "ziel": "Den Wurstdieb finden",
+          "dark": true,
+          "travel": "Knarrend öffnet sich die Kellertür. Kalte Luft, es riecht nach Wurst und Erde.",
+          "clues": [
+            {
+              "id": "keller",
+              "byTruth": {
+                "A": "a_keller",
+                "B": "b_keller"
+              }
+            }
+          ],
+          "keywords": [
+            {
+              "words": [
+                "käse",
+                "köder",
+                "wurst"
+              ],
+              "response": [
+                {
+                  "text": "Ihr haltet den Käse hoch. Hinter den Fässern schnuppert etwas …"
+                }
+              ],
+              "set": [
+                "kaese"
+              ]
+            }
+          ],
+          "steps": [
+            {
+              "id": "licht",
+              "kind": "reach",
+              "target": "exit",
+              "enter": [
+                {
+                  "text": "Unten ist es stockdunkel.",
+                  "tip": {
+                    "key": "dunkelheit",
+                    "text": "LICHT: Im Dunkeln trefft ihr schlechter. Auf dem Handy unter „Gegenstände“: „🔥 Fackel anzünden“. Zwerge, Elfen und Halblinge sehen zum Glück auch im Dunkeln ein wenig."
+                  }
+                },
+                {
+                  "text": "Geht ganz nach hinten in den Keller."
+                }
+              ]
+            },
+            {
+              "id": "vorraete",
+              "kind": "use_item",
+              "enter": [
+                {
+                  "text": "In der Ecke steht eine alte Truhe mit Hildes Notfall-Vorräten.",
+                  "tip": {
+                    "key": "truhe",
+                    "text": "GEGENSTÄNDE: Stell dich direkt neben die Truhe und tippe auf „Truhe öffnen“. Einen Heiltrank trinkst du später mit „🧪 Heiltrank“ – er heilt 2W4 + 2 Trefferpunkte."
+                  }
+                }
+              ],
+              "done": [
+                {
+                  "text": "Gut ausgerüstet schaut ihr euch um."
+                }
+              ],
+              "clues": [
+                "keller"
+              ]
+            },
+            {
+              "id": "wahrheit",
+              "kind": "narrate",
+              "twist": true,
+              "enter": [
+                {
+                  "text": "Da! Hinter dem größten Fass bewegt sich etwas …"
+                }
+              ]
+            },
+            {
+              "id": "rattenkampf",
+              "kind": "fight",
+              "truths": [
+                "A"
+              ],
+              "fight": [
+                {
+                  "monster": "rat",
+                  "count": 1,
+                  "perExtraPlayer": 1,
+                  "name": "Kellerratte"
+                },
+                {
+                  "monster": "giant-rat",
+                  "count": 1,
+                  "boss": true,
+                  "name": "Der Wurstkönig"
+                }
+              ],
+              "enter": [
+                {
+                  "text": "Der Wurstkönig quiekt, und seine Bande stürzt sich auf euch!",
+                  "tip": {
+                    "key": "angriffswurf",
+                    "text": "ANGREIFEN: Tippe auf deine Waffe und dann auf das Ziel. Du würfelst einen W20 – erreichst du die Rüstungsklasse (RK) des Gegners, triffst du. Wer zaubern kann: „✨ Zauber“."
+                  }
+                }
+              ],
+              "done": [
+                {
+                  "text": "Der Wurstkönig flieht quiekend in sein Loch – oder liegt still. Hilde stopft das Loch mit einem Sack Mehl zu."
+                }
+              ],
+              "set": [
+                "ratten_besiegt"
+              ]
+            },
+            {
+              "id": "knirps",
+              "kind": "choice",
+              "truths": [
+                "B"
+              ],
+              "enter": [
+                {
+                  "text": "Knirps schaut euch mit großen, gelben Augen an. Was tut ihr?"
+                }
+              ],
+              "choices": [
+                {
+                  "id": "freund",
+                  "label": "Knirps Essen anbieten und reden",
+                  "detail": "Überzeugen gegen SG 10",
+                  "check": {
+                    "skill": "persuasion",
+                    "dc": 10,
+                    "success": {
+                      "narration": [
+                        {
+                          "text": "Knirps nimmt zögernd eine Wurst. Dann lächelt er – mit sehr vielen spitzen Zähnen."
+                        },
+                        {
+                          "text": "„Knirps kann arbeiten! Kartoffeln schälen! Mäuse jagen!“",
+                          "npc": "Knirps"
+                        }
+                      ],
+                      "set": [
+                        "kobold_freund"
+                      ]
+                    },
+                    "failure": {
+                      "narration": [
+                        {
+                          "text": "Knirps erschrickt, wirft einen Kartoffelsack um und greift nach seinem kleinen Speer!"
+                        }
+                      ],
+                      "fight": [
+                        {
+                          "monster": "kobold",
+                          "count": 1,
+                          "name": "Knirps"
+                        }
+                      ],
+                      "set": [
+                        "kobold_kampf"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "kaese_geben",
+                  "label": "Ihm den stinkenden Käse schenken",
+                  "detail": "Nur, wenn ihr den Käse mitgenommen habt",
+                  "requires": [
+                    "kaese"
+                  ],
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Knirps schnüffelt – und strahlt. „Der beste Geruch der Welt!“ Er ist sofort euer Freund.",
+                        "npc": "Knirps"
+                      }
+                    ],
+                    "set": [
+                      "kobold_freund"
+                    ]
+                  }
+                },
+                {
+                  "id": "angriff",
+                  "label": "Angreifen!",
+                  "detail": "Der Dieb soll seine Strafe bekommen",
+                  "outcome": {
+                    "narration": [
+                      {
+                        "text": "Knirps kreischt und hebt seinen winzigen Speer."
+                      }
+                    ],
+                    "fight": [
+                      {
+                        "monster": "kobold",
+                        "count": 1,
+                        "name": "Knirps"
+                      }
+                    ],
+                    "set": [
+                      "kobold_kampf"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "lager",
+          "title": "Das Vorratslager",
+          "rooms": [
+            "lager"
+          ],
+          "pflicht": false,
+          "dauer_min": 6,
+          "mindestDauer": "lang",
+          "ziel": "Hildes Vorräte zurückbringen",
+          "travel": "Zum Schluss tragt ihr, was übrig ist, ins Lager hinter der Küche.",
+          "steps": [
+            {
+              "id": "tragen",
+              "kind": "explore",
+              "enter": [
+                {
+                  "text": "Säcke, Kisten und ein Rest Würste – alles muss ins Lager.",
+                  "tip": {
+                    "key": "freie_aktion",
+                    "text": "EIGENE IDEEN: Unter „Etwas anderes tun“ kannst du einfach hinschreiben oder sagen, was dein Held machen soll. Der Spielleiter entscheidet, was passiert."
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "endings": [
+    {
+      "id": "scheitern",
+      "title": "Nochmal von vorn",
+      "kind": "scheitern",
+      "requires": [
+        "niederlage_boss"
+      ],
+      "text": [
+        {
+          "text": "Ihr wacht auf der Kellertreppe auf. Hilde fächelt euch mit einem Geschirrtuch Luft zu."
+        },
+        {
+          "text": "„Na, das war wohl nichts. Morgen probieren wir's nochmal – mit mehr Bier!“",
+          "npc": "Wirtin Hilde"
+        }
+      ]
+    },
+    {
+      "id": "freundschaft",
+      "title": "Der neue Küchenjunge",
+      "kind": "friedlich",
+      "requires": [
+        "kobold_freund"
+      ],
+      "truths": [
+        "B"
+      ],
+      "text": [
+        {
+          "text": "Knirps bekommt eine Schürze, einen Schemel und jeden Abend eine Wurst."
+        },
+        {
+          "text": "Und das Brockenhexchen hat seitdem keine einzige Maus mehr. Ihr habt euer erstes Abenteuer bestanden!"
+        }
+      ]
+    },
+    {
+      "id": "sieg",
+      "title": "Freibier für die Helden",
+      "kind": "sieg",
+      "text": [
+        {
+          "text": "Die Würste sind sicher. Hilde stellt euch eine Runde Freibier nach der anderen hin."
+        },
+        {
+          "text": "Glückwunsch – ihr habt euer erstes Abenteuer bestanden! Jetzt seid ihr bereit für den Drachen vom Drachenfels."
+        }
+      ]
+    }
+  ]
+}

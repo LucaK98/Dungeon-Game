@@ -267,7 +267,7 @@ for (const STORY of STORIES) {
         expect(guard).toBeLessThan(20000);
         // Every new chapter starts with a rest at the campfire (4 heroes each time).
         if (result!.ending.id !== "scheitern") expect(campfires).toBe((STORY.acts.length - 1) * 4);
-        expect(state.tales?.length ?? 0).toBeGreaterThan(0);
+        if (STORY.acts.length > 1) expect(state.tales?.length ?? 0).toBeGreaterThan(0);
         // Secret goals: one per hero, revealed at the end.
         expect(result!.recap.goals?.length).toBe(4);
         expect(result, `ended (${state.sceneIndex}/${state.plan.length})`).toBeDefined();
