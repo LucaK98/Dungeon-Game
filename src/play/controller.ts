@@ -1,6 +1,8 @@
 /**
  * The phone as game controller: turn status, map, actions, character sheet and inventory.
  */
+import type { Recap } from "../shared/recap";
+import { shareRecap } from "../ui/recap-image";
 import { abilityMod, saveParts, skillParts, sumParts } from "../engine/core";
 import { SRD } from "../engine/data";
 import { abilityName, abilityShort, nameOf } from "../engine/names";
@@ -39,6 +41,8 @@ export interface Controller {
   suggestions(ideas: string[]): void;
   /** Answer to "Frag den Spielleiter". */
   rulesAnswer(question: string, answer: string): void;
+  /** The look back at the end: own highlights first, then the group's. */
+  recap(recap: Recap): void;
 }
 
 /** Browser speech recognition (Chrome/Safari/Edge), if available. */
@@ -632,6 +636,54 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     },
     rulesAnswer(question, answer) {
       showRulesAnswer(question, answer);
+    },
+    recap(recap) {
+      document.querySelector(".recap-sheet")?.remove();
+      // The adventure is over: no die is waiting any more.
+      waitingPrompt = undefined;
+      dice?.close();
+      landed?.close();
+      dice = undefined;
+      landed = undefined;
+      const meId = view?.me.id;
+      const heroes = new Map(recap.heroes.map((x) => [x.id, x]));
+      const card = (hl: Recap["highlights"][number]) => {
+        const hero = heroes.get(hl.heroId);
+        return h(
+          "div",
+          { class: "highlight", style: `--player:${hero?.color ?? "#888"}` },
+          hero?.look ? dollCanvas(hero.look, 2, "hl-doll") : h("span", {}),
+          h("div", {}, h("strong", {}, `${hl.icon} ${hl.title}`), h("span", { class: "hl-name" }, hero?.name ?? ""), h("span", { class: "muted" }, hl.text)),
+        );
+      };
+      const mine = recap.highlights.filter((x) => x.heroId === meId);
+      const me = meId ? heroes.get(meId) : undefined;
+      const share = h("button", { class: "btn primary big", type: "button", textContent: "📸 Bild teilen" });
+      const close = h("button", { class: "btn big", type: "button", textContent: "Schließen" });
+      const sheet = h(
+        "div",
+        { class: "recap-sheet" },
+        h("h2", {}, `🌟 ${recap.ending.title}`),
+        h("p", { class: "muted" }, `${recap.story} · ${recap.minutes} Minuten`),
+        me
+          ? h(
+              "div",
+              { class: "recap-mine" },
+              h("strong", {}, `Deine Bilanz, ${me.name}`),
+              h("p", {}, `⚔️ ${me.stats.damageDealt} Schaden · 💀 ${me.stats.kills} besiegt · 🎯 ${me.stats.crits} Volltreffer · 💚 ${me.stats.healing} geheilt · 💰 ${me.stats.gold} Gold`),
+              ...mine.map(card),
+            )
+          : "",
+        h("h2", {}, "Die Highlights der Gruppe"),
+        ...recap.highlights.map(card),
+        recap.bestIdea ? h("p", { class: "muted" }, `🎭 Beste Idee: „${recap.bestIdea}“`) : "",
+        share,
+        close,
+      );
+      share.addEventListener("click", () => void shareRecap(recap).then((how) => showToast(how === "shared" ? "Geteilt!" : "Bild gespeichert.")));
+      close.addEventListener("click", () => sheet.remove());
+      document.body.append(sheet);
+      if ("vibrate" in navigator) navigator.vibrate([60, 40, 60, 40, 120]);
     },
     suggestions(ideas) {
       const box = ideasBox;

@@ -18,6 +18,7 @@ import { maxTargets, validateCast } from "../engine/spells";
 import { isWalkable, partyStartSpots, revealAround } from "../map/walk";
 import { isLit } from "../engine/vision";
 import { EMOTES, type PlayerAction } from "../shared/events";
+import { emptyStats, type HeroStats, type Recap, type RecapHero } from "../shared/recap";
 import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
 import { glossaryAnswer } from "../dm/rules-help";
@@ -681,6 +682,7 @@ export class GameController {
       const now = Date.now();
       if (!(EMOTES as readonly string[]).includes(action.emoji) || now - (this.lastEmote.get(playerId) ?? 0) < 1500) return;
       this.lastEmote.set(playerId, now);
+      this.statsOf(hero.id).emotes++;
       this.emit("emote", hero.id, action.emoji);
       return;
     }
@@ -765,6 +767,7 @@ export class GameController {
           }
           turn.actions -= 1;
         }
+        this.statsOf(hero.id).freeActions++;
         this.addLog([{ text: `${hero.name} versucht: „${action.text.slice(0, 140)}“`, glossarKeys: ["freie_aktion"] }]);
         this.onFreeText?.(playerId, hero, action.text.slice(0, 300));
         this.broadcast();
@@ -865,6 +868,7 @@ export class GameController {
   }
 
   private publishRoll(r: RollOutcome): void {
+    this.track(r);
     this.addLog(r.lines);
     this.sendAll({ type: "roll_result", result: r });
     this.emit("roll", r);
@@ -1023,6 +1027,74 @@ export class GameController {
     const entry = inv.find((i) => i.itemId === itemId);
     if (entry) entry.qty += qty;
     else inv.push({ itemId, qty });
+    if (itemId === "gold" && qty > 0) this.statsOf(hero.id).gold += qty;
+  }
+
+  // ---------------------------------------------------------------- the look back (recap)
+
+  /** Numbers per hero for the look back at the end. */
+  readonly stats = new Map<string, HeroStats>();
+  private downed = new Set<string>();
+
+  statsOf(heroId: string): HeroStats {
+    let s = this.stats.get(heroId);
+    if (!s) {
+      s = emptyStats();
+      this.stats.set(heroId, s);
+    }
+    return s;
+  }
+
+  /** Counts what a roll did (damage, kills, crits, healing, bad luck). */
+  private track(r: RollOutcome): void {
+    const actor = this.battle.creatures[r.creatureId];
+    const heroActs = !!actor && actor.kind === "pc";
+    if (heroActs && r.sides === 20 && r.dice.length && r.kept === 1) this.statsOf(actor.id).fumbles++;
+    for (const hit of r.hits ?? []) {
+      const target = this.battle.creatures[hit.targetId];
+      if (hit.miss) continue;
+      if (hit.heal) {
+        if (heroActs) this.statsOf(actor.id).healing += hit.amount;
+        continue;
+      }
+      if (heroActs && target?.kind !== "pc") {
+        const s = this.statsOf(actor.id);
+        s.damageDealt += hit.amount;
+        if (hit.crit) s.crits++;
+        if (hit.amount > s.biggestHit) {
+          s.biggestHit = hit.amount;
+          s.biggestHitTarget = target?.name.replace(/ \d+$/, "");
+        }
+        if (target && (target.dead || target.hp <= 0)) s.kills++;
+      }
+      if (target?.kind === "pc") {
+        const s = this.statsOf(target.id);
+        s.damageTaken += hit.amount;
+        if (target.hp <= 0 && !this.downed.has(target.id)) {
+          this.downed.add(target.id);
+          s.downs++;
+        }
+        if (target.hp > 0) this.downed.delete(target.id);
+      }
+    }
+  }
+
+  /** The heroes with their numbers, for the look back. */
+  recapHeroes(): RecapHero[] {
+    return this.heroes().map((h) => ({
+      id: h.id,
+      name: h.name,
+      color: h.appearance?.color ?? "#888",
+      ...(h.appearance ? { look: h.appearance.look } : {}),
+      classId: h.pc?.classId ?? "",
+      level: h.pc?.level ?? 1,
+      stats: { ...this.statsOf(h.id) },
+    }));
+  }
+
+  /** Sends the look back to every phone (their own highlights). */
+  sendRecap(recap: Recap): void {
+    this.sendAll({ type: "recap", recap });
   }
 
   private interact(playerId: PlayerId, hero: Creature, objectId: string, targetId?: string): void {

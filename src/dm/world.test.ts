@@ -273,3 +273,49 @@ describe("reactions", () => {
     expect(seen).toEqual([`${hero.id}:😂`, `${game.heroes()[1]!.id}:👏`]);
   });
 });
+
+describe("the look back", () => {
+  it("counts damage, kills and bad luck of the heroes during a fight", async () => {
+    const { game, last, roll } = setup(21);
+    game.stageFight([{ monster: "goblin", count: 1 }], "asleep");
+    game.engage(true);
+    for (let i = 0; i < 60 && game.mode === "combat"; i++) {
+      const a = game.active();
+      if (a?.kind !== "pc") {
+        await new Promise((r) => setTimeout(r, 2));
+        continue;
+      }
+      const v = last(a.playerId!, "state_update");
+      const choices = v?.type === "state_update" ? v.state.choices : [];
+      const attack = choices.find((c) => c.enabled && c.group === "attack" && c.targets?.length && c.action.kind === "attack");
+      const reach = v?.type === "state_update" ? v.state.minimap.reachable : [];
+      const gob = Object.values(game.session.battle.creatures).find((c) => c.monsterId === "goblin" && !c.dead);
+      if (attack && attack.action.kind === "attack") {
+        game.handle(a.playerId!, { ...attack.action, targetId: attack.targets![0]!.id });
+        await roll(a.playerId!);
+        await roll(a.playerId!);
+      } else if (gob?.pos && reach.length && (v?.type === "state_update" ? v.state.turn.movementLeftFt : 0) > 0) {
+        const to = [...reach].sort((p, q) => Math.hypot(p.x - gob.pos!.x, p.y - gob.pos!.y) - Math.hypot(q.x - gob.pos!.x, q.y - gob.pos!.y))[0]!;
+        game.handle(a.playerId!, { kind: "move", to });
+      }
+      if (game.active()?.id === a.id) game.handle(a.playerId!, { kind: "end_turn" });
+    }
+    const recap = game.recapHeroes();
+    const dealt = recap.reduce((s, h) => s + h.stats.damageDealt, 0);
+    const kills = recap.reduce((s, h) => s + h.stats.kills, 0);
+    expect(game.mode).toBe("explore");
+    expect(dealt).toBeGreaterThan(0);
+    expect(kills).toBe(1);
+    expect(recap.some((h) => h.stats.biggestHitTarget === "Goblin")).toBe(true);
+  });
+
+  it("picks highlights: each hero at most twice, only real numbers", async () => {
+    const { buildHighlights, emptyStats } = await import("../shared/recap");
+    const hero = (id: string, s: Partial<ReturnType<typeof emptyStats>>) => ({ id, name: id, color: "#fff", classId: "fighter", level: 1, stats: { ...emptyStats(), ...s } });
+    const hl = buildHighlights([hero("a", { biggestHit: 12, kills: 3, crits: 2, healing: 0 }), hero("b", { healing: 9, fumbles: 2 }), hero("c", {})]);
+    expect(hl.find((x) => x.title === "Heiler")?.heroId).toBe("b");
+    expect(hl.filter((x) => x.heroId === "a").length).toBeLessThanOrEqual(2);
+    expect(hl.some((x) => x.heroId === "c")).toBe(false);
+    expect(hl.every((x) => x.text && x.icon)).toBe(true);
+  });
+});

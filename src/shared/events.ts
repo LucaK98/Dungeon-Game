@@ -60,6 +60,8 @@ export type GameEvent =
   | { type: "lobby_profile"; profile: CharacterProfile | null; ready: boolean }
   | { type: "lobby_state"; lobby: LobbyState }
   | { type: "join_rejected"; reason: string }
+  /** TV → all phones: the look back at the end of the adventure. */
+  | { type: "recap"; recap: import("./recap").Recap }
   /** TV → one phone: ideas for a free action. */
   | { type: "suggestions"; ideas: string[] }
   /** TV → one phone: the game master's answer to a rules question. */

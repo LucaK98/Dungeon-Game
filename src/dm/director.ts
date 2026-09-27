@@ -22,6 +22,7 @@ import { filterEffects } from "./effects";
 import { glossaryAnswer, glossaryExcerpt, heroSummary } from "./rules-help";
 import { SKILL_IDS, type SkillId } from "../shared/rules";
 import { World } from "./world";
+import { buildHighlights, type Recap } from "../shared/recap";
 
 export interface StoryState {
   storyId: string;
@@ -48,6 +49,8 @@ export interface StoryResult {
   truth: { id: string; title: string; summary: string };
   found: { text: string; falseLead: boolean }[];
   missed: { text: string }[];
+  /** Highlights and numbers of the heroes. */
+  recap: Recap;
 }
 
 export interface DirectorOptions {
@@ -572,6 +575,21 @@ export class Director {
     return { dc: dc - shift, title: `${title} (${shift > 0 ? "leichter" : "schwerer"}: ${shift > 0 ? "man mag euch" : "man misstraut euch"})` };
   }
 
+  /** The look back: highlights from the numbers, and the most memorable idea. */
+  private recap(ending: { title: string; kind: string }): Recap {
+    const heroes = this.game.recapHeroes();
+    const chronicle = (this.state.chronicle ?? []).filter((c) => !c.startsWith("Ereignis:"));
+    const bestIdea = chronicle.find((c) => c.includes("großartig")) ?? chronicle.find((c) => c.includes("geschafft")) ?? chronicle[0];
+    return {
+      story: this.story.title,
+      ending: { title: ending.title, kind: ending.kind },
+      minutes: Math.round(this.minutesPlayed()),
+      heroes,
+      highlights: buildHighlights(heroes),
+      ...(bestIdea ? { bestIdea: bestIdea.replace(/ → .*$/, "") } : {}),
+    };
+  }
+
   private async finish(): Promise<StoryResult> {
     this.finished = true;
     const res = await this.askDm({ kind: "story_end" });
@@ -588,7 +606,9 @@ export class Director {
         return { text: c.text, falseLead: !!c.falseLeadFor };
       }),
       missed: relevant.filter((c) => !c.falseLeadFor && !this.state.clues.includes(c.id)).map((c) => ({ text: c.text })),
+      recap: this.recap(ending),
     };
+    this.game.sendRecap(result.recap);
     this.opts.onEnd?.(result);
     return result;
   }

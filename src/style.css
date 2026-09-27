@@ -541,3 +541,17 @@ body.tip-mode::after {
 .emote-row[hidden] { display: none; }
 .emote { width: 52px; height: 52px; font-size: 1.8rem; border: none; border-radius: 12px; background: #2a231d; cursor: pointer; }
 .emote:active { transform: scale(0.9); background: #3a3027; }
+.highlights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4vh; width: 100%; }
+.highlight { --player: #888; display: flex; align-items: center; gap: 1.2vh; text-align: left; background: #1d1814; border-radius: 12px; padding: 1vh 1.4vh; border-left: 6px solid var(--player); }
+.highlight strong { display: block; font-size: 2.4vh; }
+.highlight .hl-name { display: block; font-size: 2.2vh; color: var(--player); font-weight: 700; }
+.highlight .muted { display: block; font-size: 2vh; }
+.hl-doll { width: 7vh; height: 7vh; image-rendering: pixelated; flex: none; }
+.best-idea { font-size: 2.6vh; font-style: italic; color: #cfc4ae; margin: 0; }
+.recap-sheet { position: fixed; inset: 0; z-index: 80; background: #0c0908f2; overflow-y: auto; padding: 24px 16px 40px; }
+.recap-sheet h2 { margin: 0 0 4px; color: var(--accent); }
+.recap-sheet .highlight { margin: 8px 0; }
+.recap-sheet .highlight strong { font-size: 1.05rem; }
+.recap-sheet .highlight .hl-name, .recap-sheet .highlight .muted { font-size: 0.95rem; }
+.recap-sheet .hl-doll { width: 48px; height: 48px; }
+.recap-mine { background: #2a1f14; border: 2px solid var(--accent); border-radius: 14px; padding: 12px; margin: 12px 0; }
