@@ -13,7 +13,7 @@ import { armorClass } from "../engine/combat";
 import { EMOTES, type PlayerAction } from "../shared/events";
 import type { Creature } from "../shared/game";
 import { ABILITIES } from "../shared/rules";
-import type { ActionChoice, ActionGroup, PlayerView, RollOutcome, RollPrompt } from "../shared/view";
+import type { ActionChoice, ActionGroup, CampView, PlayerView, RollOutcome, RollPrompt } from "../shared/view";
 import { dollCanvas } from "../ui/atlas";
 import { h } from "../ui/dom";
 import { showRollPrompt, type DiceOverlay } from "./dice";
@@ -54,6 +54,39 @@ export interface Controller {
 
 /** Browser speech recognition (Chrome/Safari/Edge), if available. */
 type SpeechRec = { lang: string; interimResults: boolean; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onend: (() => void) | null; onerror: (() => void) | null; start(): void; stop(): void };
+/** "🎤 Sprechen": dictate into a text field (if the browser can). */
+function micButton(input: HTMLInputElement | HTMLTextAreaElement): HTMLButtonElement | undefined {
+  const Rec = speechRecognition();
+  if (!Rec) return undefined;
+  const mic = h("button", { class: "btn secondary", type: "button", textContent: "🎤 Sprechen" });
+  let rec: SpeechRec | undefined;
+  mic.addEventListener("click", () => {
+    if (rec) {
+      rec.stop();
+      return;
+    }
+    rec = new Rec();
+    rec.lang = "de-DE";
+    rec.interimResults = false;
+    rec.onresult = (e) => {
+      const said = Array.from(e.results).map((r) => r[0]?.transcript ?? "").join(" ").trim();
+      if (said) input.value = input.value ? `${input.value} ${said}` : said;
+      input.dispatchEvent(new Event("input"));
+    };
+    const done = () => {
+      rec = undefined;
+      mic.textContent = "🎤 Sprechen";
+      mic.classList.remove("recording");
+    };
+    rec.onend = done;
+    rec.onerror = done;
+    mic.textContent = "⏹ Fertig";
+    mic.classList.add("recording");
+    rec.start();
+  });
+  return mic;
+}
+
 function speechRecognition(): (new () => SpeechRec) | undefined {
   const w = window as unknown as { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition;
@@ -277,35 +310,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     });
     const tools = h("div", { class: "free-tools" });
     // 🎤 Speak instead of type.
-    const Rec = speechRecognition();
-    if (Rec) {
-      const mic = h("button", { class: "btn secondary", type: "button", textContent: "🎤 Sprechen" });
-      let rec: SpeechRec | undefined;
-      mic.addEventListener("click", () => {
-        if (rec) {
-          rec.stop();
-          return;
-        }
-        rec = new Rec();
-        rec.lang = "de-DE";
-        rec.interimResults = false;
-        rec.onresult = (e) => {
-          const said = Array.from(e.results).map((r) => r[0]?.transcript ?? "").join(" ").trim();
-          if (said) input.value = input.value ? `${input.value} ${said}` : said;
-        };
-        const done = () => {
-          rec = undefined;
-          mic.textContent = "🎤 Sprechen";
-          mic.classList.remove("recording");
-        };
-        rec.onend = done;
-        rec.onerror = done;
-        mic.textContent = "⏹ Fertig";
-        mic.classList.add("recording");
-        rec.start();
-      });
-      tools.append(mic);
-    }
+    const mic = micButton(input);
+    if (mic) tools.append(mic);
     // 💡 Ideas from the game master.
     const ideas = h("button", { class: "btn secondary", type: "button", textContent: "💡 Ideen" });
     const box = h("div", { class: "idea-list" });
@@ -392,7 +398,78 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     ];
   }
 
+  /**
+   * The campfire card. It is built once per rest and only updated, so the text field keeps
+   * what you type (and the keyboard stays open) while the others shop and tell.
+   */
+  let campCard: { el: HTMLElement; update(c: CampView): void } | undefined;
+
+  function campSection(c: CampView): HTMLElement {
+    if (!campCard) {
+      const input = h("textarea", { class: "text-input camp-input", rows: 3, maxLength: 220, placeholder: "Ein, zwei Sätze reichen …" }) as HTMLTextAreaElement;
+      const question = h("p", { class: "camp-question" });
+      const tell = h("button", { class: "btn primary", type: "button", textContent: "🔥 Am Feuer erzählen" });
+      tell.addEventListener("click", () => {
+        const text = input.value.trim();
+        if (text) send({ kind: "camp_tell", text });
+      });
+      const mic = micButton(input);
+      const tellBox = h("div", { class: "camp-tell" }, question, input, h("div", { class: "free-tools" }, ...(mic ? [mic] : []), tell));
+      const talesBox = h("div", { class: "camp-tales" });
+      const goldLine = h("p", { class: "camp-gold" });
+      const shopBox = h("div", { class: "camp-shop" });
+      const readyLine = h("p", { class: "muted small" });
+      const done = h("button", { class: "btn big", type: "button", textContent: "✅ Weiter – ich bin bereit" });
+      done.addEventListener("click", () => send({ kind: "camp_done" }));
+      const el = h(
+        "section",
+        { class: "card camp-card" },
+        h("div", { class: "camp-fire" }, "🔥"),
+        h("h2", {}, "Rast am Lagerfeuer"),
+        h("p", { class: "muted" }, "Alle sind wieder bei vollen Kräften. Erzählt euch etwas über eure Helden – der Spielleiter merkt es sich."),
+        tellBox,
+        talesBox,
+        h("h3", {}, "🛒 Händlerin Grete"),
+        goldLine,
+        shopBox,
+        done,
+        readyLine,
+      );
+      campCard = {
+        el,
+        update(cv) {
+          question.textContent = `❓ ${cv.question}`;
+          tellBox.hidden = cv.told;
+          talesBox.replaceChildren(
+            ...cv.tales.map((t) => h("div", { class: "camp-tale", style: `--player:${t.color ?? "#888"}` }, h("strong", {}, t.name), h("span", {}, `„${t.text}“`))),
+          );
+          goldLine.textContent = `Dein Gold: 💰 ${cv.gold}`;
+          shopBox.replaceChildren(
+            ...cv.shop.map((o) => {
+              const buy = h("button", { class: "btn small primary", type: "button", textContent: o.blocked ?? `${o.price} 💰 kaufen`, disabled: !!o.blocked });
+              buy.addEventListener("click", () => send({ kind: "camp_buy", offerId: o.id }));
+              return h(
+                "div",
+                { class: "gear-row shop-row" },
+                h("span", { class: "gear-icon" }, o.icon),
+                h("div", { class: "gear-text" }, h("strong", {}, o.name), h("span", { class: "muted" }, o.detail), o.warning ? h("span", { class: "shop-warn" }, `⚠️ ${o.warning}`) : ""),
+                h("div", { class: "gear-buttons" }, buy),
+              );
+            }),
+          );
+          done.disabled = cv.done;
+          done.textContent = cv.done ? "⏳ Warte auf die anderen …" : "✅ Weiter – ich bin bereit";
+          readyLine.textContent = `${cv.ready} von ${cv.total} sind bereit.`;
+        },
+      };
+    }
+    campCard.update(c);
+    return campCard.el;
+  }
+
   function renderActionTab(v: PlayerView): HTMLElement[] {
+    if (v.camp) return [campSection(v.camp)];
+    campCard = undefined;
     const out: HTMLElement[] = [...renderStory(v)];
     const map = minimapView(v.minimap, (to) => send({ kind: "move", to }));
     out.push(
@@ -673,7 +750,10 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     renderStatus(view);
     renderTabs();
     const scroll = window.scrollY;
-    body.replaceChildren(...(tab === "action" ? renderActionTab(view) : tab === "sheet" ? renderSheetTab(me) : tab === "inventory" ? renderInventoryTab(me, view) : renderCluesTab(view)));
+    const content = tab === "action" ? renderActionTab(view) : tab === "sheet" ? renderSheetTab(me) : tab === "inventory" ? renderInventoryTab(me, view) : renderCluesTab(view);
+    // The same element again (campfire card): leave it in place, so typing is not interrupted.
+    const same = content.length === body.childNodes.length && content.every((el, i) => body.childNodes[i] === el);
+    if (!same) body.replaceChildren(...content);
     window.scrollTo(0, scroll);
     // A new decision for the group: bring it into view and buzz once.
     const choiceKey = (view.story?.choices ?? []).map((c) => c.id).join("|");

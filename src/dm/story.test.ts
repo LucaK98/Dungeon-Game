@@ -67,12 +67,13 @@ async function playStory(opts: { story?: Story; seed: number; duration: "kurz" |
   const narration: string[] = [];
   game.on({ narration: (lines) => narration.push(...lines.map((l) => l.text)) });
   let result: StoryResult | undefined;
-  const director = new Director(story, state, game, opts.dm ?? new ScriptedDM(story), rng, { duration: opts.duration, ...(opts.slow ? { now: () => clock } : {}), onEnd: (r) => (result = r) });
+  const director = new Director(story, state, game, opts.dm ?? new ScriptedDM(story), rng, { duration: opts.duration, camp: !process.env.NOCAMP, ...(opts.slow ? { now: () => clock } : {}), onEnd: (r) => (result = r) });
   const run = director.run();
   let guard = 0;
+  let campfires = 0;
   const visited = new Set<string>();
   let visitedMap: unknown;
-  while (!result && guard++ < 20000) {
+  while (!result && guard++ < Number(process.env.GUARD ?? 20000)) {
     await new Promise((r) => setTimeout(r, 0));
     // A slow table: every move takes a minute and a half.
     clock += 90_000;
@@ -94,6 +95,17 @@ async function playStory(opts: { story?: Story; seed: number; duration: "kurz" |
       game.handle(rolling.me.playerId!, { kind: "roll", rollId: rolling.pendingRoll!.id });
       continue;
     }
+    // 1b. campfire: tell something, buy a potion if affordable, go on
+    const camper = pids.map((p) => game.viewFor(p)!).find((v) => v.camp && !v.camp.done);
+    if (camper) {
+      const pid = camper.me.playerId!;
+      if (!camper.camp!.told) game.handle(pid, { kind: "camp_tell", text: `Ich bin ${camper.me.name} und habe keine Angst.` });
+      const potion = camper.camp!.shop.find((o) => o.id === "potion" && !o.blocked);
+      if (potion && process.env.CAMP_BUY) game.handle(pid, { kind: "camp_buy", offerId: potion.id });
+      game.handle(pid, { kind: "camp_done" });
+      campfires++;
+      continue;
+    }
     // 2. story decisions (random but reproducible, prefer recommended)
     const v0 = game.viewFor(pids[0]!)!;
     const choices = v0.story?.choices.filter((c) => c.enabled) ?? [];
@@ -102,8 +114,9 @@ async function playStory(opts: { story?: Story; seed: number; duration: "kurz" |
       game.handle(pids[botRng.int(0, pids.length - 1)]!, pick.action);
       continue;
     }
-    // 3. the active hero acts
-    const active = game.active();
+    // 3. the active hero acts (exploring: anyone who can, e.g. when the active one is knocked out)
+    let active = game.active();
+    if (game.mode === "explore" && !(active?.playerId && game.viewFor(active.playerId)?.turn.mine)) active = game.heroes().find((h) => h.playerId && game.viewFor(h.playerId)?.turn.mine);
     if (!active?.playerId) continue;
     const pid = active.playerId;
     const view = game.viewFor(pid)!;
@@ -171,7 +184,9 @@ async function playStory(opts: { story?: Story; seed: number; duration: "kurz" |
   if (process.env.DEBUG_STORY) console.log("HEROES", game.heroes().map((h) => `${h.name} ${h.hp}/${h.maxHp} L${h.pc?.level} pos ${JSON.stringify(h.pos)}`).join(" | "), "\nLAST", narration.slice(-14).join(" / "), "\nMONSTERS", JSON.stringify(Object.values(game.session.battle.creatures).filter((c) => c.kind === "monster").map((c) => [c.name, c.hp, c.dead, c.pos])));
   if (process.env.DEBUG_STORY) console.log("END", result?.ending.id, state.sceneIndex, state.plan.length, state.dropped, state.flags.join(","));
   game.destroy();
-  return { result, state, narration, guard };
+  if (process.env.SHOW) (await import("node:fs")).appendFileSync("/tmp/claude-0/-home-user-Emulator/77d7fa35-7162-558f-838b-fa07882e69ee/scratchpad/ends.txt", `${story.id} ${opts.seed} ${process.env.NOCAMP ? "nocamp" : "camp"} end=${result?.ending.id} at ${state.plan[state.sceneIndex]} (${state.sceneIndex}/${state.plan.length}) hp=${game.heroes().map((h) => h.hp + "/" + h.maxHp).join(",")}\n`);
+  if (process.env.SHOW && !result) (await import("node:fs")).appendFileSync("/tmp/claude-0/-home-user-Emulator/77d7fa35-7162-558f-838b-fa07882e69ee/scratchpad/stuck.txt", `${story.id} guard=${guard} scene=${state.sceneIndex}/${state.plan.length} ${(director as unknown as { scene?: { id: string }; stepId?: string }).scene?.id} step=${(director as unknown as { stepId?: string }).stepId} mode=${game.mode} camp=${game.inCamp} last=${narration.slice(-5).join(" / ")}\n`);
+  return { result, state, narration, guard, campfires };
 }
 
 for (const STORY of STORIES) {
@@ -240,8 +255,11 @@ for (const STORY of STORIES) {
   describe(`playing: ${STORY.id}`, () => {
     for (const duration of ["kurz", "mittel", "lang"] as const) {
       it(`can be played from start to end (${duration})`, async () => {
-        const { result, state, guard } = await playStory({ story: STORY, seed: 11, duration });
+        const { result, state, guard, campfires } = await playStory({ story: STORY, seed: 11, duration });
         expect(guard).toBeLessThan(20000);
+        // Every new chapter starts with a rest at the campfire (4 heroes each time).
+        if (result!.ending.id !== "scheitern") expect(campfires).toBe((STORY.acts.length - 1) * 4);
+        expect(state.tales?.length ?? 0).toBeGreaterThan(0);
         expect(result, `ended (${state.sceneIndex}/${state.plan.length})`).toBeDefined();
         // Either all scenes were played, or the final fight was lost ("second chance" ending).
         if (result!.ending.id === "scheitern") expect(state.sceneIndex).toBe(state.plan.length - 1);
@@ -271,10 +289,12 @@ for (const STORY of STORIES) {
 
     it("can be won (not every game ends in defeat)", async () => {
       const endings: string[] = [];
-      for (const seed of [1, 2, 3, 4, 5, 6]) {
+      // The bots are no tacticians: several games, one of them must be won.
+      for (const seed of process.env.SEEDS ? process.env.SEEDS.split(",").map(Number) : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
         const { result } = await playStory({ story: STORY, seed, duration: "kurz" });
         endings.push(result!.ending.id);
       }
+      if (process.env.SHOW) (await import("node:fs")).appendFileSync("/tmp/claude-0/-home-user-Emulator/77d7fa35-7162-558f-838b-fa07882e69ee/scratchpad/endings.txt", `${STORY.id} ${process.env.NOCAMP ? "nocamp" : "camp"}: ${endings.join(",")}\n`);
       expect(endings.filter((e) => e !== "scheitern").length, endings.join(",")).toBeGreaterThan(0);
     }, 120_000);
 

@@ -38,7 +38,11 @@ export type PlayerAction =
   | { kind: "unequip"; slot: "weapon" | "armor" | "trinket" }
   | { kind: "give_gear"; gearId: string; toId: string }
   /** A quick reaction (😂 😱 👏 …) that floats over the hero on the TV. */
-  | { kind: "emote"; emoji: string };
+  | { kind: "emote"; emoji: string }
+  /** At the campfire: tell the others something, buy from the trader, ready to go on. */
+  | { kind: "camp_tell"; text: string }
+  | { kind: "camp_buy"; offerId: string }
+  | { kind: "camp_done" };
 
 /** The reactions a phone can send. */
 export const EMOTES = ["😂", "😱", "👏", "❤️", "💀", "🔥", "🤔", "😡"] as const;

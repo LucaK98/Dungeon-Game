@@ -24,6 +24,9 @@ import { SKILL_IDS, type SkillId } from "../shared/rules";
 import { World } from "./world";
 import { buildHighlights, type Recap } from "../shared/recap";
 import type { Difficulty } from "../shared/difficulty";
+import { getGear } from "../data/gear";
+import { seededRng } from "../engine/rng";
+import type { CampOffer } from "../tv/game";
 
 export interface StoryState {
   storyId: string;
@@ -43,6 +46,8 @@ export interface StoryState {
   chronicle?: string[];
   /** Attitude of story characters towards the group, −3 … +3. */
   attitudes?: Record<string, number>;
+  /** What the heroes told at the campfire (the game master weaves it in later). */
+  tales?: string[];
   /** How tough the world is (older saves: normal). */
   difficulty?: Difficulty;
 }
@@ -65,7 +70,27 @@ export interface DirectorOptions {
   onEnd?: (result: StoryResult) => void;
   /** The living world: random events, greetings, time pressure, sleeping enemies (not in tests). */
   world?: boolean;
+  /** Rest at the campfire between chapters (default on). */
+  camp?: boolean;
 }
+
+/** Questions at the campfire: small, personal, easy to answer for beginners. */
+export const CAMP_QUESTIONS = [
+  "Warum bist du auf diese Reise gegangen?",
+  "Wovor hast du heimlich Angst?",
+  "Was vermisst du von zu Hause am meisten?",
+  "Was machst du mit deinem Anteil am Schatz?",
+  "Woher hast du deine auffälligste Narbe (oder dein Lieblingsstück)?",
+  "Was war heute dein schönster Moment?",
+  "Wem in der Gruppe vertraust du am meisten – und warum?",
+  "Was war der peinlichste Moment deines Lebens?",
+  "Wen möchtest du nach dem Abenteuer als Erstes wiedersehen?",
+  "Welches Versprechen hast du jemandem gegeben?",
+  "Was ist dein größter Traum?",
+  "Was kannst du richtig gut, was die anderen noch nicht wissen?",
+];
+/** The campfire ends after this long even if not everyone tapped "Weiter". */
+const CAMP_MINUTES = 5;
 
 export function newStoryState(story: Story, rng: Rng, duration: Duration, truth?: string): StoryState {
   return {
@@ -170,6 +195,7 @@ export class Director {
       gold: this.game.partyGold(),
       chronicle: [...(this.state.chronicle ?? [])],
       attitudes: { ...(this.state.attitudes ?? {}) },
+      tales: [...(this.state.tales ?? [])],
       ...(this.actingRoom ? { room: this.actingRoom } : {}),
     };
   }
@@ -225,6 +251,8 @@ export class Director {
 
   async run(): Promise<StoryResult | undefined> {
     this.game.narrate(this.state.sceneIndex === 0 ? this.story.intro : [{ text: "Ihr setzt euer Abenteuer fort …" }]);
+    // A new chapter begins with a rest at the campfire (not when a saved game just continues).
+    let lastAct = this.state.sceneIndex < this.state.plan.length ? actOf(this.story, this.state.plan[this.state.sceneIndex]!).index : 0;
     while (this.state.sceneIndex < this.state.plan.length) {
       const id = this.state.plan[this.state.sceneIndex]!;
       if (this.state.dropped.includes(id)) {
@@ -232,6 +260,9 @@ export class Director {
         continue;
       }
       const scene = sceneById(this.story, id);
+      const actIndex = actOf(this.story, id).index;
+      if (actIndex > lastAct && this.opts.camp !== false) await this.campfire();
+      lastAct = actIndex;
       this.opts.onSave?.(structuredClone(this.state), !!scene.savePoint && this.state.duration === "lang");
       const outcome = await this.playScene(scene);
       if (outcome === "defeat") break;
@@ -244,6 +275,51 @@ export class Director {
     }
     return this.finish();
   }
+
+  /**
+   * Rest between chapters: everyone is healed, each hero answers a question at the fire
+   * (the game master keeps the answers for later), and a trader offers potions and equipment.
+   */
+  private async campfire(): Promise<void> {
+    this.game.narrate([
+      { text: "🔥 Das Kapitel ist geschafft. Ihr schlagt ein Lager auf, das Feuer knistert." },
+      { text: "💤 Nach der Rast sind alle wieder bei vollen Kräften: Trefferpunkte, Zauber und Fähigkeiten sind zurück.", tip: { key: "rast", text: "Erzählt euch am Handy etwas über eure Helden und schaut bei der Händlerin vorbei. Dann „Weiter“ tippen." } },
+    ]);
+    this.game.restAll();
+    const heroes = this.heroes().filter((h) => !h.dead && h.playerId);
+    const pool = [...CAMP_QUESTIONS];
+    const questions: Record<string, string> = {};
+    // Its own dice: the rest does not change what happens later in the story.
+    const campRng = seededRng((this.opts.now ?? Date.now)() + this.state.sceneIndex * 7919);
+    for (const h of heroes) questions[h.id] = pool.splice(campRng.int(0, pool.length - 1), 1)[0] ?? CAMP_QUESTIONS[0]!;
+    const shop: CampOffer[] = [
+      { id: "potion", icon: "🧪", name: "Heiltrank", detail: "Heilt 2W4 + 2 Trefferpunkte", price: 25, itemId: "potion-of-healing" },
+      { id: "torch", icon: "🔥", name: "Fackel", detail: "Licht in dunklen Nächten und Höhlen", price: 1, itemId: "torch" },
+    ];
+    const taken = new Set<string>();
+    for (const h of heroes) {
+      if (taken.size >= 2) break;
+      const g = getGear(this.game.randomGear(h, campRng) ?? "");
+      if (g && !taken.has(g.id)) {
+        taken.add(g.id);
+        shop.push({ id: `gear:${g.id}`, icon: g.icon, name: g.name, detail: g.detail, price: g.price, gearId: g.id });
+      }
+    }
+    this.game.narrate([{ npc: "Händlerin Grete", text: "Guten Abend, ihr Helden! Heiltränke, Fackeln – und für die Mutigen ein paar besondere Stücke." }]);
+    const limit = new Promise<void>((resolve) => {
+      this.campTimer = setTimeout(resolve, CAMP_MINUTES * 60_000);
+    });
+    const done = this.game.startCamp(questions, shop);
+    await Promise.race([done, limit]);
+    clearTimeout(this.campTimer);
+    this.game.endCamp();
+    const tales = await done;
+    this.state.tales = [...(this.state.tales ?? []), ...tales.map((t) => `${t.name} (${t.question}): „${t.text}“`)].slice(-12);
+    if (tales.length) await this.askDm({ kind: "campfire", tales: tales.map((t) => ({ heroName: t.name, question: t.question, text: t.text })) });
+    this.game.narrate([{ text: "🌅 Der Morgen graut. Weiter geht's!" }]);
+  }
+
+  private campTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** Index of the current scene within the plan without dropped scenes. */
   private activeIndex(): number {

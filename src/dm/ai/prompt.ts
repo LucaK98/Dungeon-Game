@@ -33,6 +33,7 @@ So erzählst du:
 - Anführer und Endgegner lassen sich nicht bestechen, betören, umstoßen oder verjagen – ablenken und die Umgebung wirken aber.
 - Nebenfiguren merken sich, wie man sie behandelt: Mit npc_attitude (−2 bis +2) veränderst du ihre Haltung. Freundliche Figuren machen spätere Proben in ihrer Szene leichter, feindliche schwerer.
 - Greife die CHRONIK auf: Erinnere an frühere Taten der Helden, wenn es passt.
+- LAGERFEUER: Was die Helden am Feuer über sich erzählt haben, ist wertvoll. Lass es ab und zu in die Geschichte einfließen (eine Figur aus der Heimat, eine Angst, ein Wunsch), ohne die Regeln zu ändern.
 - Nutze die UMGEBUNG: Baue Gegenstände aus dem Raum in deine Beschreibungen und Vorschläge ein.
 - Antworte nur mit dem verlangten JSON.`;
 
@@ -85,6 +86,10 @@ Antworte in answer kurz (2–4 Sätze), freundlich und für Einsteiger verständ
       return `${t.heroName} fragt: „Was könnte ich jetzt tun?“ Schlage 3 kurze, kreative Ideen für freie Aktionen vor (Ich-Form, je höchstens 8 Wörter), die zur Lage, zur Umgebung und zu den Figuren passen. narration darf leer bleiben.`;
     case "idle":
       return `Seit ${t.seconds} Sekunden hat niemand etwas getan. Erzähle in 1–2 Sätzen etwas Kleines, das die Helden neugierig macht oder an ihr Ziel erinnert: ein Geräusch, eine Bewegung, oder eine Figur der Szene spricht sie an (npc_say, passend zu ihrer Haltung gegenüber der Gruppe). Keine Monster, keine Effekte, keine Probe.`;
+    case "campfire":
+      return `Die Helden rasten am Lagerfeuer und erzählen sich etwas über sich:
+${t.tales.map((x) => `- ${x.heroName} (gefragt: „${x.question}“): „${x.text}“`).join("\n")}
+Erzähle in 2–4 warmen, bildhaften Sätzen den Abend am Feuer und greife dabei mindestens eine Erzählung liebevoll auf. Merke dir die Erzählungen: Baue sie später in die Geschichte ein (ein Wiedersehen, eine Angst, die wahr wird, ein Wunsch, der sich erfüllt). Keine Monster, keine Probe.`;
     case "story_end":
       return "Das Abenteuer ist zu Ende. Wähle das passende Ende (ending) und erzähle einen kurzen Ausklang, der auf das zurückblickt, was die Helden erlebt haben.";
     default:
@@ -117,6 +122,7 @@ export function buildPrompt(story: Story, ctx: DmContext, trigger: DmTrigger, sc
     ctx.room ? `UMGEBUNG: ${ctx.room.name}${ctx.room.objects.length ? ` – ${ctx.room.objects.join(", ")}` : ""}` : "",
     `GOLD DER GRUPPE: ${ctx.gold ?? 0} (Bestechung kostet ${BRIBE_PER_ENEMY} Gold pro Gegner)`,
     ctx.chronicle?.length ? `CHRONIK (frühere Taten): ${ctx.chronicle.join(" | ")}` : "",
+    ctx.tales?.length ? `LAGERFEUER (die Helden über sich): ${ctx.tales.join(" | ")}` : "",
     Object.keys(ctx.attitudes ?? {}).length
       ? `HALTUNG DER FIGUREN: ${Object.entries(ctx.attitudes!).map(([id, v]) => `${story.npcs.find((n) => n.id === id)?.name ?? id} ${v > 0 ? "+" : ""}${v}`).join(", ")}`
       : "",

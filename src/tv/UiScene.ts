@@ -94,6 +94,23 @@ export class UiScene extends Phaser.Scene {
     this.game.events.on("asked", onAsked);
     const onLog = (lines: ExplainedLine[], added = 0) => this.showLog(lines, added);
     this.game.events.on("log", onLog);
+    // The campfire rest: a warm panel at the top while the phones tell and shop.
+    const campBox = this.add.container(MAP_RIGHT / 2 + 60, 96).setDepth(40);
+    const onCamp = (state?: { ready: number; total: number }) => {
+      this.tweens.killTweensOf(campBox.list);
+      campBox.removeAll(true);
+      if (!state) return;
+      const w = 760;
+      const bg = this.add.graphics();
+      bg.fillStyle(0x2a160a, 0.94).fillRoundedRect(-w / 2, 0, w, 130, 22);
+      bg.lineStyle(5, 0xff8a1e, 1).strokeRoundedRect(-w / 2, 0, w, 130, 22);
+      const fire = this.add.text(-w / 2 + 70, 65, "🔥", crisp({ fontSize: "72px" })).setOrigin(0.5);
+      this.tweens.add({ targets: fire, scale: { from: 0.92, to: 1.08 }, angle: { from: -4, to: 4 }, duration: 420, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      const title = this.add.text(-w / 2 + 130, 18, "Rast am Lagerfeuer", crisp({ fontFamily: FONT, fontSize: "40px", fontStyle: "bold", color: "#ffd75e" }));
+      const info = this.add.text(-w / 2 + 130, 74, `Erzählt euch etwas und kauft ein · ${state.ready} von ${state.total} bereit`, crisp({ fontFamily: FONT, fontSize: "26px", color: "#f3e9d2" }));
+      campBox.add([bg, fire, title, info]);
+    };
+    this.game.events.on("camp", onCamp);
     const onReward = (r: Reward, look?: DollLook) => this.queueReward(r, look);
     this.game.events.on("reward", onReward);
     this.game.events.on("order", onOrder);
@@ -110,6 +127,11 @@ export class UiScene extends Phaser.Scene {
       this.game.events.off("chapter", onChapter);
       this.game.events.off("ai-status", onAi);
       this.game.events.off("saved", onSaved);
+      this.game.events.off("asked", onAsked);
+      this.game.events.off("log", onLog);
+      this.game.events.off("reward", onReward);
+      this.game.events.off("camp", onCamp);
+      clearTimeout(this.tumbling);
     });
   }
 

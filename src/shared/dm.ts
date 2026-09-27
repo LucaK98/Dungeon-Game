@@ -35,6 +35,8 @@ export interface DmContext {
   gold?: number;
   /** Short memory of notable deeds, newest last. */
   chronicle?: string[];
+  /** What the heroes told about themselves at the campfire. */
+  tales?: string[];
   /** Attitude of story characters towards the group, −3 (hostile) … +3 (friendly). */
   attitudes?: Record<string, number>;
   eventsUsed: string[];
@@ -55,6 +57,8 @@ export type DmTrigger =
   /** Nobody has done anything for a while: say something to get the group going. */
   | { kind: "idle"; seconds: number }
   | { kind: "scene_end" }
+  /** The heroes rested at the campfire and told each other something about themselves. */
+  | { kind: "campfire"; tales: { heroName: string; question: string; text: string }[] }
   | { kind: "story_end" };
 
 export type DmNext = "await_roll" | "await_action" | "start_combat" | "end_scene";

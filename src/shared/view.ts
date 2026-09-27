@@ -107,6 +107,33 @@ export interface PlayerView {
   story?: StoryView;
   /** The other heroes (to hand things over). */
   party?: { id: string; name: string; color?: string }[];
+  /** Rest at the campfire between chapters: tell something, shop, then go on. */
+  camp?: CampView;
+}
+
+export interface ShopOffer {
+  id: string;
+  icon: string;
+  name: string;
+  detail: string;
+  price: number;
+  /** Why this hero cannot buy it right now (not enough gold, sold out). */
+  blocked?: string;
+  /** Equipment this hero cannot use well (still buyable, e.g. to give away). */
+  warning?: string;
+}
+
+export interface CampView {
+  /** The question for this hero at the fire. */
+  question: string;
+  told: boolean;
+  done: boolean;
+  gold: number;
+  shop: ShopOffer[];
+  tales: { name: string; color?: string; text: string }[];
+  /** How many heroes are ready to go on. */
+  ready: number;
+  total: number;
 }
 
 export interface StoryView {

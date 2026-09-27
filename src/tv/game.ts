@@ -2,7 +2,7 @@
  * The running game on the host: turns, validation of player actions, rolls and the view each phone gets.
  * The TV is authoritative – phones only send wishes (PlayerAction).
  */
-import { perform, type ActionOutcome, type CombatAction } from "../engine/actions";
+import { longRest, perform, type ActionOutcome, type CombatAction } from "../engine/actions";
 import { inRange } from "../engine/attack";
 import { addCondition, addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, squaresOf, startCombat } from "../engine/combat";
 import { advantage, savingThrow, skillCheck, skillParts, sumParts } from "../engine/core";
@@ -29,7 +29,7 @@ import { glossaryAnswer } from "../dm/rules-help";
 import type { Creature, GridPos, TurnState } from "../shared/game";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
-import { rollNeed, type ActionChoice, type ActionFx, type MiniMap, type OrderEntry, type PlayerView, type RollOutcome, type RollPrompt, type StoryView } from "../shared/view";
+import { rollNeed, type ActionChoice, type ActionFx, type CampView, type MiniMap, type OrderEntry, type PlayerView, type RollOutcome, type RollPrompt, type StoryView } from "../shared/view";
 import type { MonsterGroup, Narration } from "../shared/story";
 import type { CheckResult } from "../shared/game";
 import type { SkillId } from "../shared/rules";
@@ -74,12 +74,31 @@ export interface GameEvents {
   spotlight(creatureId: string): void;
   /** A hero has to roll now (the TV shows the waiting die). */
   asked(prompt: RollPrompt, creatureId: string, name: string, color: string | undefined): void;
+  /** The campfire rest started, changed (ready count) or ended (undefined). */
+  camp(state: { ready: number; total: number } | undefined): void;
   /** A hero gained something: the TV celebrates it. */
   reward(reward: Reward): void;
   /** A player reacted (emoji over their hero). */
   emote(creatureId: string, emoji: string): void;
   /** A little show on the board (dust, sparkle, splash, shaking screen) at a square. */
   fx(kind: "puff" | "shake" | "sparkle" | "splash", pos: GridPos | undefined): void;
+}
+
+export interface CampOffer {
+  id: string;
+  icon: string;
+  name: string;
+  detail: string;
+  price: number;
+  itemId?: string;
+  gearId?: string;
+}
+
+export interface CampTale {
+  heroId: string;
+  name: string;
+  question: string;
+  text: string;
 }
 
 export interface ControllerOptions {
@@ -679,6 +698,125 @@ export class GameController {
   /** When a phone last did something (the game master speaks up when it is quiet for long). */
   lastActionAt = Date.now();
 
+  // ---------------------------------------------------------------- campfire (rest + trader between chapters)
+
+  private camp: {
+    questions: Map<string, string>;
+    tales: Map<string, string>;
+    done: Set<string>;
+    shop: CampOffer[];
+    resolve: (tales: CampTale[]) => void;
+  } | undefined;
+
+  /** The heroes rest at the fire: each is asked a question and may shop. Resolves when all are ready (or endCamp()). */
+  startCamp(questions: Record<string, string>, shop: CampOffer[]): Promise<CampTale[]> {
+    this.endCamp();
+    return new Promise((resolve) => {
+      this.camp = { questions: new Map(Object.entries(questions)), tales: new Map(), done: new Set(), shop: [...shop], resolve };
+      this.emitCamp();
+      this.broadcast();
+    });
+  }
+
+  /** A long rest for everyone: hit points, spells and features come back (fallen heroes stay fallen). */
+  restAll(): void {
+    for (const h of this.heroes()) {
+      if (h.dead) continue;
+      // A burning torch stays lit (nobody wants to find it again in the dark).
+      const torch = h.effects.find((e) => e.id === "torch");
+      longRest(h);
+      if (torch) h.effects.push(torch);
+    }
+    this.broadcast();
+  }
+
+  /** Ends the rest (everyone ready, or the time is up). */
+  endCamp(): void {
+    const camp = this.camp;
+    if (!camp) return;
+    this.camp = undefined;
+    this.emit("camp", undefined);
+    const tales = [...camp.tales].map(([heroId, text]) => ({ heroId, name: this.battle.creatures[heroId]?.name ?? "?", question: camp.questions.get(heroId) ?? "", text }));
+    camp.resolve(tales);
+    this.broadcast();
+  }
+
+  get inCamp(): boolean {
+    return !!this.camp;
+  }
+
+  private campHeroes(): Creature[] {
+    return this.heroes().filter((h) => !h.dead && h.playerId);
+  }
+
+  private emitCamp(): void {
+    const camp = this.camp;
+    if (!camp) return;
+    this.emit("camp", { ready: camp.done.size, total: this.campHeroes().length });
+  }
+
+  private goldOf(hero: Creature): number {
+    return hero.pc?.inventory.find((i) => i.itemId === "gold")?.qty ?? 0;
+  }
+
+  private campAction(hero: Creature, action: Extract<PlayerAction, { kind: "camp_tell" | "camp_buy" | "camp_done" }>): string | undefined {
+    const camp = this.camp;
+    if (!camp) return "Die Rast ist schon vorbei.";
+    if (action.kind === "camp_tell") {
+      const text = action.text.replace(/\s+/g, " ").trim().slice(0, 220);
+      if (!text) return "Erzähl etwas – ein Satz reicht.";
+      if (camp.tales.has(hero.id)) return "Du hast schon erzählt.";
+      camp.tales.set(hero.id, text);
+      this.narrate([{ npc: hero.name, text }]);
+      this.emit("emote", hero.id, "🔥");
+    } else if (action.kind === "camp_buy") {
+      const offer = camp.shop.find((o) => o.id === action.offerId);
+      if (!offer) return "Das hat die Händlerin nicht mehr.";
+      if (this.goldOf(hero) < offer.price) return `Dafür fehlen dir ${offer.price - this.goldOf(hero)} Gold.`;
+      this.addItem(hero, "gold", -offer.price);
+      if (offer.gearId) {
+        camp.shop = camp.shop.filter((o) => o !== offer);
+        this.grantGear(hero, offer.gearId, "Gekauft bei der Händlerin");
+      } else if (offer.itemId) {
+        this.addItem(hero, offer.itemId, 1);
+        this.addLog([{ text: `🛒 ${hero.name} kauft ${offer.icon} ${offer.name} für ${offer.price} Gold.`, glossarKeys: [] }]);
+      }
+    } else {
+      camp.done.add(hero.id);
+      this.emitCamp();
+      if (this.campHeroes().every((h) => camp.done.has(h.id))) {
+        this.endCamp();
+        return undefined;
+      }
+    }
+    this.broadcast();
+    return undefined;
+  }
+
+  private campView(hero: Creature): CampView | undefined {
+    const camp = this.camp;
+    if (!camp) return undefined;
+    const gold = this.goldOf(hero);
+    return {
+      question: camp.questions.get(hero.id) ?? "Was möchtest du den anderen erzählen?",
+      told: camp.tales.has(hero.id),
+      done: camp.done.has(hero.id),
+      gold,
+      shop: camp.shop.map((o) => {
+        const problem = o.gearId ? gearProblem(hero, o.gearId) : undefined;
+        const owned = o.gearId && hero.pc?.gear?.owned.includes(o.gearId);
+        const blocked = owned ? "Hast du schon" : gold < o.price ? `Noch ${o.price - gold} Gold` : undefined;
+        return { id: o.id, icon: o.icon, name: o.name, detail: o.detail, price: o.price, ...(blocked ? { blocked } : {}), ...(problem ? { warning: problem } : {}) };
+      }),
+      tales: [...camp.tales].map(([id, text]) => {
+        const h = this.battle.creatures[id];
+        return { name: h?.name ?? "?", ...(h?.appearance ? { color: h.appearance.color } : {}), text };
+      }),
+      ready: camp.done.size,
+      total: this.campHeroes().length,
+    };
+  }
+
   /** A check's target number on this difficulty (never below 5). */
   sg(dc: number): number {
     return Math.max(5, dc + DIFFICULTY[this.difficulty].dc);
@@ -693,6 +831,11 @@ export class GameController {
     }
     const hero = this.heroOf(playerId);
     if (!hero) return;
+    if (action.kind === "camp_tell" || action.kind === "camp_buy" || action.kind === "camp_done") {
+      const err = this.campAction(hero, action);
+      if (err) this.sendTo(playerId, { type: "action_error", reason: err });
+      return;
+    }
     if (action.kind === "emote") {
       // Only the known reactions, and not more than one per second and a half.
       const now = Date.now();
@@ -1166,12 +1309,12 @@ export class GameController {
   }
 
   /** A random piece nobody in the group has yet, preferably one this hero can use. */
-  randomGear(forHero?: Creature): string | undefined {
+  randomGear(forHero?: Creature, rng: Rng = this.rng): string | undefined {
     const owned = new Set(this.heroes().flatMap((h) => h.pc?.gear?.owned ?? []));
     const free = GEAR.filter((g) => !owned.has(g.id));
     const usable = forHero ? free.filter((g) => !gearProblem(forHero, g.id)) : free;
     const pool = usable.length ? usable : free;
-    return pool.length ? pool[this.rng.int(0, pool.length - 1)]!.id : undefined;
+    return pool.length ? pool[rng.int(0, pool.length - 1)]!.id : undefined;
   }
 
   // ---------------------------------------------------------------- the look back (recap)
@@ -1648,6 +1791,8 @@ export class GameController {
       party: this.heroes().filter((h) => h.id !== me.id && !h.dead).map((h) => ({ id: h.id, name: h.name, ...(h.appearance ? { color: h.appearance.color } : {}) })),
     };
     if (this.pending?.playerId === playerId) view.pendingRoll = this.pending.prompt;
+    const camp = this.campView(me);
+    if (camp) view.camp = camp;
     if (this.storyView) view.story = { ...this.storyView, narration: this.narrationLog.slice(-4), choices: this.storyChoiceView() };
     return view;
   }
@@ -1930,7 +2075,7 @@ export class GameController {
 
   /** Nothing is open: no roll, no choice, no fight. */
   get idle(): boolean {
-    return this.mode === "explore" && !this.pending && !this.choiceWaiter && !this.staged;
+    return this.mode === "explore" && !this.pending && !this.choiceWaiter && !this.staged && !this.camp;
   }
 
   fx(kind: "puff" | "shake" | "sparkle" | "splash", pos?: GridPos): void {

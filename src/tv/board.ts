@@ -184,6 +184,11 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         if (uiReady) game.events.emit("narration", lines);
         else early.push(...lines);
       },
+      camp: (state) => {
+        game.events.emit("camp", state);
+        if (state) setMood("town");
+        else updateAmbience(c);
+      },
       reward: (r) => {
         const active = scene.sys.isActive();
         if (r.kind === "gold") {

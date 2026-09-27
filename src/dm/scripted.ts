@@ -48,6 +48,13 @@ const IDLE_LINES = [
   "Ihr hört euren eigenen Herzschlag. Worauf wartet ihr noch?",
 ];
 
+/** After the campfire tales (without AI). */
+const CAMP_LINES = [
+  "Das Feuer knistert. Für eine Weile sagt niemand etwas – aber ihr kennt euch jetzt ein Stück besser.",
+  "Funken steigen in den Nachthimmel. Morgen geht es weiter, und ihr geht es gemeinsam an.",
+  "Einer nach dem anderen schläft ein. Die Wache am Feuer lächelt über das, was sie heute gehört hat.",
+];
+
 export class ScriptedDM implements DungeonMaster {
   constructor(private story: Story) {}
 
@@ -138,6 +145,12 @@ export class ScriptedDM implements DungeonMaster {
           return respond([], { trigger_event: unused[0]!.id });
         }
         return respond([]);
+      }
+
+      case "campfire": {
+        // Without AI: the fire answers with a quiet line; the tales stay in the chronicle.
+        const line = CAMP_LINES[(ctx.sceneIndex + trigger.tales.length) % CAMP_LINES.length]!;
+        return respond([{ text: line }]);
       }
 
       case "story_end": {

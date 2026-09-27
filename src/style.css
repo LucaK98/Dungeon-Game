@@ -674,3 +674,20 @@ body.tip-mode::after {
 .install-tip { position: relative; display: flex; flex-direction: column; gap: 6px; margin-top: 18px; padding: 14px 44px 14px 14px; border-radius: 14px; background: #1d1814; border: 2px dashed #5a4d42; }
 .install-tip p { margin: 0; }
 .install-close { position: absolute; top: 6px; right: 6px; width: 36px; height: 36px; border: none; border-radius: 50%; background: #2c241e; color: var(--muted); font-size: 1rem; cursor: pointer; }
+
+/* ---------------------------------------------------------------- campfire (phone) */
+.camp-card { display: flex; flex-direction: column; gap: 10px; background: radial-gradient(circle at 50% 0%, #4a2a0c, #1a130d 60%); border: 2px solid #8a5a1e; }
+.camp-card h2 { margin: 0; text-align: center; color: #ffd75e; }
+.camp-card h3 { margin: 8px 0 0; }
+.camp-card > .muted { margin: 0; text-align: center; }
+.camp-fire { font-size: 3.2rem; text-align: center; line-height: 1; filter: drop-shadow(0 0 14px #ff8a1e); animation: flicker 1.6s ease-in-out infinite; }
+@keyframes flicker { 0%, 100% { transform: scale(1) rotate(-2deg); } 40% { transform: scale(1.08) rotate(2deg); } 70% { transform: scale(0.96) rotate(-1deg); } }
+.camp-question { margin: 0; font-weight: 700; font-size: 1.1rem; }
+.camp-tell { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: #0f0c0a88; }
+.camp-input { min-height: 84px; resize: vertical; }
+.camp-tales { display: flex; flex-direction: column; gap: 6px; }
+.camp-tale { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-left: 5px solid var(--player); border-radius: 8px; background: #0f0c0a88; font-style: italic; }
+.camp-tale strong { font-style: normal; color: var(--player); }
+.camp-gold { margin: 0; font-weight: 700; }
+.camp-shop { display: flex; flex-direction: column; gap: 8px; }
+.shop-warn { display: block; color: #f0c36a; font-size: 0.85rem; margin-top: 2px; }
