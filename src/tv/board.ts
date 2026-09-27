@@ -6,6 +6,7 @@ import { AiDM, type AiStatus } from "../dm/ai/aidm";
 import { countAiCall, loadAiSettings, providersFrom } from "../dm/ai/settings";
 import { randomRng, seededRng, type Rng } from "../engine/rng";
 import type { Creature } from "../shared/game";
+import type { RollOutcome } from "../shared/view";
 import type { Duration, Story } from "../shared/story";
 import { BOARD_HEIGHT, BOARD_WIDTH, DungeonScene } from "./DungeonScene";
 import { endScreen } from "./end-screen";
@@ -22,7 +23,11 @@ import { play, setAmbience, unlockSoundOnGesture } from "../ui/sound";
 import { setMood } from "../ui/music";
 
 /** Sounds for a roll on the TV: dice first, then what happened. */
-function rollSounds(r: import("../shared/view").RollOutcome, impactMs = 0): void {
+/** How long the die tumbles on the TV before it lands (ms). */
+const TUMBLE_ASKED = 900;
+const TUMBLE_QUICK = 450;
+
+function rollSounds(r: RollOutcome, impactMs = 0, tumbled = false): void {
   if (r.title === "Sieg!") return play("victory");
   if (r.title === "Niederlage") return play("defeat");
   const hits = r.hits ?? [];
@@ -33,7 +38,7 @@ function rollSounds(r: import("../shared/view").RollOutcome, impactMs = 0): void
     else if (hits.some((h) => h.miss)) play("miss");
   };
   if (r.dice.length) {
-    play("dice");
+    if (!tumbled) play("dice");
     setTimeout(after, Math.max(420, impactMs));
   } else setTimeout(after, impactMs);
 }
@@ -118,6 +123,14 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       { autoHeroes: !!opts.demo },
     );
     controller = c;
+    // Who the TV is waiting on to roll (the hero whose phone shows the die).
+    let askedFor: string | undefined;
+    const showHitsLater = (hits: NonNullable<RollOutcome["hits"]>, delay: number) =>
+      scene.time.delayedCall(delay, () => {
+        scene.showHits(hits);
+        const big = hits.some((h) => !h.miss && !h.heal && (h.crit || h.amount >= 10));
+        if (big) scene.shake(hits.some((h) => h.crit));
+      });
     c.on({
       changed: () => {
         if (scene.sys.isActive()) scene.refresh();
@@ -125,20 +138,28 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         game.events.emit("order", c.mode === "combat" ? c.orderEntries() : []);
         if (c.storyView) game.events.emit("chapter", c.storyView.chapter);
       },
-      turn: (name, color, free) => game.events.emit("turn", name, color, free),
+      turn: (name, color, free) => {
+        askedFor = undefined;
+        game.events.emit("turn", name, color, free);
+      },
+      asked: (prompt, id, name, color) => {
+        askedFor = id;
+        game.events.emit("asked", prompt, name, color);
+      },
       roll: (r) => {
-        game.events.emit("roll", r);
+        // The die tumbles on the TV first (longer when everybody waited for this throw).
+        const tumble = r.dice.length ? (askedFor === r.creatureId ? TUMBLE_ASKED : TUMBLE_QUICK) : 0;
+        askedFor = undefined;
+        game.events.emit("roll", r, tumble);
+        if (tumble) play("dice");
         // First the swing, arrow or spell, then the numbers where it lands.
-        const impact = scene.sys.isActive() ? scene.playFx(r.fx) : 0;
-        rollSounds(r, impact);
-        if (scene.sys.isActive() && r.hits?.length) {
-          const hits = r.hits;
-          scene.time.delayedCall(impact, () => {
-            scene.showHits(hits);
-            const big = hits.some((h) => !h.miss && !h.heal && (h.crit || h.amount >= 10));
-            if (big) scene.shake(hits.some((h) => h.crit));
-          });
-        }
+        const start = () => {
+          const impact = scene.sys.isActive() ? scene.playFx(r.fx) : 0;
+          rollSounds(r, impact, tumble > 0);
+          if (scene.sys.isActive() && r.hits?.length) showHitsLater(r.hits, impact);
+        };
+        if (tumble) setTimeout(start, tumble);
+        else start();
       },
       roomRevealed: (name) => scene.showRoomName(name),
       combat: (started) => {

@@ -568,3 +568,7 @@ body.tip-mode::after {
 .herobook-entry .doll { width: 64px; height: 64px; image-rendering: pixelated; flex: none; }
 .herobook-text { display: flex; flex-direction: column; gap: 2px; }
 .herobook-text .muted { font-size: 0.85rem; }
+.dice-need { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 6px auto 4px; padding: 10px 18px; border-radius: 16px; background: #2a1f14; border: 2px solid var(--accent); }
+.dice-need .need-label { font-size: 0.95rem; color: var(--muted); }
+.dice-need .need-min { font-size: 2.6rem; line-height: 1; color: var(--accent); }
+.dice-need .need-why { font-size: 0.85rem; color: var(--muted); }

@@ -37,7 +37,19 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
   const stage = h("div", { class: "dice-stage" }, dieSvg(prompt.sides, "?", "idle"));
   const lines = h("div", { class: "dice-lines" });
   const done = h("button", { class: "btn primary big", type: "button", textContent: "Weiter", hidden: true });
-  const panel = h("div", { class: "dice-panel" }, title, h("p", { class: "dice-term" }, term(`W${prompt.sides}`, `w${prompt.sides}`)), stage, hint, lines, done);
+  // What the die has to show, in big: "Du brauchst eine 9 oder mehr".
+  const need = prompt.need;
+  const needBox = need
+    ? h(
+        "div",
+        { class: "dice-need" },
+        h("span", { class: "need-label" }, "Du brauchst"),
+        h("strong", { class: "need-min" }, need.min <= 1 ? "keine Mühe" : String(need.min)),
+        h("span", { class: "need-label" }, need.min >= 20 ? "– nur eine 20 klappt!" : need.min <= 1 ? "das klappt sicher" : "oder mehr auf dem Würfel"),
+        h("span", { class: "need-why" }, `Ziel: ${need.label} ${need.target} · dein Bonus ${need.bonus >= 0 ? "+" : ""}${need.bonus}`),
+      )
+    : null;
+  const panel = h("div", { class: "dice-panel" }, title, h("p", { class: "dice-term" }, term(`W${prompt.sides}`, `w${prompt.sides}`)), ...(needBox ? [needBox] : []), stage, hint, lines, done);
   const overlay = h("div", { class: "dice-overlay" }, panel);
   document.body.append(overlay);
 

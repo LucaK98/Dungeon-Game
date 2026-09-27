@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { dollFrames } from "../shared/doll";
 import type { Narration } from "../shared/story";
-import type { OrderEntry, RollOutcome } from "../shared/view";
+import type { OrderEntry, RollOutcome, RollPrompt } from "../shared/view";
 import { speak, stopSpeaking } from "./speech";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "./DungeonScene";
 import type { AiStatus } from "../dm/ai/aidm";
@@ -29,6 +29,9 @@ export class UiScene extends Phaser.Scene {
 
   private aiBadge: Phaser.GameObjects.Text | undefined;
   private skipLine: (() => void) | undefined;
+  private asking = false;
+  private tumbling: ReturnType<typeof setTimeout> | undefined;
+  private tumbleFlips: Phaser.Time.TimerEvent | undefined;
 
   create(): void {
     // Board pixels → screen pixels.
@@ -48,7 +51,8 @@ export class UiScene extends Phaser.Scene {
 
     const onRoom = (name: string) => this.showBanner(name);
     const onTurn = (name: string, color?: string, free?: boolean) => this.showTurn(name, color, free);
-    const onRoll = (r: RollOutcome) => this.showRoll(r);
+    const onRoll = (r: RollOutcome, tumble = 0) => this.rollIn(r, tumble);
+    const onAsked = (prompt: RollPrompt, name: string, color?: string) => this.showAsk(prompt, name, color);
     const onOrder = (entries: OrderEntry[]) => this.showOrder(entries);
     const onCombat = (started: boolean) => started && this.showBanner("⚔️ Kampf!");
     const onNarration = (lines: Narration[]) => {
@@ -74,6 +78,7 @@ export class UiScene extends Phaser.Scene {
     this.game.events.on("room-name", onRoom);
     this.game.events.on("turn", onTurn);
     this.game.events.on("roll", onRoll);
+    this.game.events.on("asked", onAsked);
     this.game.events.on("order", onOrder);
     this.game.events.on("combat", onCombat);
     // Ask the board for the current state (turn) now that we can show it.
@@ -198,6 +203,8 @@ export class UiScene extends Phaser.Scene {
   }
 
   private showTurn(name: string, color?: string, free?: boolean): void {
+    // A roll that was asked for and never thrown (the turn moved on): take the waiting die away.
+    if (this.asking) this.clearRollBox();
     this.turnText.setText(free ? `🧭 ${name}` : `▶ ${name} ist dran`);
     const w = this.turnText.width + 60;
     this.turnBox.clear();
@@ -233,10 +240,103 @@ export class UiScene extends Phaser.Scene {
     });
   }
 
+  private clearRollBox(): void {
+    this.asking = false;
+    this.tweens.killTweensOf(this.rollBox.list);
+    this.tweens.killTweensOf(this.rollBox);
+    this.rollBox.removeAll(true);
+  }
+
+  /** A die drawn at (x, y) (its top-left), `size` wide, with a number on it. */
+  private drawDie(x: number, y: number, size: number, fill: number, label: string, sides: number): { die: Phaser.GameObjects.Graphics; n: Phaser.GameObjects.Text; s: Phaser.GameObjects.Text } {
+    const die = this.add.graphics();
+    die.fillStyle(fill, 1).fillRoundedRect(x, y, size, size, size / 6);
+    die.lineStyle(4, 0xf3e9d2, 1).strokeRoundedRect(x, y, size, size, size / 6);
+    const n = this.add.text(x + size / 2, y + size * 0.43, label, crisp({ fontFamily: FONT, fontSize: `${Math.round(size * 0.57)}px`, fontStyle: "bold", color: "#fff", stroke: "#000", strokeThickness: 6 })).setOrigin(0.5);
+    const s = this.add.text(x + size / 2, y + size * 0.87, `W${sides}`, crisp({ fontFamily: FONT, fontSize: `${Math.round(size / 6)}px`, color: "#f3e9d2" })).setOrigin(0.5);
+    return { die, n, s };
+  }
+
+  /**
+   * A hero has to roll: everybody on the sofa sees who, which die and what number it takes.
+   * "Mira würfelt: Angriff auf Goblin – braucht 12 oder mehr".
+   */
+  private showAsk(prompt: RollPrompt, name: string, color?: string): void {
+    clearTimeout(this.tumbling);
+    this.tumbling = undefined;
+    this.clearRollBox();
+    const width = 860;
+    const left = 190;
+    const hex = color ? Phaser.Display.Color.HexStringToColor(color).color : 0xe0a526;
+    const who = this.add.text(-width + left, 22, `🎲 ${name} würfelt`, crisp({ fontFamily: FONT, fontSize: "36px", color: color ?? "#e0a526", fontStyle: "bold", stroke: "#000", strokeThickness: 5 }));
+    const title = this.add.text(-width + left, 70, prompt.title, crisp({ fontFamily: FONT, fontSize: "28px", color: "#f3e9d2", wordWrap: { width: width - left - 30 } }));
+    const parts: Phaser.GameObjects.GameObject[] = [who, title];
+    let y = 70 + title.height + 12;
+    const need = prompt.need;
+    if (need) {
+      const big = need.min <= 1 ? "Klappt sicher" : need.min >= 20 ? "Braucht eine 20!" : `Braucht ${need.min} oder mehr`;
+      const line = this.add.text(-width + left, y, big, crisp({ fontFamily: FONT, fontSize: "46px", color: "#ffd75e", fontStyle: "bold", stroke: "#000", strokeThickness: 7 }));
+      const why = this.add.text(-width + left, y + 58, `Ziel ${need.label} ${need.target} · Bonus ${need.bonus >= 0 ? "+" : ""}${need.bonus}`, crisp({ fontFamily: FONT, fontSize: "24px", color: "#b3a58a" }));
+      parts.push(line, why);
+      y += 96;
+    }
+    const tip = this.add.text(-width + left, y + 4, "👉 Auf dem Handy tippen", crisp({ fontFamily: FONT, fontSize: "26px", color: "#8fd18f" }));
+    parts.push(tip);
+    const height = Math.max(200, y + 50);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x14110f, 0.94).fillRoundedRect(-width, 0, width, height, 18);
+    bg.lineStyle(6, hex, 1).strokeRoundedRect(-width, 0, width, height, 18);
+    const d = this.drawDie(-width + 30, 30, 136, 0x7a2e22, "?", prompt.sides);
+    // The die bobs and wiggles: it is waiting to be thrown.
+    const dieBox = this.add.container(0, 0, [d.die, d.n, d.s]);
+    this.rollBox.add([bg, dieBox, ...parts]);
+    this.asking = true;
+    this.tweens.add({ targets: dieBox, y: -8, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    this.tweens.add({ targets: tip, alpha: 0.35, duration: 800, yoyo: true, repeat: -1 });
+    this.rollBox.setAlpha(1);
+    // The card goes away by itself if the roll never comes (turn skipped, scene changed).
+    this.tweens.add({ targets: this.rollBox, alpha: 0, delay: 120_000, duration: 800 });
+  }
+
+  /** The die tumbles for `tumble` ms (random faces), then lands on the result card. */
+  private rollIn(r: RollOutcome, tumble: number): void {
+    clearTimeout(this.tumbling);
+    this.tumbling = undefined;
+    if (!tumble || !r.dice.length) {
+      this.showRoll(r);
+      return;
+    }
+    this.clearRollBox();
+    const width = 860;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x14110f, 0.94).fillRoundedRect(-width, 0, width, 200, 18);
+    bg.lineStyle(6, 0x5a4d42, 1).strokeRoundedRect(-width, 0, width, 200, 18);
+    const title = this.add.text(-width + 190, 30, r.title, crisp({ fontFamily: FONT, fontSize: "36px", color: "#e0a526", fontStyle: "bold" }));
+    const rolling = this.add.text(-width + 190, 90, "Der Würfel rollt …", crisp({ fontFamily: FONT, fontSize: "30px", color: "#f3e9d2" }));
+    const d = this.drawDie(-68, -68, 136, 0x7a2e22, String(1 + Math.floor(Math.random() * r.sides)), r.sides);
+    const dieBox = this.add.container(-width + 98, 98, [d.die, d.n, d.s]);
+    this.rollBox.add([bg, title, rolling, dieBox]);
+    this.rollBox.setAlpha(1);
+    this.tweens.add({ targets: dieBox, angle: 720, duration: tumble, ease: "Cubic.easeOut" });
+    this.tweens.add({ targets: dieBox, y: 80, duration: tumble / 6, yoyo: true, repeat: 2, ease: "Sine.easeOut" });
+    const flips = this.time.addEvent({
+      delay: 70,
+      loop: true,
+      callback: () => d.n.setText(String(1 + Math.floor(Math.random() * r.sides))),
+    });
+    // Real time, not the scene clock: on a slow TV the die still lands when the hits appear.
+    this.tumbling = setTimeout(() => {
+      this.tumbling = undefined;
+      if (this.sys.isActive()) this.showRoll(r);
+    }, tumble);
+    this.tumbleFlips = flips;
+  }
+
   /** Big result card with the breakdown, e.g. "🎲 14 + 3 (Stärke) + 2 (Übung) = 19 gegen RK 15 → Treffer!". */
   private showRoll(r: RollOutcome): void {
-    this.rollBox.removeAll(true);
-    this.tweens.killTweensOf(this.rollBox);
+    this.tumbleFlips?.remove(false);
+    this.tumbleFlips = undefined;
+    this.clearRollBox();
     const width = 860;
     const hasDie = r.dice.length > 0;
     const left = hasDie ? 170 : 30;

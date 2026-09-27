@@ -127,6 +127,25 @@ export interface RollPrompt {
   title: string;
   sides: number;
   glossarKey: string;
+  /** What the die must show: at least `min` (target minus bonus). Only for W20 rolls against a number. */
+  need?: RollNeed;
+}
+
+export interface RollNeed {
+  /** "SG" for checks, "RK" for attacks. */
+  label: "SG" | "RK";
+  target: number;
+  bonus: number;
+  /** Lowest number on the die that makes it (2…20). */
+  min: number;
+}
+
+/** The lowest die result that reaches the target with this bonus. */
+export function rollNeed(label: "SG" | "RK", target: number, bonus: number): RollNeed {
+  // Attacks: a 1 always misses, a 20 always hits.
+  const raw = target - bonus;
+  const min = label === "RK" ? Math.max(2, Math.min(20, raw)) : Math.max(1, Math.min(20, raw));
+  return { label, target, bonus, min };
 }
 
 export interface RollOutcome {

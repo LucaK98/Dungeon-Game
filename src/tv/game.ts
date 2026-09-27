@@ -5,7 +5,8 @@
 import { perform, type ActionOutcome, type CombatAction } from "../engine/actions";
 import { inRange } from "../engine/attack";
 import { addCondition, addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, squaresOf, startCombat } from "../engine/combat";
-import { advantage, savingThrow, skillCheck, sumParts } from "../engine/core";
+import { advantage, savingThrow, skillCheck, skillParts, sumParts } from "../engine/core";
+import { spellAttackParts } from "../engine/spells";
 import { getSpell } from "../engine/data";
 import { averageOf, parseDice, rollDice } from "../engine/dice";
 import { explainCheck, explainDamage, explainDeathSave, explainHp, explainInitiative, explainOutcome, type ExplainedLine } from "../engine/explain";
@@ -26,7 +27,7 @@ import { glossaryAnswer } from "../dm/rules-help";
 import type { Creature, GridPos, TurnState } from "../shared/game";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
-import type { ActionChoice, ActionFx, MiniMap, OrderEntry, PlayerView, RollOutcome, RollPrompt, StoryView } from "../shared/view";
+import { rollNeed, type ActionChoice, type ActionFx, type MiniMap, type OrderEntry, type PlayerView, type RollOutcome, type RollPrompt, type StoryView } from "../shared/view";
 import type { MonsterGroup, Narration } from "../shared/story";
 import type { CheckResult } from "../shared/game";
 import type { SkillId } from "../shared/rules";
@@ -69,6 +70,8 @@ export interface GameEvents {
   mapChanged(): void;
   /** A boss enters: the board shows it off. */
   spotlight(creatureId: string): void;
+  /** A hero has to roll now (the TV shows the waiting die). */
+  asked(prompt: RollPrompt, creatureId: string, name: string, color: string | undefined): void;
   /** A player reacted (emoji over their hero). */
   emote(creatureId: string, emoji: string): void;
   /** A little show on the board (dust, sparkle, splash, shaking screen) at a square. */
@@ -784,7 +787,7 @@ export class GameController {
         this.interact(playerId, hero, action.objectId, action.targetId);
         return;
       case "check":
-        this.ask(playerId, hero, { title: `Umsehen (${nameOf("skills", action.skill)})`, sides: 20, glossarKey: "umsehen" }, () => this.lookAround(hero));
+        this.ask(playerId, hero, { title: `Umsehen (${nameOf("skills", action.skill)})`, sides: 20, glossarKey: "umsehen", need: rollNeed("SG", LOOK_DC, sumParts(skillParts(hero, "perception"))) }, () => this.lookAround(hero));
         return;
       default: {
         const engineAction = this.toEngineAction(action);
@@ -847,12 +850,18 @@ export class GameController {
   private promptFor(hero: Creature, a: PlayerAction): Omit<RollPrompt, "id"> | undefined {
     if (a.kind === "attack") {
       const target = this.battle.creatures[a.targetId];
-      return { title: `Angriff auf ${target?.name ?? "?"}`, sides: 20, glossarKey: "angriffswurf" };
+      const option = hero.attacks.find((o) => o.id === a.optionId);
+      const need = target && option ? rollNeed("RK", armorClass(target), sumParts(option.toHit)) : undefined;
+      return { title: `Angriff auf ${target?.name ?? "?"}`, sides: 20, glossarKey: "angriffswurf", ...(need ? { need } : {}) };
     }
     if (a.kind === "cast") {
       const spell = getSpell(a.spellId);
       const name = nameOf("spells", spell.id);
-      if (spell.attack) return { title: name, sides: 20, glossarKey: `zauber:${spell.id}` };
+      if (spell.attack) {
+        const target = a.targetIds[0] ? this.battle.creatures[a.targetIds[0]] : undefined;
+        const need = target ? rollNeed("RK", armorClass(target), sumParts(spellAttackParts(hero, spell.id))) : undefined;
+        return { title: name, sides: 20, glossarKey: `zauber:${spell.id}`, ...(need ? { need } : {}) };
+      }
       const dice = spell.damage?.byCharLevel?.["1"] ?? spell.damage?.bySlot?.[String(spell.level)] ?? spell.heal?.[String(spell.level)] ?? spell.hpPool?.["1"];
       if (!dice) return undefined;
       const sides = parseDice(dice, 0).terms[0]?.sides ?? 6;
@@ -871,6 +880,8 @@ export class GameController {
     const full: RollPrompt = { ...prompt, id: `r${++this.rollCounter}` };
     this.pending = { prompt: full, playerId, creatureId: hero.id, run };
     this.sendTo(playerId, { type: "request_roll", prompt: full });
+    // The TV shows the die waiting for this hero.
+    this.emit("asked", full, hero.id, hero.name, hero.appearance?.color);
     this.sendView(playerId);
   }
 
@@ -1326,7 +1337,7 @@ export class GameController {
       return r;
     };
     const rollThen = (title: string, skill: SkillId, dc: number, glossarKey: string, then: (success: boolean, lines: ExplainedLine[], check: ReturnType<typeof skillCheck>) => RollOutcome) => {
-      this.ask(playerId, hero, { title: `${title} (${nameOf("skills", skill)}, SG ${dc})`, sides: 20, glossarKey }, () => {
+      this.ask(playerId, hero, { title: `${title} (${nameOf("skills", skill)}, SG ${dc})`, sides: 20, glossarKey, need: rollNeed("SG", dc, sumParts(skillParts(hero, skill))) }, () => {
         const err = this.spendAction(hero);
         if (err) return { error: err };
         const check = skillCheck(this.rng, hero, skill, dc);
@@ -1779,7 +1790,7 @@ export class GameController {
           this.waiters.push({ pred: () => !this.pending, resolve: tryAsk });
           return;
         }
-        this.ask(playerId, hero, { title: `${title} (${nameOf("skills", skill)}, SG ${dc})`, sides: 20, glossarKey: `fertigkeit:${skill}` }, run);
+        this.ask(playerId, hero, { title: `${title} (${nameOf("skills", skill)}, SG ${dc})`, sides: 20, glossarKey: `fertigkeit:${skill}`, need: rollNeed("SG", dc, sumParts(skillParts(hero, skill))) }, run);
       };
       tryAsk();
     });
