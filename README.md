@@ -34,6 +34,23 @@ Ablauf am Fernseher: Titel → (Wie spielt man das?) → Geschichte → Spieldau
 
 Jede Geschichte hat 4 geheime Wahrheiten (eine wird pro Partie ausgewürfelt), mehrere Enden und läuft ohne KI komplett durch – in allen drei Spieldauern und mit 1 bis 6 Spielern.
 
+### Die Welt lebt
+
+- **Freies Erkunden:** Außerhalb von Kämpfen sind alle gleichzeitig dran; im Kampf gilt die Initiative.
+- **Ereignisse:** Unterwegs passiert etwas (Händler, Falle, verletzter Wanderer, Spuren, Steinschlag, Taschendieb, Schrein, …) – die Entscheidung erscheint auf allen Handys. In der ersten Szene noch nicht.
+- **Schlafende und wachende Gegner:** Angreifen, anschleichen (überrascht → sie verlieren ihren ersten Zug) oder ansprechen.
+- **Dinge zum Benutzen:** Fässer (durchsuchen oder auf Gegner rollen), Kronleuchter (auf Gegner stürzen), Hebel, versteckte Bodenplatten und Wandzeichen, Lagerfeuer, Hexenkessel.
+- **Leben auf der Karte:** Staub, Glut, Tropfen, Glühwürmchen, kleine Tiere, atmende Figuren; Geräusche und leiser Hintergrund (auf dem Titelbild abschaltbar).
+- **Zeitdruck und Spielleiter:** Wer zu lange trödelt, wird gewarnt; wird es still am Tisch, meldet sich der Spielleiter.
+
+### Speichern
+
+Jede Szene wird automatisch gespeichert: auf dem Fernseher und – mit Internet – in der Cloud (Supabase). Der Titelbildschirm zeigt den **Spielstand-Code** (z. B. `ZM4T-F6ZU`); an einem anderen Gerät über **☁️ Spielstand-Code eingeben** weiterspielen. Nur das Gerät, das gespeichert hat, kann den Spielstand überschreiben. SQL: `supabase/migrations`.
+
+### Grafik
+
+Das Spielbrett rechnet in der echten Bildschirmauflösung; die Pixelgrafik wird dafür hochgerechnet (Scale2x, auf 4K 4×). Unter ⚙️ Einstellungen lässt sich auf „Pixel (klassisch)“ umstellen. Eigene Kacheln (Fass, Hebel, Kronleuchter, …) zeichnet `scripts/assets/draw-custom.ts`, danach `npm run import:assets`.
+
 Mit `?net=local|peer|supabase` wird die Verbindungsart gewählt. Standard: `local` auf `localhost` (mehrere Tabs auf einem Rechner), sonst `supabase`.
 
 ### Mit echten Handys spielen (`supabase`, Ersatz: `peer`)
