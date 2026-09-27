@@ -2,7 +2,7 @@
  * Character creation on the phone: name → class → people → figure → colour → ready.
  * Every change is sent to the TV right away so the figure appears there live.
  */
-import { loadBook, type HeroLegacy } from "../shared/herobook";
+import { loadBook, removeFromBook, type HeroLegacy } from "../shared/herobook";
 import { GLOSSAR } from "../data/help/glossar";
 import { BEGINNER_CLASSES, PLAYABLE_CLASSES } from "../engine/creatures";
 import { SRD } from "../engine/data";
@@ -146,7 +146,25 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
               ),
             );
             b.addEventListener("click", () => commit({ name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, legacy: l, step: 4 }));
-            return b;
+            // Delete with a second tap, so nobody loses a hero by accident.
+            const del = h("button", { class: "herobook-delete", type: "button", title: `${p.name} löschen`, attrs: { "aria-label": `${p.name} aus dem Heldenbuch löschen` } }, "🗑️");
+            let armed: ReturnType<typeof setTimeout> | undefined;
+            del.addEventListener("click", () => {
+              if (!armed) {
+                del.textContent = "Wirklich löschen?";
+                del.classList.add("armed");
+                armed = setTimeout(() => {
+                  armed = undefined;
+                  del.textContent = "🗑️";
+                  del.classList.remove("armed");
+                }, 4000);
+                return;
+              }
+              clearTimeout(armed);
+              removeFromBook(p.name, p.classId);
+              render();
+            });
+            return h("div", { class: "herobook-row" }, b, del);
           }),
           h("p", { class: "muted" }, "… oder oben einen neuen Namen eingeben."),
         )
