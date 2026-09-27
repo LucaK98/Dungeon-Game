@@ -4,6 +4,7 @@
 import { getGear } from "../data/gear";
 import type { Recap } from "../shared/recap";
 import type { Reward } from "../shared/reward";
+import { BADGES, badgeById } from "../shared/achievements";
 import { play } from "../ui/sound";
 import { shareRecap } from "../ui/recap-image";
 import { abilityMod, saveParts, skillParts, sumParts } from "../engine/core";
@@ -654,6 +655,20 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Fertigkeiten"), h("p", { class: "muted small" }, "★ = geübt · Symbol = welches Attribut zählt"), skills),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Fähigkeiten"), h("div", { class: "chips" }, ...features, ...traits)),
     ];
+    // Badges from the hero book (earned in earlier adventures).
+    const badges = (pc.badges ?? []).map((id) => badgeById(id)).filter((b) => !!b);
+    out.splice(
+      2,
+      0,
+      h(
+        "section",
+        { class: "card" },
+        h("div", { class: "card-title" }, `🏅 Abzeichen (${badges.length} von ${BADGES.length})`),
+        badges.length
+          ? h("div", { class: "badge-grid" }, ...badges.map((b) => h("button", { class: "badge", type: "button", title: b.how, onclick: () => showToast(`${b.icon} ${b.name}: ${b.how}`) }, h("span", {}, b.icon), h("small", {}, b.name))))
+          : h("p", { class: "muted small" }, "Noch keine. Abzeichen gibt es am Ende eines Abenteuers – z. B. für den letzten Schlag, einen Drachen oder 10 kritische Treffer. Sie bleiben im Heldenbuch."),
+      ),
+    );
     if (pc.spells.length) {
       const slots = pc.spellSlotsMax.map((max, i) => h("span", { class: "pill", dataset: { help: "zauberplaetze" } }, `Grad ${i + 1}: ${pc.spellSlots[i]}/${max}`));
       out.push(
@@ -923,6 +938,14 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
               h("strong", {}, `Deine Bilanz, ${me.name}`),
               h("p", {}, `⚔️ ${me.stats.damageDealt} Schaden · 💀 ${me.stats.kills} besiegt · 🎯 ${me.stats.crits} Volltreffer · 💚 ${me.stats.healing} geheilt · 💰 ${me.stats.gold} Gold`),
               ...mine.map(card),
+            )
+          : "",
+        recap.badges?.length
+          ? h(
+              "div",
+              { class: "recap-badges" },
+              h("h2", {}, "🏅 Neue Abzeichen"),
+              ...recap.badges.map((b) => h("p", { class: `goal-reveal done${b.heroId === meId ? " mine" : ""}`, style: `--player:${b.color}` }, `${b.icon} `, h("strong", {}, b.name), ` – ${b.title}: ${b.how}`)),
             )
           : "",
         recap.finalBlow

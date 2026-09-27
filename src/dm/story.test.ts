@@ -194,7 +194,7 @@ async function playStory(opts: { story?: Story; seed: number; duration: "kurz" |
   game.destroy();
   if (process.env.SHOW) (await import("node:fs")).appendFileSync("/tmp/claude-0/-home-user-Emulator/77d7fa35-7162-558f-838b-fa07882e69ee/scratchpad/ends.txt", `${story.id} ${opts.seed} ${process.env.NOCAMP ? "nocamp" : "camp"} end=${result?.ending.id} at ${state.plan[state.sceneIndex]} (${state.sceneIndex}/${state.plan.length}) hp=${game.heroes().map((h) => h.hp + "/" + h.maxHp).join(",")}\n`);
   if (process.env.SHOW && !result) (await import("node:fs")).appendFileSync("/tmp/claude-0/-home-user-Emulator/77d7fa35-7162-558f-838b-fa07882e69ee/scratchpad/stuck.txt", `${story.id} guard=${guard} scene=${state.sceneIndex}/${state.plan.length} ${(director as unknown as { scene?: { id: string }; stepId?: string }).scene?.id} step=${(director as unknown as { stepId?: string }).stepId} mode=${game.mode} camp=${game.inCamp} last=${narration.slice(-5).join(" / ")}\n`);
-  return { result, state, narration, guard, campfires, finalBlows };
+  return { result, state, narration, guard, campfires, finalBlows, game };
 }
 
 for (const STORY of STORIES) {
@@ -302,11 +302,13 @@ for (const STORY of STORIES) {
       let blows = 0;
       // The bots are no tacticians: several games, one of them must be won.
       for (const seed of process.env.SEEDS ? process.env.SEEDS.split(",").map(Number) : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
-        const { result, finalBlows } = await playStory({ story: STORY, seed, duration: "kurz" });
+        const { result, finalBlows, game } = await playStory({ story: STORY, seed, duration: "kurz" });
         endings.push(result!.ending.id);
         blows += finalBlows;
         // Whoever struck the boss down described it, and it is in the look back.
         if (finalBlows) expect(result!.recap.finalBlow?.text).toContain("mitten ins Herz");
+        // The one who struck the final boss down earns the badge for it (if they survived the adventure).
+        if (result!.recap.finalBlow && !game.session.battle.creatures[result!.recap.finalBlow.heroId]?.dead) expect(result!.recap.badges?.some((b) => b.title === "Der letzte Schlag")).toBe(true);
       }
       if (process.env.SHOW) (await import("node:fs")).appendFileSync("/tmp/claude-0/-home-user-Emulator/77d7fa35-7162-558f-838b-fa07882e69ee/scratchpad/endings.txt", `${STORY.id} ${process.env.NOCAMP ? "nocamp" : "camp"}: ${endings.join(",")}\n`);
       expect(endings.filter((e) => e !== "scheitern").length, endings.join(",")).toBeGreaterThan(0);

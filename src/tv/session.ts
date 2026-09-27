@@ -71,6 +71,8 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
       if (legacy.gold) c.pc.inventory.push({ itemId: "gold", qty: legacy.gold });
       applyGear(c, legacy.gear);
       c.pc.stories = [...legacy.stories];
+      c.pc.badges = [...(legacy.badges ?? [])];
+      c.pc.totals = { ...(legacy.totals ?? {}) };
     }
     c.pos = spots[i] ?? spots[0];
     battle.creatures[c.id] = c;

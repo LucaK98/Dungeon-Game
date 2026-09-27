@@ -727,3 +727,11 @@ body.tip-mode::after {
 .end-blow { width: 100%; }
 .end-blow .blow-quote { font-size: 3vh; margin: 0; }
 .recap-blow h2, .end-blow h2 { margin: 0 0 6px; }
+
+/* ---------------------------------------------------------------- badges */
+.badge-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.badge { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 12px; border: 2px solid #8a6a2a; background: radial-gradient(circle at 50% 30%, #3a2a12, #1a1510); color: var(--text); font: inherit; cursor: pointer; }
+.badge span { font-size: 1.7rem; filter: drop-shadow(0 0 6px #ffd75e66); }
+.badge small { font-size: 0.7rem; text-align: center; line-height: 1.15; }
+.book-badges { font-size: 1.05rem; letter-spacing: 2px; }
+.goal-reveal.mine { box-shadow: 0 0 0 2px var(--accent) inset; }

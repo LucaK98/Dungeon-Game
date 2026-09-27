@@ -45,6 +45,9 @@ export interface PcInfo {
   inventory: { itemId: string; qty: number }[];
   /** Adventures this hero already survived (hero book). */
   stories?: string[];
+  /** Badges and running totals from the hero book. */
+  badges?: string[];
+  totals?: import("./achievements").HeroTotals;
   /** Found or bought equipment (src/data/gear.ts) and what is worn. */
   gear?: {
     owned: string[];

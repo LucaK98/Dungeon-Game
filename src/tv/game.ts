@@ -15,6 +15,7 @@ import { createMonster, hardenMonster } from "../engine/creatures";
 import { DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import { itemIcon, itemTitle, levelGains, type Reward } from "../shared/reward";
 import { GOAL_GOLD, goalById, goalReached } from "../shared/goals";
+import { addTotals, newBadges } from "../shared/achievements";
 import { findPath } from "../engine/grid";
 import { nameOf } from "../engine/names";
 import type { Rng } from "../engine/rng";
@@ -1468,6 +1469,7 @@ export class GameController {
         }
         if (target && (target.dead || target.hp <= 0)) {
           s.kills++;
+          if (target.monsterId) (s.slain ??= []).push(target.monsterId);
           if (this.bossIds.has(target.id)) this.bossKill = { heroId: actor.id, boss: target.name };
         }
       }
@@ -1497,9 +1499,32 @@ export class GameController {
   }
 
   /** The adventure is over: every phone gets its hero for the hero book. */
-  saveHeroes(storyTitle: string): void {
+  saveHeroes(storyTitle: string, end: { won: boolean; difficulty: string; finalBlowHeroId?: string } = { won: true, difficulty: "normal" }): NonNullable<Recap["badges"]> {
+    const earned: NonNullable<Recap["badges"]> = [];
     for (const h of this.heroes()) {
       if (!h.playerId || !h.pc || !h.appearance || h.dead) continue;
+      // Badges: this adventure plus the running totals of the hero book.
+      const stats = this.statsOf(h.id);
+      const totals = addTotals(h.pc.totals, stats);
+      const had = h.pc.badges ?? [];
+      const fresh = newBadges(had, {
+        stats,
+        totals,
+        won: end.won,
+        difficulty: end.difficulty,
+        stories: (h.pc.stories?.length ?? 0) + 1,
+        level: h.pc.level,
+        gold: h.pc.inventory.find((i) => i.itemId === "gold")?.qty ?? 0,
+        goalMet: this.goalsMet.has(h.id) || (() => {
+          const g = goalById(this.goals.get(h.id) ?? "");
+          return !!g && goalReached(g, stats);
+        })(),
+        finalBlow: end.finalBlowHeroId === h.id,
+        slain: stats.slain ?? [],
+      });
+      h.pc.badges = [...had, ...fresh.map((b) => b.id)];
+      h.pc.totals = totals;
+      for (const b of fresh) earned.push({ heroId: h.id, name: h.name, color: h.appearance.color, icon: b.icon, title: b.name, how: b.how });
       const gear = h.pc.gear ?? { owned: [] };
       // The figure as it looks without magic gear (the book puts the gear back on).
       const look = { ...h.appearance.look } as Record<string, string | undefined>;
@@ -1516,11 +1541,15 @@ export class GameController {
             potions: qty("potion-of-healing"),
             gear: { owned: [...gear.owned], ...(gear.weapon ? { weapon: gear.weapon } : {}), ...(gear.armor ? { armor: gear.armor } : {}), ...(gear.trinket ? { trinket: gear.trinket } : {}) },
             stories: [...(h.pc.stories ?? []), storyTitle],
+            badges: [...h.pc.badges],
+            totals: { ...h.pc.totals },
           },
           savedAt: Date.now(),
         },
       });
     }
+    if (earned.length) this.narrate([{ text: "🏅 Neue Abzeichen fürs Heldenbuch:" }, ...earned.map((b) => ({ text: `${b.icon} ${b.name}: „${b.title}“ – ${b.how}` }))]);
+    return earned;
   }
 
   /** Sends the look back to every phone (their own highlights). */
@@ -2505,6 +2534,8 @@ export class GameController {
         applyGear(next, h.pc.gear);
       }
       if (h.pc.stories) next.pc!.stories = [...h.pc.stories];
+      if (h.pc.badges) next.pc!.badges = [...h.pc.badges];
+      if (h.pc.totals) next.pc!.totals = { ...h.pc.totals };
       this.battle.creatures[h.id] = next;
       changed = true;
       const gained = levelGains(h, next);

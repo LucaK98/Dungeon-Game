@@ -38,6 +38,14 @@ export function endScreen(root: HTMLElement, r: StoryResult, onDone: () => void)
       h("h2", {}, "🌟 Eure Highlights"),
       highlights,
       r.recap.bestIdea ? h("p", { class: "best-idea" }, `🎭 Beste Idee: „${r.recap.bestIdea}“`) : "",
+      r.recap.badges?.length
+        ? h(
+            "div",
+            { class: "end-goals" },
+            h("h2", {}, "🏅 Neue Abzeichen fürs Heldenbuch"),
+            ...r.recap.badges.map((b) => h("p", { class: "goal-reveal done", style: `--player:${b.color}` }, `${b.icon} `, h("strong", {}, b.name), ` – ${b.title}`)),
+          )
+        : "",
       r.recap.finalBlow
         ? h("div", { class: "end-blow" }, h("h2", {}, `⚔️ Der letzte Schlag: ${r.recap.finalBlow.name} gegen ${r.recap.finalBlow.boss}`), h("p", { class: "blow-quote" }, `„${r.recap.finalBlow.text}“`), r.recap.finalBlow.narration ? h("p", { class: "end-text" }, r.recap.finalBlow.narration) : "")
         : "",

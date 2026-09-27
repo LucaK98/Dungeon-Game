@@ -3,6 +3,7 @@
  * Every change is sent to the TV right away so the figure appears there live.
  */
 import { loadBook, removeFromBook, type HeroLegacy } from "../shared/herobook";
+import { badgeById } from "../shared/achievements";
 import { GLOSSAR } from "../data/help/glossar";
 import { BEGINNER_CLASSES, PLAYABLE_CLASSES } from "../engine/creatures";
 import { SRD } from "../engine/data";
@@ -144,6 +145,7 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
                 h("strong", {}, p.name),
                 h("span", {}, `${nameOf("classes", p.classId)} · Stufe ${l.level} · 💰 ${l.gold}${l.gear.owned.length ? ` · ✨ ${l.gear.owned.length}` : ""}`),
                 h("span", { class: "muted" }, l.stories.length ? `Erlebt: ${l.stories.slice(-2).join(", ")}` : ""),
+                l.badges?.length ? h("span", { class: "book-badges", title: l.badges.map((id) => badgeById(id)?.name ?? "").join(", ") }, l.badges.map((id) => badgeById(id)?.icon ?? "").join(" ")) : "",
               ),
             );
             b.addEventListener("click", () => commit({ name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, legacy: l, step: 4 }));

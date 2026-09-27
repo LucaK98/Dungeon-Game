@@ -742,8 +742,9 @@ export class Director {
       missed: relevant.filter((c) => !c.falseLeadFor && !this.state.clues.includes(c.id)).map((c) => ({ text: c.text })),
       recap: { ...this.recap(ending), goals: this.game.finalizeGoals(), ...(this.state.finalBlow ? { finalBlow: this.state.finalBlow } : {}) },
     };
+    const badges = this.game.saveHeroes(this.story.title, { won: ending.kind !== "scheitern", difficulty: this.state.difficulty ?? "normal", ...(this.state.finalBlow ? { finalBlowHeroId: this.state.finalBlow.heroId } : {}) });
+    if (badges.length) result.recap.badges = badges;
     this.game.sendRecap(result.recap);
-    this.game.saveHeroes(this.story.title);
     this.opts.onEnd?.(result);
     return result;
   }

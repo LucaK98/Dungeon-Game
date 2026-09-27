@@ -22,6 +22,8 @@ export interface HeroStats {
   finds?: number;
   objects?: number;
   helps?: number;
+  /** Monster ids this hero defeated (for badges like "Drachentöter"). */
+  slain?: string[];
 }
 
 export function emptyStats(): HeroStats {
@@ -55,6 +57,8 @@ export interface Recap {
   bestIdea?: string;
   /** The final blow against the boss, in the player's words and as the game master told it. */
   finalBlow?: { heroId: string; name: string; boss: string; text: string; narration: string };
+  /** Badges earned in this adventure. */
+  badges?: { heroId: string; name: string; color: string; icon: string; title: string; how: string }[];
   /** The secret goals, revealed. */
   goals?: { heroId: string; name: string; color: string; icon: string; reveal: string; done: boolean }[];
 }
