@@ -9,11 +9,13 @@
  */
 import { duckMusic } from "../ui/music";
 import { browserStyle, neuralVoice, speakable, sentences, voiceIsFemale, voiceScore } from "./voice/cast";
+import { GEMINI_SAMPLE_RATE, geminiSpeech, TtsError } from "./voice/gemini-tts";
+import { loadAiSettings } from "../dm/ai/settings";
 
 const KEY = "couch-dungeon.speech";
 const ENGINE_KEY = "couch-dungeon.voice-engine";
 
-export type VoiceEngine = "natural" | "browser";
+export type VoiceEngine = "storyteller" | "natural" | "browser";
 
 export function speechEnabled(): boolean {
   try {
@@ -34,10 +36,18 @@ export function setSpeechEnabled(on: boolean): void {
 
 export function voiceEngine(): VoiceEngine {
   try {
-    return localStorage.getItem(ENGINE_KEY) === "browser" ? "browser" : "natural";
+    const v = localStorage.getItem(ENGINE_KEY);
+    if (v === "browser" || v === "natural" || v === "storyteller") return v;
+    // Not chosen yet: the storyteller if there is a Gemini key on this TV.
+    return geminiKey() ? "storyteller" : "natural";
   } catch {
     return "natural";
   }
+}
+
+/** The Gemini key typed in on this TV (for the storyteller voice). */
+export function geminiKey(): string | undefined {
+  return loadAiSettings().keys.gemini?.trim() || undefined;
 }
 
 export function setVoiceEngine(engine: VoiceEngine): void {
@@ -193,6 +203,39 @@ async function speakNatural(text: string, name: string | undefined, gen: number)
   }
 }
 
+// ---------------------------------------------------------------- the storyteller (Gemini)
+
+/** After a limit or error, the storyteller rests a while (the other voices speak meanwhile). */
+let storytellerPausedUntil = 0;
+export let storytellerProblem: string | undefined;
+
+async function speakStoryteller(text: string, name: string | undefined, gen: number): Promise<boolean> {
+  const key = geminiKey();
+  if (!key || Date.now() < storytellerPausedUntil) return false;
+  const ctx = context();
+  if (!ctx) return false;
+  try {
+    const pcm = await geminiSpeech(key, text, name);
+    if (gen !== generation) return true;
+    await play(ctx, pcm, GEMINI_SAMPLE_RATE);
+    storytellerProblem = undefined;
+    return true;
+  } catch (err) {
+    const status = err instanceof TtsError ? err.status : 0;
+    storytellerProblem = status === 429 ? "Gratis-Limit der Erzählerstimme erreicht – kurz spricht die Ersatzstimme." : status === 401 || status === 403 ? "Der Gemini-Schlüssel wurde abgelehnt." : status === 404 ? "Das Stimm-Modell gibt es nicht (mehr)." : "Die Erzählerstimme ist gerade nicht erreichbar.";
+    storytellerPausedUntil = Date.now() + (status === 429 ? 60_000 : status === 401 || status === 403 || status === 404 ? 3_600_000 : 20_000);
+    return false;
+  }
+}
+
+/** Fetches the storyteller audio for a line that comes next (so it plays without waiting). */
+export function prefetchSpeech(text: string, speaker?: string): void {
+  if (!speechEnabled() || voiceEngine() !== "storyteller" || Date.now() < storytellerPausedUntil) return;
+  const key = geminiKey();
+  const clean = speakable(text);
+  if (key && clean) void geminiSpeech(key, clean, speaker).catch(() => undefined);
+}
+
 // ---------------------------------------------------------------- public
 
 /** Stops whatever is being said (skip). */
@@ -218,7 +261,10 @@ export async function speak(text: string, speaker?: string): Promise<void> {
   const gen = ++generation;
   duckMusic(true);
   try {
-    if (voiceEngine() === "natural" && (await speakNatural(clean, speaker, gen))) return;
+    const engine = voiceEngine();
+    if (engine === "storyteller" && (await speakStoryteller(clean, speaker, gen))) return;
+    if (gen !== generation) return;
+    if (engine !== "browser" && (await speakNatural(clean, speaker, gen))) return;
     if (gen !== generation) return;
     await speakBrowser(clean, speaker);
   } finally {
@@ -228,7 +274,8 @@ export async function speak(text: string, speaker?: string): Promise<void> {
 
 /** Loads the natural voices early (when a game starts): narrator first, then the characters. */
 export function warmUpVoices(): void {
-  if (!speechEnabled() || voiceEngine() !== "natural") return;
+  // The Piper voices are also the storyteller's stand-in (limits, no internet).
+  if (!speechEnabled() || voiceEngine() === "browser") return;
   void prepareVoice(undefined).then((ok) => {
     if (ok) void prepareVoice("Frau Holle").then(() => prepareVoice("Hans"));
   });

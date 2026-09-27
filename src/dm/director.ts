@@ -4,14 +4,16 @@
  * the DungeonMaster (scripted or AI) tells it and makes the "creative" decisions.
  */
 import { applyDamage, distanceFt, isActive } from "../engine/combat";
-import { skillParts, sumParts } from "../engine/core";
+import { savingThrow, skillParts, sumParts } from "../engine/core";
 import { parseDice, rollDice } from "../engine/dice";
 import { nameOf } from "../engine/names";
 import type { Rng } from "../engine/rng";
 import { generateWithRetries } from "../map/generate";
 import type { DmContext, DmResponse, DmTrigger, DungeonMaster } from "../shared/dm";
 import type { Creature } from "../shared/game";
-import { cellIndex } from "../shared/map";
+import { cellIndex, type Weather } from "../shared/map";
+import type { SagaCarry, SagaNpc } from "../shared/homeland";
+import { pickRoutes, type TravelRoute } from "../shared/travel";
 import type { Duration, MonsterGroup, Narration, Outcome, Scene, Step, Story, StoryChoice } from "../shared/story";
 import type { PlayerId } from "../shared/types";
 import type { GameController } from "../tv/game";
@@ -45,6 +47,8 @@ export interface StoryState {
   ending?: string;
   /** Short memory of notable free actions, newest last (for the game master). */
   chronicle?: string[];
+  /** Dice seed for the travel map (drawn once per game from the story dice). */
+  travelSeed?: number;
   /** Attitude of story characters towards the group, −3 … +3. */
   attitudes?: Record<string, number>;
   /** What the heroes told at the campfire (the game master weaves it in later). */
@@ -64,6 +68,10 @@ export interface StoryResult {
   missed: { text: string }[];
   /** Highlights and numbers of the heroes. */
   recap: Recap;
+  /** For the saga: who became a friend, who got away. */
+  homeland?: { ally?: SagaNpc; nemesis?: SagaNpc; heroes: string[] };
+  /** Filled in by the board: what the village got. */
+  village?: { income: number; gold: number; ally?: string | undefined; nemesis?: string | undefined };
 }
 
 export interface DirectorOptions {
@@ -81,6 +89,10 @@ export interface DirectorOptions {
   finalBlow?: boolean;
   /** Before a boss fight the heroes may prepare an ambush (default on). */
   ambush?: boolean;
+  /** Between chapters the group picks a route on the Harz map (default on). */
+  travel?: boolean;
+  /** What earlier adventures bring along (old friends, old foes). */
+  saga?: SagaCarry;
 }
 
 /** Questions at the campfire: small, personal, easy to answer for beginners. */
@@ -279,6 +291,14 @@ export class Director {
       this.game.narrate([{ text: "🤫 Jeder von euch hat auf dem Handy ein geheimes Ziel. Verratet es niemandem – am Ende wird aufgedeckt!", tip: { key: "geheimes_ziel", text: "Dein Ziel steht im Tab „Hinweise“. Schaffst du es, gibt es Bonus-Gold." } }]);
     }
     this.game.setGoals(this.state.goals);
+    // The saga: what happened last time, and who might turn up again.
+    const saga = this.opts.saga;
+    if (saga?.recap && this.state.sceneIndex === 0) {
+      this.game.narrate([
+        { text: `📜 Aus eurer Heldensaga: ${saga.recap}`, tip: { key: "kampagne", text: "Eure Abenteuer hängen zusammen: Alte Freunde und alte Feinde können wieder auftauchen." } },
+        ...(saga.nemesis ? [{ text: `🗡️ Gerüchte gehen um: ${saga.nemesis.name} hat „${saga.nemesis.from}“ nicht vergessen …` }] : []),
+      ]);
+    }
     // A new chapter begins with a rest at the campfire (not when a saved game just continues).
     let lastAct = this.state.sceneIndex < this.state.plan.length ? actOf(this.story, this.state.plan[this.state.sceneIndex]!).index : 0;
     while (this.state.sceneIndex < this.state.plan.length) {
@@ -289,7 +309,9 @@ export class Director {
       }
       const scene = sceneById(this.story, id);
       const actIndex = actOf(this.story, id).index;
+      // Rest at the fire first, then choose the way on the Harz map the next morning.
       if (actIndex > lastAct && this.opts.camp !== false) await this.campfire();
+      if (actIndex > lastAct && this.opts.travel !== false) await this.travel(actIndex);
       lastAct = actIndex;
       this.opts.onSave?.(structuredClone(this.state), !!scene.savePoint && this.state.duration === "lang");
       const outcome = await this.playScene(scene);
@@ -347,7 +369,104 @@ export class Director {
     this.game.narrate([{ text: "🌅 Der Morgen graut. Weiter geht's!" }]);
   }
 
+  /**
+   * The Harz map between chapters: three routes, the group votes, something happens on the way.
+   * Its own dice: the journey does not change what happens later in the story.
+   */
+  private async travel(actIndex: number): Promise<void> {
+    // Seeded from the story's own dice once per game (same game → same journey; tests stay repeatable).
+    this.state.travelSeed ??= this.rng.int(1, 1_000_000_000);
+    const rng = seededRng(this.state.travelSeed + actIndex * 104729);
+    const routes = pickRoutes((n) => rng.int(0, n - 1));
+    const from = this.story.acts[actIndex - 1]?.title ?? "Lager";
+    const to = this.story.acts[actIndex]?.title ?? "Weiter";
+    const view = { from, to, routes: routes.map((r) => ({ icon: r.icon, name: r.name, text: r.text, x: r.x, y: r.y })) };
+    this.game.showTravel(view);
+    this.game.narrate([{ text: `🗺️ Weiter geht die Reise – nächstes Ziel: ${to}. Welchen Weg nehmt ihr?`, tip: { key: "reisekarte", text: "Stimmt auf dem Handy ab. Jeder Weg hat seine eigenen Chancen und Gefahren." } }]);
+    const expire = setTimeout(() => this.game.cancelChoice(), 90_000);
+    const pick = await this.game.choose(routes.map((r) => ({ id: r.id, label: `${r.icon} ${r.name}`, detail: r.text })), { vote: true }).catch(() => undefined);
+    clearTimeout(expire);
+    const index = Math.max(0, routes.findIndex((r) => r.id === pick?.id));
+    const route = routes[index]!;
+    this.game.showTravel({ ...view, chosen: index });
+    await this.travelEvent(route, rng);
+    setTimeout(() => this.game.showTravel(undefined), 6000);
+  }
+
+  private async travelEvent(route: TravelRoute, rng: Rng): Promise<void> {
+    const heroes = this.heroes().filter((h) => !h.dead);
+    const give = (itemId: string, qty: number) => heroes.forEach((h) => this.game.giveItem(itemId, qty, h));
+    switch (route.event) {
+      case "kraeuter":
+        this.game.narrate([{ text: `🌿 ${route.name}: Die Wiesen stehen voller Kräuter. Jeder pflückt zwei Heilkräuter und einen Pilz.` }]);
+        give("heilkraut", 2);
+        give("pilz", 1);
+        break;
+      case "haendler":
+        this.game.narrate([{ npc: "Kesselflicker Kaspar", text: "Ölflaschen! Spinnenseide! Alles, was der Held von heute braucht – für euch als Probe umsonst!" }]);
+        give("oelflasche", 1);
+        give("spinnenseide", 1);
+        break;
+      case "woelfe": {
+        this.game.narrate([{ text: `🐺 ${route.name}: Ein Wolfsrudel! Ihr wehrt es ab – aber nicht ohne Kratzer.` }]);
+        const lines: string[] = [];
+        for (const h of heroes) {
+          // Nobody lying on the ground gets bitten (the travel is no death trap).
+          if (h.hp === 0) continue;
+          const save = savingThrow(rng, h, "DEX", 12);
+          if (save.success) lines.push(`${h.name} weicht aus.`);
+          else lines.push(`${h.name}: ${this.game.travelHurt(h, "1d6")} Schaden.`);
+        }
+        this.game.narrate([{ text: lines.join(" ") }, { text: "Die Wölfe fliehen und lassen Knochen und ein paar Münzen ihrer letzten Opfer zurück." }]);
+        give("knochen", 1);
+        give("gold", 5);
+        break;
+      }
+      case "streuner":
+        this.game.pendingStray = rng.next() < 0.6 ? "dog" : "cat";
+        this.game.narrate([{ text: `🐾 ${route.name}: Auf dem verlassenen Hof streunt ${this.game.pendingStray === "dog" ? "ein hungriger Hund" : "eine magere Katze"} herum. Sie folgt euch in sicherem Abstand …`, tip: { key: "begleiter", text: "Mit einem Knochen (Hund) oder Heilkraut (Katze) könnt ihr das Tier zähmen." } }]);
+        give(this.game.pendingStray === "dog" ? "knochen" : "heilkraut", 1);
+        break;
+      case "stollen": {
+        const best = [...heroes].sort((a, b) => sumParts(skillParts(b, "investigation")) - sumParts(skillParts(a, "investigation")))[0];
+        this.game.narrate([{ text: `⛏️ ${route.name}: Ein alter Stollen. ${best?.name ?? "Jemand"} sucht nach Silberadern …` }]);
+        if (best) {
+          const r = await this.game.check(best, "investigation", 12, "Im Stollen suchen");
+          if (r.success) {
+            const gold = rollDice(rng, parseDice("2d10")).total;
+            this.game.narrate([{ text: `💰 Silber! Jeder bekommt ${gold} Goldmünzen.` }]);
+            give("gold", gold);
+          } else this.game.narrate([{ text: "Nur taubes Gestein. Immerhin: eine Ölflasche aus der alten Grubenlampe für jeden." }]);
+        }
+        give("oelflasche", 1);
+        break;
+      }
+      case "schrein":
+        this.game.narrate([{ text: `⛩️ ${route.name}: Ihr zündet am Wegkreuz eine Kerze an und betet. Im nächsten Kampf seid ihr alle gesegnet.` }]);
+        for (const h of heroes) this.game.grantBoon(h.id, "bless");
+        break;
+      case "nebel":
+        this.nextWeather = "fog";
+        this.game.pendingStray = "raven";
+        this.game.narrate([{ text: `🌫️ ${route.name}: Dichter Nebel zieht mit euch. Ein Rabe krächzt über euch – er scheint euch zu folgen.` }]);
+        give("spinnenseide", 1);
+        break;
+      case "gewitter":
+        this.nextWeather = rng.next() < 0.5 ? "rain" : "wind";
+        this.game.narrate([{ text: `⛈️ ${route.name}: Blitz und Donner! Ihr seid schnell, aber pitschnass. Am nächsten Ort ${this.nextWeather === "rain" ? "regnet" : "stürmt"} es noch.` }]);
+        give("heilkraut", 1);
+        break;
+    }
+  }
+
   private campTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Weather a travel event brings to the next map. */
+  private nextWeather: Weather | undefined;
+  private sagaAllyUsed = false;
+  private nemesisUsed = false;
+  /** The final boss (for the saga, if it gets away). */
+  private finalBoss: SagaNpc | undefined;
+  private finalBossKilled = false;
   /** Items used before the current scene began (a "use_item" step counts uses in this scene). */
   private sceneItemUses = 0;
 
@@ -370,6 +489,10 @@ export class Director {
       return { id: npc.id, name: npc.name, monster: npc.monster, room: n.room ?? 0 };
     });
     if (scene.dark) map.dark = true;
+    if (this.nextWeather) {
+      map.weather = this.nextWeather;
+      this.nextWeather = undefined;
+    }
     for (const room of map.rooms) {
       const name = scene.roomNames?.[room.moduleId];
       if (name) room.name = name;
@@ -563,7 +686,8 @@ export class Director {
     return this.world ? this.world.roam(wait) : wait;
   }
 
-  private async fight(groups: MonsterGroup[], training = false, stealth = true): Promise<"won" | "lost" | "defeat"> {
+  private async fight(groupsIn: MonsterGroup[], training = false, stealth = true): Promise<"won" | "lost" | "defeat"> {
+    let groups = groupsIn;
     // NPCs who turn into enemies leave their peaceful figure behind.
     for (const g of groups) {
       const npc = this.story.npcs.find((n) => n.name === g.name);
@@ -578,7 +702,26 @@ export class Director {
             return { monster: npc.monster, name: `${npc.name} (hilft euch)` };
           })
       : [];
-    if (allies.length) this.game.narrate(allies.map((a) => ({ text: `${a.name.replace(" (hilft euch)", "")} stürmt herbei und kämpft an eurer Seite!` })));
+    const last = this.state.sceneIndex === this.state.plan.length - 1;
+    // An old friend from the saga comes to help in the final fight.
+    const friend = this.opts.saga?.ally;
+    if (friend && hasBoss && last && !training && !this.sagaAllyUsed) {
+      this.sagaAllyUsed = true;
+      allies.push({ monster: friend.monster, name: `${friend.name} (alter Freund)` });
+      this.game.narrate([{ text: `📜 ${friend.name} aus „${friend.from}“ hat von eurer Not gehört – und kommt euch zu Hilfe!` }]);
+    }
+    // An old foe from the saga takes revenge in the first real fight.
+    const foe = this.opts.saga?.nemesis;
+    if (foe && !training && !this.nemesisUsed) {
+      this.nemesisUsed = true;
+      groups = [...groups, { monster: foe.monster, count: 1, name: `${foe.name} (sinnt auf Rache)` }];
+      this.game.narrate([{ text: `🗡️ „Da seid ihr ja wieder!“ ${foe.name} ist zurück – und will Rache für „${foe.from}“!` }]);
+    }
+    if (hasBoss && last) {
+      const b = groups.find((g) => g.boss);
+      if (b) this.finalBoss = { monster: b.monster, name: b.name ?? b.monster };
+    }
+    if (allies.length) this.game.narrate(allies.filter((a) => a.name.includes("(hilft euch)")).map((a) => ({ text: `${a.name.replace(" (hilft euch)", "")} stürmt herbei und kämpft an eurer Seite!` })));
     const track = setInterval(() => this.trackHardship(), 500);
     // Ordinary enemies may not have noticed the heroes yet: sneak up, talk, or attack.
     const staged = this.world && stealth && !training && !hasBoss && this.game.idle;
@@ -593,6 +736,7 @@ export class Director {
     this.trackHardship();
     if (spawned.some((m) => m.monsterId === "red-dragon-wyrmling" && m.dead)) this.set(["drache_tot"]);
     const kill = this.game.takeBossKill();
+    if (kill && hasBoss && last) this.finalBossKilled = true;
     if (winner === "party") {
       // The final boss: whoever struck the last blow tells how it happened.
       if (kill && hasBoss && this.state.sceneIndex === this.state.plan.length - 1 && this.opts.finalBlow !== false) await this.finalBlow(kill);
@@ -605,7 +749,6 @@ export class Director {
       }
       return "won";
     }
-    const last = this.state.sceneIndex === this.state.plan.length - 1;
     if (hasBoss && last) {
       this.set(["niederlage_boss"]);
       return "defeat";
@@ -768,6 +911,19 @@ export class Director {
       }),
       missed: relevant.filter((c) => !c.falseLeadFor && !this.state.clues.includes(c.id)).map((c) => ({ text: c.text })),
       recap: { ...this.recap(ending), goals: this.game.finalizeGoals(), ...(this.state.finalBlow ? { finalBlow: this.state.finalBlow } : {}) },
+    };
+    // The saga remembers a friend won over and a foe who got away.
+    const allyNpc =
+      (this.story.allies ?? []).map((a) => (this.has(a.flag) ? this.story.npcs.find((n) => n.id === a.npc) : undefined)).find(Boolean) ??
+      Object.entries(this.state.attitudes ?? {})
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1])
+        .map(([id]) => this.story.npcs.find((n) => n.id === id))
+        .find(Boolean);
+    result.homeland = {
+      heroes: this.heroes().map((h) => h.name),
+      ...(allyNpc && ending.kind !== "scheitern" ? { ally: { monster: allyNpc.monster, name: allyNpc.name } } : {}),
+      ...(this.finalBoss && !this.finalBossKilled && (ending.kind === "scheitern" || ending.kind === "bittersuess") ? { nemesis: this.finalBoss } : {}),
     };
     const badges = this.game.saveHeroes(this.story.title, { won: ending.kind !== "scheitern", difficulty: this.state.difficulty ?? "normal", ...(this.state.finalBlow ? { finalBlowHeroId: this.state.finalBlow.heroId } : {}) });
     if (badges.length) result.recap.badges = badges;

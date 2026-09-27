@@ -68,7 +68,7 @@ async function playStory(opts: { heroes?: { name: string; classId: string; raceI
   const narration: string[] = [];
   game.on({ narration: (lines) => narration.push(...lines.map((l) => l.text)) });
   let result: StoryResult | undefined;
-  const director = new Director(story, state, game, opts.dm ?? new ScriptedDM(story), rng, { duration: opts.duration, camp: !process.env.NOCAMP, ...(opts.slow ? { now: () => clock } : {}), onEnd: (r) => (result = r) });
+  const director = new Director(story, state, game, opts.dm ?? new ScriptedDM(story), rng, { duration: opts.duration, camp: !process.env.NOCAMP, travel: !process.env.NOTRAVEL, ...(opts.slow ? { now: () => clock } : {}), onEnd: (r) => (result = r) });
   const run = director.run();
   let guard = 0;
   let campfires = 0;
@@ -268,7 +268,9 @@ for (const STORY of [...STORIES, generateStory(7), generateStory(42), generateSt
         const { result, state, guard, campfires } = await playStory({ story: STORY, seed: 11, duration });
         expect(guard).toBeLessThan(20000);
         // Every new chapter starts with a rest at the campfire (4 heroes each time).
-        if (result!.ending.id !== "scheitern") expect(campfires).toBe((STORY.acts.length - 1) * 4);
+        // (A hero who fell for good does not rest any more – at most one such rest may be missing per chapter.)
+        if (result!.ending.id !== "scheitern") expect(campfires).toBeGreaterThanOrEqual((STORY.acts.length - 1) * 3);
+        if (result!.ending.id !== "scheitern") expect(campfires).toBeLessThanOrEqual((STORY.acts.length - 1) * 4);
         if (STORY.acts.length > 1) expect(state.tales?.length ?? 0).toBeGreaterThan(0);
         // Secret goals: one per hero, revealed at the end.
         expect(result!.recap.goals?.length).toBe(4);

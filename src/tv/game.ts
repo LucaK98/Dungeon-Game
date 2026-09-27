@@ -100,6 +100,16 @@ export interface GameEvents {
   fx(kind: "puff" | "shake" | "sparkle" | "splash", pos: GridPos | undefined): void;
   /** Someone says something on the board (speech bubble over the figure). */
   speech(creatureId: string, text: string): void;
+  /** The travel map between chapters (undefined = away). */
+  travel(state: TravelView | undefined): void;
+}
+
+export interface TravelView {
+  from: string;
+  to: string;
+  routes: { icon: string; name: string; text: string; x: number; y: number }[];
+  /** Index of the chosen route, once decided. */
+  chosen?: number;
 }
 
 export interface CampOffer {
@@ -2742,6 +2752,22 @@ export class GameController {
       return true;
     }
     return false;
+  }
+
+  // ---------------------------------------------------------------- travel between chapters
+
+  showTravel(view: TravelView | undefined): void {
+    this.emit("travel", view);
+  }
+
+  /** A travel event hurts, but never knocks anyone out (the rest at the fire follows). */
+  travelHurt(hero: Creature, dice: string): number {
+    return this.hurtNoKnockout(hero, dice);
+  }
+
+  /** A blessing or luck for the next fight (prayers on the way, the saga …). */
+  grantBoon(heroId: string, boon: "bless" | "luck"): void {
+    this.boons.set(heroId, boon);
   }
 
   /** Takes gold from this hero (or, if they have too little, from the group). */

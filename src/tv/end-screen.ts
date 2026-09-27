@@ -35,6 +35,16 @@ export function endScreen(root: HTMLElement, r: StoryResult, onDone: () => void)
       h("div", { class: "end-icon" }, KIND_ICON[r.ending.kind] ?? "📖"),
       h("h1", {}, r.ending.title),
       ...r.ending.text.map((l) => h("p", { class: "end-text" }, l.text)),
+      r.village
+        ? h(
+            "div",
+            { class: "end-home" },
+            h("h2", {}, "🏘️ Heimkehr"),
+            h("p", {}, `Das Heimatdorf bekommt ${r.village.income} Gold für die Dorfkasse (jetzt ${r.village.gold} Gold) – baut im Hauptmenü unter „Heimatdorf“ etwas Neues!`),
+            r.village.ally ? h("p", {}, `🤝 ${r.village.ally} ist jetzt euer Freund – vielleicht hilft er euch im nächsten Abenteuer.`) : "",
+            r.village.nemesis ? h("p", {}, `🗡️ ${r.village.nemesis} ist entkommen … und wird sich rächen wollen.`) : "",
+          )
+        : "",
       h("h2", {}, "🌟 Eure Highlights"),
       highlights,
       r.recap.bestIdea ? h("p", { class: "best-idea" }, `🎭 Beste Idee: „${r.recap.bestIdea}“`) : "",

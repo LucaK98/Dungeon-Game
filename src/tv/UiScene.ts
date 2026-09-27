@@ -4,7 +4,7 @@ import type { Narration } from "../shared/story";
 import type { ExplainedLine, OrderEntry, RollOutcome, RollPrompt } from "../shared/view";
 import type { Reward } from "../shared/reward";
 import type { DollLook } from "../shared/doll";
-import { speak, stopSpeaking } from "./speech";
+import { prefetchSpeech, speak, stopSpeaking } from "./speech";
 import { BOARD_HEIGHT, BOARD_WIDTH, LOG_PANEL } from "./DungeonScene";
 
 /** Right edge of the map on the TV (the log column is next to it). */
@@ -156,6 +156,59 @@ export class UiScene extends Phaser.Scene {
       infoBox.add([bg, icon, title, text]);
     };
     this.game.events.on("info-banner", onInfo);
+    // The Harz travel map between chapters: three routes, the chosen one is ridden along.
+    const travelBox = this.add.container(MAP_RIGHT / 2 + 60, 410).setDepth(30);
+    const onTravel = (t?: { from: string; to: string; routes: { icon: string; name: string; text: string; x: number; y: number }[]; chosen?: number }) => {
+      this.tweens.killTweensOf(travelBox.list);
+      travelBox.removeAll(true);
+      if (!t) return;
+      const w = 1100;
+      const hgt = 470;
+      const pad = 60;
+      const bg = this.add.graphics();
+      bg.fillStyle(0x000000, 0.4).fillRoundedRect(-w / 2 + 8, 10, w, hgt, 26);
+      bg.fillStyle(0xe9d7aa, 1).fillRoundedRect(-w / 2, 0, w, hgt, 26);
+      bg.lineStyle(6, 0x6b4a24, 1).strokeRoundedRect(-w / 2, 0, w, hgt, 26);
+      // Hills of the Harz, drawn softly.
+      bg.fillStyle(0xcdb886, 1);
+      for (const [hx, hy, r] of [[0.35, 0.4, 70], [0.45, 0.3, 90], [0.6, 0.5, 60], [0.25, 0.6, 50], [0.75, 0.35, 55]] as const) bg.fillEllipse(-w / 2 + hx * w, hy * hgt, r * 2.4, r);
+      bg.fillStyle(0x8fa36a, 0.5);
+      for (let k = 0; k < 26; k++) bg.fillCircle(-w / 2 + pad + ((k * 197) % (w - 2 * pad)), 60 + ((k * 131) % (hgt - 120)), 8);
+      const title = this.add.text(0, 22, "🗺️ Reise durch den Harz", crisp({ fontFamily: FONT, fontSize: "36px", fontStyle: "bold", color: "#4a2c12" })).setOrigin(0.5, 0);
+      travelBox.add([bg, title]);
+      const pos = (x: number, y: number) => ({ x: -w / 2 + pad + x * (w - 2 * pad), y: 90 + y * (hgt - 150) });
+      const start = pos(0, 0.55);
+      const end = pos(1, 0.55);
+      const curve = (via: { x: number; y: number }) => new Phaser.Curves.QuadraticBezier(new Phaser.Math.Vector2(start.x, start.y), new Phaser.Math.Vector2(via.x * 2 - (start.x + end.x) / 2, via.y * 2 - (start.y + end.y) / 2), new Phaser.Math.Vector2(end.x, end.y));
+      const colors = [0xb03a2e, 0x2e6fb0, 0x2e8b57];
+      t.routes.forEach((r, i) => {
+        const via = pos(r.x, r.y);
+        const c = curve(via);
+        const g = this.add.graphics();
+        const chosen = t.chosen === i;
+        const faded = t.chosen !== undefined && !chosen;
+        const pts = c.getSpacedPoints(60);
+        for (let k = 0; k + 1 < pts.length; k += 2) g.lineStyle(chosen ? 9 : 6, colors[i]!, faded ? 0.25 : 1).lineBetween(pts[k]!.x, pts[k]!.y, pts[k + 1]!.x, pts[k + 1]!.y);
+        const icon = this.add.text(via.x, via.y - 8, r.icon, crisp({ fontSize: "46px" })).setOrigin(0.5).setAlpha(faded ? 0.35 : 1);
+        const label = this.add.text(via.x, via.y + 30, r.name, crisp({ fontFamily: FONT, fontSize: "22px", fontStyle: "bold", color: "#2a1a08", backgroundColor: "#f3e6c2", padding: { x: 6, y: 2 } })).setOrigin(0.5, 0).setAlpha(faded ? 0.35 : 1);
+        travelBox.add([g, icon, label]);
+        if (chosen) {
+          const rider = this.add.text(start.x, start.y, "🐎", crisp({ fontSize: "44px" })).setOrigin(0.5);
+          travelBox.add(rider);
+          const tracker = { p: 0 };
+          this.tweens.add({ targets: tracker, p: 1, duration: 4000, ease: "Sine.easeInOut", onUpdate: () => {
+            const pt = c.getPoint(tracker.p);
+            rider.setPosition(pt.x, pt.y - 10);
+          } });
+        } else if (t.chosen === undefined) this.tweens.add({ targets: icon, scale: 1.15, duration: 700 + i * 120, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      });
+      const dot = this.add.graphics();
+      dot.fillStyle(0x4a2c12, 1).fillCircle(start.x, start.y, 12).fillCircle(end.x, end.y, 12);
+      const from = this.add.text(start.x, start.y + 20, `🔥 ${t.from}`, crisp({ fontFamily: FONT, fontSize: "22px", color: "#2a1a08", wordWrap: { width: 220 }, align: "center" })).setOrigin(0.5, 0);
+      const to = this.add.text(end.x, end.y + 20, `🏁 ${t.to}`, crisp({ fontFamily: FONT, fontSize: "22px", color: "#2a1a08", wordWrap: { width: 220 }, align: "center" })).setOrigin(0.5, 0);
+      travelBox.add([dot, from, to]);
+    };
+    this.game.events.on("travel", onTravel);
     const onReward = (r: Reward, look?: DollLook) => this.queueReward(r, look);
     this.game.events.on("reward", onReward);
     this.game.events.on("order", onOrder);
@@ -178,6 +231,7 @@ export class UiScene extends Phaser.Scene {
       this.game.events.off("camp", onCamp);
       this.game.events.off("vote", onVote);
       this.game.events.off("info-banner", onInfo);
+      this.game.events.off("travel", onTravel);
       clearTimeout(this.tumbling);
     });
   }
@@ -278,6 +332,9 @@ export class UiScene extends Phaser.Scene {
         finish();
       };
       const minTime = new Promise<void>((r) => this.time.delayedCall((1800 + full.length * 45 + (line.tip ? 2500 : 0)) * pace, () => r()));
+      // Fetch the next line's voice while this one is spoken.
+      const upcoming = this.queue[0];
+      if (upcoming && waiting < 3) prefetchSpeech(upcoming.text, upcoming.npc);
       const voice = waiting >= 3 ? Promise.resolve() : speak(line.text, line.npc);
       void Promise.all([minTime, voice]).then(finish);
     });

@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { loadSaga, loadVillage, saveSaga, saveVillage } from "./homeland-store";
+import { markCarried, sagaCarry, villageIncome, type SagaEntry } from "../shared/homeland";
 import { Director, newStoryState, type StoryResult, type StoryState } from "../dm/director";
 import { sceneById, sceneRooms } from "../dm/planner";
 import { ScriptedDM } from "../dm/scripted";
@@ -64,11 +66,15 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   const rng: Rng = opts.seed !== undefined ? seededRng(opts.seed) : randomRng();
   const difficulty: Difficulty = opts.resume?.state.difficulty ?? opts.story?.difficulty ?? "normal";
   const players = () => host.lobby.players.filter((p) => p.profile).map((p) => ({ playerId: p.id, profile: p.profile! }));
+  // The home village and the saga of earlier adventures (kept on this TV).
+  const village = loadVillage();
+  const saga = loadSaga();
+  const carry = opts.story && !opts.resume ? sagaCarry(saga) : {};
 
   const newSession = (): GameSession => {
     if (opts.story) {
       const first = sceneById(opts.story.story, (opts.resume?.state ?? newStoryState(opts.story.story, rng, opts.story.duration)).plan[0]!);
-      const session = createSession(rng, { players: players(), plan: { path: sceneRooms(first, opts.story.duration) }, noMonsters: true, difficulty });
+      const session = createSession(rng, { players: players(), plan: { path: sceneRooms(first, opts.story.duration) }, noMonsters: true, difficulty, village: village.built });
       if (opts.resume) {
         for (const h of opts.resume.heroes) session.battle.creatures[h.id] = structuredClone(h);
       }
@@ -128,6 +134,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     );
     controller = c;
     c.difficulty = difficulty;
+    c.village = [...village.built];
     // Lines already in the TV's log column.
     let shownLog = -1;
     // Who the TV is waiting on to roll (the hero whose phone shows the die).
@@ -192,6 +199,10 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         else early.push(...lines);
       },
       banner: (info) => game.events.emit("info-banner", info),
+      travel: (t) => {
+        game.events.emit("travel", t);
+        if (t?.chosen !== undefined) play("chime");
+      },
       vote: (state) => {
         game.events.emit("vote", state);
         if (state?.cast) play("pop");
@@ -260,9 +271,10 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       const director = new Director(story, state, c, dm, rng, {
         duration,
         world: true,
+        saga: carry,
         onSave: (saved, announce) => {
           // Every scene is saved (here and, with the code, online); long games announce their save points.
-          void writeSave({ savedAt: Date.now(), state: { ...saved, minutesBefore: director.minutesPlayed() }, heroes: c.heroes().map((h) => structuredClone(h)), players: host.lobby.players, cloud }).then((online) =>
+          void writeSave({ savedAt: Date.now(), state: { ...saved, minutesBefore: director.minutesPlayed() }, heroes: [...c.heroes(), ...Object.values(c.session.battle.creatures).filter((x) => x.companion && !x.dead)].map((h) => structuredClone(h)), players: host.lobby.players, cloud }).then((online) =>
             // The board is rebuilt for the new scene: show the note once it is back.
             setTimeout(() => {
               game.events.emit("saved", online ? formatCode(cloud.code) : undefined);
@@ -272,6 +284,26 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         },
         onEnd: (result: StoryResult) => {
           clearSave();
+          // Home: the village gets its share, the saga a new chapter.
+          const won = result.ending.kind !== "scheitern";
+          const income = villageIncome(won, c.heroes().length);
+          const home = loadVillage();
+          home.gold += income;
+          saveVillage(home);
+          const book = loadSaga();
+          markCarried(book, carry);
+          book.entries.push({
+            storyId: story.id,
+            title: story.title,
+            endingTitle: result.ending.title,
+            kind: result.ending.kind as SagaEntry["kind"],
+            heroes: result.homeland?.heroes ?? [],
+            at: Date.now(),
+            ...(result.homeland?.ally ? { ally: result.homeland.ally } : {}),
+            ...(result.homeland?.nemesis ? { nemesis: result.homeland.nemesis } : {}),
+          });
+          saveSaga(book);
+          result.village = { income, gold: home.gold, ally: result.homeland?.ally?.name, nemesis: result.homeland?.nemesis?.name };
           // Let the last narration run before showing the summary.
           setTimeout(() => {
             closeEnd = endScreen(root, result, () => {

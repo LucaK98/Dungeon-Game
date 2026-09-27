@@ -3525,5 +3525,30 @@
       "dunkelheit",
       "zustand:prone"
     ]
+  },
+  "heimatdorf": {
+    "titel": "Heimatdorf",
+    "kurz": "Gold aus Abenteuern → Gebäude mit dauerhaften Vorteilen.",
+    "lang": "Nach jedem Abenteuer bringt die Gruppe Gold in die Dorfkasse (mehr bei einem Sieg). Im Hauptmenü unter „Heimatdorf“ baut ihr davon: Kräuterhütte (mehr Heiltränke und Kräuter), Taverne (mehr Startgold), Hundezwinger (ein Hund wartet, Begleiter heilen), Schmiede (+1 Schaden mit Waffen), Wachturm (Karten aufgedeckt) und Tempel (einmal pro Abenteuer steht ein gefallener Held wieder auf). Das Dorf gehört zum Fernseher, auf dem ihr spielt.",
+    "siehe_auch": [
+      "kampagne"
+    ]
+  },
+  "kampagne": {
+    "titel": "Heldensaga",
+    "kurz": "Eure Abenteuer hängen zusammen.",
+    "lang": "Der Fernseher merkt sich jedes Abenteuer. Wen ihr als Freund gewonnen habt, der kann euch im Endkampf eines späteren Abenteuers zu Hilfe eilen. Ein Endgegner, der entkommen ist, taucht später wieder auf und will Rache. Jeder kommt nur einmal zurück.",
+    "siehe_auch": [
+      "heimatdorf"
+    ]
+  },
+  "reisekarte": {
+    "titel": "Reisekarte",
+    "kurz": "Zwischen den Kapiteln wählt ihr euren Weg durch den Harz.",
+    "lang": "Vor jedem neuen Kapitel zeigt der Fernseher eine Harzkarte mit drei Wegen. Ihr stimmt ab. Unterwegs passiert etwas: Kräuterwiesen, ein Händler, Wölfe (gefährlich, aber mit Beute), ein Streuner zum Zähmen, ein alter Stollen, ein Wegkreuz mit Segen, Nebel oder ein Gewitter, das das Wetter am nächsten Ort bestimmt.",
+    "siehe_auch": [
+      "wetter",
+      "begleiter"
+    ]
   }
 }

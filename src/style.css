@@ -773,3 +773,16 @@ body.tip-mode::after {
 .companion-head > div { display: flex; flex-direction: column; }
 .companion-icon { font-size: 2rem; }
 .companion-trait { margin: 6px 0 0; font-size: 0.9rem; }
+
+/* Home village */
+.village .buildings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 16px 0 24px; }
+.building { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.building.built { border-color: #e0a526; background: rgba(224,165,38,0.12); }
+.building-icon { font-size: 2.6rem; }
+.building p { margin: 0; font-size: 1.05rem; opacity: 0.9; flex: 1; }
+.saga { display: flex; flex-direction: column; gap: 6px; max-height: 30vh; overflow: auto; }
+.saga-entry { margin: 0; font-size: 1.15rem; }
+.saga-tag { margin-left: 10px; padding: 2px 8px; border-radius: 10px; font-size: 0.9rem; }
+.saga-tag.good { background: rgba(90,200,120,0.2); }
+.saga-tag.bad { background: rgba(230,70,60,0.2); }
+.end-home { margin: 12px 0; padding: 12px 18px; border-radius: 14px; background: rgba(224,165,38,0.1); }

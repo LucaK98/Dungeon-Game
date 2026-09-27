@@ -10,7 +10,7 @@ import { cloudLoad, formatCode, newCloudId } from "../net/cloud-save";
 import { setSpeechEnabled, speechEnabled, warmUpVoices } from "./speech";
 import { setMood, unlockMusicOnGesture } from "../ui/music";
 import { settingsScreen } from "./settings";
-import { cloudLoadScreen, howToPlay, pickDifficulty, pickDuration, pickStory, titleScreen } from "./start-screens";
+import { cloudLoadScreen, villageScreen, howToPlay, pickDifficulty, pickDuration, pickStory, titleScreen } from "./start-screens";
 import type { Difficulty } from "../shared/difficulty";
 
 export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>): () => void {
@@ -62,6 +62,10 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
         continue;
       }
       if (closed) return;
+      if (choice === "village") {
+        await villageScreen(root);
+        continue;
+      }
       if (choice === "howto") {
         await howToPlay(root);
         continue;

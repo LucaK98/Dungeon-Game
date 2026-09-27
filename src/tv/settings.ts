@@ -8,9 +8,10 @@ import { GeminiProvider, GroqProvider, LlmError, ServerProvider, type ProviderId
 import { aiCallsToday, countAiCall, loadAiSettings, providersFrom, saveAiSettings, type AiSettings } from "../dm/ai/settings";
 import { h } from "../ui/dom";
 import { loadGraphicsMode, saveGraphicsMode, type GraphicsMode } from "./render";
-import { prepareVoice, setVoiceEngine, speak, voiceEngine, type VoiceEngine } from "./speech";
+import { prepareVoice, setVoiceEngine, speak, storytellerProblem, voiceEngine, type VoiceEngine } from "./speech";
 
 const VOICES: { id: VoiceEngine; label: string; detail: string }[] = [
+  { id: "storyteller", label: "📖 Erzähler (Gemini)", detail: "Klingt wie ein echter Märchenerzähler – Figuren mit eigenen Stimmen. Braucht einen Gemini-Schlüssel und Internet; beim Gratis-Limit springt kurz die natürliche Stimme ein." },
   { id: "natural", label: "✨ Natürliche Stimmen", detail: "Kostenlos, jede Figur klingt anders. Lädt einmalig ca. 200 MB (danach offline)." },
   { id: "browser", label: "🌐 Browser-Stimme", detail: "Sofort da. Am natürlichsten in Microsoft Edge („Natural“-Stimmen) oder Chrome." },
 ];
@@ -183,8 +184,19 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
 
     const voiceRow = h("div", { class: "tv-row" });
     const voiceStatus = h("p", { class: "muted" });
+    // The storyteller needs a Gemini key on this TV (also when the AI runs on the server).
+    const ttsKey = h("input", { class: "settings-input", type: "password", autocomplete: "off", spellcheck: false, placeholder: "Gemini-Schlüssel für die Erzählerstimme" }) as HTMLInputElement;
+    const ttsKeyRow = h("label", {}, "Gemini-Schlüssel (nur auf diesem Gerät gespeichert)", ttsKey);
+    ttsKey.addEventListener("change", () => {
+      const k = ttsKey.value.trim();
+      if (k) s.keys.gemini = k;
+      saveAiSettings(s);
+      renderVoices();
+    });
     const renderVoices = () => {
       const engine = voiceEngine();
+      ttsKey.value = s.keys.gemini ?? "";
+      ttsKeyRow.hidden = engine !== "storyteller" || !!s.keys.gemini;
       voiceRow.replaceChildren(
         ...VOICES.map((v) => {
           const b = h("button", { class: `tv-btn${engine === v.id ? " primary" : ""}`, type: "button", textContent: v.label, title: v.detail });
@@ -210,7 +222,9 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
         }
         voiceStatus.textContent = ok ? "✅ Alle Stimmen geladen." : "❌ Die natürlichen Stimmen konnten nicht geladen werden (Internet?). Es spricht die Browser-Stimme.";
       }
+      if (voiceEngine() === "storyteller") voiceStatus.textContent = "⏳ Der Erzähler räuspert sich …";
       await speak("Willkommen, Helden! Heute Nacht beginnt euer Abenteuer.");
+      if (voiceEngine() === "storyteller") voiceStatus.textContent = storytellerProblem ? `⚠️ ${storytellerProblem}` : "✅ Der Erzähler ist bereit.";
       await speak("Ein Krug Met für die müden Wanderer? Setzt euch!", "Wirtin Hilde");
       await speak("Ich schmiede euch die besten Klingen im ganzen Land.", "Schmied Hagen");
       await speak("Wer wagt es, meine Höhle zu betreten?", "Oger");
@@ -220,7 +234,7 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     const el = h(
       "main",
       { class: "tv-screen" },
-      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🗣️ Stimmen"), voiceRow, voiceStatus, h("h2", {}, "🖼 Grafik"), graphicsRow, h("div", { class: "tv-row" }, done)),
+      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("h2", {}, "🖼 Grafik"), graphicsRow, h("div", { class: "tv-row" }, done)),
     );
     done.addEventListener("click", () => {
       pull();

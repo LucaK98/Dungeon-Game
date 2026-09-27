@@ -10,6 +10,8 @@ import { planScenes } from "../dm/planner";
 import type { Duration, Story } from "../shared/story";
 import { spriteCanvas } from "../ui/atlas";
 import { h } from "../ui/dom";
+import { BUILDINGS, build } from "../shared/homeland";
+import { loadSaga, loadVillage, saveVillage } from "./homeland-store";
 
 export interface StartChoice {
   story: Story;
@@ -99,10 +101,11 @@ export interface TitleOptions {
   onSpeech: (on: boolean) => void;
 }
 
-export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new" | "continue" | "howto" | "settings" | "cloud"> {
+export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new" | "continue" | "howto" | "settings" | "cloud" | "village"> {
   return new Promise((resolve) => {
     const newGame = h("button", { class: "tv-btn primary big", type: "button", textContent: "▶ Neues Abenteuer" });
     const howto = h("button", { class: "tv-btn", type: "button", textContent: "❓ Wie spielt man das?" });
+    const home = h("button", { class: "tv-btn", type: "button", textContent: "🏘️ Heimatdorf & Heldensaga" });
     const cont = h("button", { class: "tv-btn", type: "button", textContent: `💾 Gespeichertes Spiel fortsetzen${opts.saveCode ? ` (Code ${opts.saveCode})` : ""}`, hidden: !opts.canContinue });
     const cloud = h("button", { class: "tv-btn small", type: "button", textContent: "☁️ Spielstand-Code eingeben" });
     const speech = h("button", { class: "tv-btn small", type: "button" });
@@ -139,17 +142,18 @@ export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new
         art,
         h("h1", { class: "title-name" }, "Couch-Dungeon"),
         h("p", { class: "title-sub" }, "Ein Abenteuer für 1–6 Helden · Fernseher + Handys"),
-        h("div", { class: "tv-col" }, newGame, howto, cont, cloud),
+        h("div", { class: "tv-col" }, newGame, cont, home, howto, cloud),
         h("div", { class: "tv-row" }, speech, sound, music, settings),
         h("p", { class: "credits" }, "5E compatible · enthält Material aus dem SRD 5.1 (CC-BY-4.0) · Grafik: Dungeon Crawl Stone Soup (CC0)"),
       ),
     );
-    const done = (v: "new" | "continue" | "howto" | "settings" | "cloud") => {
+    const done = (v: "new" | "continue" | "howto" | "settings" | "cloud" | "village") => {
       s.close();
       resolve(v);
     };
     newGame.addEventListener("click", () => done("new"));
     howto.addEventListener("click", () => done("howto"));
+    home.addEventListener("click", () => done("village"));
     cont.addEventListener("click", () => done("continue"));
     cloud.addEventListener("click", () => done("cloud"));
     settings.addEventListener("click", () => done("settings"));
@@ -288,5 +292,67 @@ export function cloudLoadScreen(root: HTMLElement, load: (code: string) => Promi
     input.addEventListener("keydown", (e) => e.key === "Enter" && void tryLoad());
     back.addEventListener("click", () => finish(undefined));
     setTimeout(() => input.focus(), 50);
+  });
+}
+
+const KIND_ICON: Record<string, string> = { sieg: "🏆", friedlich: "🕊️", bittersuess: "🥀", scheitern: "💫" };
+
+/** The home village (build with the village's gold) and the saga of past adventures. */
+export function villageScreen(root: HTMLElement): Promise<void> {
+  return new Promise((resolve) => {
+    const s = screen(root);
+    const render = () => {
+      const v = loadVillage();
+      const saga = loadSaga();
+      const back = h("button", { class: "tv-btn primary", type: "button", textContent: "◀ Zurück" });
+      back.addEventListener("click", () => {
+        s.close();
+        resolve();
+      });
+      const cards = BUILDINGS.map((b) => {
+        const built = v.built.includes(b.id);
+        const btn = h("button", { class: `tv-btn small${built ? "" : v.gold >= b.price ? " primary" : ""}`, type: "button", textContent: built ? "✅ Gebaut" : `Bauen (${b.price} 💰)`, disabled: built || v.gold < b.price });
+        btn.addEventListener("click", () => {
+          const village = loadVillage();
+          if (!build(village, b.id)) {
+            saveVillage(village);
+            play("chime");
+            render();
+          }
+        });
+        return h("div", { class: `building${built ? " built" : ""}` }, h("span", { class: "building-icon" }, b.icon), h("strong", {}, b.name), h("p", {}, b.text), btn);
+      });
+      const entries = [...saga.entries].reverse().slice(0, 8);
+      s.el.replaceChildren(
+        h(
+          "section",
+          { class: "pick village" },
+          h("h1", {}, "🏘️ Euer Heimatdorf"),
+          h("p", { class: "slide-text" }, `Dorfkasse: 💰 ${v.gold} Gold. Nach jedem Abenteuer bringt ihr Gold nach Hause (mehr, wenn ihr gewinnt). Gebäude helfen euch in allen künftigen Abenteuern.`),
+          h("div", { class: "buildings" }, ...cards),
+          h("h2", {}, "📜 Eure Heldensaga"),
+          entries.length
+            ? h(
+                "div",
+                { class: "saga" },
+                ...entries.map((e) =>
+                  h(
+                    "p",
+                    { class: "saga-entry" },
+                    `${KIND_ICON[e.kind] ?? "📖"} `,
+                    h("strong", {}, e.title),
+                    ` – ${e.endingTitle}${e.heroes.length ? ` · ${e.heroes.join(", ")}` : ""}`,
+                    e.ally && !e.allyDone ? h("span", { class: "saga-tag good" }, `🤝 ${e.ally.name}`) : "",
+                    e.nemesis && !e.nemesisDone ? h("span", { class: "saga-tag bad" }, `🗡️ ${e.nemesis.name}`) : "",
+                  ),
+                ),
+              )
+            : h("p", { class: "muted" }, "Noch leer – euer erstes Abenteuer wartet! Freunde, die ihr gewinnt, und Feinde, die entkommen, tauchen später wieder auf."),
+          h("div", { class: "tv-row" }, back),
+        ),
+      );
+      queueMicrotask(() => s.el.querySelector<HTMLButtonElement>("button.primary, button")?.focus());
+    };
+    render();
   });
 }
