@@ -1,6 +1,7 @@
 /**
  * The phone as game controller: turn status, map, actions, character sheet and inventory.
  */
+import { getGear } from "../data/gear";
 import type { Recap } from "../shared/recap";
 import { shareRecap } from "../ui/recap-image";
 import { abilityMod, saveParts, skillParts, sumParts } from "../engine/core";
@@ -532,12 +533,16 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         h(
           "div",
           { class: "list-row", dataset: { help: `waffe:${a.sourceId}` } },
-          h("span", {}, nameOf("weapons", a.sourceId)),
+          h("span", {}, a.magical && pc.gear?.weapon && getGear(pc.gear.weapon)?.base === a.sourceId ? `${getGear(pc.gear.weapon)!.icon} ${getGear(pc.gear.weapon)!.name}` : nameOf("weapons", a.sourceId)),
           h("strong", {}, `${signed(sumParts(a.toHit))} · ${a.damage[0]!.dice.replace("d", "W")}${sumParts(a.damageBonus) ? signed(sumParts(a.damageBonus)) : ""}`),
         ),
       );
     const armor = [
-      pc.armorId ? h("div", { class: "list-row", dataset: { help: `ruestung:${pc.armorId}` } }, h("span", {}, nameOf("armor", pc.armorId)), h("strong", {}, "getragen")) : null,
+      pc.gear?.armor && getGear(pc.gear.armor)
+        ? h("div", { class: "list-row", dataset: { help: "ausruestung" } }, h("span", {}, `${getGear(pc.gear.armor)!.icon} ${getGear(pc.gear.armor)!.name}`), h("strong", {}, "getragen"))
+        : pc.armorId
+          ? h("div", { class: "list-row", dataset: { help: `ruestung:${pc.armorId}` } }, h("span", {}, nameOf("armor", pc.armorId)), h("strong", {}, "getragen"))
+          : null,
       pc.shield ? h("div", { class: "list-row", dataset: { help: "ruestung:shield" } }, h("span", {}, "Schild"), h("strong", {}, "+2 RK")) : null,
     ].filter((x): x is HTMLDivElement => !!x);
     const items = pc.inventory.map((i) => {
@@ -555,7 +560,65 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       }
       return row;
     });
+    // Found and bought equipment: wear, take off, hand over.
+    const gear = pc.gear;
+    const gearRows = (gear?.owned ?? []).map((id) => {
+      const g = getGear(id);
+      if (!g) return h("span", {});
+      const worn = gear?.[g.slot] === id;
+      const row = h(
+        "div",
+        { class: `gear-row${worn ? " worn" : ""}`, dataset: { help: "ausruestung" } },
+        h("span", { class: "gear-icon" }, g.icon),
+        h("div", { class: "gear-text" }, h("strong", {}, g.name), h("span", { class: "muted" }, `${g.detail}${worn ? " · angelegt" : ""}`)),
+      );
+      const buttons = h("div", { class: "gear-buttons" });
+      const btn = (label: string, action: PlayerAction) => {
+        const b = h("button", { class: "btn secondary small", type: "button", textContent: label });
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          send(action);
+        });
+        buttons.append(b);
+      };
+      if (worn) btn("Ablegen", { kind: "unequip", slot: g.slot });
+      else btn("Anlegen", { kind: "equip", gearId: id });
+      let giveList: HTMLElement | undefined;
+      if (v.mode !== "combat" && v.party?.length) {
+        const give = h("button", { class: "btn secondary small", type: "button", textContent: givingGear === id ? "Abbrechen" : "Weitergeben" });
+        give.addEventListener("click", (e) => {
+          e.stopPropagation();
+          // Kept outside the page: new game states redraw the tab while you choose.
+          givingGear = givingGear === id ? undefined : id;
+          render();
+        });
+        buttons.append(give);
+        if (givingGear === id) {
+          giveList = h(
+            "div",
+            { class: "gear-give" },
+            ...(v.party ?? []).map((p) => {
+              const b = h("button", { class: "btn small", type: "button", textContent: `→ ${p.name}`, style: p.color ? `border-color:${p.color}` : "" });
+              b.addEventListener("click", () => {
+                givingGear = undefined;
+                send({ kind: "give_gear", gearId: id, toId: p.id });
+              });
+              return b;
+            }),
+          );
+        }
+      }
+      row.append(buttons);
+      if (giveList) row.append(giveList);
+      return row;
+    });
     return [
+      h(
+        "section",
+        { class: "card" },
+        h("div", { class: "card-title", dataset: { help: "ausruestung" } }, "✨ Ausrüstung"),
+        h("div", { class: "list" }, ...(gearRows.length ? gearRows : [h("p", { class: "muted" }, "Noch nichts Besonderes. Truhen, besiegte Anführer und fahrende Händler haben manchmal magische Waffen, Rüstungen und Schmuck.")])),
+      ),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Waffen"), h("div", { class: "list" }, ...weapons)),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Rüstung"), h("div", { class: "list" }, ...(armor.length ? armor : [h("p", { class: "muted" }, "Keine Rüstung")]))),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Gegenstände"), h("div", { class: "list" }, ...items)),
@@ -577,6 +640,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   }
 
   let lastChoiceKey = "";
+  /** Equipment being handed over (the list of heroes is open). */
+  let givingGear: string | undefined;
 
   function render(): void {
     if (!view) return;

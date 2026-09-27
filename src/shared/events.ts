@@ -33,6 +33,10 @@ export type PlayerAction =
   | { kind: "end_turn" }
   | { kind: "story_choice"; choiceId: string }
   | { kind: "set_beginner_mode"; on: boolean }
+  /** Equipment: put on, take off, hand to another hero. */
+  | { kind: "equip"; gearId: string }
+  | { kind: "unequip"; slot: "weapon" | "armor" | "trinket" }
+  | { kind: "give_gear"; gearId: string; toId: string }
   /** A quick reaction (😂 😱 👏 …) that floats over the hero on the TV. */
   | { kind: "emote"; emoji: string };
 

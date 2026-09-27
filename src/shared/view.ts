@@ -105,6 +105,8 @@ export interface PlayerView {
   pendingRoll?: RollPrompt;
   beginnerMode: boolean;
   story?: StoryView;
+  /** The other heroes (to hand things over). */
+  party?: { id: string; name: string; color?: string }[];
 }
 
 export interface StoryView {

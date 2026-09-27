@@ -633,10 +633,11 @@
   },
   "ausruestung": {
     "titel": "Ausrüstung",
-    "kurz": "Waffen, Rüstung und nützliche Dinge, die du mit dir trägst.",
-    "lang": "Jede Figur startet mit passender Ausrüstung für ihre Klasse. Im Inventar auf deinem Handy siehst du, was du dabei hast. Heiltränke kannst du im Kampf als Aktion trinken oder einem bewusstlosen Freund einflößen.",
+    "kurz": "Magische Waffen, Rüstungen und Schmuck machen euch stärker.",
+    "lang": "In Truhen, bei besiegten Anführern, in Verstecken und bei fahrenden Händlern findet ihr besondere Ausrüstung. Magische Waffen (+1) treffen leichter und machen 1 Schaden mehr – und sie zählen als magisch, damit trefft ihr auch Wesen, denen normale Waffen wenig anhaben. Magische Rüstungen und der Schutzring erhöhen eure Rüstungsklasse, das Amulett gibt mehr Trefferpunkte, die Stiefel mehr Bewegung. Ihr tragt eine Waffe, eine Rüstung und ein Schmuckstück gleichzeitig. Was ihr nicht nutzen könnt, gebt ihr im Tab „Taschen“ einfach weiter.",
+    "beispiel": "Brunhild findet das Runenschwert (Langschwert +1): Ihr Angriff steigt von +5 auf +6, der Schaden von 1W8+3 auf 1W8+4.",
     "siehe_auch": [
-      "gegenstand:potion-of-healing",
+      "angriffswurf",
       "ruestungsklasse"
     ]
   },

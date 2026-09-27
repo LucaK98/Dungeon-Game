@@ -43,6 +43,15 @@ export interface PcInfo {
   shield: boolean;
   weaponIds: string[];
   inventory: { itemId: string; qty: number }[];
+  /** Found or bought equipment (src/data/gear.ts) and what is worn. */
+  gear?: {
+    owned: string[];
+    weapon?: string;
+    armor?: string;
+    trinket?: string;
+    /** How the figure looked before magic gear changed it (per doll layer). */
+    lookBefore?: Record<string, string | undefined>;
+  };
   /** Spell IDs the character can cast (cantrips included). */
   spells: string[];
   /** Index = spell level - 1. */

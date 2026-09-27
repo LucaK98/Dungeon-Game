@@ -555,3 +555,10 @@ body.tip-mode::after {
 .recap-sheet .highlight .hl-name, .recap-sheet .highlight .muted { font-size: 0.95rem; }
 .recap-sheet .hl-doll { width: 48px; height: 48px; }
 .recap-mine { background: #2a1f14; border: 2px solid var(--accent); border-radius: 14px; padding: 12px; margin: 12px 0; }
+.gear-row { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; padding: 10px; border-radius: 12px; background: #1d1814; border: 2px solid #2c241e; }
+.gear-row.worn { border-color: var(--accent); background: #2a1f14; }
+.gear-icon { font-size: 1.8rem; }
+.gear-text strong { display: block; }
+.gear-text .muted { font-size: 0.9rem; }
+.gear-buttons { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.gear-give { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 0; }

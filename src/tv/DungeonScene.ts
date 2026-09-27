@@ -39,8 +39,16 @@ interface Figure {
   hpBar?: Phaser.GameObjects.Graphics;
   /** 💤 or 👀 over enemies that have not noticed the heroes yet. */
   mood?: Phaser.GameObjects.Text;
+  /** Look and magic weapon when drawn: a change rebuilds the figure. */
+  lookKey?: string;
+  glow?: Phaser.GameObjects.Image;
   /** Last square, to face the walking direction. */
   lastX?: number;
+}
+
+/** What a figure looks like (to notice new equipment). */
+function lookKey(c: Creature): string {
+  return JSON.stringify([c.appearance?.look ?? null, c.pc?.gear?.weapon ?? null]);
 }
 
 export class DungeonScene extends Phaser.Scene {
@@ -205,7 +213,14 @@ export class DungeonScene extends Phaser.Scene {
     container.setScale(n);
     // Idle: everyone breathes, each at their own pace.
     this.tweens.add({ targets: body, scaleY: 1.035, scaleX: 0.99, duration: Phaser.Math.Between(1100, 1600), yoyo: true, repeat: -1, ease: "Sine.easeInOut", delay: Phaser.Math.Between(0, 1200) });
-    const figure: Figure = { container, body, lastX: c.pos.x };
+    const figure: Figure = { container, body, lastX: c.pos.x, lookKey: lookKey(c) };
+    // A magic weapon shimmers.
+    if (c.pc?.gear?.weapon) {
+      const glow = this.add.image(7, -2, "amb-dot").setTint(0x8fd8ff).setBlendMode(Phaser.BlendModes.ADD).setScale(0.9).setAlpha(0.5);
+      body.add(glow);
+      this.tweens.add({ targets: glow, alpha: 0.15, scale: 1.3, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      figure.glow = glow;
+    }
     if (c.kind === "monster") {
       figure.hpBar = this.add.graphics();
       container.add(figure.hpBar);
@@ -254,7 +269,13 @@ export class DungeonScene extends Phaser.Scene {
         this.figures.delete(c.id);
         this.tweens.add({ targets: f.container, alpha: 0, angle: 80, y: f.container.y + 8, duration: 700, delay: 700, onComplete: () => f.container.destroy() });
       } else if (!f && !c.dead) this.addFigure(c);
-      else if (f) {
+      else if (f && f.lookKey !== lookKey(c)) {
+        // New equipment: rebuild the figure where it stands.
+        f.container.destroy();
+        this.figures.delete(c.id);
+        this.addFigure(c);
+        this.ambience.sparkle((c.pos?.x ?? 0) + 0.5, (c.pos?.y ?? 0) + 0.5);
+      } else if (f) {
         this.placeFigure(c, true);
         // Unconscious heroes lie on the ground.
         f.container.setAngle(c.hp === 0 && c.kind === "pc" ? 90 : 0).setAlpha(c.hp === 0 ? 0.7 : 1);

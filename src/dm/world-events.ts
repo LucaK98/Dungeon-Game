@@ -36,6 +36,8 @@ export interface EventOutcome {
   /** Temporary hit points for the hero who chose. */
   tempHp?: number;
   fight?: MonsterGroup[];
+  /** A piece of equipment (src/data/gear.ts) for the hero who chose. */
+  gear?: string;
   fx?: Fx;
 }
 
@@ -140,6 +142,19 @@ export const WORLD_EVENTS: WorldEvent[] = [
       },
       walkOn("Der Händler zuckt mit den Schultern und zieht weiter."),
     ],
+  },
+  {
+    id: "waffenhaendler",
+    title: "Die fahrende Schmiedin",
+    where: (p) => !UNDERGROUND.includes(p.theme) && !p.night && p.gold >= 25,
+    visitor: { monster: "commoner", name: "Schmiedin Ortrud" },
+    intro: [
+      { text: "Ein Karren voller glänzender Klingen und Rüstungen rumpelt heran." },
+      { npc: "Schmiedin Ortrud", text: "Beste Ware, von Zwergenhand geschmiedet! Wer kauft, kämpft besser." },
+    ],
+    // The offers are picked when the event happens (see world.ts).
+    choices: [walkOn("Die Schmiedin zuckt mit den Schultern: „Dann eben nicht.“")],
+    weight: 1.2,
   },
   {
     id: "falle",

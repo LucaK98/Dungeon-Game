@@ -111,7 +111,8 @@ describe("world events", () => {
   it("every event has something to decide or roll, in German, with valid rewards", () => {
     for (const ev of WORLD_EVENTS) {
       expect(ev.intro.length).toBeGreaterThan(0);
-      expect(!!ev.auto || (ev.choices?.length ?? 0) >= 2).toBe(true);
+      // The smith's offers are added when the event happens.
+      expect(!!ev.auto || (ev.choices?.length ?? 0) >= (ev.id === "waffenhaendler" ? 1 : 2)).toBe(true);
       for (const c of ev.choices ?? []) {
         for (const o of [c.outcome, c.check?.success, c.check?.failure]) {
           if (o?.item) expect(["potion-of-healing", "torch"]).toContain(o.item);
@@ -317,5 +318,68 @@ describe("the look back", () => {
     expect(hl.filter((x) => x.heroId === "a").length).toBeLessThanOrEqual(2);
     expect(hl.some((x) => x.heroId === "c")).toBe(false);
     expect(hl.every((x) => x.text && x.icon)).toBe(true);
+  });
+});
+
+describe("equipment", () => {
+  it("a magic weapon hits better, counts as magic and shows on the figure", () => {
+    const { game } = setup();
+    const hero = game.heroes()[0]!; // fighter
+    const before = hero.attacks.find((a) => a.sourceId === "longsword")!;
+    const toHit = before.toHit.reduce((s, p) => s + p.value, 0);
+    game.grantGear(hero, "longsword+1");
+    const after = hero.attacks.find((a) => a.sourceId === "longsword")!;
+    expect(after.toHit.reduce((s, p) => s + p.value, 0)).toBe(toHit + 1);
+    expect(after.magical).toBe(true);
+    expect(hero.pc!.gear!.weapon).toBe("longsword+1");
+    game.unequip(hero, "weapon");
+    expect(hero.attacks.find((a) => a.sourceId === "longsword")!.magical).toBeFalsy();
+  });
+
+  it("armour and trinkets change armour class, hit points and speed – and back", () => {
+    const { game } = setup();
+    const hero = game.heroes()[0]!;
+    const ac = hero.baseAc.reduce((s, p) => s + p.value, 0);
+    const hp = hero.maxHp;
+    const speed = hero.speedFt;
+    game.grantGear(hero, "ring-protection");
+    expect(hero.baseAc.reduce((s, p) => s + p.value, 0)).toBe(ac + 1);
+    game.grantGear(hero, "amulet-health");
+    game.equip(hero, "amulet-health");
+    expect(hero.maxHp).toBe(hp + 5);
+    game.grantGear(hero, "boots-travel");
+    game.equip(hero, "boots-travel");
+    expect(hero.speedFt).toBe(speed + 10);
+    expect(hero.maxHp).toBe(hp);
+    expect(hero.baseAc.reduce((s, p) => s + p.value, 0)).toBe(ac);
+  });
+
+  it("classes can only use what they know; others get it handed over", () => {
+    const { game } = setup();
+    const halfling = game.heroes()[1]!; // rogue: light armour only
+    game.grantGear(halfling, "chain-mail+1");
+    expect(halfling.pc!.gear!.armor).toBeUndefined();
+    expect(game.equip(halfling, "chain-mail+1")).toContain("nicht tragen");
+    const fighter = game.heroes()[0]!;
+    expect(game.giveGear(halfling, "chain-mail+1", fighter.id)).toBeUndefined();
+    expect(fighter.pc!.gear!.armor).toBe("chain-mail+1");
+    expect(halfling.pc!.gear!.owned).not.toContain("chain-mail+1");
+  });
+
+  it("the smith offers two pieces the group can use", async () => {
+    const { game, rng, choices } = setup(3);
+    for (const h of game.heroes()) h.pc!.inventory.push({ itemId: "gold", qty: 200 });
+    const story = STORIES[0]!;
+    const host: WorldHost = { game, rng, story, duration: "kurz", scene: () => story.acts[0]!.scenes[0]!, now: Date.now, attitude: () => 0, fight: async () => "won", changeGold: (n) => game.giveItem("gold", n, game.heroes()[0]), remember: () => undefined, nudge: async () => undefined };
+    const world = new World(host);
+    const ev = WORLD_EVENTS.find((e) => e.id === "waffenhaendler")!;
+    const running = (world as unknown as { event: (e: typeof ev) => Promise<void> }).event(ev);
+    await new Promise((r) => setTimeout(r, 5));
+    const offers = choices("p1").filter((c) => c.label.includes("Gold"));
+    expect(offers.length).toBe(2);
+    game.handle("p1", offers[0]!.action);
+    await running;
+    const owned = game.heroes().flatMap((h) => h.pc!.gear?.owned ?? []);
+    expect(owned.length).toBe(1);
   });
 });

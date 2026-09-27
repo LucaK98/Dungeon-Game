@@ -18,6 +18,7 @@ import { maxTargets, validateCast } from "../engine/spells";
 import { isWalkable, partyStartSpots, revealAround } from "../map/walk";
 import { isLit } from "../engine/vision";
 import { EMOTES, type PlayerAction } from "../shared/events";
+import { GEAR, getGear } from "../data/gear";
 import { emptyStats, type HeroStats, type Recap, type RecapHero } from "../shared/recap";
 import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
@@ -30,7 +31,7 @@ import type { MonsterGroup, Narration } from "../shared/story";
 import type { CheckResult } from "../shared/game";
 import type { SkillId } from "../shared/rules";
 import type { DungeonMap, MapObject } from "../shared/map";
-import { createCharacter } from "../engine/creatures";
+import { createCharacter, gearProblem, refreshAttacks } from "../engine/creatures";
 import { scaleGroup } from "../dm/planner";
 import { getModule, moduleExits } from "../map/modules";
 import type { GameSession } from "./session";
@@ -686,6 +687,12 @@ export class GameController {
       this.emit("emote", hero.id, action.emoji);
       return;
     }
+    if (action.kind === "equip" || action.kind === "unequip" || action.kind === "give_gear") {
+      const err = action.kind === "equip" ? this.equip(hero, action.gearId) : action.kind === "unequip" ? this.unequip(hero, action.slot) : this.giveGear(hero, action.gearId, action.toId);
+      if (err) this.sendTo(playerId, { type: "action_error", reason: err });
+      else this.broadcast();
+      return;
+    }
     if (action.kind === "story_choice") {
       const offer = this.storyChoices.find((c) => c.id === action.choiceId);
       if (!offer || !this.choiceWaiter) {
@@ -1030,6 +1037,109 @@ export class GameController {
     if (itemId === "gold" && qty > 0) this.statsOf(hero.id).gold += qty;
   }
 
+  // ---------------------------------------------------------------- equipment
+
+  private gearOf(hero: Creature): NonNullable<NonNullable<Creature["pc"]>["gear"]> {
+    const pc = hero.pc!;
+    pc.gear ??= { owned: [] };
+    return pc.gear;
+  }
+
+  /** Puts on a piece of equipment the hero owns. Returns an error in words, or undefined. */
+  equip(hero: Creature, gearId: string, quiet = false): string | undefined {
+    const g = getGear(gearId);
+    if (!g || !hero.pc) return "Unbekannter Gegenstand.";
+    const gear = this.gearOf(hero);
+    if (!gear.owned.includes(gearId)) return "Das hast du nicht dabei.";
+    const problem = gearProblem(hero, gearId);
+    if (problem) return problem;
+    if (this.mode === "combat" && g.slot !== "weapon") return "Rüstung und Schmuck wechselt man nicht mitten im Kampf.";
+    if (gear[g.slot]) this.unequip(hero, g.slot, true);
+    gear[g.slot] = gearId;
+    if (g.effect === "hp") {
+      hero.maxHp += g.bonus;
+      hero.hp += g.bonus;
+    }
+    // The figure shows the new weapon or armour.
+    if (g.doll && hero.appearance) {
+      const look = hero.appearance.look as Record<string, string | undefined>;
+      const before = (gear.lookBefore ??= {});
+      if (!(g.doll.layer in before)) before[g.doll.layer] = look[g.doll.layer];
+      look[g.doll.layer] = g.doll.id;
+    }
+    refreshAttacks(hero);
+    if (!quiet) this.addLog([{ text: `${g.icon} ${hero.name} legt ${g.name} an.`, glossarKeys: ["ausruestung"] }]);
+    this.emit("changed");
+    return undefined;
+  }
+
+  unequip(hero: Creature, slot: "weapon" | "armor" | "trinket", quiet = false): string | undefined {
+    const gear = this.gearOf(hero);
+    const id = gear[slot];
+    if (!id) return "Da trägst du nichts Besonderes.";
+    const g = getGear(id)!;
+    if (this.mode === "combat" && slot !== "weapon" && !quiet) return "Rüstung und Schmuck wechselt man nicht mitten im Kampf.";
+    delete gear[slot];
+    if (g.effect === "hp") {
+      hero.maxHp -= g.bonus;
+      hero.hp = Math.min(hero.hp, hero.maxHp);
+    }
+    const before = gear.lookBefore;
+    if (g.doll && hero.appearance && before && g.doll.layer in before) {
+      const look = hero.appearance.look as Record<string, string | undefined>;
+      look[g.doll.layer] = before[g.doll.layer];
+      delete before[g.doll.layer];
+    }
+    refreshAttacks(hero);
+    if (!quiet) {
+      this.addLog([{ text: `${hero.name} legt ${g.name} ab.`, glossarKeys: [] }]);
+      this.emit("changed");
+    }
+    return undefined;
+  }
+
+  /** Hands a piece to another hero (outside fights). */
+  giveGear(hero: Creature, gearId: string, toId: string): string | undefined {
+    const to = this.battle.creatures[toId];
+    const gear = this.gearOf(hero);
+    if (!to?.pc || to.id === hero.id) return "Wem willst du es geben?";
+    if (this.mode === "combat") return "Im Kampf ist dafür keine Zeit.";
+    if (!gear.owned.includes(gearId)) return "Das hast du nicht dabei.";
+    const g = getGear(gearId)!;
+    if (gear[g.slot] === gearId) this.unequip(hero, g.slot, true);
+    gear.owned = gear.owned.filter((x) => x !== gearId);
+    this.grantGear(to, gearId, `${hero.name} gibt ${to.name}`);
+    return undefined;
+  }
+
+  /** A new piece of equipment for a hero; worn right away if the slot is free and it fits. */
+  grantGear(hero: Creature, gearId: string, how = "Beute"): void {
+    const g = getGear(gearId);
+    if (!g || !hero.pc) return;
+    const gear = this.gearOf(hero);
+    if (!gear.owned.includes(gearId)) gear.owned.push(gearId);
+    const lines: ExplainedLine[] = [{ text: `🎁 ${how}: ${hero.name} erhält ${g.icon} ${g.name} – ${g.detail}.`, glossarKeys: ["ausruestung"] }];
+    const fits = !gearProblem(hero, gearId);
+    if (fits && !gear[g.slot] && (this.mode !== "combat" || g.slot === "weapon")) {
+      this.equip(hero, gearId, true);
+      lines.push({ text: `${hero.name} legt es gleich an.`, glossarKeys: [] });
+    } else if (!fits) {
+      lines.push({ text: `${hero.name} kann damit nichts anfangen – vielleicht jemand anderes? (Taschen → Weitergeben)`, glossarKeys: [] });
+    }
+    // Told once (the narration also lands in the log).
+    this.narrate([{ text: lines.map((l) => l.text).join(" ") }]);
+    this.emit("fx", "sparkle", hero.pos);
+  }
+
+  /** A random piece nobody in the group has yet, preferably one this hero can use. */
+  randomGear(forHero?: Creature): string | undefined {
+    const owned = new Set(this.heroes().flatMap((h) => h.pc?.gear?.owned ?? []));
+    const free = GEAR.filter((g) => !owned.has(g.id));
+    const usable = forHero ? free.filter((g) => !gearProblem(forHero, g.id)) : free;
+    const pool = usable.length ? usable : free;
+    return pool.length ? pool[this.rng.int(0, pool.length - 1)]!.id : undefined;
+  }
+
   // ---------------------------------------------------------------- the look back (recap)
 
   /** Numbers per hero for the look back at the end. */
@@ -1112,7 +1222,12 @@ export class GameController {
       this.itemUses++;
       o.state = "open";
       o.frame = "chest.open";
-      if (this.rng.next() < 0.5) {
+      const r = this.rng.next();
+      const gearId = r < 0.3 ? this.randomGear(hero) : undefined;
+      if (gearId) {
+        lines.push({ text: `🧰 ${hero.name} öffnet die Truhe …`, glossarKeys: ["truhe"] });
+        this.grantGear(hero, gearId, "In der Truhe");
+      } else if (r < 0.65) {
         this.addItem(hero, "potion-of-healing", 1);
         lines.push({ text: `🧰 ${hero.name} öffnet die Truhe und findet einen Heiltrank!`, glossarKeys: ["truhe", "gegenstand:potion-of-healing"] });
       } else {
@@ -1309,6 +1424,9 @@ export class GameController {
               this.addItem(hero, "potion-of-healing", 1);
               lines.push({ text: "…und ein Heiltrank!", glossarKeys: ["gegenstand:potion-of-healing"] });
             }
+            // Old hiding places sometimes keep a trinket.
+            const trinket = this.rng.next() < 0.25 ? GEAR.filter((x) => x.slot === "trinket" && !this.heroes().some((h) => h.pc?.gear?.owned.includes(x.id)))[0] : undefined;
+            if (trinket) queueMicrotask(() => this.grantGear(hero, trinket.id, "Im Versteck"));
           } else lines.push({ text: runes ? "Die Zeichen bleiben stumm." : "Die Platte wackelt, aber rührt sich nicht.", glossarKeys: [] });
           return done(this.objectRoll(hero, "Geheimnis", check, lines), ok ? "sparkle" : undefined);
         });
@@ -1456,6 +1574,7 @@ export class GameController {
       choices: this.choicesFor(me, mine, this.beginner.get(playerId) ?? true),
       log: this.log.slice(-15),
       beginnerMode: this.beginner.get(playerId) ?? true,
+      party: this.heroes().filter((h) => h.id !== me.id && !h.dead).map((h) => ({ id: h.id, name: h.name, ...(h.appearance ? { color: h.appearance.color } : {}) })),
     };
     if (this.pending?.playerId === playerId) view.pendingRoll = this.pending.prompt;
     if (this.storyView) view.story = { ...this.storyView, narration: this.narrationLog.slice(-4), choices: this.storyChoiceView() };

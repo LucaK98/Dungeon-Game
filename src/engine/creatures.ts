@@ -8,6 +8,7 @@ import type { Ability, BreakdownPart } from "../shared/types";
 import { ABILITY_GLOSSAR, abilityMod, modPart, profPart } from "./core";
 import { getArmor, getClass, getMonster, getRace, getWeapon } from "./data";
 import { nameOf } from "./names";
+import { getGear } from "../data/gear";
 
 // ---------------------------------------------------------------- class defaults
 
@@ -80,7 +81,7 @@ export const PLAYABLE_CLASSES = Object.keys(LOADOUTS);
 
 // ---------------------------------------------------------------- helpers
 
-function isProficientWithWeapon(pc: Pick<PcInfo, "classId" | "raceId">, w: WeaponDef): boolean {
+export function isProficientWithWeapon(pc: Pick<PcInfo, "classId" | "raceId">, w: WeaponDef): boolean {
   const cls = getClass(pc.classId);
   if (cls.weapons.includes(w.category)) return true;
   if (pc.raceId === "elf" && ["longsword", "shortsword", "shortbow", "longbow"].includes(w.id)) return true;
@@ -138,12 +139,16 @@ function unarmedStrike(c: Creature): AttackOption {
 }
 
 /** Armour class of the equipment, without temporary effects. */
-export function armorClassParts(abilities: AbilityScores, pc: Pick<PcInfo, "armorId" | "shield" | "fightingStyle">): BreakdownPart[] {
+export function armorClassParts(abilities: AbilityScores, pc: Pick<PcInfo, "armorId" | "shield" | "fightingStyle" | "gear">): BreakdownPart[] {
   const dex = abilityMod(abilities.DEX);
   const parts: BreakdownPart[] = [];
-  if (pc.armorId) {
-    const a = getArmor(pc.armorId);
-    parts.push({ label: nameOf("armor", a.id), value: a.baseAc, glossarKey: "ruestung:" + a.id });
+  // Magic armour replaces the normal one while it is worn.
+  const magic = pc.gear?.armor ? getGear(pc.gear.armor) : undefined;
+  const armorId = magic?.base ?? pc.armorId;
+  if (armorId) {
+    const a = getArmor(armorId);
+    parts.push({ label: magic ? magic.name : nameOf("armor", a.id), value: a.baseAc, glossarKey: "ruestung:" + a.id });
+    if (magic) parts.push({ label: "Magie", value: magic.bonus, glossarKey: "ausruestung" });
     if (a.dexBonus) {
       const v = a.maxDexBonus !== undefined ? Math.min(dex, a.maxDexBonus) : dex;
       parts.push({ label: "Geschicklichkeit", value: v, glossarKey: ABILITY_GLOSSAR.DEX });
@@ -153,9 +158,11 @@ export function armorClassParts(abilities: AbilityScores, pc: Pick<PcInfo, "armo
     parts.push({ label: "Geschicklichkeit", value: dex, glossarKey: ABILITY_GLOSSAR.DEX });
   }
   if (pc.shield) parts.push({ label: "Schild", value: 2, glossarKey: "ruestung:shield" });
-  if (pc.fightingStyle === "defense" && pc.armorId) {
+  if (pc.fightingStyle === "defense" && armorId) {
     parts.push({ label: "Kampfstil Verteidigung", value: 1, glossarKey: "kampfstil" });
   }
+  const trinket = pc.gear?.trinket ? getGear(pc.gear.trinket) : undefined;
+  if (trinket?.effect === "ac") parts.push({ label: trinket.name, value: trinket.bonus, glossarKey: "ausruestung" });
   return parts;
 }
 
@@ -280,8 +287,37 @@ export function createCharacter(opts: CharacterOptions): Creature {
 export function refreshAttacks(c: Creature): void {
   if (!c.pc) return;
   const pc = c.pc;
-  c.attacks = [...pc.weaponIds.map((w) => weaponAttack({ ...c, pc }, w)), unarmedStrike(c)];
+  const magic = pc.gear?.weapon ? getGear(pc.gear.weapon) : undefined;
+  const weaponIds = magic?.base && !pc.weaponIds.includes(magic.base) ? [magic.base, ...pc.weaponIds] : pc.weaponIds;
+  c.attacks = [
+    ...weaponIds.map((w) => {
+      const a = weaponAttack({ ...c, pc }, w);
+      if (magic && magic.base === w) {
+        // The magic weapon: +1 to hit and damage, counts as magical.
+        a.toHit.push({ label: magic.name, value: magic.bonus, glossarKey: "ausruestung" });
+        a.damageBonus.push({ label: magic.name, value: magic.bonus, glossarKey: "ausruestung" });
+        a.magical = true;
+      }
+      return a;
+    }),
+    unarmedStrike(c),
+  ];
   c.baseAc = armorClassParts(c.abilities, pc);
+  const trinket = pc.gear?.trinket ? getGear(pc.gear.trinket) : undefined;
+  c.speedFt = getRace(pc.raceId).speedFt + (trinket?.effect === "speed" ? trinket.bonus : 0);
+}
+
+/** Why a hero can't use a piece of equipment (undefined = fine). */
+export function gearProblem(c: Creature, gearId: string): string | undefined {
+  const g = getGear(gearId);
+  const pc = c.pc;
+  if (!g || !pc) return "Unbekannter Gegenstand.";
+  if (g.slot === "weapon" && g.base && !isProficientWithWeapon(pc, getWeapon(g.base))) return `${c.name} kann mit dieser Waffe nicht umgehen.`;
+  if (g.slot === "armor" && g.base) {
+    const cat = getArmor(g.base).category;
+    if (!getClass(pc.classId).armor.includes(cat)) return `${c.name} kann diese Rüstung nicht tragen.`;
+  }
+  return undefined;
 }
 
 /** Pregenerated start characters: one per class and level. */

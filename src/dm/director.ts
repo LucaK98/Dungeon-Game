@@ -469,7 +469,16 @@ export class Director {
     clearInterval(track);
     this.trackHardship();
     if (spawned.some((m) => m.monsterId === "red-dragon-wyrmling" && m.dead)) this.set(["drache_tot"]);
-    if (winner === "party") return "won";
+    if (winner === "party") {
+      // Loot: bosses always drop something, other fights sometimes.
+      if (!training && (hasBoss || this.rng.next() < 0.3)) {
+        const heroes = this.heroes().filter((h) => !h.dead);
+        const hero = heroes[this.rng.int(0, heroes.length - 1)];
+        const gearId = hero ? this.game.randomGear(hero) : undefined;
+        if (hero && gearId) this.game.grantGear(hero, gearId, hasBoss ? "Beute des Anführers" : "Beute");
+      }
+      return "won";
+    }
     const last = this.state.sceneIndex === this.state.plan.length - 1;
     if (hasBoss && last) {
       this.set(["niederlage_boss"]);

@@ -15,6 +15,7 @@ import { cellIndex } from "../shared/map";
 import type { Duration, MonsterGroup, Scene, Story } from "../shared/story";
 import type { GameController } from "../tv/game";
 import { THEMES } from "../map/modules";
+import { getGear } from "../data/gear";
 import { clockWarning, eventGapSeconds, pickEvent, wanderers, type EventChoice, type EventOutcome, type Place, type WorldEvent } from "./world-events";
 
 export interface WorldHost {
@@ -219,6 +220,18 @@ export class World {
   /** Wandering monsters: fighting (or failing to hide) starts a fight that fits the place. */
   private withFights(ev: WorldEvent): EventChoice[] {
     const choices = ev.choices ?? [];
+    if (ev.id === "waffenhaendler") {
+      // Two pieces the group does not have yet, that someone can use.
+      const offers: EventChoice[] = [];
+      const heroes = this.game.heroes();
+      for (let i = 0; i < 6 && offers.length < 2; i++) {
+        const id = this.game.randomGear(heroes[i % heroes.length]);
+        const g = id ? getGear(id) : undefined;
+        if (!g || offers.some((o) => o.id === g.id)) continue;
+        offers.push({ id: g.id, label: `${g.icon} ${g.name} (${g.price} Gold)`, detail: g.detail, cost: g.price, outcome: { narration: [{ npc: "Schmiedin Ortrud", text: "Möge es euch gute Dienste leisten!" }], gear: g.id } });
+      }
+      return [...offers, ...choices];
+    }
     if (ev.id !== "wandernde_monster") return choices;
     const groups = wanderers(this.place()) ?? [];
     return choices.map((c) =>
@@ -236,6 +249,7 @@ export class World {
     game.narrate(o.narration);
     if (o.gold) this.host.changeGold(o.gold);
     if (o.item && hero) game.giveItem(o.item, 1, hero);
+    if (o.gear && hero) game.grantGear(hero, o.gear, "Gekauft");
     if (o.tempHp && hero) hero.tempHp = Math.max(hero.tempHp, o.tempHp);
     if (o.healAll) for (const h of game.heroes()) if (!h.dead) h.hp = Math.min(h.maxHp, h.hp + rollDice(rng, parseDice(o.healAll)).total);
     const hurt = (h: Creature, dice: string) => {
