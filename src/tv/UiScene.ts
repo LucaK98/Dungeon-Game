@@ -442,6 +442,11 @@ export class UiScene extends Phaser.Scene {
 
   private clearRollBox(): void {
     this.asking = false;
+    // A die still tumbling would keep writing on its (removed) number.
+    this.tumbleFlips?.remove(false);
+    this.tumbleFlips = undefined;
+    clearTimeout(this.tumbling);
+    this.tumbling = undefined;
     this.tweens.killTweensOf(this.rollBox.list);
     this.tweens.killTweensOf(this.rollBox);
     this.rollBox.removeAll(true);
