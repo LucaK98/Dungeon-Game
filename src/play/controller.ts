@@ -105,6 +105,31 @@ function oddsBadge(chance: number): HTMLElement {
   return h("span", { class: `odds ${cls}`, dataset: { help: "angriffswurf" } }, `${text} (${pct} %)`);
 }
 
+/** Attacks and spells: coloured chips (damage, chance, range) instead of a sentence. */
+function choiceChips(c: ActionChoice): HTMLElement[] {
+  const chips: HTMLElement[] = [];
+  const chip = (cls: string, text: string) => h("span", { class: `chip ${cls}` }, text);
+  const avg = c.avg !== undefined ? Math.round(c.avg) : undefined;
+  if (avg && c.avgKind === "heal") chips.push(chip("heal", `💚 ≈ ${avg} Heilung`));
+  else if (avg) {
+    const dice = /(\d+W\d+(?: \+ \d+W\d+)*(?: \+ \d+)?) Schaden/.exec(c.detail)?.[1];
+    chips.push(chip("dmg", `⚔️ ${dice ? `${dice.replace(/ /g, "")} ` : ""}≈ ${avg}`));
+  }
+  if (c.chance !== undefined) chips.push(oddsBadge(c.chance));
+  if (c.group === "attack") chips.push(chip("range", c.detail.includes("Fernkampf") ? "🏹 Fern" : c.detail.includes("werfen") ? "🗡️ Nah · Wurf" : "🗡️ Nah"));
+  const slots = /noch (\d+) Pl/.exec(c.detail)?.[1];
+  if (c.group === "spell") chips.push(chip("slots", c.detail.startsWith("Zaubertrick") ? "✨ beliebig oft" : `✨ noch ${slots ?? "?"}`));
+  if (c.detail.includes("trifft alle")) chips.push(chip("area", "💥 Fläche"));
+  return chips;
+}
+
+function choiceBody(c: ActionChoice): HTMLElement[] {
+  if (!c.enabled) return [h("span", { class: "choice-detail" }, c.reason ?? c.detail)];
+  const chips = c.group === "attack" || c.group === "spell" || c.avg ? choiceChips(c) : [];
+  if (chips.length >= 2) return [h("span", { class: "chips" }, ...chips)];
+  return [h("span", { class: "choice-detail" }, c.detail), ...(chips.length ? [h("span", { class: "chips" }, ...chips)] : [])];
+}
+
 function signed(n: number): string {
   return n >= 0 ? `+${n}` : `−${Math.abs(n)}`;
 }
@@ -384,8 +409,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       "button",
       { class: `choice-btn${c.enabled ? "" : " disabled"}${c.recommended ? " recommended" : ""}${c.votes?.mine ? " voted" : ""}`, type: "button", dataset: { help: c.glossarKey } },
       h("span", { class: "choice-label" }, c.label, c.recommended ? h("span", { class: "rec" }, "⭐ Empfohlen") : null),
-      h("span", { class: "choice-detail" }, c.enabled ? c.detail : (c.reason ?? c.detail)),
-      c.enabled && (c.chance !== undefined || c.avg) ? h("span", { class: "choice-odds" }, c.chance !== undefined ? oddsBadge(c.chance) : "", c.avg ? h("span", { class: "odds avg" }, `≈ ${c.avg} ${c.avgKind === "heal" ? "Heilung" : "Schaden"}`) : "") : null,
+      ...choiceBody(c),
       c.votes
         ? h(
             "span",
@@ -586,7 +610,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     return h(
       "section",
       { class: "card suggest-card", dataset: { help: c.glossarKey } },
-      h("div", { class: "suggest-head" }, h("span", { class: "suggest-icon" }, "💡"), h("div", {}, h("strong", {}, `Vorschlag: ${c.label}`), h("span", { class: "muted small" }, c.detail))),
+      h("div", { class: "suggest-head" }, h("span", { class: "suggest-icon" }, "💡"), h("div", {}, h("strong", {}, `Vorschlag: ${c.label}`), ...choiceBody(c))),
       go,
     );
   }

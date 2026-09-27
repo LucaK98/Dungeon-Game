@@ -883,3 +883,25 @@ body.tip-mode::after {
   .emote-btn { bottom: 100px; width: 44px; height: 44px; font-size: 1.3rem; }
   .col-map { top: 8px; }
 }
+
+/* ---------------------------------------------------------------- result bullets */
+.bullets { list-style: none; margin: 0.4rem 0; padding: 0; display: grid; gap: 0.35rem; text-align: left; }
+.bullet { display: flex; gap: 0.5rem; align-items: center; font-weight: 700; font-size: 1.1rem; padding: 0.35rem 0.6rem; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border-left: 4px solid currentColor; }
+.bullet-icon { font-size: 1.1rem; }
+.bullet.damage { color: #ff6b5e; }
+.bullet.heal { color: #6fdc7a; }
+.bullet.miss { color: #b8b0a0; }
+.bullet.status { color: #ffd75e; }
+.bullet.buff { color: #7cc4ff; }
+.bullet.down { color: #e08aff; }
+.bullet.info { color: #e8dcc4; }
+.dice-how { margin-top: 0.4rem; font-size: 0.9rem; opacity: 0.85; text-align: left; }
+.dice-how summary { cursor: pointer; color: #b3a58a; }
+
+/* ---------------------------------------------------------------- compact choice chips */
+.chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.25rem; }
+.chip, .chips .odds { font-size: 0.85rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(255, 255, 255, 0.07); white-space: nowrap; }
+.chip.dmg { color: #ff8a7e; background: rgba(255, 90, 70, 0.14); }
+.chip.heal { color: #7fe38a; background: rgba(90, 220, 110, 0.14); }
+.chip.range, .chip.slots, .chip.area { color: #cfc4ad; }
+.chip.area { color: #ffb45e; }

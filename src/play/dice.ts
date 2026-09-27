@@ -5,6 +5,12 @@ import { play } from "../ui/sound";
 import { h } from "../ui/dom";
 import type { RollOutcome, RollPrompt } from "../shared/view";
 import { explainedLine, term } from "./help";
+import { BULLET_ICON, type Bullet } from "../shared/bullets";
+
+/** Coloured points: damage red, healing green, conditions yellow, protection blue. */
+export function bulletList(bullets: Bullet[]): HTMLElement {
+  return h("ul", { class: "bullets" }, ...bullets.map((b) => h("li", { class: `bullet ${b.tone}` }, h("span", { class: "bullet-icon" }, BULLET_ICON[b.tone]), b.text)));
+}
 
 const SHAPES: Record<number, string> = {
   4: "50,6 95,88 5,88",
@@ -72,7 +78,9 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
       }),
     );
     hint.textContent = r.crit ? "🎉 Kritischer Treffer!" : r.success === true ? "Geschafft!" : r.success === false ? "Leider nicht geschafft." : "";
-    lines.replaceChildren(...r.lines.map((l) => explainedLine(l)));
+    // What it did, at a glance; the full calculation folded away.
+    const how = h("details", { class: "dice-how" }, h("summary", {}, "🧮 Wie wurde gerechnet?"), ...r.lines.map((l) => explainedLine(l)));
+    lines.replaceChildren(...(r.bullets?.length ? [bulletList(r.bullets), how] : r.lines.map((l) => explainedLine(l))));
     done.hidden = false;
     if (r.crit && "vibrate" in navigator) navigator.vibrate([80, 60, 160]);
     if (r.crit) play("crit");

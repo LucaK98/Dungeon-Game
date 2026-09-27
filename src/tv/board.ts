@@ -130,7 +130,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       rng,
       (playerId, event) => host.transport.send(event, playerId),
       (event) => host.transport.send(event),
-      { autoHeroes: !!opts.demo },
+      { autoHeroes: !!opts.demo, turnBasedExplore: true },
     );
     controller = c;
     c.difficulty = difficulty;
@@ -155,11 +155,11 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         }
         updateAmbience(c);
         game.events.emit("order", c.mode === "combat" ? c.orderEntries() : []);
-        if (c.storyView) game.events.emit("chapter", c.storyView.chapter);
+        if (c.storyView) game.events.emit("chapter", c.storyView.chapter, c.storyView.goal);
       },
-      turn: (name, color, free) => {
+      turn: (name, color, free, info) => {
         askedFor = undefined;
-        game.events.emit("turn", name, color, free);
+        game.events.emit("turn", name, color, free, info);
       },
       asked: (prompt, id, name, color) => {
         askedFor = id;
@@ -322,7 +322,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     uiReady = true;
     if (early.length) game.events.emit("narration", early.splice(0));
     controller?.announceTurn();
-    if (controller?.storyView) game.events.emit("chapter", controller.storyView.chapter);
+    if (controller?.storyView) game.events.emit("chapter", controller.storyView.chapter, controller.storyView.goal);
     if (controller) game.events.emit("log", controller.recentLog(14), 0);
   });
 

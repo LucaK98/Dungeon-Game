@@ -61,7 +61,7 @@ async function playStory(opts: { heroes?: { name: string; classId: string; raceI
   });
   for (const c of Object.values(session.battle.creatures)) if (c.kind === "monster") delete session.battle.creatures[c.id];
   let lastError = "";
-  const game = new GameController(session, rng, (_to, e) => { if (e.type === "action_error") lastError = e.reason; }, () => {}, { monsterDelayMs: 0 });
+  const game = new GameController(session, rng, (_to, e) => { if (e.type === "action_error") lastError = e.reason; }, () => {}, { monsterDelayMs: 0, turnBasedExplore: !process.env.FREEEXPLORE });
   game.start();
   const story = opts.story ?? STORY;
   const state = newStoryState(story, rng, opts.duration, opts.truth);
@@ -304,8 +304,8 @@ for (const STORY of [...STORIES, generateStory(7), generateStory(42), generateSt
     it("can be won (not every game ends in defeat)", async () => {
       const endings: string[] = [];
       let blows = 0;
-      // The bots are no tacticians: several games, one of them must be won.
-      for (const seed of process.env.SEEDS ? process.env.SEEDS.split(",").map(Number) : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      // The bots are no tacticians (in the random story they win about one game in eight): several games, one must be won.
+      for (const seed of process.env.SEEDS ? process.env.SEEDS.split(",").map(Number) : Array.from({ length: 25 }, (_, i) => i + 1)) {
         const { result, finalBlows, game } = await playStory({ story: STORY, seed, duration: "kurz" });
         endings.push(result!.ending.id);
         blows += finalBlows;

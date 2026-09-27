@@ -226,6 +226,8 @@ export interface RollOutcome {
   hits?: { targetId: string; amount: number; heal?: boolean; crit?: boolean; miss?: boolean }[];
   /** For the board: what to animate (who does what to whom). */
   fx?: ActionFx[];
+  /** What it did, in a few coloured points (damage red, healing green …). */
+  bullets?: import("./bullets").Bullet[];
 }
 
 /** One animation on the board: a sword swing, an arrow, a fire bolt, healing light … */

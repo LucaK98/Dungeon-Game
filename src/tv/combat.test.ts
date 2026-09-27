@@ -17,7 +17,7 @@ const HEROES = [
 ];
 
 /** A fight against three goblins, played through the same messages the phones send. */
-function goblinFight(seed: number) {
+function goblinFight(seed: number, talk = false) {
   const rng = seededRng(seed);
   const session = createSession(rng, {
     players: HEROES.map((h, i) => ({ playerId: `p${i}`, profile: { ...h, look: defaultLook(h.classId, h.raceId), color: "#fff" } })),
@@ -49,6 +49,7 @@ function goblinFight(seed: number) {
     { monsterDelayMs: 0 },
   );
   let combatSeen = false;
+  let typed = 0;
   game.on({ combat: (started) => started && (combatSeen = true) });
   game.start();
 
@@ -68,6 +69,11 @@ function goblinFight(seed: number) {
       game.handle(pid, heal.action.kind === "use_item" ? { ...heal.action, targetId: downed.id } : { kind: "cast", spellId: heal.id.slice(6), targetIds: [downed.id] });
       continue;
     }
+    if (attack && talk) {
+      game.handle(pid, { kind: "free_text", text: `Ich greife ${attack.targets![0]!.name} an!` });
+      if (game.viewFor(pid)!.log.some((l) => /„Ich greife Goblin \d an!“ → /.test(l.text))) typed++;
+      continue;
+    }
     if (attack) {
       game.handle(pid, { ...(attack.action as Extract<typeof attack.action, { kind: "attack" }>), targetId: attack.targets![0]!.id });
       continue;
@@ -85,7 +91,7 @@ function goblinFight(seed: number) {
     }
     game.handle(pid, { kind: "end_turn" });
   }
-  return { game, session, rolls, combatSeen, events };
+  return { game, session, rolls, combatSeen, events, typed };
 }
 
 describe("combat (A5)", () => {
@@ -101,6 +107,13 @@ describe("combat (A5)", () => {
       expect(rolls.some((l) => /gegen RK \d+ → /.test(l)), `seed ${seed}`).toBe(true);
       expect(rolls.some((l) => l.startsWith("⚔️ Kampf!")), `seed ${seed}`).toBe(true);
     }
+  });
+
+  it("turns typed attacks into real attacks with the hero's weapon", () => {
+    const { session, rolls, typed } = goblinFight(3, true);
+    expect(Object.values(session.battle.creatures).filter((c) => c.monsterId === "goblin").every((g) => g.dead)).toBe(true);
+    expect(rolls.some((l) => /gegen RK \d+ → /.test(l))).toBe(true);
+    expect(typed).toBeGreaterThan(0);
   });
 
   it("lets the goblins act on their own", () => {

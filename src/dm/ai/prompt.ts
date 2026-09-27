@@ -72,7 +72,7 @@ function triggerText(t: DmTrigger): string {
     case "scene_start":
       return "Eine neue Szene beginnt. Erzähle stimmungsvoll, wo die Helden ankommen und was sie sehen, und mach das Ziel der Szene deutlich.";
     case "free_text":
-      return `${t.heroName} möchte etwas Eigenes tun: „${t.text}“. Entscheide, was passiert (bei unsicherem Ausgang: Probe verlangen).`;
+      return `${t.heroName} möchte etwas Eigenes tun: „${t.text}“. Entscheide, was passiert (bei unsicherem Ausgang: Probe verlangen). Verweise nie auf Knöpfe oder Menüs am Handy – normale Angriffe und Zauber hat das Spiel schon selbst ausgeführt; hier geht es um alles andere.`;
     case "roll_result": {
       const margin = t.total - t.dc;
       const grade = t.success ? (margin >= 5 ? "GROSSER ERFOLG (bis zu 2 Effekte)" : "ERFOLG (1 Effekt)") : margin >= -2 ? "KNAPP VERFEHLT – Ja, aber (1 Effekt mit Preis)" : "MISSERFOLG (kein Effekt)";

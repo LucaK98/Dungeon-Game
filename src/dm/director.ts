@@ -93,6 +93,8 @@ export interface DirectorOptions {
   travel?: boolean;
   /** What earlier adventures bring along (old friends, old foes). */
   saga?: SagaCarry;
+  /** At the end of a scene the group votes when to move on (default on). */
+  leaveVote?: boolean;
 }
 
 /** Questions at the campfire: small, personal, easy to answer for beginners. */
@@ -158,6 +160,7 @@ export class Director {
     game.onBookClue = () => this.bookClue();
     game.onSuggest = (playerId, hero) => this.suggest(playerId, hero);
     game.onAskRules = (playerId, hero, question) => this.askRules(playerId, hero, question);
+    game.onRoundEnd = () => this.world?.roundEnded();
     if (opts.world) {
       this.world = new World({
         game,
@@ -525,6 +528,7 @@ export class Director {
       }
     }
     this.stepId = undefined;
+    await this.leaveVote();
     const end = await this.askDm({ kind: "scene_end" });
     if (end.trigger_event) {
       const ev = this.story.events?.find((e) => e.id === end.trigger_event);
@@ -538,6 +542,33 @@ export class Director {
       }
     }
     return "done";
+  }
+
+  /**
+   * The goal of the scene is reached – but nobody is dragged away: the group decides when to move on.
+   * "Noch umsehen" gives two more rounds (talk to people, look around, shop), then they are asked again.
+   */
+  private async leaveVote(): Promise<void> {
+    if (this.opts.leaveVote === false) return;
+    const nextId = this.state.plan.slice(this.state.sceneIndex + 1).find((id) => !this.state.dropped.includes(id));
+    const next = nextId ? sceneById(this.story, nextId).title : undefined;
+    for (let ask = 0; ask < 3; ask++) {
+      const pick = await this.game.choose(
+        [
+          { id: "leave:go", label: next ? `➡️ Weiter: ${next}` : "🏁 Zum Finale", detail: "Das Ziel hier ist geschafft. Weiter geht's, wenn ihr bereit seid.", recommended: true },
+          { id: "leave:stay", label: "🔎 Noch umsehen", detail: "Noch 2 Runden hierbleiben: Leute ansprechen, stöbern, Kräuter sammeln …" },
+        ],
+        { vote: true },
+      );
+      if (pick.id === "leave:go") return;
+      this.game.narrate([{ text: "🔎 Ihr seht euch noch ein wenig um." }]);
+      if (this.game.freeExplore) {
+        await new Promise((resolve) => setTimeout(resolve, 60_000));
+        continue;
+      }
+      const until = this.game.round + 2;
+      await this.game.waitFor(() => this.game.round >= until && this.game.mode === "explore");
+    }
   }
 
   // ---------------------------------------------------------------- steps

@@ -175,11 +175,11 @@ describe("degrees of success", () => {
 
 describe("free actions (scripted narrator)", () => {
   const dm = new ScriptedDM(STORY);
-  it("points plain attacks to the attack button", async () => {
+  it("a plain attack that reaches the narrator (nobody in reach) gets no roll and no effects", async () => {
     const res = await dm.respond(ctx(bandits), free("Ich greife Räuber 1 an"));
     expect(res.request_roll).toBeUndefined();
     expect(res.effects).toBeUndefined();
-    expect(res.narration).toContain("Angreifen");
+    expect(res.narration).toContain("Reichweite");
   });
 
   it("understands bribing, charming, scaring, pushing, sand and barrels", async () => {

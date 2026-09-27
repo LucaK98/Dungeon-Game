@@ -1,3 +1,4 @@
+import { BULLET_COLOR, BULLET_ICON } from "../shared/bullets";
 import Phaser from "phaser";
 import { dollFrames } from "../shared/doll";
 import type { Narration } from "../shared/story";
@@ -18,6 +19,9 @@ const FONT = "system-ui, sans-serif";
 export class UiScene extends Phaser.Scene {
   private banner!: Phaser.GameObjects.Text;
   private turnText!: Phaser.GameObjects.Text;
+  private goal!: Phaser.GameObjects.Text;
+  /** "Runde 3 · danach: Brunhild, Ole" above the name. */
+  private turnInfo!: Phaser.GameObjects.Text;
   private turnBox!: Phaser.GameObjects.Graphics;
   private rollBox!: Phaser.GameObjects.Container;
   private orderBar!: Phaser.GameObjects.Container;
@@ -56,14 +60,16 @@ export class UiScene extends Phaser.Scene {
       .setAlpha(0);
     this.turnBox = this.add.graphics();
     this.turnText = this.add.text(40, BOARD_HEIGHT - 70, "", crisp({ fontFamily: FONT, fontSize: "44px", color: "#fff", stroke: "#000", strokeThickness: 8 })).setOrigin(0, 0.5);
+    this.turnInfo = this.add.text(44, BOARD_HEIGHT - 128, "", crisp({ fontFamily: FONT, fontSize: "26px", color: "#e0c68a", stroke: "#000", strokeThickness: 6 })).setOrigin(0, 0.5);
     this.rollBox = this.add.container(MAP_RIGHT - 30, 40);
     this.logBox = this.add.container(0, 0);
     this.chapter = this.add.text(24, 20, "", crisp({ fontFamily: FONT, fontSize: "26px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 }));
+    this.goal = this.add.text(24, 54, "", crisp({ fontFamily: FONT, fontSize: "30px", color: "#ffe08a", fontStyle: "bold", stroke: "#000", strokeThickness: 6, wordWrap: { width: MAP_RIGHT - 900 } }));
     this.narrationBox = this.add.container(0, 0).setAlpha(0);
     this.aiBadge = this.add.text(MAP_RIGHT - 24, BOARD_HEIGHT - 20, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setOrigin(1, 1);
 
     const onRoom = (name: string) => this.showBanner(name);
-    const onTurn = (name: string, color?: string, free?: boolean) => this.showTurn(name, color, free);
+    const onTurn = (name: string, color?: string, free?: boolean, info?: string) => this.showTurn(name, color, free, info);
     const onRoll = (r: RollOutcome, tumble = 0) => this.rollIn(r, tumble);
     const onAsked = (prompt: RollPrompt, name: string, color?: string) => this.showAsk(prompt, name, color);
     const onOrder = (entries: OrderEntry[]) => this.showOrder(entries);
@@ -72,9 +78,13 @@ export class UiScene extends Phaser.Scene {
       this.queue.push(...lines);
       if (!this.telling) void this.tell();
     };
-    const onChapter = (text: string) => this.chapter.setText(text);
+    // Top left: the chapter, and below it the goal right now in one line (always in sight).
+    const onChapter = (text: string, goal?: string) => {
+      this.chapter.setText(text);
+      this.goal.setText(goal ? `🎯 ${goal}` : "");
+    };
     // A short note under the chapter: the game was saved (with the code for another device).
-    const saved = this.add.text(24, 58, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setAlpha(0);
+    const saved = this.add.text(24, 104, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setAlpha(0);
     const onSaved = (code?: string) => {
       saved.setText(code ? `💾 Gespeichert · Code zum Weiterspielen: ${code}` : "💾 Gespeichert").setAlpha(1);
       this.tweens.killTweensOf(saved);
@@ -279,8 +289,8 @@ export class UiScene extends Phaser.Scene {
     const text = this.add.text(x + 30, 0, "", crisp({ fontFamily: FONT, fontSize: "34px", color: "#f3e9d2", wordWrap: { width: width - 60 }, lineSpacing: 8, fontStyle: line.npc ? "italic" : "normal" }));
     // Measure the full height first.
     text.setText(line.text);
-    const tipText = line.tip ? this.add.text(x + 30, 0, `💡 ${line.tip.text}`, crisp({ fontFamily: FONT, fontSize: "26px", color: "#1b1208", wordWrap: { width: width - 90 }, lineSpacing: 6 })) : undefined;
-    const bodyH = (speaker ? 42 : 0) + text.height + (tipText ? tipText.height + 40 : 0);
+    // Tips are for the phones: the TV shows only what is read aloud.
+    const bodyH = (speaker ? 42 : 0) + text.height;
     const top = BOARD_HEIGHT - 150 - bodyH;
     const bg = this.add.graphics();
     bg.fillStyle(0x0d0b09, 0.9).fillRoundedRect(x, top - 20, width, bodyH + 40, 18);
@@ -294,18 +304,11 @@ export class UiScene extends Phaser.Scene {
     }
     text.setY(y);
     box.add(text);
-    y += text.height + 20;
-    if (tipText) {
-      const tipBg = this.add.graphics();
-      tipBg.fillStyle(0xe0a526, 1).fillRoundedRect(x + 18, y - 6, width - 36, tipText.height + 16, 12);
-      tipText.setY(y + 2);
-      box.add([tipBg, tipText]);
-    }
     const full = text.text;
     text.setText("");
-    // Catch up when lines pile up: type faster, shorter pauses, no reading aloud for a long backlog.
+    // Lines piling up: type faster – but every line is still read aloud in full.
     const waiting = this.queue.length;
-    const pace = waiting >= 4 ? 0.3 : waiting >= 2 ? 0.6 : 1;
+    const pace = waiting >= 4 ? 0.5 : waiting >= 2 ? 0.75 : 1;
     return new Promise((resolve) => {
       let i = 0;
       let done = false;
@@ -331,11 +334,11 @@ export class UiScene extends Phaser.Scene {
         stopSpeaking();
         finish();
       };
-      const minTime = new Promise<void>((r) => this.time.delayedCall((1800 + full.length * 45 + (line.tip ? 2500 : 0)) * pace, () => r()));
+      const minTime = new Promise<void>((r) => this.time.delayedCall((1800 + full.length * 45) * pace, () => r()));
       // Fetch the next line's voice while this one is spoken.
       const upcoming = this.queue[0];
-      if (upcoming && waiting < 3) prefetchSpeech(upcoming.text, upcoming.npc);
-      const voice = waiting >= 3 ? Promise.resolve() : speak(line.text, line.npc);
+      if (upcoming) prefetchSpeech(upcoming.text, upcoming.npc);
+      const voice = speak(line.text, line.npc);
       void Promise.all([minTime, voice]).then(finish);
     });
   }
@@ -346,14 +349,17 @@ export class UiScene extends Phaser.Scene {
     this.tweens.add({ targets: this.banner, alpha: 0, delay: 2500, duration: 1200 });
   }
 
-  private showTurn(name: string, color?: string, free?: boolean): void {
+  private showTurn(name: string, color?: string, free?: boolean, info?: string): void {
     // A roll that was asked for and never thrown (the turn moved on): take the waiting die away.
     if (this.asking) this.clearRollBox();
     this.turnText.setText(free ? `🧭 ${name}` : `▶ ${name} ist dran`);
-    const w = this.turnText.width + 60;
+    this.turnInfo.setText(info ?? "");
+    const w = Math.max(this.turnText.width, this.turnInfo.width) + 60;
+    const top = info ? BOARD_HEIGHT - 150 : BOARD_HEIGHT - 110;
+    const h = info ? 120 : 80;
     this.turnBox.clear();
-    this.turnBox.fillStyle(0x000000, 0.65).fillRoundedRect(20, BOARD_HEIGHT - 110, w, 80, 16);
-    if (color) this.turnBox.fillStyle(Phaser.Display.Color.HexStringToColor(color).color, 1).fillRoundedRect(20, BOARD_HEIGHT - 110, 12, 80, 6);
+    this.turnBox.fillStyle(0x000000, 0.65).fillRoundedRect(20, top, w, h, 16);
+    if (color) this.turnBox.fillStyle(Phaser.Display.Color.HexStringToColor(color).color, 1).fillRoundedRect(20, top, 12, h, 6);
   }
 
   /** Initiative bar on the left edge: portraits in turn order, the active one highlighted. */
@@ -640,19 +646,34 @@ export class UiScene extends Phaser.Scene {
     const hasDie = r.dice.length > 0;
     const left = hasDie ? 170 : 30;
     const title = this.add.text(-width + left, 24, r.title, crisp({ fontFamily: FONT, fontSize: "36px", color: "#e0a526", fontStyle: "bold" }));
-    const body = this.add.text(-width + left, 80, r.lines.map((l) => l.text).join("\n"), crisp({
-      fontFamily: FONT,
-      fontSize: "28px",
-      color: "#f3e9d2",
-      wordWrap: { width: width - left - 30 },
-      lineSpacing: 8,
-    }));
+    // The dice sum in one small line, then what it did as coloured points (damage red, healing green …).
+    const sum = r.lines.find((l) => /= \d+ gegen (RK|SG)/.test(l.text))?.text;
+    const parts: Phaser.GameObjects.Text[] = [];
+    let y = 80;
+    if (sum) {
+      const t = this.add.text(-width + left, y, sum, crisp({ fontFamily: FONT, fontSize: "22px", color: "#b3a58a", wordWrap: { width: width - left - 30 } }));
+      parts.push(t);
+      y += t.height + 10;
+    }
+    const bullets = r.bullets?.length ? r.bullets : undefined;
+    if (bullets) {
+      for (const b of bullets) {
+        const t = this.add.text(-width + left, y, `${BULLET_ICON[b.tone]}  ${b.text}`, crisp({ fontFamily: FONT, fontSize: "32px", color: BULLET_COLOR[b.tone], fontStyle: "bold", wordWrap: { width: width - left - 30 } }));
+        parts.push(t);
+        y += t.height + 6;
+      }
+    } else {
+      const t = this.add.text(-width + left, y, r.lines.slice(0, 3).map((l) => l.text).join("\n"), crisp({ fontFamily: FONT, fontSize: "28px", color: "#f3e9d2", wordWrap: { width: width - left - 30 }, lineSpacing: 8 }));
+      parts.push(t);
+      y += t.height;
+    }
+    const body = { height: y - 80 };
     const height = Math.max(180, 110 + body.height);
     const bg = this.add.graphics();
     const edge = r.crit ? 0xffd700 : r.success === true ? 0x4caf50 : r.success === false ? 0xe04040 : 0x5a4d42;
     bg.fillStyle(0x14110f, 0.92).fillRoundedRect(-width, 0, width, height, 18);
     bg.lineStyle(6, edge, 1).strokeRoundedRect(-width, 0, width, height, 18);
-    this.rollBox.add([bg, title, body]);
+    this.rollBox.add([bg, title, ...parts]);
     if (hasDie) {
       // The die that counts, big enough to read from the sofa.
       const die = this.add.graphics();
@@ -669,7 +690,7 @@ export class UiScene extends Phaser.Scene {
       this.tweens.add({ targets: n, scale: 1, duration: 300, ease: "Back.easeOut" });
     }
     this.rollBox.setAlpha(1);
-    this.tweens.add({ targets: this.rollBox, alpha: 0, delay: 5000 + r.lines.length * 700, duration: 800 });
+    this.tweens.add({ targets: this.rollBox, alpha: 0, delay: 5000 + parts.length * 900, duration: 800 });
   }
 }
 

@@ -8,7 +8,7 @@ import { World, type WorldHost } from "./world";
 import { pickEvent, WORLD_EVENTS, wanderers, type Place } from "./world-events";
 import { STORIES } from "./stories";
 
-function setup(seed = 4) {
+function setup(seed = 4, turns = false) {
   const rng = seededRng(seed);
   const session = createSession(rng, {
     players: [
@@ -19,7 +19,7 @@ function setup(seed = 4) {
     noMonsters: true,
   });
   const sent: { to: string | "all"; event: GameEvent }[] = [];
-  const game = new GameController(session, rng, (to, event) => sent.push({ to, event }), (event) => sent.push({ to: "all", event }), { monsterDelayMs: 0 });
+  const game = new GameController(session, rng, (to, event) => sent.push({ to, event }), (event) => sent.push({ to: "all", event }), { monsterDelayMs: 0, turnBasedExplore: turns });
   game.start();
   game.setStoryView({ title: "Test", chapter: "Kapitel 1", scene: "Test", goal: "Testen", narration: [], choices: [], clues: [] });
   const last = (to: string, type: GameEvent["type"]) => [...sent].reverse().find((s) => s.to === to && s.event.type === type)?.event;
@@ -121,6 +121,43 @@ describe("world events", () => {
     }
     expect(wanderers(place({ theme: "throne" }))).toBeUndefined();
     expect(wanderers(place({ theme: "forest", night: true }))?.[0]?.monster).toBe("wolf");
+  });
+
+  it("exploring in turns: something happens only at the end of a round, never in someone's turn", async () => {
+    const { game, rng, sent } = setup(7, true);
+    const story = STORIES[0]!;
+    const host: WorldHost = {
+      game,
+      rng,
+      story,
+      duration: "kurz",
+      scene: () => story.acts[0]!.scenes[0]!,
+      now: Date.now,
+      attitude: () => 0,
+      fight: async () => "won",
+      changeGold: () => undefined,
+      remember: () => undefined,
+      nudge: async () => undefined,
+    };
+    const world = new World(host);
+    game.onRoundEnd = () => world.roundEnded();
+    world.newScene(false);
+    let stop = () => undefined as void;
+    const roaming = world.roam(new Promise<void>((r) => (stop = r)));
+    const events = () => sent.filter((x) => JSON.stringify(x.event).includes("✨")).length;
+    // Many seconds pass, nobody ends a turn: nothing happens.
+    await new Promise((r) => setTimeout(r, 30));
+    expect(events()).toBe(0);
+    // Six rounds: at least one event, each one right after the last hero of a round.
+    for (let round = 0; round < 6; round++) {
+      for (const h of game.heroes()) game.handle(h.playerId!, { kind: "end_turn" });
+      await new Promise((r) => setTimeout(r, 5));
+      if (events()) break;
+    }
+    expect(events()).toBeGreaterThan(0);
+    // (The event now waits for a decision on the phones; the test ends here.)
+    stop();
+    void roaming;
   });
 
   it("runs an event: the choice shows on the phones, the roll decides, the reward arrives", async () => {

@@ -36,6 +36,9 @@ import { emptyStats, type HeroStats, type Recap, type RecapHero } from "../share
 import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
 import { glossaryAnswer } from "../dm/rules-help";
+import { isTrick } from "../dm/free-actions";
+import { matchFreeText } from "../shared/intent-match";
+import { bulletsFor } from "../shared/bullets";
 import type { AttackOption, Creature, GridPos, TurnState } from "../shared/game";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
@@ -56,6 +59,8 @@ export interface StoryChoiceOffer {
   recommended?: boolean;
 }
 
+/** Exploring in turns: a player who does nothing this long is skipped (ms). */
+const SILENT_TURN_MS = 90_000;
 const LOG_SIZE = 40;
 const MINIMAP_W = 13;
 const MINIMAP_H = 11;
@@ -75,7 +80,7 @@ export interface GameEvents {
   /** State changed: redraw the board. */
   changed(): void;
   roll(outcome: RollOutcome): void;
-  turn(name: string, color: string | undefined, free?: boolean): void;
+  turn(name: string, color: string | undefined, free?: boolean, info?: string): void;
   roomRevealed(name: string): void;
   lines(lines: ExplainedLine[]): void;
   combat(started: boolean): void;
@@ -497,6 +502,11 @@ export class GameController {
     this.sendView(newId);
   }
 
+  /** The current round (exploring and fighting). */
+  get round(): number {
+    return this.battle.combat?.round ?? 0;
+  }
+
   heroOf(playerId: PlayerId): Creature | undefined {
     return this.heroes().find((c) => c.playerId === playerId);
   }
@@ -571,8 +581,28 @@ export class GameController {
     }
     const c = this.active();
     if (!c) return;
-    this.emit("turn", c.name, c.appearance?.color ?? (c.side === "enemy" ? "#b03030" : undefined));
+    this.turnStartedAt = Date.now();
+    this.emit("turn", c.name, c.appearance?.color ?? (c.side === "enemy" ? "#b03030" : undefined), false, this.turnInfo());
   }
+
+  /** "Runde 3 · danach: Brunhild, Ole" for the TV. */
+  private turnInfo(): string | undefined {
+    const combat = this.battle.combat;
+    if (!combat) return undefined;
+    const next: string[] = [];
+    for (let k = 1; k < combat.order.length && next.length < 3; k++) {
+      const o = combat.order[(combat.turnIndex + k) % combat.order.length]!;
+      const c = this.battle.creatures[o.creatureId];
+      if (c && isActive(c) && !next.includes(c.name)) next.push(c.name);
+    }
+    return `Runde ${combat.round}${next.length ? ` · danach: ${next.join(", ")}` : ""}`;
+  }
+
+  /** When the current turn began (turn-based exploring: a silent player is skipped after a while). */
+  private turnStartedAt = Date.now();
+
+  /** Turn-based exploring: called at the end of every round (the world may do something then). */
+  onRoundEnd: ((round: number) => void) | undefined;
 
   endTurn(): void {
     if (this.destroyed) return;
@@ -585,6 +615,12 @@ export class GameController {
         this.tickSurfaces();
         this.arenaTick();
         if (this.checkWinner()) return;
+        // Exploring in turns: people in the scene move now, and now and then something happens.
+        if (this.mode === "explore") {
+          this.tickWorld(true);
+          if (this.mode !== "explore") return;
+          this.onRoundEnd?.(this.battle.combat.round);
+        }
       }
       // Starting the turn in flames hurts.
       const now = this.battle.creatures[start.creatureId];
@@ -1031,6 +1067,20 @@ export class GameController {
         this.move(playerId, hero, action.to);
         return;
       case "free_text": {
+        // "Ich schieße mit dem Bogen auf den Goblin": that is simply the bow attack (or the fitting spell).
+        const said = action.text.trim();
+        const found = said ? matchFreeText(said, this.choicesFor(hero, true, false), hero.id, isTrick(said)) : undefined;
+        if (found && "blocked" in found) {
+          this.sendTo(playerId, { type: "action_error", reason: `${found.choice.label}: ${found.blocked}` });
+          return;
+        }
+        if (found) {
+          const { choice, targetNames } = found.match;
+          this.addLog([{ text: `${hero.name}: „${said.slice(0, 100)}“ → ${choice.label}${targetNames.length ? ` auf ${targetNames.join(", ")}` : ""}`, glossarKeys: [choice.glossarKey] }]);
+          this.emit("speech", hero.id, said);
+          this.handle(playerId, found.match.action);
+          return;
+        }
         // In a fight a free action is a real action (tricks would be too strong otherwise).
         const turn = this.mode === "combat" ? this.battle.combat?.turn : undefined;
         if (turn) {
@@ -1155,6 +1205,12 @@ export class GameController {
   }
 
   private publishRoll(r: RollOutcome): void {
+    if (!r.bullets) {
+      r.bullets = bulletsFor(r, (id) => {
+        const c = this.battle.creatures[id];
+        return c ? { name: c.name, hp: c.hp, enemy: c.side === "enemy" } : undefined;
+      });
+    }
     this.track(r);
     this.addLog(r.lines);
     this.sendAll({ type: "roll_result", result: r });
@@ -3455,9 +3511,21 @@ export class GameController {
     return true;
   }
 
-  tickWorld(): void {
+  /**
+   * The world between the heroes' actions. Exploring in turns: people and patrols move once per round
+   * (`roundEnd`); the clock only skips a player who has been silent for a long time.
+   */
+  tickWorld(roundEnd = false): void {
     if (this.destroyed || this.mode !== "explore") return;
-    if (this.tickSurfaces()) this.broadcast();
+    if (!this.freeExplore && !roundEnd) {
+      const c = this.active();
+      if (c?.playerId && !this.pending && Date.now() - this.turnStartedAt > SILENT_TURN_MS && Date.now() - this.lastActionAt > SILENT_TURN_MS) {
+        this.addLog([{ text: `⏭️ ${c.name} war eine Weile still – der Nächste ist dran.`, glossarKeys: ["zug_beenden"] }]);
+        this.endTurn();
+      }
+      return;
+    }
+    if (roundEnd || this.tickSurfaces()) this.broadcast();
     let moved = false;
     const creatures = Object.values(this.battle.creatures);
     const free = (p: GridPos) => isWalkable(this.map, p) && !creatures.some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);

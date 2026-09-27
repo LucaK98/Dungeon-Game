@@ -35,6 +35,9 @@ export interface WorldHost {
 
 /** How long the heroes may take for one goal before the clock warns them (minutes). */
 const CLOCK: Record<Duration, number> = { kurz: 4, mittel: 6, lang: 8 };
+/** Exploring in turns: rounds for one goal before the clock warns, and rounds between events. */
+const CLOCK_ROUNDS: Record<Duration, number> = { kurz: 8, mittel: 12, lang: 16 };
+const EVENT_GAP_ROUNDS: [number, number] = [3, 5];
 /** After this long without any action the game master speaks up (seconds). */
 const QUIET_S = 75;
 /** A decision on the phones stays open this long (seconds). */
@@ -57,6 +60,9 @@ export class World {
   private gentle = false;
   private running: Promise<void> | undefined;
   private timer: ReturnType<typeof setInterval> | undefined;
+  /** Exploring in turns: rounds since this step began, and the round of the next event. */
+  private rounds = 0;
+  private nextEventRound = 0;
 
   constructor(private host: WorldHost) {}
 
@@ -70,12 +76,39 @@ export class World {
     this.gentle = firstOfStory;
     // The very first scene teaches the basics: no surprises there yet.
     this.nextEventAt = firstOfStory ? Number.POSITIVE_INFINITY : this.host.now() + eventGapSeconds(this.host.rng, this.game.heroes().length) * 1000;
+    this.rounds = 0;
+    this.nextEventRound = firstOfStory ? Number.POSITIVE_INFINITY : this.host.rng.int(...EVENT_GAP_ROUNDS);
+  }
+
+  /**
+   * Exploring in turns: after every round the world may do one thing – an event, a warning that time
+   * runs short. Never in the middle of someone's turn.
+   */
+  roundEnded(): void {
+    if (!this.timer || this.running || this.game.freeExplore) return;
+    this.rounds++;
+    const clock = CLOCK_ROUNDS[this.host.duration];
+    if (!this.gentle && this.rounds > clock * (this.warnings + 1)) {
+      this.warnings++;
+      this.run(this.warnings === 1 ? Promise.resolve(this.game.narrate([clockWarning(this.place())])) : this.lateConsequence());
+      return;
+    }
+    if (this.rounds >= this.nextEventRound) {
+      this.nextEventRound = this.rounds + this.host.rng.int(...EVENT_GAP_ROUNDS);
+      const ev = pickEvent(this.host.rng, this.place(), this.used);
+      if (ev) {
+        this.used.push(ev.id);
+        this.run(this.event(ev));
+      }
+    }
   }
 
   /** Lets the world run while the story waits for the heroes (reach/explore steps). */
   async roam<T>(wait: Promise<T>): Promise<T> {
     this.stepStartedAt = this.host.now();
     this.warnings = 0;
+    this.nextEventRound -= this.rounds;
+    this.rounds = 0;
     this.lastNudgeAt = this.host.now();
     this.timer = setInterval(() => this.tick(), 1000);
     try {
@@ -92,6 +125,15 @@ export class World {
     if (this.running || !this.game.idle) return;
     const now = this.host.now();
     this.greetings();
+    // Exploring in turns: events and the clock come at the end of a round (roundEnded).
+    if (!this.game.freeExplore) {
+      const quiet = Math.min(now - this.game.lastActionAt, now - this.lastNudgeAt);
+      if (quiet > QUIET_S * 1000) {
+        this.lastNudgeAt = now;
+        this.run(this.host.nudge());
+      }
+      return;
+    }
     const clock = CLOCK[this.host.duration] * 60000;
     if (!this.gentle && now - this.stepStartedAt > clock * (this.warnings + 1)) {
       this.warnings++;

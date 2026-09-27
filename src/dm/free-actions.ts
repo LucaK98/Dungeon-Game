@@ -47,6 +47,12 @@ export function intentOf(text: string, fighting: boolean): IntentRule | undefine
   return RULES.find((r) => (r.combat === "both" || r.combat === fighting) && r.words.test(t));
 }
 
+/** A combat trick (push, sand, bribe, scare …) rather than a plain attack. */
+export function isTrick(text: string): boolean {
+  const rule = intentOf(text, true);
+  return !!rule && rule.intent !== "attack" && rule.intent !== "help" && rule.intent !== "cover";
+}
+
 /** Who is meant: the full name first ("Räuber 2"), then a unique first word ("Brunhild"). */
 function mentioned<T extends { name: string }>(text: string, list: T[]): T | undefined {
   const t = text.toLowerCase();
@@ -72,9 +78,9 @@ export function scriptedFreeText(ctx: DmContext, trigger: Extract<DmTrigger, { k
   if (!rule) return undefined;
   if (rule.intent === "attack") {
     return respond([
-      line(`${hero} will angreifen – dafür gibt es den Knopf „⚔️ Angreifen“ auf dem Handy. Nur so wird der Schaden richtig ausgewürfelt.`, {
+      line(`${hero} holt aus – aber gerade ist kein Gegner in Reichweite.`, {
         key: "freie_aktion",
-        text: "Freie Aktionen eignen sich im Kampf für Tricks: ablenken, umstoßen, Sand werfen, bestechen, betören oder einschüchtern.",
+        text: "Schreib einfach, womit du angreifst („Ich schieße mit dem Bogen auf den Goblin“) – das Spiel nimmt dann den passenden Angriff.",
       }),
     ]);
   }
