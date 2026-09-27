@@ -266,9 +266,29 @@ export function whatCanIDo(view: PlayerView | undefined): string[] {
 
 // ---------------------------------------------------------------- hint bubbles
 
-export type HintId = "first_turn" | "first_roll" | "first_enemy" | "first_damage" | "first_spell" | "first_down" | "first_fight";
+export type HintId = "first_turn" | "first_roll" | "first_enemy" | "first_damage" | "first_spell" | "first_down" | "first_fight" | "first_prop" | "first_cover" | "first_rough" | "first_fire";
 
 const HINTS: Record<HintId, { title: string; text: string; key: string }> = {
+  first_prop: {
+    title: "Hier kannst du etwas benutzen!",
+    text: "Neben dir steht etwas, mit dem man etwas machen kann: Tische umwerfen, Kisten aufbrechen, Kräuter sammeln, Krüge werfen … Schau unter „Umgebung“.",
+    key: "zerschlagen",
+  },
+  first_cover: {
+    title: "Deckung nutzen!",
+    text: "Stell dich hinter einen Tisch, eine Kiste, eine Säule oder in einen Busch: Fernangriffe von der anderen Seite treffen dich schlechter (+2 RK). Auf dem Fernseher zeigt ein 🛡️, wer gerade in Deckung steht.",
+    key: "deckung",
+  },
+  first_rough: {
+    title: "Schwieriges Gelände",
+    text: "Gestreifte Felder auf deiner Karte (Gebüsch, Geröll, Netze, Wasser …) kosten doppelte Bewegung. Manchmal lohnt sich der Umweg.",
+    key: "schwieriges_gelaende",
+  },
+  first_fire: {
+    title: "Feuer!",
+    text: "Feuer breitet sich auf Brennbares aus und macht 1W6 Schaden, wenn man hineinläuft oder darin steht. Gegner meiden es – ihr könnt ihnen damit den Weg versperren!",
+    key: "feuer",
+  },
   first_turn: {
     title: "Du bist zum ersten Mal dran!",
     text: "In deinem Zug kannst du laufen (tippe auf ein helles Feld der Karte) UND eine Aktion machen, z. B. „Umsehen“. Wenn du fertig bist, tippe auf „Zug beenden“.",

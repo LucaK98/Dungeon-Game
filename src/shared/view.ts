@@ -35,6 +35,13 @@ export interface MiniMap {
   /** Frame per cell, "" = not explored yet. */
   frames: string[];
   overlays: (string | null)[];
+  /** Floor decoration and puddles/oil/ice/fire per cell ("" = nothing; several joined with "|"). */
+  ground?: string[];
+  /**
+   * What each cell means for the rules, one character per cell: "." nothing, "d" difficult ground,
+   * "h" high place, "f" fire, "i" ice (slippery and difficult), "c" cover furniture.
+   */
+  marks?: string;
   objects: { x: number; y: number; frame: string }[];
   creatures: MiniCreature[];
   /** Squares the player can walk to this turn. */

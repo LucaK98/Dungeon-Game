@@ -171,6 +171,9 @@ describe("night on the phone map", () => {
     const hero = game.heroOf("p1")!; // human fighter: no darkvision
     hero.darkvisionFt = 0;
     game.map.dark = true;
+    // No wall torches, braziers or glowing mushrooms here: only the hero's own light counts.
+    game.map.overlays = {};
+    game.map.objects = game.map.objects.filter((o) => o.kind !== "prop" && o.kind !== "campfire" && o.kind !== "cauldron");
     game.session.battle.darkness = { lights: [] };
     game.spawnNearParty(["goblin"]);
     const goblin = Object.values(game.session.battle.creatures).find((c) => c.monsterId === "goblin")!;

@@ -24,6 +24,7 @@ export function minimapView(map: MiniMap, onTap: (p: GridPos) => void): HTMLElem
       drawFrame(ctx, atlas, frame, x, y, 1);
       const overlay = map.overlays[i];
       if (overlay) drawFrame(ctx, atlas, overlay, x, y, 1);
+      for (const g of map.ground?.[i]?.split("|") ?? []) if (g) drawFrame(ctx, atlas, g, x, y, 1);
     });
     for (const o of map.objects) drawFrame(ctx, atlas, o.frame, (o.x - map.x0) * TILE, (o.y - map.y0) * TILE, 1);
     // Night: darkness outside the light, dim within the own darkvision.
@@ -35,16 +36,44 @@ export function minimapView(map: MiniMap, onTap: (p: GridPos) => void): HTMLElem
         ctx.fillRect((i % map.w) * TILE, Math.floor(i / map.w) * TILE, TILE, TILE);
       }
     }
-    // Reachable squares: bright with a frame.
+    // Reachable squares: bright with a frame; difficult ground striped, fire red.
     for (const p of map.reachable) {
       const x = (p.x - map.x0) * TILE;
       const y = (p.y - map.y0) * TILE;
-      ctx.fillStyle = "rgba(255, 235, 150, 0.28)";
+      const mark = map.marks?.[(p.y - map.y0) * map.w + (p.x - map.x0)];
+      ctx.fillStyle = mark === "f" ? "rgba(255, 80, 40, 0.35)" : "rgba(255, 235, 150, 0.28)";
       ctx.fillRect(x, y, TILE, TILE);
+      if (mark === "d" || mark === "i") {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, TILE, TILE);
+        ctx.clip();
+        ctx.strokeStyle = "rgba(255, 170, 60, 0.75)";
+        ctx.lineWidth = 2;
+        for (let k = -TILE; k < TILE; k += 8) {
+          ctx.beginPath();
+          ctx.moveTo(x + k, y + TILE);
+          ctx.lineTo(x + k + TILE, y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
       ctx.strokeStyle = "rgba(255, 235, 150, 0.7)";
       ctx.lineWidth = 1;
       ctx.strokeRect(x + 0.5, y + 0.5, TILE - 1, TILE - 1);
     }
+    // High places get a small arrow.
+    map.marks?.split("").forEach((m, i) => {
+      if (m !== "h") return;
+      const x = (i % map.w) * TILE;
+      const y = Math.floor(i / map.w) * TILE;
+      ctx.fillStyle = "rgba(120, 220, 255, 0.95)";
+      ctx.beginPath();
+      ctx.moveTo(x + 26, y + 3);
+      ctx.lineTo(x + 31, y + 10);
+      ctx.lineTo(x + 21, y + 10);
+      ctx.fill();
+    });
     for (const c of map.creatures) {
       const x = (c.x - map.x0) * TILE;
       const y = (c.y - map.y0) * TILE;
@@ -74,4 +103,16 @@ export function minimapView(map: MiniMap, onTap: (p: GridPos) => void): HTMLElem
     if (reachable.has(`${x},${y}`)) onTap({ x, y });
   });
   return canvas;
+}
+
+/** A short key under the map: only for what is in sight right now. */
+export function minimapLegend(map: MiniMap): HTMLElement | null {
+  const m = map.marks ?? "";
+  const items: [string, string, string][] = [];
+  if (m.includes("d") || m.includes("i")) items.push(["▨", "Schwieriges Gelände: 2 Schritte pro Feld", "schwieriges_gelaende"]);
+  if (m.includes("c")) items.push(["🛡️", "Deckung: daneben stehen = +2 RK gegen Fernangriffe", "deckung"]);
+  if (m.includes("h")) items.push(["▲", "Erhöht: Vorteil beim Schießen nach unten", "erhoeht"]);
+  if (m.includes("f")) items.push(["🔥", "Feuer: 1W6 Schaden, wer hineinläuft", "feuer"]);
+  if (!items.length) return null;
+  return h("div", { class: "map-legend" }, ...items.map(([icon, text, key]) => h("span", { class: "legend-item", dataset: { help: key } }, h("b", {}, icon), ` ${text}`)));
 }

@@ -5,6 +5,7 @@
  */
 import type { Battle, Creature, GridPos } from "../shared/game";
 import { isActive, squaresOf } from "./combat";
+import { stepCost } from "./terrain";
 
 export type Walkable = (p: GridPos) => boolean;
 
@@ -38,7 +39,8 @@ function occupancy(battle: Battle, mover: Creature): { enemy: Set<string>; any: 
 }
 
 /**
- * Shortest path for `mover` to any square satisfying `goal`, at most `maxSteps` long.
+ * Cheapest path for `mover` to any square satisfying `goal`, costing at most `maxSteps` squares of movement
+ * (difficult terrain counts double, see terrain.ts).
  * Returns the squares to walk (without the start), or undefined if unreachable.
  */
 export function findPath(
@@ -55,29 +57,33 @@ export function findPath(
   const fits = (p: GridPos) => squaresOf(mover, p).every((s) => walkable(s) && !occ.enemy.has(key(s)));
   const canStop = (p: GridPos) => squaresOf(mover, p).every((s) => !occ.any.has(key(s)));
 
+  // Uniform-cost search with buckets (step costs are 1 or 2).
   const prev = new Map<string, GridPos | null>([[key(start), null]]);
-  let frontier: GridPos[] = [start];
-  for (let step = 0; step < maxSteps && frontier.length; step++) {
-    const next: GridPos[] = [];
-    for (const p of frontier) {
+  const best = new Map<string, number>([[key(start), 0]]);
+  const buckets: GridPos[][] = [[start]];
+  for (let cost = 0; cost < buckets.length && cost <= maxSteps; cost++) {
+    for (const p of buckets[cost] ?? []) {
+      const pk = key(p);
+      if (best.get(pk) !== cost) continue;
+      if (cost > 0 && goal(p) && canStop(p)) {
+        const path: GridPos[] = [];
+        let cur: GridPos | null = p;
+        while (cur && key(cur) !== key(start)) {
+          path.unshift(cur);
+          cur = prev.get(key(cur)) ?? null;
+        }
+        return path;
+      }
       for (const d of DIRS) {
         const q = { x: p.x + d.x, y: p.y + d.y };
         const k = key(q);
-        if (prev.has(k) || !fits(q)) continue;
+        const c = cost + stepCost(battle, q);
+        if (c > maxSteps || (best.has(k) && best.get(k)! <= c) || !fits(q)) continue;
+        best.set(k, c);
         prev.set(k, p);
-        if (goal(q) && canStop(q)) {
-          const path: GridPos[] = [q];
-          let cur = p;
-          while (key(cur) !== key(start)) {
-            path.unshift(cur);
-            cur = prev.get(key(cur))!;
-          }
-          return path;
-        }
-        next.push(q);
+        (buckets[c] ??= []).push(q);
       }
     }
-    frontier = next;
   }
   return undefined;
 }

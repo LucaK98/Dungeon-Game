@@ -141,6 +141,7 @@ export class Director {
     this.now = opts.now ?? Date.now;
     this.startedAt = this.now();
     game.onFreeText = (playerId, hero, text) => void this.freeText(playerId, hero, text);
+    game.onBookClue = () => this.bookClue();
     game.onSuggest = (playerId, hero) => this.suggest(playerId, hero);
     game.onAskRules = (playerId, hero, question) => this.askRules(playerId, hero, question);
     if (opts.world) {
@@ -232,6 +233,15 @@ export class Director {
       if (change) this.game.narrate([{ text: change > 0 ? `💚 ${name} mag euch jetzt mehr.` : `💢 ${name} traut euch weniger.` }]);
     }
     return response;
+  }
+
+  /** A hero found something in a bookshelf: one clue the group does not have yet (never a false lead). */
+  private bookClue(): boolean {
+    const open = this.story.clues.filter((c) => (c.truth === this.state.truth || c.truth === null) && !c.falseLeadFor?.length && !this.state.clues.includes(c.id));
+    const clue = open[Math.floor(Math.random() * open.length)];
+    if (!clue) return false;
+    this.addClue(clue.id);
+    return true;
   }
 
   private addClue(ref: string): void {

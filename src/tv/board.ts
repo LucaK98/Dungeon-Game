@@ -74,7 +74,9 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       }
       return session;
     }
-    return createSession(rng, { players: players() });
+    // Demo mode can be asked for certain rooms: #/tv?demo&rooms=wirtshaus,gruft
+    const rooms = opts.demo ? new URLSearchParams(location.hash.split("?")[1] ?? "").get("rooms") : null;
+    return createSession(rng, { players: players(), ...(rooms ? { plan: { path: rooms.split(",") } } : {}) });
   };
   let session = newSession();
   const cloud = opts.cloud ?? newCloudId();
@@ -178,7 +180,12 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         if (started) play("fight");
         if (scene.sys.isActive()) scene.setCombatLayout(started);
       },
+      speech: (id, text) => {
+        if (scene.sys.isActive()) scene.showSpeech(id, text);
+      },
       narration: (lines) => {
+        // NPCs talk with a bubble over their figure too.
+        if (scene.sys.isActive()) for (const l of lines) if (l.npc) scene.showSpeechByName(l.npc, l.text);
         if (lines.some((l) => l.text.startsWith("✨"))) play("chime");
         // The UI scene may not exist yet (story intro): keep the lines until it is ready.
         if (uiReady) game.events.emit("narration", lines);
@@ -298,6 +305,12 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   const onKey = (e: KeyboardEvent) => {
     if (!opts.demo) return;
     if (e.key === "f" || e.key === "F") controller?.spawnNearParty(["goblin", "goblin", "goblin"]);
+    // E = explore everything (to look at the whole map).
+    if (e.key === "e" || e.key === "E") {
+      session.map.explored.fill(true);
+      controller?.broadcast();
+      scene.refresh();
+    }
     if (e.key === "r" || e.key === "R") {
       session = newSession();
       wire();
@@ -305,6 +318,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     }
   };
   window.addEventListener("keydown", onKey);
+  // Demo mode: handles for browser tests (look at fire, bubbles …).
+  if (opts.demo) (window as unknown as { __couch?: unknown }).__couch = { session: () => session, controller: () => controller, scene: () => scene };
 
   return () => {
     offLobby();

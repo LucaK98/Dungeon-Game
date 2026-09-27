@@ -332,6 +332,8 @@ body.tip-mode::after {
 .muted { color: var(--muted); font-weight: 400; }
 .small { font-size: 0.85rem; margin: 0; }
 .minimap { width: 100%; height: auto; image-rendering: pixelated; border-radius: 8px; touch-action: manipulation; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 0.8rem; color: var(--muted, #b8ab98); }
+.map-legend .legend-item b { color: #ffb347; }
 .group { display: flex; flex-direction: column; gap: 6px; }
 .group-head { display: flex; justify-content: space-between; padding: 12px 14px; border-radius: 12px; border: none; background: #2a221c; color: var(--text); font-size: 1.1rem; font-weight: 700; cursor: pointer; }
 .group-body { display: flex; flex-direction: column; gap: 6px; }

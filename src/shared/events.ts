@@ -29,7 +29,7 @@ export type PlayerAction =
   | { kind: "use_item"; itemId: string; targetId?: string }
   | { kind: "feature"; feature: FeatureId; targetId?: string; amount?: number; bonus?: boolean }
   | { kind: "check"; skill: SkillId }
-  | { kind: "interact"; objectId: string; targetId?: string }
+  | { kind: "interact"; objectId: string; targetId?: string; /** Props: which of their uses ("flip", "throw", "smash", …). */ use?: string }
   | { kind: "free_text"; text: string }
   /** "Was könnte ich tun?" – asks the game master for ideas (answered with "suggestions"). */
   | { kind: "suggest" }

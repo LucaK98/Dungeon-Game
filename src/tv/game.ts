@@ -3,9 +3,9 @@
  * The TV is authoritative – phones only send wishes (PlayerAction).
  */
 import { longRest, perform, type ActionOutcome, type CombatAction } from "../engine/actions";
-import { inRange } from "../engine/attack";
+import { inRange, resolveAttack } from "../engine/attack";
 import { addCondition, addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, squaresOf, startCombat } from "../engine/combat";
-import { advantage, savingThrow, skillCheck, skillParts, sumParts } from "../engine/core";
+import { advantage, modPart, profPart, savingThrow, skillCheck, skillParts, sumParts } from "../engine/core";
 import { spellAttackParts } from "../engine/spells";
 import { getSpell } from "../engine/data";
 import { averageOf, parseDice, rollDice } from "../engine/dice";
@@ -17,8 +17,11 @@ import { itemIcon, itemTitle, levelGains, type Reward } from "../shared/reward";
 import { GOAL_GOLD, goalById, goalReached } from "../shared/goals";
 import { addTotals, newBadges } from "../shared/achievements";
 import { findPath } from "../engine/grid";
+import { isHazard, pathCost, stepCost } from "../engine/terrain";
+import { propDef, propLight, terrainOf } from "../map/props";
 import { nameOf } from "../engine/names";
-import type { Rng } from "../engine/rng";
+import { randomRng, type Rng } from "../engine/rng";
+import { burnCreature, coldHits, creaturesOn, fireHits, ICE_DC, leaveTrace, setAlight, slipOnIce, spillCoals, surfaceKind, tickWorldSurface, type WorldResult } from "./environment";
 import { maxTargets, validateCast } from "../engine/spells";
 import { isWalkable, partyStartSpots, revealAround } from "../map/walk";
 import { isLit } from "../engine/vision";
@@ -28,7 +31,7 @@ import { emptyStats, type HeroStats, type Recap, type RecapHero } from "../share
 import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
 import { glossaryAnswer } from "../dm/rules-help";
-import type { Creature, GridPos, TurnState } from "../shared/game";
+import type { AttackOption, Creature, GridPos, TurnState } from "../shared/game";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
 import { rollNeed, type ActionChoice, type ActionFx, type CampView, type MiniMap, type OrderEntry, type PlayerView, type RollOutcome, type RollPrompt, type StoryView } from "../shared/view";
@@ -90,6 +93,8 @@ export interface GameEvents {
   emote(creatureId: string, emoji: string): void;
   /** A little show on the board (dust, sparkle, splash, shaking screen) at a square. */
   fx(kind: "puff" | "shake" | "sparkle" | "splash", pos: GridPos | undefined): void;
+  /** Someone says something on the board (speech bubble over the figure). */
+  speech(creatureId: string, text: string): void;
 }
 
 export interface CampOffer {
@@ -162,6 +167,8 @@ export class GameController {
   training = false;
   private narrationLog: Narration[] = [];
   private lanceUsed = new Set<string>();
+  /** Dice for the room itself (fire spreading, slipping, traces), apart from the game's dice. */
+  private envRng: Rng = randomRng();
 
   constructor(
     readonly session: GameSession,
@@ -279,7 +286,9 @@ export class GameController {
       barrel: "Fässer", lever: "ein Hebel an der Wand", chandelier: "ein Kronleuchter an der Decke", campfire: "ein Lagerfeuer", cauldron: "ein brodelnder Kessel", secret: "",
     };
     const near = map.objects.filter((o) => Math.max(Math.abs(o.x - hero.pos!.x), Math.abs(o.y - hero.pos!.y)) <= 8 && (o.kind !== "trap" || o.state === "found") && o.state !== "used");
-    const objects = [...new Set(near.map((o) => NAMES[o.kind] ?? o.kind).filter(Boolean))];
+    const objects = [...new Set(near.map((o) => (o.kind === "prop" ? (propDef(o)?.name ?? "") : (NAMES[o.kind] ?? o.kind))).filter(Boolean))];
+    const surfaces = new Set(Object.entries(map.surface ?? {}).filter(([k]) => { const i = Number(k); return Math.max(Math.abs((i % map.width) - hero.pos!.x), Math.abs(Math.floor(i / map.width) - hero.pos!.y)) <= 8; }).map(([, v]) => v.kind));
+    for (const k of surfaces) objects.push({ puddle: "Pfützen", oil: "eine Öllache", ice: "Eis am Boden", fire: "Feuer!" }[k]);
     const around = [...Array(9).keys()].map((k) => ({ x: hero.pos!.x + (k % 3) - 1, y: hero.pos!.y + Math.floor(k / 3) - 1 }));
     if (around.some((p) => ["water", "deep"].includes(map.cells[cellIndex(map, p.x, p.y)] ?? ""))) objects.push("Wasser");
     if (Object.keys(map.overlays).some((k) => map.overlays[Number(k)]?.startsWith("torch"))) objects.push("Fackeln an den Wänden");
@@ -539,7 +548,16 @@ export class GameController {
     if (this.destroyed) return;
     this.pending = undefined;
     for (let guard = 0; guard < 40; guard++) {
+      const round = this.battle.combat?.round;
       const start = nextTurn(this.rng, this.battle);
+      // A new round: fire spreads and burns down, ice melts.
+      if (this.battle.combat && round !== undefined && this.battle.combat.round !== round) this.tickSurfaces();
+      // Starting the turn in flames hurts.
+      const now = this.battle.creatures[start.creatureId];
+      if (now && isActive(now) && surfaceKind(this.map, now.pos) === "fire") {
+        this.publishWorld(now, "Feuer", burnCreature(this.envRng, now));
+        if (this.checkWinner()) return;
+      }
       if (start.deathSave) {
         const lines = explainDeathSave(this.battle, start.deathSave);
         this.addLog(lines);
@@ -615,6 +633,7 @@ export class GameController {
     this.addLog(lines);
     this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: combat.order[0]!.creatureId, title: "Kampf!", sides: 20, dice: [], kept: 0, lines });
     this.emit("combat", true);
+    this.grantBoons();
     // Nobody can act while down or asleep: skip ahead like a normal turn change.
     const first = this.active();
     if (first && !isActive(first)) {
@@ -688,7 +707,7 @@ export class GameController {
       else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
       return;
     }
-    const outcomes = runAutoTurn(this.rng, this.battle, id, { walkable: (p) => isWalkable(this.map, p) });
+    const outcomes = runAutoTurn(this.rng, this.battle, id, { walkable: (p) => isWalkable(this.map, p) && !isHazard(this.battle, p) });
     for (const o of outcomes) {
       if (!o.ok) continue;
       const title = o.kind === "attack" ? `${monster.name} greift an` : o.kind === "move" ? `${monster.name} bewegt sich` : monster.name;
@@ -697,6 +716,7 @@ export class GameController {
         this.addLog(roll.lines);
         this.emit("changed");
       } else this.publishRoll(roll);
+      if (o.kind === "move" && monster.pos) this.walkedThrough(monster, [monster.pos]);
     }
     this.emit("changed");
     if (this.checkWinner()) return;
@@ -958,12 +978,13 @@ export class GameController {
         }
         this.statsOf(hero.id).freeActions++;
         this.addLog([{ text: `${hero.name} versucht: „${action.text.slice(0, 140)}“`, glossarKeys: ["freie_aktion"] }]);
+        if (action.text.trim()) this.emit("speech", hero.id, action.text.trim());
         this.onFreeText?.(playerId, hero, action.text.slice(0, 300));
         this.broadcast();
         return;
       }
       case "interact":
-        this.interact(playerId, hero, action.objectId, action.targetId);
+        this.interact(playerId, hero, action.objectId, action.targetId, action.use);
         return;
       case "check":
         this.ask(playerId, hero, { title: `Umsehen (${nameOf("skills", action.skill)})`, sides: 20, glossarKey: "umsehen", need: rollNeed("SG", this.sg(LOOK_DC), sumParts(skillParts(hero, "perception"))) }, () => this.lookAround(hero));
@@ -1101,6 +1122,8 @@ export class GameController {
 
   private outcomeToRoll(hero: Creature, title: string, sides: number, o: ActionOutcome): RollOutcome {
     const lines = explainOutcome(this.battle, o);
+    const world = this.worldReacts(o);
+    lines.push(...world.lines);
     let dice: number[] = [];
     let kept = 0;
     let success: boolean | undefined;
@@ -1153,7 +1176,7 @@ export class GameController {
       lines,
       ...(success !== undefined ? { success } : {}),
       ...(crit !== undefined ? { crit } : {}),
-      hits: hitsOf(o),
+      hits: [...hitsOf(o), ...world.hits],
       fx: fxOf(this.battle, hero, o),
     };
   }
@@ -1164,7 +1187,7 @@ export class GameController {
     const turn = this.battle.combat?.turn;
     const steps = Math.floor((turn?.movementLeftFt ?? hero.speedFt) / 5);
     const path = findPath(this.battle, hero, (p) => p.x === to.x && p.y === to.y, (p) => isWalkable(this.map, p), steps);
-    if (!path || path.length === 0 || path.length > steps) {
+    if (!path || path.length === 0 || pathCost(this.battle, path) > steps) {
       this.sendTo(playerId, { type: "action_error", reason: "Dorthin kommst du in diesem Zug nicht." });
       return;
     }
@@ -1189,7 +1212,59 @@ export class GameController {
     }
     this.addLog(lines);
     this.emit("lines", lines);
+    this.walkedThrough(hero, walk);
     this.afterAction();
+  }
+
+  /** Ice on the way may throw you over; ending the move in fire burns. */
+  private walkedThrough(c: Creature, path: GridPos[]): void {
+    if (!c.pos) return;
+    if (path.some((p) => surfaceKind(this.map, p) === "ice")) this.publishWorld(c, "Glatteis", slipOnIce(this.envRng, c, this.sg(ICE_DC)));
+    if (surfaceKind(this.map, c.pos) === "fire") this.publishWorld(c, "Feuer", burnCreature(this.envRng, c));
+  }
+
+  /** Shows what the room did (fire, ice …) like a roll: log, phones, floating numbers. */
+  private publishWorld(c: Creature, title: string, r: WorldResult): void {
+    if (!r.lines.length) return;
+    this.addLog(r.lines);
+    this.publishRoll({ ...this.objectRoll(c, title, undefined, r.lines), ...(r.hits.length ? { hits: r.hits } : {}) });
+    this.emit("changed");
+  }
+
+  /** The room reacts to an action: fire spells light things up, frost freezes puddles, blows leave traces. */
+  private worldReacts(o: ActionOutcome): WorldResult {
+    const out: WorldResult = { lines: [], hits: [] };
+    if (!o.ok) return out;
+    const squaresOf = (ids: string[]) => ids.map((id) => this.battle.creatures[id]?.pos).filter((p): p is GridPos => !!p);
+    let element: string | undefined;
+    let squares: GridPos[] = [];
+    if (o.kind === "spell") {
+      element = SPELL_FX[o.spell.spellId]?.element;
+      // Spells that miss still fly somewhere: the fire lands next to the target.
+      squares = squaresOf(o.spell.targets.map((t) => t.targetId));
+    } else if (o.kind === "save-action") {
+      element = /fire/.test(o.actionId) ? "fire" : /cold/.test(o.actionId) ? "cold" : undefined;
+      squares = squaresOf(o.results.map((r) => r.targetId));
+    }
+    if (element === "fire" && squares.length && o.kind === "spell" && ["sacred-flame"].includes(o.spell.spellId)) element = undefined;
+    const r = element === "fire" ? fireHits(this.map, this.envRng, squares) : element === "cold" ? coldHits(this.map, squares) : undefined;
+    if (r) {
+      out.lines.push(...r.lines);
+      // Whoever stands in the new flames burns right away.
+      if (r.lines.some((l) => l.text.startsWith("🔥"))) {
+        for (const c of creaturesOn(this.battle, squares.flatMap((p) => [p]))) {
+          if (surfaceKind(this.map, c.pos) !== "fire" || !isActive(c)) continue;
+          const b = burnCreature(this.envRng, c);
+          out.lines.push(...b.lines);
+          out.hits.push(...b.hits);
+        }
+      }
+    }
+    for (const h of hitsOf(o)) {
+      const c = this.battle.creatures[h.targetId];
+      if (c && !h.heal && !h.miss) leaveTrace(this.map, this.envRng, c, h.amount);
+    }
+    return out;
   }
 
   private triggerTrap(hero: Creature): ExplainedLine[] {
@@ -1574,10 +1649,10 @@ export class GameController {
     this.sendAll({ type: "recap", recap });
   }
 
-  private interact(playerId: PlayerId, hero: Creature, objectId: string, targetId?: string): void {
+  private interact(playerId: PlayerId, hero: Creature, objectId: string, targetId?: string, use?: string): void {
     const o = this.map.objects.find((x) => x.id === objectId);
-    if (o && ["barrel", "lever", "chandelier", "secret", "campfire", "cauldron"].includes(o.kind)) {
-      this.useObject(playerId, hero, o, targetId);
+    if (o && ["barrel", "lever", "chandelier", "secret", "campfire", "cauldron", "prop", "altar", "fountain"].includes(o.kind)) {
+      this.useObject(playerId, hero, o, targetId, use);
       return;
     }
     if (!o || !hero.pos || Math.max(Math.abs(o.x - hero.pos.x), Math.abs(o.y - hero.pos.y)) > 1) {
@@ -1654,7 +1729,7 @@ export class GameController {
     return d;
   }
 
-  private useObject(playerId: PlayerId, hero: Creature, o: MapObject, targetId?: string): void {
+  private useObject(playerId: PlayerId, hero: Creature, o: MapObject, targetId?: string, use?: string): void {
     const far = !hero.pos || Math.max(Math.abs(o.x - hero.pos.x), Math.abs(o.y - hero.pos.y)) > this.objectRange(o);
     if (far) {
       this.sendTo(playerId, { type: "action_error", reason: o.kind === "chandelier" ? "Dafür musst du näher heran (5 Felder)." : "Dafür musst du direkt daneben stehen." });
@@ -1683,6 +1758,11 @@ export class GameController {
     };
 
     switch (o.kind) {
+      case "prop":
+      case "altar":
+      case "fountain":
+        this.useProp(playerId, hero, o, use ?? "", targetId, { rollThen, quick, done });
+        return;
       case "barrel": {
         if (o.state === "used") return;
         if (this.mode !== "combat") {
@@ -1835,6 +1915,399 @@ export class GameController {
     }
   }
 
+  // ---------------------------------------------------------------- furniture, plants, places of power
+
+  /** Boons for the next fight (prayer at an altar, a coin in the wishing well), by hero id. */
+  private boons = new Map<string, "bless" | "luck">();
+  /** The story adds a real clue when a hero finds something in a bookshelf. */
+  onBookClue?: () => boolean;
+
+  private hasFire(hero: Creature): boolean {
+    return hasEffect(hero, "torch") || !!hero.pc?.inventory.some((i) => i.itemId === "torch" && i.qty > 0);
+  }
+
+  private spendBonus(hero: Creature): string | undefined {
+    if (this.mode !== "combat") return undefined;
+    const turn = this.battle.combat?.turn;
+    if (!turn || turn.creatureId !== hero.id) return "Du bist nicht dran.";
+    if (turn.bonusAction) {
+      turn.bonusAction = false;
+      return undefined;
+    }
+    if (turn.actions > 0) {
+      turn.actions--;
+      return undefined;
+    }
+    return "Du hast keine Aktion mehr übrig.";
+  }
+
+  /** Throw something (a mug, a stool, a spear from the rack): an improvised ranged attack. */
+  private throwAt(hero: Creature, target: Creature, what: { name: string; dice: string; type: "bludgeoning" | "piercing"; rangeFt: number; proficient: boolean }): RollOutcome {
+    const option: AttackOption = {
+      id: `throw-${what.name}`,
+      sourceId: "improvised",
+      source: "weapon",
+      kind: "ranged",
+      toHit: [modPart(hero, "DEX"), ...(what.proficient ? [profPart(hero.proficiencyBonus)] : [])],
+      damage: [{ dice: what.dice as never, type: what.type }],
+      damageBonus: [modPart(hero, "DEX")],
+      reachFt: 5,
+      rangeFt: { normal: what.rangeFt },
+    };
+    const attack = resolveAttack(this.rng, this.battle, hero, target, option);
+    const outcome: ActionOutcome = { ok: true, actorId: hero.id, cost: "action", kind: "attack", attack };
+    const roll = this.outcomeToRoll(hero, `${what.name} werfen`, 20, outcome);
+    if (roll.lines[0]) roll.lines[0] = { text: `${hero.name} wirft ${what.name} auf ${target.name}!`, glossarKeys: ["werfen", "angriffswurf"] };
+    return roll;
+  }
+
+  private useProp(
+    playerId: PlayerId,
+    hero: Creature,
+    o: MapObject,
+    use: string,
+    targetId: string | undefined,
+    h: {
+      rollThen: (title: string, skill: SkillId, baseDc: number, glossarKey: string, then: (success: boolean, lines: ExplainedLine[], check: ReturnType<typeof skillCheck>) => RollOutcome) => void;
+      quick: (r: RollOutcome | { error: string }) => void;
+      done: (r: RollOutcome, fx?: "puff" | "shake" | "sparkle" | "splash") => RollOutcome;
+    },
+  ): void {
+    const fail = (reason: string) => this.sendTo(playerId, { type: "action_error", reason });
+    const name = propDef(o)?.name ?? (o.kind === "altar" ? "Altar" : "Brunnen");
+    const combat = this.mode === "combat";
+    const key = `${o.id}:${hero.id}`;
+    const target = targetId ? this.battle.creatures[targetId] : undefined;
+    const say = (title: string, lines: ExplainedLine[], fx?: "puff" | "shake" | "sparkle" | "splash") => h.quick(h.done(this.objectRoll(hero, title, undefined, lines), fx));
+    if (o.state === "used" && use !== "light") return fail(`${name}: Da ist nichts mehr zu machen.`);
+    switch (use) {
+      case "flip": {
+        if (o.prop !== "table") return;
+        const err = this.spendBonus(hero);
+        if (err) return fail(err);
+        o.prop = "table-flipped";
+        o.frame = "table.flipped";
+        say("Tisch umwerfen", [{ text: `💪 ${hero.name} wirft den Tisch um – Krüge scheppern! Dahinter ist jetzt volle Deckung (+5 RK gegen Fernangriffe).`, glossarKeys: ["deckung"] }], "puff");
+        return;
+      }
+      case "throw": {
+        const what =
+          o.prop === "table" || o.prop === "table-flipped"
+            ? { name: "einen Bierkrug", dice: "1d4", type: "bludgeoning" as const, rangeFt: 30, proficient: false }
+            : o.prop === "stool"
+              ? { name: "einen Hocker", dice: "1d6", type: "bludgeoning" as const, rangeFt: 20, proficient: false }
+              : o.prop === "weapon-rack"
+                ? { name: "einen Speer", dice: "1d6", type: "piercing" as const, rangeFt: 30, proficient: true }
+                : undefined;
+        if (!what || !combat) return;
+        if (!target || !isActive(target) || !target.pos || !hero.pos || distanceFt(hero, target) > what.rangeFt * 2) return fail("Kein Ziel in Wurfweite.");
+        const err = this.spendAction(hero);
+        if (err) return fail(err);
+        const roll = this.throwAt(hero, target, what);
+        if (o.prop === "stool") {
+          o.state = "used";
+          o.frame = "";
+          this.map.decals ??= {};
+          this.map.decals[cellIndex(this.map, target.pos.x, target.pos.y)] = "debris";
+        } else {
+          o.uses = Math.max(0, (o.uses ?? 1) - 1);
+          if (!o.uses && o.prop === "weapon-rack") o.state = "used";
+        }
+        this.bump(hero.id, "objects");
+        h.quick(roll);
+        return;
+      }
+      case "smash": {
+        if (!propDef(o)?.smash) return;
+        const err = this.spendAction(hero);
+        if (err) return fail(err);
+        o.state = "used";
+        o.blocking = false;
+        o.frame = o.prop === "pot" ? "pot.shards" : "debris";
+        const r = this.rng.next();
+        const lines: ExplainedLine[] = [{ text: `💥 ${hero.name} zerschlägt ${o.prop === "pot" ? "den Tonkrug" : "die Kiste"}. Splitter fliegen!`, glossarKeys: ["zerschlagen"] }];
+        if (r < 0.3) {
+          const gold = rollDice(this.rng, parseDice("1d6")).total + 1;
+          this.addItem(hero, "gold", gold);
+          lines.push({ text: `Darin: ${gold} Goldmünzen!`, glossarKeys: ["gegenstand:gold"] });
+        } else if (r < 0.45) {
+          this.addItem(hero, "potion-of-healing", 1);
+          lines.push({ text: "Darin: ein Heiltrank, gut in Stroh gepackt!", glossarKeys: ["gegenstand:potion-of-healing"] });
+        } else if (r < 0.6) {
+          this.addItem(hero, "torch", 1);
+          lines.push({ text: "Darin: eine Fackel.", glossarKeys: ["gegenstand:torch"] });
+        } else lines.push({ text: o.prop === "pot" ? "Nur alte Linsen. Und eine sehr empörte Maus." : "Nur Stroh und rostige Nägel.", glossarKeys: [] });
+        say("Zerschlagen", lines, "puff");
+        return;
+      }
+      case "search": {
+        if (o.prop !== "bookshelf") return;
+        if (this.triedObject.has(key)) return fail("Du hast dieses Regal schon durchstöbert.");
+        h.rollThen("Im Regal stöbern", "investigation", 12, "buecherregal", (ok, lines, check) => {
+          this.triedObject.add(key);
+          if (ok) {
+            const clue = !o.variant && this.onBookClue?.();
+            if (clue) {
+              o.variant = "clue";
+              lines.push({ text: `📚 Zwischen zwei staubigen Bänden steckt ein Zettel – ${hero.name} findet einen Hinweis!`, glossarKeys: ["hinweis"] });
+            } else {
+              lines.push({ text: `📚 ${hero.name} liest: „${BOOK_LORE[this.rng.int(0, BOOK_LORE.length - 1)]}“`, glossarKeys: [] });
+              if (this.rng.next() < 0.4) {
+                const gold = rollDice(this.rng, parseDice("1d8")).total;
+                this.addItem(hero, "gold", gold);
+                lines.push({ text: `Ein Buch ist hohl: ${gold} Goldmünzen!`, glossarKeys: ["gegenstand:gold"] });
+              }
+            }
+          } else lines.push({ text: "Nur Rechnungsbücher und ein Kochbuch für Rübensuppe.", glossarKeys: [] });
+          return h.done(this.objectRoll(hero, "Bücherregal", check, lines), ok ? "sparkle" : undefined);
+        });
+        return;
+      }
+      case "herbs": {
+        if (o.prop !== "herbs" || combat) return;
+        if (this.triedObject.has(key)) return fail("Du hast hier schon gesucht.");
+        h.rollThen("Kräuter sammeln", "medicine", 10, "kraeuter", (ok, lines, check) => {
+          this.triedObject.add(key);
+          if (ok) {
+            o.state = "used";
+            o.frame = "";
+            const patient = this.heroes().filter((x) => !x.dead && x.hp < x.maxHp).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0] ?? hero;
+            const amount = rollDice(this.rng, parseDice("1d4")).total + 2;
+            const before = patient.hp;
+            heal(patient, amount);
+            lines.push({ text: `🌿 ${hero.name} zerreibt Heilkräuter zu einem Umschlag für ${patient.name}: +${patient.hp - before} Trefferpunkte.`, glossarKeys: ["kraeuter"] });
+            return { ...h.done(this.objectRoll(hero, "Heilkräuter", check, lines), "sparkle"), hits: [{ targetId: patient.id, amount: patient.hp - before, heal: true }] };
+          }
+          lines.push({ text: "Das ist … Brennnessel. Autsch, aber nichts passiert.", glossarKeys: [] });
+          return h.done(this.objectRoll(hero, "Heilkräuter", check, lines));
+        });
+        return;
+      }
+      case "eat": {
+        if (o.prop !== "mushrooms" && o.prop !== "mushrooms-glow") return;
+        if (this.triedObject.has(key)) return fail("Noch ein Pilz? Lieber nicht.");
+        const err = this.spendAction(hero);
+        if (err) return fail(err);
+        this.triedObject.add(key);
+        const lines: ExplainedLine[] = [{ text: `🍄 ${hero.name} beißt mutig in einen Pilz …`, glossarKeys: ["pilze"] }];
+        const hits: { targetId: string; amount: number; heal?: boolean }[] = [];
+        const roll = o.prop === "mushrooms-glow" ? 0 : this.rng.int(1, 5);
+        if (roll === 0) {
+          addEffect(hero, "torch", 600, "mushroom");
+          lines.push({ text: `✨ ${hero.name} leuchtet grünlich von innen! Das Licht reicht 6 Meter weit – praktisch im Dunkeln.`, glossarKeys: ["dunkelheit"] });
+        } else if (roll === 1) {
+          const amount = rollDice(this.rng, parseDice("2d4")).total;
+          const before = hero.hp;
+          heal(hero, amount);
+          hits.push({ targetId: hero.id, amount: hero.hp - before, heal: true });
+          lines.push({ text: `Lecker! Ein Steinpilz. +${hero.hp - before} Trefferpunkte.`, glossarKeys: [] });
+        } else if (roll === 2) {
+          this.boons.set(hero.id, "luck");
+          lines.push({ text: "💪 Ein Kribbeln in den Armen: Beim nächsten Kampf hat der erste Angriff Vorteil!", glossarKeys: ["vorteil"] });
+        } else if (roll === 3) {
+          const d = this.hurtNoKnockout(hero, "1d4");
+          hits.push({ targetId: hero.id, amount: d });
+          lines.push({ text: `🤢 Giftig! Bauchweh: ${d} Schaden.`, glossarKeys: [] });
+        } else if (roll === 4) {
+          lines.push({ text: `😂 ${hero.name} muss eine Minute lang ununterbrochen kichern. Sonst passiert nichts.`, glossarKeys: [] });
+        } else {
+          lines.push({ text: `🫧 ${hero.name} rülpst eine kleine Seifenblase. Die anderen sind beeindruckt.`, glossarKeys: [] });
+        }
+        h.quick({ ...h.done(this.objectRoll(hero, "Pilz", undefined, lines), roll === 0 ? "sparkle" : undefined), ...(hits.length ? { hits } : {}) });
+        return;
+      }
+      case "light": {
+        if (o.prop !== "candles" && o.prop !== "brazier") return;
+        if (o.state === "used") return fail("Das Kohlebecken liegt umgekippt am Boden.");
+        const out = o.variant === "out";
+        if (out && !this.hasFire(hero) && !this.map.objects.some((x) => propLight(x) && Math.max(Math.abs(x.x - o.x), Math.abs(x.y - o.y)) <= 3)) {
+          return fail("Du hast kein Feuer dabei (eine Fackel hilft).");
+        }
+        const err = this.spendBonus(hero);
+        if (err) return fail(err);
+        if (out) delete o.variant;
+        else o.variant = "out";
+        o.frame = o.prop === "candles" ? (out ? "candles" : "candles.out") : out ? "brazier.lit" : "brazier.out";
+        say(out ? "Anzünden" : "Löschen", [{ text: out ? `🔥 ${hero.name} zündet ${o.prop === "candles" ? "die Kerzen" : "das Kohlebecken"} an. Es wird heller.` : `🌑 ${hero.name} löscht ${o.prop === "candles" ? "die Kerzen" : "das Kohlebecken"}. Im Dunkeln sieht man schlecht – wer nicht gesehen wird, greift mit Vorteil an!`, glossarKeys: ["licht_loeschen", "dunkelheit"] }], out ? "sparkle" : "puff");
+        return;
+      }
+      case "tip": {
+        if (o.prop !== "brazier" || !combat) return;
+        const foe = target && isActive(target) && target.pos && Math.max(Math.abs(target.pos.x - o.x), Math.abs(target.pos.y - o.y)) <= 3 ? target : undefined;
+        if (!foe) return fail("Kein Gegner nah genug am Kohlebecken (3 Felder).");
+        h.rollThen("Kohlebecken umstoßen", "athletics", 10, "feuer", (ok, lines, check) => {
+          if (!ok) {
+            lines.push({ text: "Das Becken wackelt, bleibt aber stehen. Heiß!", glossarKeys: [] });
+            return h.done(this.objectRoll(hero, "Kohlebecken", check, lines));
+          }
+          const r = spillCoals(this.map, this.envRng, o, foe.pos!);
+          lines.push(...r.lines);
+          const hits: { targetId: string; amount: number }[] = [];
+          for (const c of Object.values(this.battle.creatures)) {
+            if (!c.pos || !isActive(c) || surfaceKind(this.map, c.pos) !== "fire") continue;
+            const b = burnCreature(this.envRng, c);
+            lines.push(...b.lines);
+            hits.push(...b.hits);
+          }
+          return { ...h.done(this.objectRoll(hero, "Kohlebecken", check, lines), "shake"), ...(hits.length ? { hits } : {}) };
+        });
+        return;
+      }
+      case "ignite": {
+        if (!propDef(o)?.flammable) return;
+        if (!this.hasFire(hero)) return fail("Dafür brauchst du eine Fackel.");
+        const err = this.spendAction(hero);
+        if (err) return fail(err);
+        const r = setAlight(this.map, o);
+        say("Anzünden", [{ text: `🔥 ${hero.name} hält die Fackel an ${name === "Heuballen" ? "den Heuballen" : `„${name}“`}.`, glossarKeys: ["feuer"] }, ...r.lines]);
+        return;
+      }
+      case "wish": {
+        if (combat) return;
+        if (this.triedObject.has(key)) return fail("Jeder darf sich nur einmal etwas wünschen.");
+        if (!this.spendGoldOf(hero, WISH_GOLD)) return fail(`Du brauchst ${WISH_GOLD} Goldmünzen.`);
+        this.triedObject.add(key);
+        this.boons.set(hero.id, "luck");
+        say("Wunschbrunnen", [{ text: `🪙 ${hero.name} wirft ${WISH_GOLD} Goldmünzen in den Brunnen und wünscht sich etwas. Es plätschert zufrieden – beim nächsten Kampf hat der erste Angriff Vorteil!`, glossarKeys: ["wunschbrunnen", "vorteil"] }], "sparkle");
+        return;
+      }
+      case "pray": {
+        if (combat) return;
+        if (this.triedObject.has(key)) return fail("Du hast hier schon gebetet.");
+        h.rollThen("Beten", "religion", 10, "altar", (ok, lines, check) => {
+          this.triedObject.add(key);
+          if (ok) {
+            this.boons.set(hero.id, "bless");
+            lines.push({ text: `🙏 Ein warmes Licht umhüllt ${hero.name}: Im nächsten Kampf ist ${hero.name} gesegnet (+1W4 auf Angriffe und Rettungswürfe).`, glossarKeys: ["altar", "zauber:bless"] });
+          } else lines.push({ text: "Die Götter schweigen heute. Vielleicht später?", glossarKeys: [] });
+          return h.done(this.objectRoll(hero, "Altar", check, lines), ok ? "sparkle" : undefined);
+        });
+        return;
+      }
+      case "open": {
+        if (o.prop !== "coffin" || combat) return;
+        if (this.triedObject.has(key)) return fail("Der Deckel ist dir zu schwer. Vielleicht schafft es jemand anderes?");
+        h.rollThen("Sargdeckel aufschieben", "athletics", 12, "sarg", (ok, lines, check) => {
+          this.triedObject.add(key);
+          if (!ok) {
+            lines.push({ text: "Der steinerne Deckel rührt sich nicht.", glossarKeys: [] });
+            return h.done(this.objectRoll(hero, "Sarg", check, lines));
+          }
+          o.state = "used";
+          o.frame = "coffin.open";
+          lines.push({ text: `⚰️ Knirschend gleitet der Deckel zur Seite …`, glossarKeys: [] });
+          const r = this.rng.next();
+          const gear = r < 0.15 ? this.randomGear(hero) : undefined;
+          if (gear) queueMicrotask(() => this.grantGear(hero, gear, "Im Sarg"));
+          else if (r < 0.6) {
+            const gold = rollDice(this.rng, parseDice("2d6")).total;
+            this.addItem(hero, "gold", gold);
+            lines.push({ text: `Grabbeigaben: ${gold} Goldmünzen.`, glossarKeys: ["gegenstand:gold"] });
+          } else lines.push({ text: "Nur Staub und ein grinsender Schädel. Er grinst zurück. Oder?", glossarKeys: [] });
+          return h.done(this.objectRoll(hero, "Sarg", check, lines), "puff");
+        });
+        return;
+      }
+    }
+  }
+
+  /** Takes gold from this hero (or, if they have too little, from the group). */
+  private spendGoldOf(hero: Creature, amount: number): boolean {
+    if (this.goldOf(hero) >= amount) {
+      const g = hero.pc!.inventory.find((i) => i.itemId === "gold")!;
+      g.qty -= amount;
+      return true;
+    }
+    return this.spendGold(amount);
+  }
+
+  /** Applies prayers and wishes when a fight starts. */
+  private grantBoons(): void {
+    for (const [id, boon] of this.boons) {
+      const c = this.battle.creatures[id];
+      if (!c || c.dead) continue;
+      if (boon === "bless") addEffect(c, "bless", 10, "altar");
+      else addEffect(c, "helped", 10, "wish");
+      this.addLog([{ text: boon === "bless" ? `🙏 Der Segen vom Altar liegt auf ${c.name}.` : `🍀 ${c.name} hat Glück: Der erste Angriff hat Vorteil.`, glossarKeys: [boon === "bless" ? "zauber:bless" : "vorteil"] }]);
+    }
+    this.boons.clear();
+  }
+
+  /** What a hero can do with the props next to them (phone buttons). */
+  private propChoices(me: Creature, o: MapObject, enemies: Creature[], mine: boolean, costReason: (cost: "action" | "bonus") => string | undefined): ActionChoice[] {
+    const out: ActionChoice[] = [];
+    const combat = this.mode === "combat";
+    const notMine = mine ? undefined : "Warte, bis du dran bist.";
+    const tried = this.triedObject.has(`${o.id}:${me.id}`);
+    const add = (use: string, label: string, detail: string, glossarKey: string, cost: "action" | "bonus" | "free", extra: Partial<ActionChoice> = {}) => {
+      const reason = extra.reason ?? (cost === "free" ? notMine : costReason(cost));
+      out.push({ id: `${use}:${o.id}`, group: "look", label, detail, glossarKey, cost, enabled: !reason, ...(reason ? { reason } : {}), ...extra, action: { kind: "interact", objectId: o.id, use } });
+    };
+    const bonusOrAction = (): "bonus" | "action" | "free" => (!combat ? "free" : this.turnFor(me)?.bonusAction ? "bonus" : "action");
+    const throwTargets = (ft: number) => enemies.filter((e) => e.pos && me.pos && distanceFt(me, e) <= ft * 2);
+    const throwChoice = (label: string, detail: string, ft: number) => {
+      const targets = throwTargets(ft);
+      add("throw", label, detail, "werfen", "action", { ...(targets.length ? {} : { reason: costReason("action") ?? "Kein Gegner in Wurfweite." }), targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `TP ${t.hp}/${t.maxHp}` })), pick: { min: 1, max: 1, repeat: false } });
+    };
+    if (o.kind === "altar") {
+      if (!combat && !tried) add("pray", "🙏 Am Altar beten", "Religion SG 10 · Segen für den nächsten Kampf", "altar", "free");
+      return out;
+    }
+    if (o.kind === "fountain") {
+      if (!combat && !tried) add("wish", `🪙 Münze in den Brunnen werfen`, `${WISH_GOLD} Gold · Glück im nächsten Kampf`, "wunschbrunnen", "free", this.goldOf(me) + this.partyGold() < WISH_GOLD ? { reason: `Du brauchst ${WISH_GOLD} Goldmünzen.` } : {});
+      return out;
+    }
+    const def = propDef(o);
+    if (!def || o.state === "used") return out;
+    switch (o.prop) {
+      case "table":
+        add("flip", "💪 Tisch umwerfen", `Volle Deckung dahinter (+5 RK gegen Fernangriffe)${combat ? " · kostet die Bonusaktion" : ""}`, "deckung", bonusOrAction());
+        if (combat && (o.uses ?? 0) > 0 && this.map.rooms.find((r) => r.id === o.roomId)?.theme === "tavern") throwChoice("🍺 Bierkrug werfen", "Geschick-Angriff · 1W4 Schaden · bis 6 Felder", 30);
+        break;
+      case "table-flipped":
+        if (combat && (o.uses ?? 0) > 0 && this.map.rooms.find((r) => r.id === o.roomId)?.theme === "tavern") throwChoice("🍺 Bierkrug werfen", "Geschick-Angriff · 1W4 Schaden · bis 6 Felder", 30);
+        break;
+      case "stool":
+        if (combat) throwChoice("🪑 Hocker werfen", "Geschick-Angriff · 1W6 Schaden · bis 4 Felder", 20);
+        break;
+      case "weapon-rack":
+        if (combat && (o.uses ?? 0) > 0) throwChoice("🗡️ Speer werfen", `Geschick + Übung · 1W6 Schaden · bis 6 Felder (noch ${o.uses})`, 30);
+        break;
+      case "crate":
+      case "pot":
+        add("smash", o.prop === "pot" ? "💥 Tonkrug zerschlagen" : "💥 Kiste aufbrechen", "Vielleicht ist etwas drin?", "zerschlagen", combat ? "action" : "free");
+        break;
+      case "bookshelf":
+        if (!tried) add("search", "📚 Im Bücherregal stöbern", "Nachforschungen SG 12 · Wissen, Hinweise, Verstecktes", "buecherregal", combat ? "action" : "free", combat ? { reason: "Dafür ist im Kampf keine Zeit." } : {});
+        break;
+      case "herbs":
+        if (!combat && !tried) add("herbs", "🌿 Heilkräuter sammeln", "Heilkunde SG 10 · heilt den am schwersten Verletzten (1W4+2)", "kraeuter", "free");
+        break;
+      case "mushrooms":
+      case "mushrooms-glow":
+        if (!tried) add("eat", o.prop === "mushrooms-glow" ? "🍄 Leuchtpilz essen" : "🍄 Pilz probieren", o.prop === "mushrooms-glow" ? "Man sagt, man leuchtet danach …" : "Lecker, giftig oder komisch? Probier's aus!", "pilze", combat ? "action" : "free");
+        break;
+      case "candles":
+      case "brazier": {
+        const out_ = o.variant === "out";
+        add("light", out_ ? "🔥 Anzünden" : "🌑 Löschen", out_ ? "Macht es wieder hell" : "Im Dunkeln sieht man schlecht – gut zum Verstecken", "licht_loeschen", bonusOrAction());
+        if (o.prop === "brazier" && combat && o.variant !== "out") {
+          const targets = enemies.filter((e) => e.pos && Math.max(Math.abs(e.pos.x - o.x), Math.abs(e.pos.y - o.y)) <= 3);
+          add("tip", "🔥 Kohlebecken umstoßen", "Athletik SG 10 · glühende Kohlen Richtung Gegner (1W6 Feuer)", "feuer", "action", { ...(targets.length ? {} : { reason: costReason("action") ?? "Kein Gegner nah genug am Becken." }), targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `TP ${t.hp}/${t.maxHp}` })), pick: { min: 1, max: 1, repeat: false } });
+        }
+        break;
+      }
+      case "well":
+        if (!combat && !tried) add("wish", "🪙 Münze in den Brunnen werfen", `${WISH_GOLD} Gold · Glück im nächsten Kampf`, "wunschbrunnen", "free", this.goldOf(me) + this.partyGold() < WISH_GOLD ? { reason: `Du brauchst ${WISH_GOLD} Goldmünzen.` } : {});
+        break;
+      case "coffin":
+        if (!combat && !tried) add("open", "⚰️ Sargdeckel aufschieben", "Athletik SG 12 · Grabbeigaben?", "sarg", "free");
+        break;
+    }
+    if (def.flammable && this.hasFire(me) && o.prop !== "table-flipped") add("ignite", `🔥 ${def.name} anzünden`, "Mit der Fackel · Feuer breitet sich aus!", "feuer", combat ? "action" : "free");
+    return out;
+  }
+
   private lookAround(hero: Creature): RollOutcome | { error: string } {
     const turn = this.battle.combat?.turn;
     if (turn && turn.creatureId === hero.id) {
@@ -1907,6 +2380,7 @@ export class GameController {
   broadcast(): void {
     this.checkGoals();
     if (this.training) for (const h of this.heroes()) if (h.hp === 0 && !h.dead) h.stable = true;
+    this.syncWorld();
     for (const hero of this.heroes()) if (hero.playerId) this.sendView(hero.playerId);
     this.emit("changed");
     const ready = this.waiters.filter((w) => w.pred());
@@ -1995,11 +2469,21 @@ export class GameController {
     const y0 = Math.max(0, Math.min(map.height - h, pos.y - Math.floor(h / 2)));
     const frames: string[] = [];
     const overlays: (string | null)[] = [];
+    const ground: string[] = [];
+    let marks = "";
+    const t = this.battle.terrain;
+    const difficult = new Set(t?.difficult ?? []);
+    const high = new Set(t?.high ?? []);
     for (let y = y0; y < y0 + h; y++) {
       for (let x = x0; x < x0 + w; x++) {
         const i = cellIndex(map, x, y);
-        frames.push(map.explored[i] ? (map.frames[i] ?? "") : "");
-        overlays.push(map.explored[i] ? (map.overlays[i] ?? null) : null);
+        const seenCell = !!map.explored[i];
+        frames.push(seenCell ? (map.frames[i] ?? "") : "");
+        overlays.push(seenCell ? (map.overlays[i] ?? null) : null);
+        const surface = map.surface?.[i]?.kind;
+        ground.push(seenCell ? [map.decals?.[i], surface === "fire" ? "fire.0" : surface].filter(Boolean).join("|") : "");
+        const k = `${x},${y}`;
+        marks += !seenCell ? "." : surface === "fire" ? "f" : surface === "ice" ? "i" : high.has(k) ? "h" : difficult.has(k) && map.cells[i] !== "water" ? "d" : t?.cover[k] ? "c" : ".";
       }
     }
     const inWindow = (p: GridPos) => p.x >= x0 && p.y >= y0 && p.x < x0 + w && p.y < y0 + h;
@@ -2035,7 +2519,7 @@ export class GameController {
         health: c.maxHp ? c.hp / c.maxHp : 0,
         down: c.hp === 0,
       }));
-    return { x0, y0, w, h, frames, overlays, objects, creatures, reachable: mine && !this.pending ? this.reachable(me).filter(inWindow) : [], ...(light ? { light } : {}) };
+    return { x0, y0, w, h, frames, overlays, ground, marks, objects, creatures, reachable: mine && !this.pending ? this.reachable(me).filter(inWindow) : [], ...(light ? { light } : {}) };
   }
 
   /** Squares reachable with the movement left (8 directions, around creatures and obstacles). */
@@ -2048,25 +2532,27 @@ export class GameController {
     const others = Object.values(this.battle.creatures).filter((c) => c.id !== me.id && c.pos && !c.dead);
     const occupied = cover(others);
     const enemies = cover(others.filter((c) => c.side !== me.side));
-    const seen = new Map<string, number>([[`${me.pos.x},${me.pos.y}`, 0]]);
-    let frontier: GridPos[] = [me.pos];
+    // Cheapest way to every square (difficult ground costs two steps).
+    const best = new Map<string, number>([[`${me.pos.x},${me.pos.y}`, 0]]);
+    const buckets: GridPos[][] = [[me.pos]];
     const out: GridPos[] = [];
-    for (let s = 1; s <= steps; s++) {
-      const next: GridPos[] = [];
-      for (const p of frontier) {
+    for (let s = 0; s < buckets.length && s <= steps; s++) {
+      for (const p of buckets[s] ?? []) {
+        if (best.get(`${p.x},${p.y}`) !== s) continue;
         for (let dx = -1; dx <= 1; dx++) {
           for (let dy = -1; dy <= 1; dy++) {
             const q = { x: p.x + dx, y: p.y + dy };
             const k = `${q.x},${q.y}`;
-            if ((!dx && !dy) || seen.has(k) || enemies.has(k) || !isWalkable(this.map, q)) continue;
+            if (!dx && !dy) continue;
+            const cost = s + stepCost(this.battle, q);
+            if (cost > steps || (best.has(k) && best.get(k)! <= cost) || enemies.has(k) || !isWalkable(this.map, q)) continue;
             if (!this.map.explored[cellIndex(this.map, q.x, q.y)] && !this.map.explored[cellIndex(this.map, p.x, p.y)]) continue;
-            seen.set(k, s);
-            next.push(q);
-            if (!occupied.has(k)) out.push(q);
+            if (!best.has(k) && !occupied.has(k)) out.push(q);
+            best.set(k, cost);
+            (buckets[cost] ??= []).push(q);
           }
         }
       }
-      frontier = next;
     }
     return out;
   }
@@ -2373,8 +2859,22 @@ export class GameController {
    * The world moves a little on its own (called every few seconds by the board, not in tests):
    * story characters stroll around their spot, watching monsters walk up and down.
    */
+  /** Fire and ice age by one step; returns whether anything was burning or frozen. */
+  private tickSurfaces(): boolean {
+    const surface = this.map.surface;
+    if (!surface || !Object.values(surface).some((x) => x.kind === "fire" || x.kind === "ice")) return false;
+    const r = tickWorldSurface(this.map, this.envRng);
+    if (r.lines.length) {
+      this.addLog(r.lines);
+      this.emit("lines", r.lines);
+    }
+    this.emit("changed");
+    return true;
+  }
+
   tickWorld(): void {
     if (this.destroyed || this.mode !== "explore") return;
+    if (this.tickSurfaces()) this.broadcast();
     let moved = false;
     const creatures = Object.values(this.battle.creatures);
     const free = (p: GridPos) => isWalkable(this.map, p) && !creatures.some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
@@ -2400,6 +2900,14 @@ export class GameController {
           dir = { x: -dir.x, y: -dir.y };
           next = { x: c.pos.x + dir.x, y: c.pos.y + dir.y };
         }
+        // Both ways blocked (a table, a crate …): turn around the corner.
+        if (!free(next)) {
+          const side = [{ x: dir.y, y: dir.x }, { x: -dir.y, y: -dir.x }].find((d) => free({ x: c.pos!.x + d.x, y: c.pos!.y + d.y }));
+          if (side) {
+            dir = side;
+            next = { x: c.pos.x + dir.x, y: c.pos.y + dir.y };
+          }
+        }
         this.patrolDir.set(c.id, dir);
         if (free(next)) {
           c.pos = next;
@@ -2407,7 +2915,11 @@ export class GameController {
         }
       }
     }
-    if (!moved) return;
+    if (!moved) {
+      // A hero may have walked right up to a guard that stands still.
+      if (this.staged) this.checkCombatStart();
+      return;
+    }
     this.emit("changed");
     this.broadcast();
     // A patrol may walk right into the heroes.
@@ -2472,6 +2984,7 @@ export class GameController {
     this.addLog(lines);
     this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: combat.order[0]!.creatureId, title: "Kampf!", sides: 20, dice: [], kept: 0, lines });
     this.emit("combat", true);
+    this.grantBoons();
     const first = this.active();
     if (first && !isActive(first)) {
       this.endTurn();
@@ -2512,20 +3025,39 @@ export class GameController {
       this.battle.creatures[c.id] = c;
     }
     for (const h of this.heroes()) if (h.pos) revealAround(this.map, h.pos);
-    // Night: the torches on the walls are the only fixed light.
-    if (map.dark) {
-      const lights = Object.entries(map.overlays).flatMap(([k, o]) => {
-        const i = Number(k);
-        return o.startsWith("torch") ? [{ x: i % map.width, y: Math.floor(i / map.width), radiusFt: 15 }] : [];
-      });
-      // Camp fires and the witch's fire light up the night, too.
-      for (const o of map.objects) if (o.kind === "campfire" || o.kind === "cauldron") lights.push({ x: o.x, y: o.y, radiusFt: 20 });
-      this.battle.darkness = { lights };
-    } else delete this.battle.darkness;
+    this.syncWorld();
     this.mode = "explore";
     delete this.battle.combat;
     this.emit("mapChanged");
     this.start();
+  }
+
+  /**
+   * The rules' view of the map: furniture (cover, difficult ground, high places, fire) and,
+   * at night, the fixed lights (wall torches, fires, braziers, candles, glowing mushrooms).
+   */
+  syncWorld(): void {
+    const map = this.map;
+    if (!map) return;
+    this.battle.terrain = terrainOf(map);
+    if (!map.dark) {
+      delete this.battle.darkness;
+      return;
+    }
+    const lights = Object.entries(map.overlays).flatMap(([k, o]) => {
+      const i = Number(k);
+      return o.startsWith("torch") ? [{ x: i % map.width, y: Math.floor(i / map.width), radiusFt: 15 }] : [];
+    });
+    for (const o of map.objects) {
+      if (o.kind === "campfire" || o.kind === "cauldron") lights.push({ x: o.x, y: o.y, radiusFt: 20 });
+      const light = propLight(o);
+      if (light) lights.push({ x: o.x, y: o.y, radiusFt: Math.round(light.radius) * 5 });
+    }
+    for (const [k, s] of Object.entries(map.surface ?? {})) {
+      const i = Number(k);
+      if (s.kind === "fire") lights.push({ x: i % map.width, y: Math.floor(i / map.width), radiusFt: 10 });
+    }
+    this.battle.darkness = { lights };
   }
 
   /** Milestone levelling: rebuild the heroes on a higher level, keeping their things. */
@@ -2837,6 +3369,7 @@ export class GameController {
       if (o.kind === "cauldron" && this.mode !== "combat" && !this.triedObject.has(`${o.id}:${me.id}`)) {
         choices.push({ id: `cauldron:${o.id}`, group: "look", label: "🧪 Aus dem Kessel kosten", detail: "Naturkunde SG 13: Heiltrank oder Hexengebräu?", glossarKey: "kessel", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
       }
+      if (o.kind === "prop" || o.kind === "altar" || o.kind === "fountain") choices.push(...this.propChoices(me, o, enemies, mine, costReason));
       if (o.kind === "door") {
         choices.push({ id: `door:${o.id}`, group: "look", label: o.state === "open" ? "Tür schließen" : "Tür öffnen", detail: "Direkt neben dir · kostet nichts", glossarKey: "aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
       }
@@ -2875,6 +3408,22 @@ export class GameController {
 }
 
 /** Hit point changes of an action, for floating numbers on the board. */
+/** A coin for the wishing well. */
+const WISH_GOLD = 5;
+
+/** What the heroes read in bookshelves (Harz legends and small jokes). */
+const BOOK_LORE = [
+  "Wer auf dem Brocken dreimal rückwärts um den Hexenaltar läuft, hört die Hexen lachen.",
+  "Die Rosstrappe: Hier soll eine Königstochter mit ihrem Pferd über die Bode gesprungen sein. Der Hufabdruck ist noch im Stein.",
+  "Rezept: Harzer Käse. Man nehme Quark und sehr viel Geduld. Und eine Nase, die nicht so empfindlich ist.",
+  "Der Teufel baute eine Mauer im Harz – aber der Hahn krähte zu früh, und er musste fliehen.",
+  "Bergleute grüßen sich mit „Glück auf!“, denn unter Tage braucht man jede Menge davon.",
+  "Kobolde lieben glänzende Knöpfe. Wer einen verliert, sollte unter der Treppe nachsehen.",
+  "Werwölfe fürchten Silber. Und laute Kinderlieder, sagt man.",
+  "Die Walpurgisnacht ist die Nacht vor dem ersten Mai. Dann tanzen die Hexen auf dem Brocken.",
+  "Ein Tagebuch: „Tag 3. Die Ratten sind schlauer als ich dachte. Sie haben meinen Käse. Schon wieder.“",
+];
+
 const SPELL_FX: Record<string, Pick<ActionFx, "kind" | "element">> = {
   "fire-bolt": { kind: "spell", element: "fire" },
   "ray-of-frost": { kind: "spell", element: "cold" },

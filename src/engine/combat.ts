@@ -19,6 +19,7 @@ import type { ConditionId, Size } from "../shared/rules";
 import type { BreakdownPart } from "../shared/types";
 import { d20Part, modPart, rollD20, savingThrow, sumParts } from "./core";
 import type { Rng } from "./rng";
+import { pathCost } from "./terrain";
 
 export const FEET_PER_SQUARE = 5;
 
@@ -396,7 +397,7 @@ export interface MoveResult {
 export function planMove(battle: Battle, id: string, path: GridPos[]): MoveResult {
   const c = battle.creatures[id]!;
   const turn = battle.combat?.turn;
-  const costFt = path.length * FEET_PER_SQUARE + (hasCondition(c, "prone") ? Math.floor(c.speedFt / 2) : 0);
+  const costFt = pathCost(battle, path) * FEET_PER_SQUARE + (hasCondition(c, "prone") ? Math.floor(c.speedFt / 2) : 0);
   if (turn && turn.creatureId === id && costFt > turn.movementLeftFt) {
     return { ok: false, reason: "Nicht genug Bewegung übrig.", costFt, provokes: [] };
   }

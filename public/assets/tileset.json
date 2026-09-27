@@ -12,9 +12,17 @@
    "h": 32,
    "source": "dungeon/altars/altar_shining_one.png"
   },
+  "altar.candles": {
+   "frame": "altar.candles",
+   "x": 33,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "dungeon/altars/misc_altar.png"
+  },
   "arch": {
    "frame": "arch",
-   "x": 33,
+   "x": 66,
    "y": 0,
    "w": 32,
    "h": 32,
@@ -22,7 +30,7 @@
   },
   "banner": {
    "frame": "banner",
-   "x": 66,
+   "x": 99,
    "y": 0,
    "w": 32,
    "h": 32,
@@ -30,15 +38,23 @@
   },
   "barrel": {
    "frame": "barrel",
-   "x": 99,
+   "x": 132,
    "y": 0,
    "w": 32,
    "h": 32,
    "source": "custom:barrel.png"
   },
+  "bench": {
+   "frame": "bench",
+   "x": 165,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "custom:bench.png"
+  },
   "blood.0": {
    "frame": "blood.0",
-   "x": 132,
+   "x": 198,
    "y": 0,
    "w": 32,
    "h": 32,
@@ -46,15 +62,31 @@
   },
   "blood.1": {
    "frame": "blood.1",
-   "x": 165,
+   "x": 231,
    "y": 0,
    "w": 32,
    "h": 32,
    "source": "misc/blood/blood_puddle_red_2.png"
   },
+  "bones": {
+   "frame": "bones",
+   "x": 264,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "custom:bones.png"
+  },
+  "bookshelf": {
+   "frame": "bookshelf",
+   "x": 297,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "custom:bookshelf.png"
+  },
   "boulder": {
    "frame": "boulder",
-   "x": 198,
+   "x": 330,
    "y": 0,
    "w": 32,
    "h": 32,
@@ -62,23 +94,79 @@
   },
   "box": {
    "frame": "box",
-   "x": 231,
+   "x": 363,
    "y": 0,
    "w": 32,
    "h": 32,
    "source": "dungeon/large_box.png"
   },
+  "brazier.lit": {
+   "frame": "brazier.lit",
+   "x": 396,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "custom:brazier_lit.png"
+  },
+  "brazier.out": {
+   "frame": "brazier.out",
+   "x": 429,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "custom:brazier_out.png"
+  },
+  "bush.0": {
+   "frame": "bush.0",
+   "x": 462,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "monster/fungi_plants/bush_2.png"
+  },
+  "bush.1": {
+   "frame": "bush.1",
+   "x": 495,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "monster/fungi_plants/bush_3.png"
+  },
+  "bush.2": {
+   "frame": "bush.2",
+   "x": 528,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "monster/fungi_plants/bush_4.png"
+  },
   "campfire": {
    "frame": "campfire",
-   "x": 264,
+   "x": 561,
    "y": 0,
    "w": 32,
    "h": 32,
    "source": "custom:campfire.png"
   },
+  "candles": {
+   "frame": "candles",
+   "x": 594,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "custom:candles.png"
+  },
+  "candles.out": {
+   "frame": "candles.out",
+   "x": 627,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "custom:candles_out.png"
+  },
   "cauldron": {
    "frame": "cauldron",
-   "x": 297,
+   "x": 660,
    "y": 0,
    "w": 32,
    "h": 32,
@@ -86,7 +174,7 @@
   },
   "chandelier": {
    "frame": "chandelier",
-   "x": 330,
+   "x": 693,
    "y": 0,
    "w": 32,
    "h": 32,
@@ -94,7 +182,7 @@
   },
   "chandelier.down": {
    "frame": "chandelier.down",
-   "x": 363,
+   "x": 726,
    "y": 0,
    "w": 32,
    "h": 32,
@@ -102,7 +190,7 @@
   },
   "chest.closed": {
    "frame": "chest.closed",
-   "x": 396,
+   "x": 759,
    "y": 0,
    "w": 32,
    "h": 32,
@@ -110,7 +198,7 @@
   },
   "chest.gold": {
    "frame": "chest.gold",
-   "x": 429,
+   "x": 792,
    "y": 0,
    "w": 32,
    "h": 32,
@@ -118,143 +206,231 @@
   },
   "chest.open": {
    "frame": "chest.open",
-   "x": 462,
+   "x": 825,
    "y": 0,
    "w": 32,
    "h": 32,
    "source": "dungeon/chest_2_open.png"
   },
+  "coffin": {
+   "frame": "coffin",
+   "x": 858,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "dungeon/vaults/sarcophagus_sealed.png"
+  },
+  "coffin.open": {
+   "frame": "coffin.open",
+   "x": 891,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "dungeon/sarcophagus_open.png"
+  },
   "column": {
    "frame": "column",
-   "x": 495,
+   "x": 924,
    "y": 0,
    "w": 32,
    "h": 32,
    "source": "dungeon/statues/crumbled_column.png"
   },
+  "column.broken": {
+   "frame": "column.broken",
+   "x": 957,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "dungeon/statues/crumbled_column_3.png"
+  },
+  "counter": {
+   "frame": "counter",
+   "x": 990,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "source": "custom:counter.png"
+  },
+  "crack.0": {
+   "frame": "crack.0",
+   "x": 0,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "custom:crack_0.png"
+  },
+  "crack.1": {
+   "frame": "crack.1",
+   "x": 33,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "custom:crack_1.png"
+  },
+  "crack.2": {
+   "frame": "crack.2",
+   "x": 66,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "custom:crack_2.png"
+  },
+  "crate": {
+   "frame": "crate",
+   "x": 99,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "custom:crate.png"
+  },
   "critter.bat": {
    "frame": "critter.bat",
-   "x": 528,
-   "y": 0,
+   "x": 132,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/bat.png"
   },
   "critter.butterfly.0": {
    "frame": "critter.butterfly.0",
-   "x": 561,
-   "y": 0,
+   "x": 165,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/butterfly_1.png"
   },
   "critter.butterfly.1": {
    "frame": "critter.butterfly.1",
-   "x": 594,
-   "y": 0,
+   "x": 198,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/butterfly_3.png"
   },
   "critter.butterfly.2": {
    "frame": "critter.butterfly.2",
-   "x": 627,
-   "y": 0,
+   "x": 231,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/butterfly_6.png"
   },
+  "critter.cat": {
+   "frame": "critter.cat",
+   "x": 264,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "custom:cat.png"
+  },
+  "critter.chicken": {
+   "frame": "critter.chicken",
+   "x": 297,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "custom:chicken.png"
+  },
   "critter.dog": {
    "frame": "critter.dog",
-   "x": 660,
-   "y": 0,
+   "x": 330,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/hound.png"
   },
   "critter.frog": {
    "frame": "critter.frog",
-   "x": 693,
-   "y": 0,
+   "x": 363,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/giant_frog.png"
   },
   "critter.hog": {
    "frame": "critter.hog",
-   "x": 726,
-   "y": 0,
+   "x": 396,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/hog.png"
   },
   "critter.moth": {
    "frame": "critter.moth",
-   "x": 759,
-   "y": 0,
+   "x": 429,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/ghost_moth.png"
   },
   "critter.rat": {
    "frame": "critter.rat",
-   "x": 792,
-   "y": 0,
+   "x": 462,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/grey_rat.png"
   },
   "critter.sheep": {
    "frame": "critter.sheep",
-   "x": 825,
-   "y": 0,
+   "x": 495,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/sheep.png"
   },
   "critter.snake": {
    "frame": "critter.snake",
-   "x": 858,
-   "y": 0,
+   "x": 528,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/small_snake.png"
   },
   "critter.spider": {
    "frame": "critter.spider",
-   "x": 891,
-   "y": 0,
+   "x": 561,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "monster/animals/spider.png"
   },
+  "debris": {
+   "frame": "debris",
+   "x": 594,
+   "y": 33,
+   "w": 32,
+   "h": 32,
+   "source": "custom:debris.png"
+  },
   "doll.base.dwarf_1": {
    "frame": "doll.base.dwarf_1",
-   "x": 924,
-   "y": 0,
+   "x": 627,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "player/base/dwarf_male.png"
   },
   "doll.base.dwarf_2": {
    "frame": "doll.base.dwarf_2",
-   "x": 957,
-   "y": 0,
+   "x": 660,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "player/base/dwarf_female.png"
   },
   "doll.base.elf_1": {
    "frame": "doll.base.elf_1",
-   "x": 990,
-   "y": 0,
+   "x": 693,
+   "y": 33,
    "w": 32,
    "h": 32,
    "source": "player/base/elf_male.png"
   },
   "doll.base.elf_2": {
    "frame": "doll.base.elf_2",
-   "x": 0,
+   "x": 726,
    "y": 33,
    "w": 32,
    "h": 32,
@@ -262,7 +438,7 @@
   },
   "doll.base.halfling_1": {
    "frame": "doll.base.halfling_1",
-   "x": 33,
+   "x": 759,
    "y": 33,
    "w": 32,
    "h": 32,
@@ -270,7 +446,7 @@
   },
   "doll.base.halfling_2": {
    "frame": "doll.base.halfling_2",
-   "x": 66,
+   "x": 792,
    "y": 33,
    "w": 32,
    "h": 32,
@@ -278,7 +454,7 @@
   },
   "doll.base.human_1": {
    "frame": "doll.base.human_1",
-   "x": 99,
+   "x": 825,
    "y": 33,
    "w": 32,
    "h": 32,
@@ -286,7 +462,7 @@
   },
   "doll.base.human_2": {
    "frame": "doll.base.human_2",
-   "x": 132,
+   "x": 858,
    "y": 33,
    "w": 32,
    "h": 32,
@@ -294,7 +470,7 @@
   },
   "doll.beard.long_black": {
    "frame": "doll.beard.long_black",
-   "x": 165,
+   "x": 891,
    "y": 33,
    "w": 32,
    "h": 32,
@@ -302,7 +478,7 @@
   },
   "doll.beard.long_red": {
    "frame": "doll.beard.long_red",
-   "x": 198,
+   "x": 924,
    "y": 33,
    "w": 32,
    "h": 32,
@@ -310,7 +486,7 @@
   },
   "doll.beard.long_white": {
    "frame": "doll.beard.long_white",
-   "x": 231,
+   "x": 957,
    "y": 33,
    "w": 32,
    "h": 32,
@@ -318,7 +494,7 @@
   },
   "doll.beard.short_black": {
    "frame": "doll.beard.short_black",
-   "x": 264,
+   "x": 990,
    "y": 33,
    "w": 32,
    "h": 32,
@@ -326,183 +502,183 @@
   },
   "doll.beard.short_red": {
    "frame": "doll.beard.short_red",
-   "x": 297,
-   "y": 33,
+   "x": 0,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/beard/short_red.png"
   },
   "doll.beard.short_white": {
    "frame": "doll.beard.short_white",
-   "x": 330,
-   "y": 33,
+   "x": 33,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/beard/short_white.png"
   },
   "doll.beard.short_yellow": {
    "frame": "doll.beard.short_yellow",
-   "x": 363,
-   "y": 33,
+   "x": 66,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/beard/short_yellow.png"
   },
   "doll.body.chainmail": {
    "frame": "doll.body.chainmail",
-   "x": 396,
-   "y": 33,
+   "x": 99,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/chainmail.png"
   },
   "doll.body.half_plate": {
    "frame": "doll.body.half_plate",
-   "x": 429,
-   "y": 33,
+   "x": 132,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/half_plate.png"
   },
   "doll.body.jacket": {
    "frame": "doll.body.jacket",
-   "x": 462,
-   "y": 33,
+   "x": 165,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/jacket_stud.png"
   },
   "doll.body.leather": {
    "frame": "doll.body.leather",
-   "x": 495,
-   "y": 33,
+   "x": 198,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/leather_armor.png"
   },
   "doll.body.leather_green": {
    "frame": "doll.body.leather_green",
-   "x": 528,
-   "y": 33,
+   "x": 231,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/leather_green.png"
   },
   "doll.body.plate": {
    "frame": "doll.body.plate",
-   "x": 561,
-   "y": 33,
+   "x": 264,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/plate.png"
   },
   "doll.body.robe_blue": {
    "frame": "doll.body.robe_blue",
-   "x": 594,
-   "y": 33,
+   "x": 297,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/robe_blue.png"
   },
   "doll.body.robe_green": {
    "frame": "doll.body.robe_green",
-   "x": 627,
-   "y": 33,
+   "x": 330,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/robe_green.png"
   },
   "doll.body.robe_purple": {
    "frame": "doll.body.robe_purple",
-   "x": 660,
-   "y": 33,
+   "x": 363,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/robe_purple.png"
   },
   "doll.body.robe_red": {
    "frame": "doll.body.robe_red",
-   "x": 693,
-   "y": 33,
+   "x": 396,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/robe_red.png"
   },
   "doll.body.robe_white": {
    "frame": "doll.body.robe_white",
-   "x": 726,
-   "y": 33,
+   "x": 429,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/robe_white.png"
   },
   "doll.body.scalemail": {
    "frame": "doll.body.scalemail",
-   "x": 759,
-   "y": 33,
+   "x": 462,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/scalemail.png"
   },
   "doll.body.shirt": {
    "frame": "doll.body.shirt",
-   "x": 792,
-   "y": 33,
+   "x": 495,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/body/shirt_white_1.png"
   },
   "doll.boots.brown": {
    "frame": "doll.boots.brown",
-   "x": 825,
-   "y": 33,
+   "x": 528,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/boots/middle_brown.png"
   },
   "doll.boots.gray": {
    "frame": "doll.boots.gray",
-   "x": 858,
-   "y": 33,
+   "x": 561,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/boots/middle_gray.png"
   },
   "doll.boots.short": {
    "frame": "doll.boots.short",
-   "x": 891,
-   "y": 33,
+   "x": 594,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/boots/short_brown.png"
   },
   "doll.cloak.black": {
    "frame": "doll.cloak.black",
-   "x": 924,
-   "y": 33,
+   "x": 627,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/cloak/black.png"
   },
   "doll.cloak.blue": {
    "frame": "doll.cloak.blue",
-   "x": 957,
-   "y": 33,
+   "x": 660,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/cloak/blue.png"
   },
   "doll.cloak.green": {
    "frame": "doll.cloak.green",
-   "x": 990,
-   "y": 33,
+   "x": 693,
+   "y": 66,
    "w": 32,
    "h": 32,
    "source": "player/cloak/green.png"
   },
   "doll.cloak.red": {
    "frame": "doll.cloak.red",
-   "x": 0,
+   "x": 726,
    "y": 66,
    "w": 32,
    "h": 32,
@@ -510,7 +686,7 @@
   },
   "doll.cloak.white": {
    "frame": "doll.cloak.white",
-   "x": 33,
+   "x": 759,
    "y": 66,
    "w": 32,
    "h": 32,
@@ -518,7 +694,7 @@
   },
   "doll.cloak.yellow": {
    "frame": "doll.cloak.yellow",
-   "x": 66,
+   "x": 792,
    "y": 66,
    "w": 32,
    "h": 32,
@@ -526,7 +702,7 @@
   },
   "doll.hair.brown": {
    "frame": "doll.hair.brown",
-   "x": 99,
+   "x": 825,
    "y": 66,
    "w": 32,
    "h": 32,
@@ -534,7 +710,7 @@
   },
   "doll.hair.knot": {
    "frame": "doll.hair.knot",
-   "x": 132,
+   "x": 858,
    "y": 66,
    "w": 32,
    "h": 32,
@@ -542,7 +718,7 @@
   },
   "doll.hair.long_black": {
    "frame": "doll.hair.long_black",
-   "x": 165,
+   "x": 891,
    "y": 66,
    "w": 32,
    "h": 32,
@@ -550,7 +726,7 @@
   },
   "doll.hair.long_red": {
    "frame": "doll.hair.long_red",
-   "x": 198,
+   "x": 924,
    "y": 66,
    "w": 32,
    "h": 32,
@@ -558,7 +734,7 @@
   },
   "doll.hair.long_white": {
    "frame": "doll.hair.long_white",
-   "x": 231,
+   "x": 957,
    "y": 66,
    "w": 32,
    "h": 32,
@@ -566,7 +742,7 @@
   },
   "doll.hair.long_yellow": {
    "frame": "doll.hair.long_yellow",
-   "x": 264,
+   "x": 990,
    "y": 66,
    "w": 32,
    "h": 32,
@@ -574,183 +750,183 @@
   },
   "doll.hair.pigtails": {
    "frame": "doll.hair.pigtails",
-   "x": 297,
-   "y": 66,
+   "x": 0,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/hair/pigtails_brown.png"
   },
   "doll.hair.ponytail": {
    "frame": "doll.hair.ponytail",
-   "x": 330,
-   "y": 66,
+   "x": 33,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/hair/ponytail_yellow.png"
   },
   "doll.hair.short_black": {
    "frame": "doll.hair.short_black",
-   "x": 363,
-   "y": 66,
+   "x": 66,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/hair/short_black.png"
   },
   "doll.hair.short_red": {
    "frame": "doll.hair.short_red",
-   "x": 396,
-   "y": 66,
+   "x": 99,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/hair/short_red.png"
   },
   "doll.hair.short_white": {
    "frame": "doll.hair.short_white",
-   "x": 429,
-   "y": 66,
+   "x": 132,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/hair/short_white.png"
   },
   "doll.hair.short_yellow": {
    "frame": "doll.hair.short_yellow",
-   "x": 462,
-   "y": 66,
+   "x": 165,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/hair/short_yellow.png"
   },
   "doll.head.crown": {
    "frame": "doll.head.crown",
-   "x": 495,
-   "y": 66,
+   "x": 198,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/head/crown_gold_1.png"
   },
   "doll.head.helm": {
    "frame": "doll.head.helm",
-   "x": 528,
-   "y": 66,
+   "x": 231,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/head/helm_plume.png"
   },
   "doll.head.hood": {
    "frame": "doll.head.hood",
-   "x": 561,
-   "y": 66,
+   "x": 264,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/head/hood_green.png"
   },
   "doll.head.hood_red": {
    "frame": "doll.head.hood_red",
-   "x": 594,
-   "y": 66,
+   "x": 297,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/head/hood_red.png"
   },
   "doll.head.iron": {
    "frame": "doll.head.iron",
-   "x": 627,
-   "y": 66,
+   "x": 330,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/head/iron_1.png"
   },
   "doll.head.viking": {
    "frame": "doll.head.viking",
-   "x": 660,
-   "y": 66,
+   "x": 363,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/head/viking_brown_1.png"
   },
   "doll.head.wizard": {
    "frame": "doll.head.wizard",
-   "x": 693,
-   "y": 66,
+   "x": 396,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/head/wizard_blue.png"
   },
   "doll.head.wizard_red": {
    "frame": "doll.head.wizard_red",
-   "x": 726,
-   "y": 66,
+   "x": 429,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/head/wizard_red.png"
   },
   "doll.legs.armor": {
    "frame": "doll.legs.armor",
-   "x": 759,
-   "y": 66,
+   "x": 462,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/legs/leg_armor_0.png"
   },
   "doll.legs.black": {
    "frame": "doll.legs.black",
-   "x": 792,
-   "y": 66,
+   "x": 495,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/legs/pants_black.png"
   },
   "doll.legs.blue": {
    "frame": "doll.legs.blue",
-   "x": 825,
-   "y": 66,
+   "x": 528,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/legs/pants_blue.png"
   },
   "doll.legs.brown": {
    "frame": "doll.legs.brown",
-   "x": 858,
-   "y": 66,
+   "x": 561,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/legs/pants_brown.png"
   },
   "doll.legs.metal": {
    "frame": "doll.legs.metal",
-   "x": 891,
-   "y": 66,
+   "x": 594,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/legs/metal_gray.png"
   },
   "doll.shield.buckler": {
    "frame": "doll.shield.buckler",
-   "x": 924,
-   "y": 66,
+   "x": 627,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/hand_left/buckler_round_2.png"
   },
   "doll.shield.holy": {
    "frame": "doll.shield.holy",
-   "x": 957,
-   "y": 66,
+   "x": 660,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/hand_left/shield_holy.png"
   },
   "doll.shield.kite": {
    "frame": "doll.shield.kite",
-   "x": 990,
-   "y": 66,
+   "x": 693,
+   "y": 99,
    "w": 32,
    "h": 32,
    "source": "player/hand_left/shield_kite_1.png"
   },
   "doll.shield.knight": {
    "frame": "doll.shield.knight",
-   "x": 0,
+   "x": 726,
    "y": 99,
    "w": 32,
    "h": 32,
@@ -758,7 +934,7 @@
   },
   "doll.shield.round": {
    "frame": "doll.shield.round",
-   "x": 33,
+   "x": 759,
    "y": 99,
    "w": 32,
    "h": 32,
@@ -766,7 +942,7 @@
   },
   "doll.weapon.axe": {
    "frame": "doll.weapon.axe",
-   "x": 66,
+   "x": 792,
    "y": 99,
    "w": 32,
    "h": 32,
@@ -774,7 +950,7 @@
   },
   "doll.weapon.battleaxe": {
    "frame": "doll.weapon.battleaxe",
-   "x": 99,
+   "x": 825,
    "y": 99,
    "w": 32,
    "h": 32,
@@ -782,7 +958,7 @@
   },
   "doll.weapon.bow": {
    "frame": "doll.weapon.bow",
-   "x": 132,
+   "x": 858,
    "y": 99,
    "w": 32,
    "h": 32,
@@ -790,7 +966,7 @@
   },
   "doll.weapon.crossbow": {
    "frame": "doll.weapon.crossbow",
-   "x": 165,
+   "x": 891,
    "y": 99,
    "w": 32,
    "h": 32,
@@ -798,7 +974,7 @@
   },
   "doll.weapon.dagger": {
    "frame": "doll.weapon.dagger",
-   "x": 198,
+   "x": 924,
    "y": 99,
    "w": 32,
    "h": 32,
@@ -806,7 +982,7 @@
   },
   "doll.weapon.greatsword": {
    "frame": "doll.weapon.greatsword",
-   "x": 231,
+   "x": 957,
    "y": 99,
    "w": 32,
    "h": 32,
@@ -814,7 +990,7 @@
   },
   "doll.weapon.hammer": {
    "frame": "doll.weapon.hammer",
-   "x": 264,
+   "x": 990,
    "y": 99,
    "w": 32,
    "h": 32,
@@ -822,183 +998,223 @@
   },
   "doll.weapon.longsword": {
    "frame": "doll.weapon.longsword",
-   "x": 297,
-   "y": 99,
+   "x": 0,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "player/hand_right/long_sword.png"
   },
   "doll.weapon.mace": {
    "frame": "doll.weapon.mace",
-   "x": 330,
-   "y": 99,
+   "x": 33,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "player/hand_right/mace.png"
   },
   "doll.weapon.magestaff": {
    "frame": "doll.weapon.magestaff",
-   "x": 363,
-   "y": 99,
+   "x": 66,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "player/hand_right/staff_mage.png"
   },
   "doll.weapon.rapier": {
    "frame": "doll.weapon.rapier",
-   "x": 396,
-   "y": 99,
+   "x": 99,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "player/hand_right/rapier.png"
   },
   "doll.weapon.shortsword": {
    "frame": "doll.weapon.shortsword",
-   "x": 429,
-   "y": 99,
+   "x": 132,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "player/hand_right/short_sword.png"
   },
   "doll.weapon.spear": {
    "frame": "doll.weapon.spear",
-   "x": 462,
-   "y": 99,
+   "x": 165,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "player/hand_right/spear.png"
   },
   "doll.weapon.staff": {
    "frame": "doll.weapon.staff",
-   "x": 495,
-   "y": 99,
+   "x": 198,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "player/hand_right/quarterstaff.png"
   },
   "door.closed": {
    "frame": "door.closed",
-   "x": 528,
-   "y": 99,
+   "x": 231,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "dungeon/doors/closed_door.png"
   },
   "door.open": {
    "frame": "door.open",
-   "x": 561,
-   "y": 99,
+   "x": 264,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "dungeon/doors/open_door.png"
   },
+  "extra.guest.0": {
+   "frame": "extra.guest.0",
+   "x": 297,
+   "y": 132,
+   "w": 32,
+   "h": 32,
+   "source": "monster/human.png"
+  },
+  "extra.guest.1": {
+   "frame": "extra.guest.1",
+   "x": 330,
+   "y": 132,
+   "w": 32,
+   "h": 32,
+   "source": "monster/halfling.png"
+  },
+  "extra.guest.2": {
+   "frame": "extra.guest.2",
+   "x": 363,
+   "y": 132,
+   "w": 32,
+   "h": 32,
+   "source": "monster/dwarf.png"
+  },
+  "extra.guest.3": {
+   "frame": "extra.guest.3",
+   "x": 396,
+   "y": 132,
+   "w": 32,
+   "h": 32,
+   "source": "monster/gnome.png"
+  },
+  "fern": {
+   "frame": "fern",
+   "x": 429,
+   "y": 132,
+   "w": 32,
+   "h": 32,
+   "source": "monster/fungi_plants/plant.png"
+  },
   "fire.0": {
    "frame": "fire.0",
-   "x": 594,
-   "y": 99,
+   "x": 462,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "effect/cloud_fire_0.png"
   },
   "fire.1": {
    "frame": "fire.1",
-   "x": 627,
-   "y": 99,
+   "x": 495,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "effect/cloud_fire_1.png"
   },
   "fire.2": {
    "frame": "fire.2",
-   "x": 660,
-   "y": 99,
+   "x": 528,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "effect/cloud_fire_2.png"
   },
   "flame.0": {
    "frame": "flame.0",
-   "x": 693,
-   "y": 99,
+   "x": 561,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "effect/flame_0.png"
   },
   "flame.1": {
    "frame": "flame.1",
-   "x": 726,
-   "y": 99,
+   "x": 594,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "effect/flame_1.png"
   },
   "flame.2": {
    "frame": "flame.2",
-   "x": 759,
-   "y": 99,
+   "x": 627,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "effect/flame_2.png"
   },
   "floor.castle.0": {
    "frame": "floor.castle.0",
-   "x": 792,
-   "y": 99,
+   "x": 660,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/rect_gray_0.png"
   },
   "floor.castle.1": {
    "frame": "floor.castle.1",
-   "x": 825,
-   "y": 99,
+   "x": 693,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/rect_gray_1.png"
   },
   "floor.castle.2": {
    "frame": "floor.castle.2",
-   "x": 858,
-   "y": 99,
+   "x": 726,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/rect_gray_2.png"
   },
   "floor.castle.3": {
    "frame": "floor.castle.3",
-   "x": 891,
-   "y": 99,
+   "x": 759,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/rect_gray_3.png"
   },
   "floor.cave.0": {
    "frame": "floor.cave.0",
-   "x": 924,
-   "y": 99,
+   "x": 792,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/pebble_brown_0.png"
   },
   "floor.cave.1": {
    "frame": "floor.cave.1",
-   "x": 957,
-   "y": 99,
+   "x": 825,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/pebble_brown_1.png"
   },
   "floor.cave.2": {
    "frame": "floor.cave.2",
-   "x": 990,
-   "y": 99,
+   "x": 858,
+   "y": 132,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/pebble_brown_2.png"
   },
   "floor.cave.3": {
    "frame": "floor.cave.3",
-   "x": 0,
+   "x": 891,
    "y": 132,
    "w": 32,
    "h": 32,
@@ -1006,7 +1222,7 @@
   },
   "floor.crypt.0": {
    "frame": "floor.crypt.0",
-   "x": 33,
+   "x": 924,
    "y": 132,
    "w": 32,
    "h": 32,
@@ -1014,7 +1230,7 @@
   },
   "floor.crypt.1": {
    "frame": "floor.crypt.1",
-   "x": 66,
+   "x": 957,
    "y": 132,
    "w": 32,
    "h": 32,
@@ -1022,7 +1238,7 @@
   },
   "floor.crypt.2": {
    "frame": "floor.crypt.2",
-   "x": 99,
+   "x": 990,
    "y": 132,
    "w": 32,
    "h": 32,
@@ -1030,223 +1246,223 @@
   },
   "floor.crypt.3": {
    "frame": "floor.crypt.3",
-   "x": 132,
-   "y": 132,
+   "x": 0,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/tomb_3.png"
   },
   "floor.dirt.0": {
    "frame": "floor.dirt.0",
-   "x": 165,
-   "y": 132,
+   "x": 33,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/dirt_0.png"
   },
   "floor.dirt.1": {
    "frame": "floor.dirt.1",
-   "x": 198,
-   "y": 132,
+   "x": 66,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/dirt_1.png"
   },
   "floor.dirt.2": {
    "frame": "floor.dirt.2",
-   "x": 231,
-   "y": 132,
+   "x": 99,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/dirt_2.png"
   },
   "floor.grass.0": {
    "frame": "floor.grass.0",
-   "x": 264,
-   "y": 132,
+   "x": 132,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grass/grass_0.png"
   },
   "floor.grass.1": {
    "frame": "floor.grass.1",
-   "x": 297,
-   "y": 132,
+   "x": 165,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grass/grass_1.png"
   },
   "floor.grass.2": {
    "frame": "floor.grass.2",
-   "x": 330,
-   "y": 132,
+   "x": 198,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grass/grass_2.png"
   },
   "floor.grass.3": {
    "frame": "floor.grass.3",
-   "x": 363,
-   "y": 132,
+   "x": 231,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grass/grass_flowers_yellow_1.png"
   },
   "floor.grass.4": {
    "frame": "floor.grass.4",
-   "x": 396,
-   "y": 132,
+   "x": 264,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grass/grass_flowers_red_1.png"
   },
   "floor.grass.5": {
    "frame": "floor.grass.5",
-   "x": 429,
-   "y": 132,
+   "x": 297,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grass/grass_flowers_blue_1.png"
   },
   "floor.lair.0": {
    "frame": "floor.lair.0",
-   "x": 462,
-   "y": 132,
+   "x": 330,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/volcanic_floor_0.png"
   },
   "floor.lair.1": {
    "frame": "floor.lair.1",
-   "x": 495,
-   "y": 132,
+   "x": 363,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/volcanic_floor_1.png"
   },
   "floor.lair.2": {
    "frame": "floor.lair.2",
-   "x": 528,
-   "y": 132,
+   "x": 396,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/volcanic_floor_2.png"
   },
   "floor.lair.3": {
    "frame": "floor.lair.3",
-   "x": 561,
-   "y": 132,
+   "x": 429,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/volcanic_floor_3.png"
   },
   "floor.marble.0": {
    "frame": "floor.marble.0",
-   "x": 594,
-   "y": 132,
+   "x": 462,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/white_marble_0.png"
   },
   "floor.marble.1": {
    "frame": "floor.marble.1",
-   "x": 627,
-   "y": 132,
+   "x": 495,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/white_marble_1.png"
   },
   "floor.marble.2": {
    "frame": "floor.marble.2",
-   "x": 660,
-   "y": 132,
+   "x": 528,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/white_marble_2.png"
   },
   "floor.marble.3": {
    "frame": "floor.marble.3",
-   "x": 693,
-   "y": 132,
+   "x": 561,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/white_marble_3.png"
   },
   "floor.mud.0": {
    "frame": "floor.mud.0",
-   "x": 726,
-   "y": 132,
+   "x": 594,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/mud_0.png"
   },
   "floor.mud.1": {
    "frame": "floor.mud.1",
-   "x": 759,
-   "y": 132,
+   "x": 627,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/mud_1.png"
   },
   "floor.mud.2": {
    "frame": "floor.mud.2",
-   "x": 792,
-   "y": 132,
+   "x": 660,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/mud_2.png"
   },
   "floor.mud.3": {
    "frame": "floor.mud.3",
-   "x": 825,
-   "y": 132,
+   "x": 693,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/mud_3.png"
   },
   "floor.path.0": {
    "frame": "floor.path.0",
-   "x": 858,
-   "y": 132,
+   "x": 726,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grass/grass0-dirt-mix_1.png"
   },
   "floor.path.1": {
    "frame": "floor.path.1",
-   "x": 891,
-   "y": 132,
+   "x": 759,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grass/grass0-dirt-mix_2.png"
   },
   "floor.path.2": {
    "frame": "floor.path.2",
-   "x": 924,
-   "y": 132,
+   "x": 792,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grass/grass0-dirt-mix_3.png"
   },
   "floor.sand.0": {
    "frame": "floor.sand.0",
-   "x": 957,
-   "y": 132,
+   "x": 825,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/sand_1.png"
   },
   "floor.sand.1": {
    "frame": "floor.sand.1",
-   "x": 990,
-   "y": 132,
+   "x": 858,
+   "y": 165,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/sand_2.png"
   },
   "floor.sand.2": {
    "frame": "floor.sand.2",
-   "x": 0,
+   "x": 891,
    "y": 165,
    "w": 32,
    "h": 32,
@@ -1254,7 +1470,7 @@
   },
   "floor.sand.3": {
    "frame": "floor.sand.3",
-   "x": 33,
+   "x": 924,
    "y": 165,
    "w": 32,
    "h": 32,
@@ -1262,7 +1478,7 @@
   },
   "floor.stone.0": {
    "frame": "floor.stone.0",
-   "x": 66,
+   "x": 957,
    "y": 165,
    "w": 32,
    "h": 32,
@@ -1270,7 +1486,7 @@
   },
   "floor.stone.1": {
    "frame": "floor.stone.1",
-   "x": 99,
+   "x": 990,
    "y": 165,
    "w": 32,
    "h": 32,
@@ -1278,907 +1494,1147 @@
   },
   "floor.stone.2": {
    "frame": "floor.stone.2",
-   "x": 132,
-   "y": 165,
+   "x": 0,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/limestone_2.png"
   },
   "floor.stone.3": {
    "frame": "floor.stone.3",
-   "x": 165,
-   "y": 165,
+   "x": 33,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/limestone_3.png"
   },
   "floor.village.0": {
    "frame": "floor.village.0",
-   "x": 198,
-   "y": 165,
+   "x": 66,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grey_dirt_0.png"
   },
   "floor.village.1": {
    "frame": "floor.village.1",
-   "x": 231,
-   "y": 165,
+   "x": 99,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grey_dirt_1.png"
   },
   "floor.village.2": {
    "frame": "floor.village.2",
-   "x": 264,
-   "y": 165,
+   "x": 132,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grey_dirt_2.png"
   },
   "floor.village.3": {
    "frame": "floor.village.3",
-   "x": 297,
-   "y": 165,
+   "x": 165,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "dungeon/floor/grey_dirt_3.png"
   },
+  "fog.wisp": {
+   "frame": "fog.wisp",
+   "x": 198,
+   "y": 198,
+   "w": 32,
+   "h": 32,
+   "source": "effect/cloud_grey_smoke.png"
+  },
   "fountain": {
    "frame": "fountain",
-   "x": 330,
-   "y": 165,
+   "x": 231,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "dungeon/blue_fountain.png"
   },
   "fountain.dry": {
    "frame": "fountain.dry",
-   "x": 363,
-   "y": 165,
+   "x": 264,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "dungeon/dry_fountain.png"
   },
+  "fountain.wish": {
+   "frame": "fountain.wish",
+   "x": 297,
+   "y": 198,
+   "w": 32,
+   "h": 32,
+   "source": "dungeon/sparkling_fountain.png"
+  },
   "gate.closed": {
    "frame": "gate.closed",
-   "x": 396,
-   "y": 165,
+   "x": 330,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "dungeon/doors/gate_closed_middle.png"
   },
   "gate.open": {
    "frame": "gate.open",
-   "x": 429,
-   "y": 165,
+   "x": 363,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "dungeon/doors/gate_open_middle.png"
   },
+  "hay": {
+   "frame": "hay",
+   "x": 396,
+   "y": 198,
+   "w": 32,
+   "h": 32,
+   "source": "custom:hay.png"
+  },
+  "herbs": {
+   "frame": "herbs",
+   "x": 429,
+   "y": 198,
+   "w": 32,
+   "h": 32,
+   "source": "custom:herbs.png"
+  },
+  "ice": {
+   "frame": "ice",
+   "x": 462,
+   "y": 198,
+   "w": 32,
+   "h": 32,
+   "source": "custom:ice.png"
+  },
   "item.gold": {
    "frame": "item.gold",
-   "x": 462,
-   "y": 165,
+   "x": 495,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "item/gold/gold_pile_10.png"
   },
   "item.key": {
    "frame": "item.key",
-   "x": 495,
-   "y": 165,
+   "x": 528,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "item/misc/key.png"
   },
   "item.lamp": {
    "frame": "item.lamp",
-   "x": 528,
-   "y": 165,
+   "x": 561,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "item/misc/misc_lantern.png"
   },
   "item.lance": {
    "frame": "item.lance",
-   "x": 561,
-   "y": 165,
+   "x": 594,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "player/hand_right/lance.png"
   },
   "item.potion": {
    "frame": "item.potion",
-   "x": 594,
-   "y": 165,
+   "x": 627,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "item/potion/ruby.png"
   },
+  "leaves": {
+   "frame": "leaves",
+   "x": 660,
+   "y": 198,
+   "w": 32,
+   "h": 32,
+   "source": "custom:leaves.png"
+  },
   "lever.off": {
    "frame": "lever.off",
-   "x": 627,
-   "y": 165,
+   "x": 693,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "custom:lever_off.png"
   },
   "lever.on": {
    "frame": "lever.on",
-   "x": 660,
-   "y": 165,
+   "x": 726,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "custom:lever_on.png"
   },
   "magic.bolt": {
    "frame": "magic.bolt",
-   "x": 693,
-   "y": 165,
+   "x": 759,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "effect/magic_bolt_1.png"
   },
   "monster.bandit": {
    "frame": "monster.bandit",
-   "x": 726,
-   "y": 165,
+   "x": 792,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "monster/unique/harold.png"
   },
   "monster.bandit-captain": {
    "frame": "monster.bandit-captain",
-   "x": 759,
-   "y": 165,
+   "x": 825,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "monster/unique/frances.png"
   },
   "monster.commoner": {
    "frame": "monster.commoner",
-   "x": 792,
-   "y": 165,
+   "x": 858,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "monster/human.png"
   },
   "monster.cult-fanatic": {
    "frame": "monster.cult-fanatic",
-   "x": 825,
-   "y": 165,
+   "x": 891,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "monster/enchantress_human.png"
   },
   "monster.cultist": {
    "frame": "monster.cultist",
-   "x": 858,
-   "y": 165,
+   "x": 924,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "monster/necromancer.png"
   },
   "monster.dire-wolf": {
    "frame": "monster.dire-wolf",
-   "x": 891,
-   "y": 165,
+   "x": 957,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "monster/animals/war_dog.png"
   },
   "monster.ghost": {
    "frame": "monster.ghost",
-   "x": 924,
-   "y": 165,
+   "x": 990,
+   "y": 198,
    "w": 32,
    "h": 32,
    "source": "monster/undead/ghost.png"
   },
   "monster.ghoul": {
    "frame": "monster.ghoul",
-   "x": 957,
-   "y": 165,
+   "x": 0,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/undead/ghoul.png"
   },
   "monster.giant-rat": {
    "frame": "monster.giant-rat",
-   "x": 990,
-   "y": 165,
+   "x": 33,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/animals/grey_rat.png"
   },
   "monster.giant-spider": {
    "frame": "monster.giant-spider",
-   "x": 0,
-   "y": 198,
+   "x": 66,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/animals/wolf_spider.png"
   },
   "monster.goblin": {
    "frame": "monster.goblin",
-   "x": 33,
-   "y": 198,
+   "x": 99,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/goblin.png"
   },
   "monster.green-hag": {
    "frame": "monster.green-hag",
-   "x": 66,
-   "y": 198,
+   "x": 132,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/unique/agnes.png"
   },
   "monster.guard": {
    "frame": "monster.guard",
-   "x": 99,
-   "y": 198,
+   "x": 165,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/holy/paladin.png"
   },
   "monster.knight": {
    "frame": "monster.knight",
-   "x": 132,
-   "y": 198,
+   "x": 198,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/death_knight.png"
   },
   "monster.kobold": {
    "frame": "monster.kobold",
-   "x": 165,
-   "y": 198,
+   "x": 231,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/kobold.png"
   },
   "monster.mage": {
    "frame": "monster.mage",
-   "x": 198,
-   "y": 198,
+   "x": 264,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/unique/eustachio.png"
   },
   "monster.noble": {
    "frame": "monster.noble",
-   "x": 231,
-   "y": 198,
+   "x": 297,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/unique/boris.png"
   },
   "monster.ogre": {
    "frame": "monster.ogre",
-   "x": 264,
-   "y": 198,
+   "x": 330,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/ogre.png"
   },
   "monster.priest": {
    "frame": "monster.priest",
-   "x": 297,
-   "y": 198,
+   "x": 363,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/unique/francis.png"
   },
   "monster.rat": {
    "frame": "monster.rat",
-   "x": 330,
-   "y": 198,
+   "x": 396,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/animals/rat.png"
   },
   "monster.red-dragon-wyrmling": {
    "frame": "monster.red-dragon-wyrmling",
-   "x": 363,
-   "y": 198,
+   "x": 429,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/fire_drake.png"
   },
   "monster.scout": {
    "frame": "monster.scout",
-   "x": 396,
-   "y": 198,
+   "x": 462,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/elf.png"
   },
   "monster.skeleton": {
    "frame": "monster.skeleton",
-   "x": 429,
-   "y": 198,
+   "x": 495,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/undead/skeletal_warrior.png"
   },
   "monster.specter": {
    "frame": "monster.specter",
-   "x": 462,
-   "y": 198,
+   "x": 528,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/undead/silent_spectre.png"
   },
   "monster.spy": {
    "frame": "monster.spy",
-   "x": 495,
-   "y": 198,
+   "x": 561,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/unique/donald.png"
   },
   "monster.swarm-of-bats": {
    "frame": "monster.swarm-of-bats",
-   "x": 528,
-   "y": 198,
+   "x": 594,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/animals/bat.png"
   },
   "monster.swarm-of-rats": {
    "frame": "monster.swarm-of-rats",
-   "x": 561,
-   "y": 198,
+   "x": 627,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/animals/orange_rat.png"
   },
   "monster.thug": {
    "frame": "monster.thug",
-   "x": 594,
-   "y": 198,
+   "x": 660,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/unique/edmund.png"
   },
   "monster.veteran": {
    "frame": "monster.veteran",
-   "x": 627,
-   "y": 198,
+   "x": 693,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/unique/frederick.png"
   },
   "monster.werewolf-hybrid": {
    "frame": "monster.werewolf-hybrid",
-   "x": 660,
-   "y": 198,
+   "x": 726,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/gnoll.png"
   },
   "monster.wolf": {
    "frame": "monster.wolf",
-   "x": 693,
-   "y": 198,
+   "x": 759,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/animals/wolf.png"
   },
   "monster.zombie": {
    "frame": "monster.zombie",
-   "x": 726,
-   "y": 198,
+   "x": 792,
+   "y": 231,
    "w": 32,
    "h": 32,
    "source": "monster/undead/zombies/zombie_small.png"
   },
+  "moss.0": {
+   "frame": "moss.0",
+   "x": 825,
+   "y": 231,
+   "w": 32,
+   "h": 32,
+   "source": "dungeon/mold_large_1.png"
+  },
+  "moss.1": {
+   "frame": "moss.1",
+   "x": 858,
+   "y": 231,
+   "w": 32,
+   "h": 32,
+   "source": "dungeon/mold_large_2.png"
+  },
+  "moss.2": {
+   "frame": "moss.2",
+   "x": 891,
+   "y": 231,
+   "w": 32,
+   "h": 32,
+   "source": "dungeon/mold_large_3.png"
+  },
+  "moss.3": {
+   "frame": "moss.3",
+   "x": 924,
+   "y": 231,
+   "w": 32,
+   "h": 32,
+   "source": "dungeon/mold_large_4.png"
+  },
+  "mushrooms": {
+   "frame": "mushrooms",
+   "x": 957,
+   "y": 231,
+   "w": 32,
+   "h": 32,
+   "source": "custom:mushrooms.png"
+  },
+  "mushrooms.glow": {
+   "frame": "mushrooms.glow",
+   "x": 990,
+   "y": 231,
+   "w": 32,
+   "h": 32,
+   "source": "custom:mushrooms_glow.png"
+  },
+  "oil": {
+   "frame": "oil",
+   "x": 0,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:oil.png"
+  },
   "pedestal": {
    "frame": "pedestal",
-   "x": 759,
-   "y": 198,
+   "x": 33,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "dungeon/statues/pedestal.png"
   },
+  "pot": {
+   "frame": "pot",
+   "x": 66,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:pot.png"
+  },
+  "pot.shards": {
+   "frame": "pot.shards",
+   "x": 99,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:pot_shards.png"
+  },
+  "puddle": {
+   "frame": "puddle",
+   "x": 132,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:puddle.png"
+  },
+  "rock-ledge": {
+   "frame": "rock-ledge",
+   "x": 165,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:rock_ledge.png"
+  },
+  "rubble": {
+   "frame": "rubble",
+   "x": 198,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:rubble.png"
+  },
+  "rug": {
+   "frame": "rug",
+   "x": 231,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:rug.png"
+  },
+  "scorch": {
+   "frame": "scorch",
+   "x": 264,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:scorch.png"
+  },
   "secret.found": {
    "frame": "secret.found",
-   "x": 792,
-   "y": 198,
+   "x": 297,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "custom:secret_found.png"
   },
   "secret.plate": {
    "frame": "secret.plate",
-   "x": 825,
-   "y": 198,
+   "x": 330,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "custom:loose_plate.png"
   },
   "secret.runes": {
    "frame": "secret.runes",
-   "x": 858,
-   "y": 198,
+   "x": 363,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "custom:runes.png"
   },
   "sparkle.0": {
    "frame": "sparkle.0",
-   "x": 891,
-   "y": 198,
+   "x": 396,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "effect/gold_sparkles_1.png"
   },
   "sparkle.1": {
    "frame": "sparkle.1",
-   "x": 924,
-   "y": 198,
+   "x": 429,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "effect/gold_sparkles_2.png"
   },
   "sparkle.2": {
    "frame": "sparkle.2",
-   "x": 957,
-   "y": 198,
+   "x": 462,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "effect/gold_sparkles_3.png"
   },
+  "stage": {
+   "frame": "stage",
+   "x": 495,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:stage.png"
+  },
   "stairs.down": {
    "frame": "stairs.down",
-   "x": 990,
-   "y": 198,
+   "x": 528,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "dungeon/gateways/stone_stairs_down.png"
   },
   "stairs.up": {
    "frame": "stairs.up",
-   "x": 0,
-   "y": 231,
+   "x": 561,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "dungeon/gateways/stone_stairs_up.png"
   },
+  "stalagmite": {
+   "frame": "stalagmite",
+   "x": 594,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:stalagmite.png"
+  },
   "statue.dragon": {
    "frame": "statue.dragon",
-   "x": 33,
-   "y": 231,
+   "x": 627,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "dungeon/statues/statue_dragon.png"
   },
   "statue.hero": {
    "frame": "statue.hero",
-   "x": 66,
-   "y": 231,
+   "x": 660,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "dungeon/statues/statue_ancient_hero.png"
   },
   "statue.princess": {
    "frame": "statue.princess",
-   "x": 99,
-   "y": 231,
+   "x": 693,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "dungeon/statues/statue_princess.png"
   },
   "statue.sword": {
    "frame": "statue.sword",
-   "x": 132,
-   "y": 231,
+   "x": 726,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "dungeon/statues/statue_sword.png"
   },
+  "stool": {
+   "frame": "stool",
+   "x": 759,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:stool.png"
+  },
+  "stump": {
+   "frame": "stump",
+   "x": 792,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "dungeon/statues/granite_stump.png"
+  },
+  "table": {
+   "frame": "table",
+   "x": 825,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:table.png"
+  },
+  "table.flipped": {
+   "frame": "table.flipped",
+   "x": 858,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "custom:table_flipped.png"
+  },
+  "thorns": {
+   "frame": "thorns",
+   "x": 891,
+   "y": 264,
+   "w": 32,
+   "h": 32,
+   "source": "monster/fungi_plants/briar_patch.png"
+  },
   "throne": {
    "frame": "throne",
-   "x": 165,
-   "y": 231,
+   "x": 924,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "dungeon/statues/statue_bases.png"
   },
   "torch.0": {
    "frame": "torch.0",
-   "x": 198,
-   "y": 231,
+   "x": 957,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/torches/torch_0.png"
   },
   "torch.1": {
    "frame": "torch.1",
-   "x": 231,
-   "y": 231,
+   "x": 990,
+   "y": 264,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/torches/torch_1.png"
   },
   "torch.2": {
    "frame": "torch.2",
-   "x": 264,
-   "y": 231,
+   "x": 0,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/torches/torch_2.png"
   },
   "torch.3": {
    "frame": "torch.3",
-   "x": 297,
-   "y": 231,
+   "x": 33,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/torches/torch_3.png"
   },
   "torch.4": {
    "frame": "torch.4",
-   "x": 330,
-   "y": 231,
+   "x": 66,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/torches/torch_4.png"
   },
   "trap.arrow": {
    "frame": "trap.arrow",
-   "x": 363,
-   "y": 231,
+   "x": 99,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/traps/trap_arrow.png"
   },
   "trap.net": {
    "frame": "trap.net",
-   "x": 396,
-   "y": 231,
+   "x": 132,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/traps/trap_net.png"
   },
   "trap.plate": {
    "frame": "trap.plate",
-   "x": 429,
-   "y": 231,
+   "x": 165,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/traps/pressure_plate.png"
   },
   "tree.0": {
    "frame": "tree.0",
-   "x": 462,
-   "y": 231,
+   "x": 198,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/trees/tree_1_red.png"
   },
   "tree.1": {
    "frame": "tree.1",
-   "x": 495,
-   "y": 231,
+   "x": 231,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/trees/tree_2_yellow.png"
   },
   "tree.2": {
    "frame": "tree.2",
-   "x": 528,
-   "y": 231,
+   "x": 264,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/trees/mangrove_1.png"
   },
   "tree.3": {
    "frame": "tree.3",
-   "x": 561,
-   "y": 231,
+   "x": 297,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/trees/mangrove_2.png"
   },
   "tree.4": {
    "frame": "tree.4",
-   "x": 594,
-   "y": 231,
+   "x": 330,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/trees/tree_1_yellow.png"
   },
   "wall.brick.0": {
    "frame": "wall.brick.0",
-   "x": 627,
-   "y": 231,
+   "x": 363,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/brick_brown_0.png"
   },
   "wall.brick.1": {
    "frame": "wall.brick.1",
-   "x": 660,
-   "y": 231,
+   "x": 396,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/brick_brown_1.png"
   },
   "wall.brick.2": {
    "frame": "wall.brick.2",
-   "x": 693,
-   "y": 231,
+   "x": 429,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/brick_brown_2.png"
   },
   "wall.brick.3": {
    "frame": "wall.brick.3",
-   "x": 726,
-   "y": 231,
+   "x": 462,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/brick_brown_3.png"
   },
   "wall.castle.0": {
    "frame": "wall.castle.0",
-   "x": 759,
-   "y": 231,
+   "x": 495,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/stone_brick_1.png"
   },
   "wall.castle.1": {
    "frame": "wall.castle.1",
-   "x": 792,
-   "y": 231,
+   "x": 528,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/stone_brick_2.png"
   },
   "wall.castle.2": {
    "frame": "wall.castle.2",
-   "x": 825,
-   "y": 231,
+   "x": 561,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/stone_brick_3.png"
   },
   "wall.castle.3": {
    "frame": "wall.castle.3",
-   "x": 858,
-   "y": 231,
+   "x": 594,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/stone_brick_4.png"
   },
   "wall.cave.0": {
    "frame": "wall.cave.0",
-   "x": 891,
-   "y": 231,
+   "x": 627,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/brick_dark_0.png"
   },
   "wall.cave.1": {
    "frame": "wall.cave.1",
-   "x": 924,
-   "y": 231,
+   "x": 660,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/brick_dark_1.png"
   },
   "wall.cave.2": {
    "frame": "wall.cave.2",
-   "x": 957,
-   "y": 231,
+   "x": 693,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/brick_dark_2.png"
   },
   "wall.cave.3": {
    "frame": "wall.cave.3",
-   "x": 990,
-   "y": 231,
+   "x": 726,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/brick_dark_3.png"
   },
   "wall.church.0": {
    "frame": "wall.church.0",
-   "x": 0,
-   "y": 264,
+   "x": 759,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/church_0.png"
   },
   "wall.church.1": {
    "frame": "wall.church.1",
-   "x": 33,
-   "y": 264,
+   "x": 792,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/church_1.png"
   },
   "wall.church.2": {
    "frame": "wall.church.2",
-   "x": 66,
-   "y": 264,
+   "x": 825,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/church_2.png"
   },
   "wall.church.3": {
    "frame": "wall.church.3",
-   "x": 99,
-   "y": 264,
+   "x": 858,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/church_3.png"
   },
   "wall.crypt.0": {
    "frame": "wall.crypt.0",
-   "x": 132,
-   "y": 264,
+   "x": 891,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/tomb_0.png"
   },
   "wall.crypt.1": {
    "frame": "wall.crypt.1",
-   "x": 165,
-   "y": 264,
+   "x": 924,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/tomb_1.png"
   },
   "wall.crypt.2": {
    "frame": "wall.crypt.2",
-   "x": 198,
-   "y": 264,
+   "x": 957,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/tomb_2.png"
   },
   "wall.crypt.3": {
    "frame": "wall.crypt.3",
-   "x": 231,
-   "y": 264,
+   "x": 990,
+   "y": 297,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/tomb_3.png"
   },
   "wall.hedge.0": {
    "frame": "wall.hedge.0",
-   "x": 264,
-   "y": 264,
+   "x": 0,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/wall_vines_0.png"
   },
   "wall.hedge.1": {
    "frame": "wall.hedge.1",
-   "x": 297,
-   "y": 264,
+   "x": 33,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/wall_vines_1.png"
   },
   "wall.hedge.2": {
    "frame": "wall.hedge.2",
-   "x": 330,
-   "y": 264,
+   "x": 66,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/wall_vines_2.png"
   },
   "wall.hedge.3": {
    "frame": "wall.hedge.3",
-   "x": 363,
-   "y": 264,
+   "x": 99,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/wall_vines_3.png"
   },
   "wall.lair.0": {
    "frame": "wall.lair.0",
-   "x": 396,
-   "y": 264,
+   "x": 132,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/volcanic_wall_0.png"
   },
   "wall.lair.1": {
    "frame": "wall.lair.1",
-   "x": 429,
-   "y": 264,
+   "x": 165,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/volcanic_wall_1.png"
   },
   "wall.lair.2": {
    "frame": "wall.lair.2",
-   "x": 462,
-   "y": 264,
+   "x": 198,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/volcanic_wall_2.png"
   },
   "wall.lair.3": {
    "frame": "wall.lair.3",
-   "x": 495,
-   "y": 264,
+   "x": 231,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/volcanic_wall_3.png"
   },
   "wall.stone.0": {
    "frame": "wall.stone.0",
-   "x": 528,
-   "y": 264,
+   "x": 264,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/stone_gray_0.png"
   },
   "wall.stone.1": {
    "frame": "wall.stone.1",
-   "x": 561,
-   "y": 264,
+   "x": 297,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/stone_gray_1.png"
   },
   "wall.stone.2": {
    "frame": "wall.stone.2",
-   "x": 594,
-   "y": 264,
+   "x": 330,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/stone_gray_2.png"
   },
   "wall.stone.3": {
    "frame": "wall.stone.3",
-   "x": 627,
-   "y": 264,
+   "x": 363,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/wall/stone_gray_3.png"
   },
   "water.deep": {
    "frame": "water.deep",
-   "x": 660,
-   "y": 264,
+   "x": 396,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/water/deep_water.png"
   },
   "water.deep.1": {
    "frame": "water.deep.1",
-   "x": 693,
-   "y": 264,
+   "x": 429,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/water/deep_water_2.png"
   },
   "water.shallow": {
    "frame": "water.shallow",
-   "x": 726,
-   "y": 264,
+   "x": 462,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/water/shallow_water.png"
   },
   "water.shallow.1": {
    "frame": "water.shallow.1",
-   "x": 759,
-   "y": 264,
+   "x": 495,
+   "y": 330,
    "w": 32,
    "h": 32,
    "source": "dungeon/water/shallow_water_2.png"
+  },
+  "weapon-rack": {
+   "frame": "weapon-rack",
+   "x": 528,
+   "y": 330,
+   "w": 32,
+   "h": 32,
+   "source": "custom:weapon_rack.png"
+  },
+  "web": {
+   "frame": "web",
+   "x": 561,
+   "y": 330,
+   "w": 32,
+   "h": 32,
+   "source": "custom:web.png"
+  },
+  "well": {
+   "frame": "well",
+   "x": 594,
+   "y": 330,
+   "w": 32,
+   "h": 32,
+   "source": "custom:well.png"
   }
  }
 }

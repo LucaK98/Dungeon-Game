@@ -306,6 +306,20 @@ export interface Battle {
   combat?: CombatState;
   /** Set in night/dark scenes: only these places (and carried torches) are lit. */
   darkness?: { lights: LightSource[] };
+  /** What the map's furniture and ground mean for the rules (kept up to date by the TV). */
+  terrain?: Terrain;
+}
+
+/** Squares as "x,y" keys. */
+export interface Terrain {
+  /** Costs double movement (bushes, rubble, webs, climbing a ledge, …). */
+  difficult: string[];
+  /** Furniture that shields whoever stands next to (or in) it: AC bonus against attacks from beyond it. */
+  cover: Record<string, number>;
+  /** Raised places: ranged attacks from up there against targets below have advantage. */
+  high: string[];
+  /** Burning or otherwise dangerous squares that monsters avoid. */
+  hazard: string[];
 }
 
 export interface LightSource {

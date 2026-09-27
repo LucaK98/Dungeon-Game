@@ -7,6 +7,8 @@
 import Phaser from "phaser";
 import type { Creature, GridPos } from "../shared/game";
 import { cellIndex, type DungeonMap, type PlacedRoom, type Theme } from "../shared/map";
+import { THEMES } from "../map/modules";
+import { UP } from "./render";
 import type { GameSession } from "./session";
 
 const TILE = 32;
@@ -15,7 +17,7 @@ const DEPTH_AIR = 4500;
 /** Above the darkness: things that glow by themselves (fireflies, witch fire). */
 const DEPTH_GLOW = 5001;
 
-type CritterKind = "rat" | "butterfly" | "bat" | "sheep" | "hog" | "dog" | "spider" | "frog" | "snake" | "moth";
+type CritterKind = "rat" | "butterfly" | "bat" | "sheep" | "hog" | "dog" | "spider" | "frog" | "snake" | "moth" | "chicken" | "cat" | "guest";
 
 interface CritterStyle {
   frames: string[];
@@ -25,8 +27,10 @@ interface CritterStyle {
   flies?: boolean;
   /** Runs away from heroes (distance in squares); calm animals only step aside. */
   shy: number;
-  /** Follows the heroes around (dogs). */
+  /** Follows the heroes around (dogs, the tavern cat). */
   friendly?: boolean;
+  /** Sits still (tavern guests); only moves to flee. */
+  sits?: boolean;
 }
 
 const CRITTERS: Record<CritterKind, CritterStyle> = {
@@ -40,16 +44,20 @@ const CRITTERS: Record<CritterKind, CritterStyle> = {
   frog: { frames: ["critter.frog"], scale: 0.42, pace: 500, shy: 2 },
   snake: { frames: ["critter.snake"], scale: 0.5, pace: 600, shy: 2.5 },
   moth: { frames: ["critter.moth"], scale: 0.38, pace: 500, flies: true, shy: 1.5 },
+  chicken: { frames: ["critter.chicken"], scale: 0.5, pace: 380, shy: 2.2 },
+  cat: { frames: ["critter.cat"], scale: 0.5, pace: 420, shy: 0, friendly: true },
+  // Tavern guests: sit at the tables, run for the door when a brawl starts.
+  guest: { frames: ["extra.guest.0", "extra.guest.1", "extra.guest.2", "extra.guest.3"], scale: 0.85, pace: 300, shy: 0.9, sits: true },
 };
 
 /** Which animals live in which kind of place: [kind, how many] by day and by night. */
 const HABITAT: Record<Theme, { day: [CritterKind, number][]; night: [CritterKind, number][] }> = {
   castle: { day: [["rat", 1]], night: [["rat", 1], ["bat", 1]] },
   throne: { day: [["dog", 1]], night: [["dog", 1]] },
-  meadow: { day: [["butterfly", 3]], night: [["moth", 2]] },
+  meadow: { day: [["butterfly", 3], ["chicken", 1]], night: [["moth", 2]] },
   forest: { day: [["butterfly", 2], ["frog", 1], ["snake", 1]], night: [["bat", 2], ["moth", 1]] },
-  village: { day: [["hog", 1], ["sheep", 2], ["dog", 1]], night: [["dog", 1], ["bat", 1]] },
-  town: { day: [["rat", 1], ["dog", 1]], night: [["rat", 2]] },
+  village: { day: [["hog", 1], ["sheep", 2], ["dog", 1], ["chicken", 3]], night: [["dog", 1], ["bat", 1], ["cat", 1]] },
+  town: { day: [["rat", 1], ["dog", 1], ["chicken", 2], ["cat", 1]], night: [["rat", 2], ["cat", 1]] },
   cave: { day: [["bat", 2], ["rat", 1], ["spider", 1]], night: [["bat", 2], ["rat", 1], ["spider", 1]] },
   mine: { day: [["rat", 2], ["bat", 1]], night: [["rat", 2], ["bat", 1]] },
   lair: { day: [["rat", 2], ["bat", 1]], night: [["rat", 2], ["bat", 1]] },
@@ -57,7 +65,7 @@ const HABITAT: Record<Theme, { day: [CritterKind, number][]; night: [CritterKind
   stone: { day: [["rat", 1]], night: [["rat", 1]] },
   peak: { day: [["butterfly", 1]], night: [["bat", 2]] },
   church: { day: [["moth", 1], ["rat", 1]], night: [["moth", 1], ["bat", 1]] },
-  tavern: { day: [["dog", 1], ["rat", 1]], night: [["dog", 1], ["rat", 1]] },
+  tavern: { day: [["guest", 4], ["cat", 1], ["rat", 1]], night: [["guest", 3], ["cat", 1]] },
 };
 
 interface Critter {
@@ -96,6 +104,7 @@ export class Ambience {
     this.active.clear();
     this.emitters = [];
     this.critters = [];
+    this.weatherOn = false;
   }
 
   // ---------------------------------------------------------------- textures
@@ -287,7 +296,13 @@ export class Ambience {
       // Not every room is full of animals: a random share of the maximum.
       const count = Math.round(rand(0.3, 1) * max);
       for (let i = 0; i < count; i++) {
-        const free = cells.filter((c) => !this.occupied(c) && !this.heroNear(c, 3));
+        let free = cells.filter((c) => !this.occupied(c) && !this.heroNear(c, kind === "guest" ? 1.5 : 3));
+        if (kind === "guest") {
+          // Guests sit next to the tables (or on the stools).
+          const seats = free.filter((c) => this.map.objects.some((o) => o.kind === "prop" && (o.prop === "table" || o.prop === "stool" || o.prop === "counter") && Math.abs(o.x - c.x) <= 1 && Math.abs(o.y - c.y) <= 1 && o.state !== "used"));
+          if (!seats.length) break;
+          free = seats;
+        }
         if (!free.length) return;
         this.addCritter(kind, room, pick(free));
       }
@@ -376,11 +391,81 @@ export class Ambience {
         }
       }
     }
+    if (c.style.sits) {
+      // Guests only fidget: a little turn now and then.
+      if (Math.random() < 0.3) c.img.setFlipX(!c.img.flipX);
+      c.busyUntil = now + rand(1500, 4000);
+      return;
+    }
     // Wander a little.
     const range = c.style.flies ? 3 : 2;
     const options = cells.filter((p) => !this.occupied(p) && Math.abs(p.x - c.cell.x) <= range && Math.abs(p.y - c.cell.y) <= range && (p.x !== c.cell.x || p.y !== c.cell.y));
     if (options.length && Math.random() < 0.7) this.moveTo(c, pick(options));
     else c.busyUntil = now + rand(1000, 3000);
+  }
+
+  // ---------------------------------------------------------------- weather
+
+  private weatherOn = false;
+
+  /** Random point on an explored outdoor square (weather only falls where there is sky). */
+  private skySource(): Phaser.Types.GameObjects.Particles.RandomZoneSource | undefined {
+    const map = this.map;
+    const sky: number[] = [];
+    for (let i = 0; i < map.cells.length; i++) {
+      const room = map.roomOf[i]!;
+      const outdoor = room >= 0 ? THEMES[map.rooms[room]!.theme].outdoor : /^floor\.(path|grass|dirt)/.test(map.frames[i] ?? "");
+      if (outdoor && map.cells[i] !== "void") sky.push(i);
+    }
+    if (!sky.length) return undefined;
+    return {
+      getRandomPoint: (p: Phaser.Types.Math.Vector2Like) => {
+        const i = sky[Math.floor(Math.random() * sky.length)]!;
+        p.x = ((i % map.width) + Math.random()) * TILE;
+        p.y = (Math.floor(i / map.width) + Math.random()) * TILE;
+        return p;
+      },
+    } as unknown as Phaser.Types.GameObjects.Particles.RandomZoneSource;
+  }
+
+  /** Rain, fog, falling leaves, fireflies, ash, snow or dust for the whole map. */
+  private startWeather(): void {
+    const map = this.map;
+    let weather = map.weather;
+    if (!weather) return;
+    // At night the leaves are asleep, but the fireflies are out.
+    if (map.dark && weather === "leaves") weather = "fireflies";
+    const area = map.width * map.height;
+    const every = (n: number) => Math.max(15, Math.round(n / area));
+    if (weather === "ash" || weather === "dust") {
+      const whole = new Phaser.Geom.Rectangle(0, 0, map.width * TILE, map.height * TILE);
+      const zone = { type: "random" as const, source: whole as unknown as Phaser.Types.GameObjects.Particles.RandomZoneSource };
+      if (weather === "ash") this.emitter(0, 0, "amb-dot", { emitZone: zone, lifespan: 6000, frequency: every(20000), speedX: { min: -6, max: 6 }, speedY: { min: 6, max: 14 }, scale: { min: 0.06, max: 0.14 }, alpha: { start: 0, end: 0, onUpdate: (_p, _k, t) => Math.sin(t * Math.PI) * 0.6 }, tint: [0x9a9590, 0x6a6560, 0xd0c8c0] }, DEPTH_AIR);
+      else this.emitter(0, 0, "amb-dot", { emitZone: zone, lifespan: 9000, frequency: every(30000), speedX: { min: -2, max: 2 }, speedY: { min: -2, max: 2 }, scale: { min: 0.04, max: 0.08 }, alpha: { start: 0, end: 0, onUpdate: (_p, _k, t) => Math.sin(t * Math.PI) * 0.4 }, tint: 0xd8ccb0 }, DEPTH_AIR);
+      return;
+    }
+    const source = this.skySource();
+    if (!source) return;
+    const zone = { type: "random" as const, source };
+    switch (weather) {
+      case "rain":
+        this.emitter(0, 0, "amb-drop", { emitZone: zone, lifespan: 380, frequency: every(900), speedX: { min: -40, max: -30 }, speedY: { min: 260, max: 320 }, rotate: 8, scaleX: 0.35, scaleY: { min: 0.7, max: 1.1 }, alpha: { start: 0.55, end: 0.15 }, tint: 0xb8d0ff }, DEPTH_GLOW);
+        // Rings where the drops land.
+        this.emitter(0, 0, "amb-dot", { emitZone: zone, lifespan: 500, frequency: every(2500), scale: { start: 0.05, end: 0.35 }, alpha: { start: 0.35, end: 0 }, tint: 0xd8e8ff }, 3);
+        break;
+      case "snow":
+        this.emitter(0, 0, "amb-dot", { emitZone: zone, lifespan: 5000, frequency: every(4000), speedX: { min: -12, max: 4 }, speedY: { min: 14, max: 26 }, scale: { min: 0.08, max: 0.16 }, alpha: { start: 0, end: 0, onUpdate: (_p, _k, t) => Math.min(1, Math.sin(t * Math.PI) * 2) * 0.85 }, tint: 0xffffff }, DEPTH_GLOW);
+        break;
+      case "fog":
+        this.emitter(0, 0, "tiles", { frame: "fog.wisp", emitZone: zone, lifespan: 12000, frequency: every(60000), speedX: { min: 3, max: 9 }, speedY: { min: -1, max: 1 }, scale: { min: 1.2 / UP, max: 2.2 / UP }, alpha: { start: 0, end: 0, onUpdate: (_p, _k, t) => Math.sin(t * Math.PI) * 0.28 }, tint: 0xdfe4ea }, DEPTH_AIR);
+        break;
+      case "leaves":
+        this.emitter(0, 0, "amb-leaf", { emitZone: zone, lifespan: 5500, frequency: every(25000), speedX: { min: 10, max: 24 }, speedY: { min: 6, max: 14 }, rotate: { start: 0, end: 540 }, scale: { min: 0.6, max: 1 }, alpha: { start: 0.95, end: 0 }, tint: [0xc9702a, 0xd8a02a, 0x9a4a1a, 0xa8b83a] }, DEPTH_AIR);
+        break;
+      case "fireflies":
+        this.emitter(0, 0, "amb-dot", { emitZone: zone, lifespan: 6000, frequency: every(12000), speedX: { min: -9, max: 9 }, speedY: { min: -9, max: 9 }, scale: { min: 0.1, max: 0.18 }, alpha: { start: 0, end: 0, onUpdate: (p, _k, t) => Math.max(0, Math.sin(t * Math.PI)) * (0.55 + 0.45 * Math.sin(t * 40 + (p.x % 7))) }, tint: [0xd8ff6a, 0xfff07a], blendMode: Phaser.BlendModes.ADD }, DEPTH_GLOW);
+        break;
+    }
   }
 
   setCombat(on: boolean): void {
@@ -391,6 +476,10 @@ export class Ambience {
 
   update(time: number): void {
     const map = this.map;
+    if (!this.weatherOn) {
+      this.weatherOn = true;
+      this.startWeather();
+    }
     if (time - this.lastCheck > 600) {
       this.lastCheck = time;
       map.rooms.forEach((room, i) => {

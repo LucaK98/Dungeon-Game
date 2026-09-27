@@ -3,6 +3,7 @@
  * and optionally hangs side rooms (treasure, traps) off free exits.
  */
 import { decorate } from "./decorate";
+import { furnish } from "./furnish";
 import type { Rng } from "../engine/rng";
 import type { GridPos } from "../shared/game";
 import type { CellKind, DungeonMap, MapObject, ObjectKind, PlacedRoom, RoomModule, RoomTag } from "../shared/map";
@@ -386,6 +387,7 @@ export function generateDungeon(rng: Rng, plan: DungeonPlan): DungeonMap {
     overlays,
   };
   decorate(map, seed);
+  furnish(map, seed);
   return map;
 }
 

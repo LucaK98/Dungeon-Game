@@ -7,6 +7,7 @@ import { dollFrames } from "../shared/doll";
 import type { Creature } from "../shared/game";
 import { cellIndex, type DungeonMap, type MapObject } from "../shared/map";
 import { THEMES } from "../map/modules";
+import { propLight } from "../map/props";
 import { assetUrl } from "../ui/atlas";
 import { Ambience } from "./ambience";
 import { CombatFx } from "./combat-fx";
@@ -48,6 +49,8 @@ interface Figure {
   /** Look and magic weapon when drawn: a change rebuilds the figure. */
   lookKey?: string;
   glow?: Phaser.GameObjects.Image;
+  /** 🛡️ while standing in cover (in fights). */
+  shield?: Phaser.GameObjects.Text;
   /** Last square, to face the walking direction. */
   lastX?: number;
 }
@@ -64,6 +67,12 @@ export class DungeonScene extends Phaser.Scene {
   /** Camp fires and cauldrons: light without a torch sprite. */
   private fires: { x: number; y: number; phase: number }[] = [];
   private objectImages = new Map<string, Phaser.GameObjects.Image>();
+  /** Floor decoration (moss, blood, scorch marks …) and puddles, oil, ice and fire, by cell. */
+  private decalImages = new Map<number, Phaser.GameObjects.Image>();
+  private surfaceImages = new Map<number, { img: Phaser.GameObjects.Image; kind: string }>();
+  /** Coloured glows (torches, braziers, candles, mushrooms, fire), by key. */
+  private glows = new Map<string, { img: Phaser.GameObjects.Image; x: number; y: number; radius: number; phase: number; strength: number }>();
+  private bubbles = new Map<string, Phaser.GameObjects.Container>();
   private fogCanvas!: Phaser.Textures.CanvasTexture;
   private unexploredCanvas!: Phaser.Textures.CanvasTexture;
   private dark!: Phaser.GameObjects.RenderTexture;
@@ -95,6 +104,10 @@ export class DungeonScene extends Phaser.Scene {
     this.torches = [];
     this.fires = [];
     this.objectImages.clear();
+    this.decalImages.clear();
+    this.surfaceImages.clear();
+    this.glows.clear();
+    this.bubbles.clear();
     prepareTiles(this);
 
     this.ambience = new Ambience(this, () => this.session, (x, y, frame) => this.tile(x, y, frame));
@@ -110,6 +123,8 @@ export class DungeonScene extends Phaser.Scene {
     for (const t of this.torches) this.ambience.torchSparks(t.x, t.y - 0.6);
     for (const c of Object.values(this.session.battle.creatures)) this.addFigure(c);
     this.createLighting(map);
+    // Needs the light texture from createLighting.
+    this.syncGround();
 
     const cam = this.cameras.main;
     // Rounding each tile to whole pixels leaves a thin seam through the middle of the screen at odd zooms.
@@ -149,6 +164,8 @@ export class DungeonScene extends Phaser.Scene {
       }
     }
 
+    this.wallShadows(map);
+
     for (const [key, overlay] of Object.entries(map.overlays)) {
       if (!overlay.startsWith("torch")) continue;
       const i = Number(key);
@@ -156,6 +173,99 @@ export class DungeonScene extends Phaser.Scene {
       const y = Math.floor(i / map.width);
       const sprite = this.tile(x * TILE, y * TILE, "torch.1").setOrigin(0).setDepth(1);
       this.torches.push({ sprite, x: x + 0.5, y: y + 0.9, phase: Math.random() * 10 });
+    }
+  }
+
+  /** Soft shadows on the floor under walls (from above) and beside them (from the left): the rooms get depth. */
+  private wallShadows(map: DungeonMap): void {
+    const g = this.add.graphics().setDepth(0.5);
+    const wallAt = (x: number, y: number) => x >= 0 && y >= 0 && x < map.width && y < map.height && map.cells[cellIndex(map, x, y)] === "wall";
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        const c = map.cells[cellIndex(map, x, y)];
+        if (c !== "floor" && c !== "water") continue;
+        if (wallAt(x, y - 1)) {
+          [0.32, 0.2, 0.11, 0.05].forEach((a, k) => g.fillStyle(0x000000, a).fillRect(x * TILE, y * TILE + k * 3, TILE, 3));
+        }
+        if (wallAt(x - 1, y)) {
+          [0.2, 0.1, 0.04].forEach((a, k) => g.fillStyle(0x000000, a).fillRect(x * TILE + k * 2, y * TILE, 2, TILE));
+        }
+      }
+    }
+  }
+
+  /** Decals and surfaces (puddles, oil, ice, fire): drawn on the floor, updated after every change. */
+  private syncGround(): void {
+    const map = this.session.map;
+    const decals = map.decals ?? {};
+    for (const [i, img] of this.decalImages) {
+      if (decals[i] === img.frame.name) continue;
+      img.destroy();
+      this.decalImages.delete(i);
+    }
+    for (const [key, frame] of Object.entries(decals)) {
+      const i = Number(key);
+      if (this.decalImages.has(i) || !this.textures.get(TILES).has(frame)) continue;
+      const img = this.tile((i % map.width) * TILE, Math.floor(i / map.width) * TILE, frame).setOrigin(0).setDepth(frame === "rug" ? 0.4 : 0.8);
+      // Blood and scorch marks appear with a little fade.
+      if (frame.startsWith("blood") || frame === "scorch" || frame === "debris") {
+        img.setAlpha(0);
+        this.tweens.add({ targets: img, alpha: frame === "scorch" ? 0.9 : 0.8, duration: 900 });
+      } else if (frame.startsWith("moss") || frame.startsWith("crack")) img.setAlpha(0.75);
+      this.decalImages.set(i, img);
+    }
+    const surface = map.surface ?? {};
+    for (const [i, s] of this.surfaceImages) {
+      if (surface[i]?.kind === s.kind) continue;
+      const img = s.img;
+      this.surfaceImages.delete(i);
+      this.tweens.add({ targets: img, alpha: 0, duration: 600, onComplete: () => img.destroy() });
+    }
+    for (const [key, s] of Object.entries(surface)) {
+      const i = Number(key);
+      if (this.surfaceImages.has(i)) continue;
+      const x = (i % map.width) * TILE;
+      const y = Math.floor(i / map.width) * TILE;
+      const frame = s.kind === "fire" ? "fire.0" : s.kind;
+      const img = this.tile(x, y, frame).setOrigin(0).setDepth(s.kind === "fire" ? 100 + Math.floor(i / map.width) * 10 + 6 : 0.9);
+      img.setAlpha(0);
+      this.tweens.add({ targets: img, alpha: s.kind === "fire" ? 0.95 : 0.85, duration: 500 });
+      if (s.kind === "puddle" || s.kind === "ice") this.tweens.add({ targets: img, alpha: 0.65, duration: 1800 + Math.random() * 800, yoyo: true, repeat: -1, delay: 600, ease: "Sine.easeInOut" });
+      if (s.kind === "fire") {
+        this.ambience.puff(x / TILE + 0.5, y / TILE + 0.5, 0x3a3430, 8);
+        this.shake(false);
+      }
+      this.surfaceImages.set(i, { img, kind: s.kind });
+    }
+    this.syncGlows();
+  }
+
+  /** Coloured light: warm torches and braziers, flickering candles, green mushrooms, burning floors. */
+  private syncGlows(): void {
+    const map = this.session.map;
+    const want = new Map<string, { x: number; y: number; color: number; radius: number; strength: number }>();
+    this.torches.forEach((t, k) => want.set(`t${k}`, { x: t.x, y: t.y - 0.3, color: 0xff9a3a, radius: 1.9, strength: 0.26 }));
+    for (const o of map.objects) {
+      if (o.kind === "campfire") want.set(o.id, { x: o.x + 0.5, y: o.y + 0.5, color: 0xff8a2a, radius: 3.2, strength: 0.4 });
+      else if (o.kind === "cauldron") want.set(o.id, { x: o.x + 0.5, y: o.y + 0.5, color: 0x7fff6a, radius: 2.2, strength: 0.3 });
+      const light = propLight(o);
+      if (light) want.set(o.id, { x: o.x + 0.5, y: o.y + 0.4, color: light.color, radius: light.radius, strength: 0.34 });
+    }
+    for (const [key, s] of Object.entries(map.surface ?? {})) {
+      if (s.kind !== "fire") continue;
+      const i = Number(key);
+      want.set(`f${i}`, { x: (i % map.width) + 0.5, y: Math.floor(i / map.width) + 0.5, color: 0xff7a1a, radius: 2, strength: 0.45 });
+    }
+    for (const [key, g] of this.glows) {
+      if (want.has(key)) continue;
+      this.glows.delete(key);
+      this.tweens.add({ targets: g.img, alpha: 0, duration: 500, onComplete: () => g.img.destroy() });
+    }
+    for (const [key, w] of want) {
+      if (this.glows.has(key)) continue;
+      const img = this.add.image(w.x * TILE, w.y * TILE, "light").setTint(w.color).setBlendMode(Phaser.BlendModes.ADD).setDepth(5002);
+      img.setScale((w.radius * 2 * TILE) / 256).setAlpha(0);
+      this.glows.set(key, { img, x: w.x, y: w.y, radius: w.radius, phase: Math.random() * 10, strength: w.strength });
     }
   }
 
@@ -191,7 +301,9 @@ export class DungeonScene extends Phaser.Scene {
     }
     // Tall objects (trees, statues) are sorted with the figures; the chandelier hangs above everyone.
     const hanging = o.kind === "chandelier" && o.state !== "used";
-    img.setDepth(hanging ? 4400 : o.blocking ? 100 + o.y * 10 : 2);
+    // Plants and ledges are sorted with the figures too (a hero stands in the bush, on the rock).
+    const upright = o.blocking || (o.kind === "prop" && ["bush", "thorns", "herbs", "stump", "stool", "hay", "mushrooms", "mushrooms-glow"].includes(o.prop ?? ""));
+    img.setDepth(hanging ? 4400 : o.kind === "prop" && (o.prop === "stage" || o.prop === "rock-ledge" || o.prop === "web" || o.prop === "rubble") ? 3 : upright ? 100 + o.y * 10 + (o.blocking ? 0 : 1) : 2);
     img.setAlpha(o.kind === "secret" ? (o.state === "hidden" ? 0.5 : 1) : 1);
   }
 
@@ -253,6 +365,7 @@ export class DungeonScene extends Phaser.Scene {
     } else if (!animate) f.container.setPosition(x, y);
     f.lastX = c.pos.x;
     this.showMood(f, c);
+    this.showShield(f, c);
     if (f.hpBar) {
       f.hpBar.clear();
       if (c.hp < c.maxHp) {
@@ -290,6 +403,7 @@ export class DungeonScene extends Phaser.Scene {
       }
     }
     for (const o of this.session.map.objects) this.syncObject(o);
+    this.syncGround();
     this.fogDirty = true;
     if (this.time.now > this.spotlightUntil) this.focusParty(false);
   }
@@ -332,6 +446,60 @@ export class DungeonScene extends Phaser.Scene {
     this.tweens.add({ targets: label, scale: 0.55, duration: 260, ease: "Back.easeOut" });
     this.tweens.add({ targets: label, y: pos.y - 62, alpha: 0, delay: 900, duration: 1400, ease: "Cubic.easeIn", onComplete: () => label.destroy() });
     this.ambience?.sparkle(pos.x, pos.y - 8);
+  }
+
+  /** A small shield next to figures that stand in cover (during fights). */
+  private showShield(f: Figure, c: Creature): void {
+    const cover = this.session.battle.terrain?.cover ?? {};
+    let best = 0;
+    if (this.combatLayout && c.pos && !c.dead) {
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) best = Math.max(best, cover[`${c.pos.x + dx},${c.pos.y + dy}`] ?? 0);
+    }
+    if (!best) {
+      f.shield?.destroy();
+      f.shield = undefined;
+      return;
+    }
+    if (f.shield) return;
+    f.shield = this.add.text(-11, -14, "🛡️", crisp({ fontSize: "20px" })).setOrigin(0.5).setScale(0.42).setAlpha(0.95);
+    f.container.add(f.shield);
+    this.tweens.add({ targets: f.shield, scale: 0.5, duration: 200, yoyo: true, ease: "Back.easeOut" });
+  }
+
+  /** A speech bubble over a figure (a hero's idea, an NPC's words). */
+  showSpeech(creatureId: string, text: string): void {
+    const f = this.figures.get(creatureId);
+    if (!f) return;
+    this.bubbles.get(creatureId)?.destroy();
+    const short = text.length > 60 ? `${text.slice(0, 57).trimEnd()} …` : text;
+    const label = this.add.text(0, 0, short, crisp({ fontFamily: "system-ui, sans-serif", fontSize: "22px", color: "#1b1208", wordWrap: { width: 300 }, align: "center", lineSpacing: 2 })).setOrigin(0.5, 1);
+    const w = label.width + 24;
+    const h = label.height + 14;
+    const bg = this.add.graphics();
+    bg.fillStyle(0xfff8e6, 0.96).fillRoundedRect(-w / 2, -h - 12, w, h, 12);
+    bg.lineStyle(3, 0x3a2a18, 1).strokeRoundedRect(-w / 2, -h - 12, w, h, 12);
+    bg.fillStyle(0xfff8e6, 0.96).fillTriangle(-8, -13, 8, -13, 0, 0);
+    bg.lineStyle(3, 0x3a2a18, 1).lineBetween(-8, -12, 0, 0).lineBetween(8, -12, 0, 0);
+    label.setY(-19);
+    const bubble = this.add.container(f.container.x, f.container.y - 20, [bg, label]).setDepth(6200).setScale(0);
+    this.bubbles.set(creatureId, bubble);
+    this.tweens.add({ targets: bubble, scale: 0.36, duration: 260, ease: "Back.easeOut" });
+    const hold = Math.min(9000, 2500 + short.length * 70);
+    this.tweens.add({ targets: bubble, alpha: 0, delay: hold, duration: 500, onComplete: () => {
+      bubble.destroy();
+      if (this.bubbles.get(creatureId) === bubble) this.bubbles.delete(creatureId);
+    } });
+  }
+
+  /** Bubble over the figure with this name (NPC lines in the narration). */
+  showSpeechByName(name: string, text: string): void {
+    const c = Object.values(this.session.battle.creatures).find((x) => x.name === name && !x.dead && x.pos);
+    if (c && this.explored(c)) this.showSpeech(c.id, text);
+  }
+
+  private explored(c: Creature): boolean {
+    const map = this.session.map;
+    return !!c.pos && !!map.explored[cellIndex(map, c.pos.x, c.pos.y)];
   }
 
   /** Sleeping enemies get a floating 💤, watching ones a 👀. */
@@ -545,6 +713,22 @@ export class DungeonScene extends Phaser.Scene {
       const flicker = Math.sin(time / 90 + t.phase) * 0.15 + Math.sin(time / 37 + t.phase * 3) * 0.1;
       erase(t.x, t.y, TORCH_LIGHT + flicker);
     }
+    const map = this.session.map;
+    for (const o of map.objects) {
+      const light = propLight(o);
+      if (light) erase(o.x + 0.5, o.y + 0.5, light.radius + 0.8 + Math.sin(time / 110 + o.x) * 0.1, 0.9);
+    }
+    for (const [key, s] of Object.entries(map.surface ?? {})) {
+      if (s.kind !== "fire") continue;
+      const i = Number(key);
+      erase((i % map.width) + 0.5, Math.floor(i / map.width) + 0.5, 2.6 + Math.sin(time / 70 + i) * 0.2);
+    }
+    // Coloured glows flicker and only show where the heroes have been.
+    for (const g of this.glows.values()) {
+      const seen = map.explored[cellIndex(map, Math.floor(g.x), Math.floor(g.y))];
+      const flicker = 0.85 + Math.sin(time / 95 + g.phase) * 0.1 + Math.sin(time / 41 + g.phase * 2) * 0.05;
+      g.img.setAlpha(seen ? g.strength * flicker : 0);
+    }
     dark.draw(this.unexploredImage, 0, 0);
   }
 
@@ -565,6 +749,7 @@ export class DungeonScene extends Phaser.Scene {
     if (time - this.lastLight > 66) {
       this.lastLight = time;
       for (const t of this.torches) t.sprite.setFrame(`torch.${1 + (Math.floor(time / 120 + t.phase) % 4)}`);
+      for (const [i, s] of this.surfaceImages) if (s.kind === "fire") s.img.setFrame(`fire.${Math.floor(time / 110 + i) % 3}`);
       this.drawLight(time);
     }
     const cam = this.cameras.main;

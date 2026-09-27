@@ -14,8 +14,8 @@ const RUNES: Theme[] = ["crypt", "church", "castle", "throne", "stone"];
 const CAMPFIRE: Theme[] = ["forest", "meadow", "peak"];
 const CAULDRON = ["kraeuterhuette", "hexentanzplatz"];
 
-export function decorate(map: DungeonMap, seed: number): void {
-  const rng = seededRng(seed ^ 0x5eed);
+/** Helpers to find good places for things on a map (shared with furnish.ts). */
+export function placer(map: DungeonMap) {
   const at = (p: GridPos) => (p.x < 0 || p.y < 0 || p.x >= map.width || p.y >= map.height ? "void" : map.cells[cellIndex(map, p.x, p.y)]);
   const wall = (p: GridPos) => at(p) === "wall";
   const taken = new Set(map.objects.map((o) => `${o.x},${o.y}`));
@@ -41,7 +41,8 @@ export function decorate(map: DungeonMap, seed: number): void {
    */
   const safe = (p: GridPos) => {
     const ring = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]].map(([dx, dy]) => ({ x: p.x + dx!, y: p.y + dy! }));
-    const free = ring.filter((q) => at(q) === "floor" || at(q) === "water");
+    const blocked = (q: GridPos) => map.objects.some((o) => o.blocking && o.x === q.x && o.y === q.y);
+    const free = ring.filter((q) => (at(q) === "floor" || at(q) === "water") && !blocked(q));
     if (!free.length) return false;
     const seen = new Set([`${free[0]!.x},${free[0]!.y}`]);
     const todo = [free[0]!];
@@ -61,6 +62,15 @@ export function decorate(map: DungeonMap, seed: number): void {
   const open = (p: GridPos) => [...Array(9).keys()].every((k) => at({ x: p.x + (k % 3) - 1, y: p.y + Math.floor(k / 3) - 1 }) === "floor");
   const pick = <T>(list: T[], r: Rng): T | undefined => (list.length ? list[r.int(0, list.length - 1)] : undefined);
 
+  return { at, wall, taken, usable, add, inside, corner, safe, open, pick, nearDoor, spots };
+}
+
+export type Placer = ReturnType<typeof placer>;
+
+export function decorate(map: DungeonMap, seed: number): void {
+  const rng = seededRng(seed ^ 0x5eed);
+  const { wall, taken, usable, add, inside, corner, safe, open, pick, at } = placer(map);
+  const doors = map.objects.filter((o) => o.kind === "door");
   let lever = false;
   let secrets = 0;
   map.rooms.forEach((room, index) => {

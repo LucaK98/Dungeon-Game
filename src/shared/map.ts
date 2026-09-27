@@ -57,7 +57,9 @@ export type ObjectKind =
   | "chandelier"
   | "secret"
   | "campfire"
-  | "cauldron";
+  | "cauldron"
+  /** Furniture, plants and other things from src/map/props.ts (see MapObject.prop). */
+  | "prop";
 
 export interface MapObject {
   id: string;
@@ -72,7 +74,50 @@ export interface MapObject {
   roomId?: string;
   /** Levers: what pulling does ("cache", "trap", "door"); secrets: "plate" or "runes". */
   variant?: string;
+  /** Props: which one (table, crate, bush, …). */
+  prop?: PropId;
+  /** Props: how often it can still be used (mugs on a table, spears in a rack). */
+  uses?: number;
 }
+
+export type PropId =
+  | "table"
+  | "table-flipped"
+  | "stool"
+  | "bench"
+  | "counter"
+  | "bookshelf"
+  | "crate"
+  | "pot"
+  | "weapon-rack"
+  | "hay"
+  | "web"
+  | "rubble"
+  | "bush"
+  | "thorns"
+  | "herbs"
+  | "mushrooms"
+  | "mushrooms-glow"
+  | "stalagmite"
+  | "candles"
+  | "brazier"
+  | "well"
+  | "coffin"
+  | "stump"
+  | "column-broken"
+  | "stage"
+  | "rock-ledge";
+
+/** Things lying on the floor that the rules care about. */
+export type SurfaceKind = "puddle" | "oil" | "ice" | "fire";
+
+export interface Surface {
+  kind: SurfaceKind;
+  /** Fire and ice: rounds (or world ticks) until it is gone. */
+  turns?: number;
+}
+
+export type Weather = "rain" | "fog" | "leaves" | "fireflies" | "ash" | "snow" | "dust";
 
 export interface PlacedRoom {
   id: string;
@@ -99,6 +144,12 @@ export interface DungeonMap {
   frames: string[];
   /** Extra frame drawn on top of a cell (torch, banner, tree on forest walls), by cell index. */
   overlays: Record<number, string>;
+  /** Pure decoration drawn on the floor (moss, cracks, rugs, leaves, blood, scorch marks), by cell index. */
+  decals?: Record<number, string>;
+  /** Puddles, oil, ice and fire, by cell index. */
+  surface?: Record<number, Surface>;
+  /** Weather or air for the whole map (only a look). */
+  weather?: Weather;
   /** Room index per cell, -1 for corridors and void. */
   roomOf: number[];
   rooms: PlacedRoom[];

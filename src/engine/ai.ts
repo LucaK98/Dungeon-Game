@@ -8,6 +8,7 @@ import { inRange } from "./attack";
 import { distanceFt, hasEffect, isActive, isIncapacitated } from "./combat";
 import { averageOf } from "./dice";
 import { findPath, type Walkable } from "./grid";
+import { pathCost, stepCost } from "./terrain";
 import type { Rng } from "./rng";
 
 export interface AiContext {
@@ -47,8 +48,13 @@ function bestMelee(c: Creature, target: Creature): AttackOption | undefined {
 
 /** Walk as far along `path` as movement allows, stopping on a free square. */
 function truncate(battle: Battle, c: Creature, path: GridPos[]): GridPos[] {
-  const steps = Math.floor((battle.combat?.turn.movementLeftFt ?? c.speedFt) / 5);
-  const out = path.slice(0, steps);
+  let budget = Math.floor((battle.combat?.turn.movementLeftFt ?? c.speedFt) / 5);
+  const out: GridPos[] = [];
+  for (const p of path) {
+    budget -= stepCost(battle, p);
+    if (budget < 0) break;
+    out.push(p);
+  }
   const taken = new Set(
     Object.values(battle.creatures)
       .filter((o) => o.id !== c.id && o.pos && !(o.kind === "monster" && !isActive(o)) && !o.dead)
@@ -184,7 +190,7 @@ export function runAutoTurn(rng: Rng, battle: Battle, id: string, ctx: AiContext
   const ranged = c.attacks.find((o) => o.kind === "ranged");
   const meleeReach = melee?.reachFt ?? 5;
   const pathToMelee = melee ? findPath(battle, c, (p) => distanceFt(c, target!, p) <= meleeReach, ctx.walkable) : undefined;
-  const canReachMelee = !!melee && pathToMelee !== undefined && pathToMelee.length * 5 <= (battle.combat?.turn.movementLeftFt ?? c.speedFt);
+  const canReachMelee = !!melee && pathToMelee !== undefined && pathCost(battle, pathToMelee) * 5 <= (battle.combat?.turn.movementLeftFt ?? c.speedFt);
   const preferRanged = !!ranged && (!canReachMelee || (c.pc?.classId === "rogue" && distanceFt(c, target) > 5));
 
   let option: AttackOption | undefined;

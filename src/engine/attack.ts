@@ -7,6 +7,7 @@ import type { BreakdownPart } from "../shared/types";
 import { canSee } from "./vision";
 import { abilityMod, advantage, d20Part, disadvantage, rollD20, sumParts, type AdvReason } from "./core";
 import { parseDice, rollDice, rollDie } from "./dice";
+import { coverParts, onHighGround } from "./terrain";
 import { acParts, damageCreature, distanceFt, hasCondition, hasEffect, isActive, isIncapacitated } from "./combat";
 import type { Rng } from "./rng";
 
@@ -103,6 +104,9 @@ export function attackReasons(battle: Battle, attacker: Creature, target: Creatu
   if (hasEffect(attacker, "hampered")) r.push(disadvantage("Du bist behindert (entwaffnet, geblendet …)", "behindert"));
   if (hasEffect(attacker, "enraged")) r.push(advantage("Wütend: greift mit voller Wucht an", "wuetend"));
 
+  if (ranged && onHighGround(battle, attacker.pos) && !onHighGround(battle, target.pos)) {
+    r.push(advantage("Du stehst erhöht und schießt nach unten", "erhoeht"));
+  }
   if (ranged) {
     const enemyNear = Object.values(battle.creatures).some(
       (o) => o.side !== attacker.side && o.side !== "neutral" && !isIncapacitated(o) && distanceFt(attacker, o) <= 5,
@@ -164,7 +168,8 @@ export function resolveAttack(
   const parts: BreakdownPart[] = [d20Part(roll), ...option.toHit];
   if (hasEffect(attacker, "bless")) parts.push({ label: "Segen", value: rollDie(rng, 4), glossarKey: "zauber:bless" });
   const total = sumParts(parts);
-  const targetAcParts = acParts(target);
+  // Furniture between attacker and target (not on top of a cover spell like "Deckung suchen").
+  const targetAcParts = [...acParts(target), ...(hasEffect(target, "cover") ? [] : coverParts(battle, attacker, target))];
   const targetAc = sumParts(targetAcParts);
 
   // Guiding bolt's light is used up by the next attack.

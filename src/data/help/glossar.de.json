@@ -2660,10 +2660,11 @@
   "deckung": {
     "titel": "Deckung",
     "kurz": "Hinter etwas verstecken: +2 Rüstungsklasse.",
-    "lang": "Duckst du dich hinter ein Fass, eine Säule oder einen Felsen, bist du schwerer zu treffen: +2 auf deine Rüstungsklasse bis zu deinem nächsten Zug. Das geht mit einer freien Aktion ohne Probe (im Kampf kostet es deine Aktion).",
+    "lang": "Steht zwischen dir und einem Schützen ein Tisch, eine Kiste, eine Säule, ein Sarg oder ein Busch, bist du schwerer zu treffen: +2 auf deine Rüstungsklasse gegen Angriffe aus mehr als einem Feld Entfernung. Hinter einem umgeworfenen Tisch oder dem Tresen hast du sogar volle Deckung: +5. Auf dem Fernseher zeigt ein kleines 🛡️ neben der Figur, wer gerade in Deckung steht. Du kannst dich auch mit einer freien Aktion ducken (+2 bis zu deinem nächsten Zug).",
     "siehe_auch": [
       "ruestungsklasse",
-      "freie_aktion"
+      "freie_aktion",
+      "tisch"
     ]
   },
   "wuetend": {
@@ -3231,6 +3232,132 @@
     "siehe_auch": [
       "konzentration",
       "bonusaktion"
+    ]
+  },
+  "tisch": {
+    "titel": "Tisch umwerfen",
+    "kurz": "Aus einem Tisch wird volle Deckung (+5 RK).",
+    "lang": "Neben einem Tisch kannst du ihn umwerfen. Dahinter hast du volle Deckung: +5 auf die Rüstungsklasse gegen Fernangriffe, die von der anderen Seite kommen. Im Kampf kostet das deine Bonusaktion (hast du keine mehr, deine Aktion).",
+    "siehe_auch": [
+      "deckung",
+      "bonusaktion"
+    ]
+  },
+  "werfen": {
+    "titel": "Werfen",
+    "kurz": "Krüge, Hocker und Speere als Wurfgeschosse.",
+    "lang": "Im Wirtshaus fliegen die Krüge! Neben einem Tisch kannst du einen Bierkrug werfen (1W4 Schaden, bis 6 Felder), einen Hocker (1W6, bis 4 Felder) oder am Waffenständer einen Speer (1W6, bis 6 Felder). Das ist ein Angriffswurf mit deiner Geschicklichkeit gegen die Rüstungsklasse des Ziels und kostet deine Aktion. Beim Speer zählt auch dein Übungsbonus.",
+    "siehe_auch": [
+      "angriffswurf",
+      "geschicklichkeit"
+    ]
+  },
+  "zerschlagen": {
+    "titel": "Zerschlagen",
+    "kurz": "Kisten und Tonkrüge aufbrechen – vielleicht ist etwas drin.",
+    "lang": "Kisten und Tonkrüge kannst du zerschlagen. Manchmal findest du Gold, einen Heiltrank oder eine Fackel darin. Außerhalb von Kämpfen kostet das nichts, im Kampf deine Aktion. Danach liegen nur noch Splitter herum – und die Kiste gibt keine Deckung mehr.",
+    "siehe_auch": [
+      "deckung"
+    ]
+  },
+  "feuer": {
+    "titel": "Feuer",
+    "kurz": "Brennt, breitet sich aus, macht 1W6 Schaden.",
+    "lang": "Feuerzauber (Feuerpfeil, Brennende Hände, Feuerball …) und Drachenatem setzen Brennbares in Brand: Spinnennetze, Heu, Büsche, Holzmöbel, Bücherregale – und Öllachen auf dem Boden. Mit einer Fackel kannst du Dinge auch absichtlich anzünden. Das Feuer springt jede Runde mit etwas Glück auf Brennbares daneben über und brennt nach ein paar Runden aus. Wer in ein brennendes Feld läuft oder seinen Zug darin beginnt, bekommt 1W6 Feuerschaden. Gegner meiden das Feuer – damit kann man ihnen den Weg versperren! Frostzauber löschen Flammen.",
+    "siehe_auch": [
+      "eis",
+      "licht_loeschen"
+    ]
+  },
+  "eis": {
+    "titel": "Eis",
+    "kurz": "Frost macht Pfützen glatt: Wer darüber läuft, kann hinfallen.",
+    "lang": "Trifft ein Frostzauber (Froststrahl) jemanden, der in oder neben einer Pfütze steht, gefriert sie zu Eis. Wer über Eis läuft, macht einen Rettungswurf auf Geschicklichkeit (SG 10) – misslingt er, fällt er hin und liegt am Boden. Eis zählt außerdem als schwieriges Gelände. Nach ein paar Runden taut es wieder, Feuer schmilzt es sofort.",
+    "siehe_auch": [
+      "zustand:prone",
+      "schwieriges_gelaende",
+      "feuer"
+    ]
+  },
+  "schwieriges_gelaende": {
+    "titel": "Schwieriges Gelände",
+    "kurz": "Kostet doppelte Bewegung.",
+    "lang": "Gebüsch, Dornen, Geröll, Spinnennetze, Heu, seichtes Wasser, Eis und das Klettern auf Felsen und Baumstümpfe kosten doppelt so viel Bewegung: Jedes Feld zählt wie zwei. Auf dem Handy sind solche Felder gestreift, wenn du dorthin laufen kannst. Büsche und Heu geben dafür Deckung.",
+    "siehe_auch": [
+      "bewegung",
+      "deckung",
+      "erhoeht"
+    ]
+  },
+  "erhoeht": {
+    "titel": "Erhöhte Position",
+    "kurz": "Von oben schießen: Vorteil.",
+    "lang": "Stehst du auf einer Treppe, einer Bühne, einem Felsvorsprung oder einem Baumstumpf, hast du bei Fernangriffen (Bogen, Armbrust, Wurfwaffen, Zauberangriffe) gegen Gegner unter dir Vorteil: zwei W20, der bessere zählt. Hinaufklettern kostet bei Felsen und Stümpfen doppelte Bewegung. Auf der Handy-Karte sind solche Felder mit einem kleinen blauen ▲ markiert.",
+    "siehe_auch": [
+      "vorteil",
+      "schwieriges_gelaende"
+    ]
+  },
+  "licht_loeschen": {
+    "titel": "Licht löschen und anzünden",
+    "kurz": "Kerzen und Kohlebecken: hell oder dunkel machen.",
+    "lang": "Kerzenständer und Kohlebecken spenden Licht – besonders nachts wichtig. Du kannst sie löschen: Im Dunkeln sehen dich Gegner ohne Dunkelsicht schlecht, dann hast du Vorteil beim Angriff und sie Nachteil gegen dich. Anzünden geht mit einer Fackel oder an einem anderen Licht in der Nähe. Im Kampf kostet das die Bonusaktion. Ein brennendes Kohlebecken kann man auch Richtung Gegner umstoßen (Athletik SG 10): Die glühenden Kohlen setzen den Boden in Brand.",
+    "siehe_auch": [
+      "dunkelheit",
+      "feuer",
+      "vorteil"
+    ]
+  },
+  "buecherregal": {
+    "titel": "Bücherregal",
+    "kurz": "Stöbern: Wissen, Hinweise, manchmal Gold.",
+    "lang": "In einem Bücherregal kannst du außerhalb von Kämpfen stöbern (Nachforschungen SG 12, jeder einmal). Mit Glück findest du einen echten Hinweis für euer Abenteuer, eine alte Harzer Sage oder ein hohles Buch mit Goldmünzen.",
+    "siehe_auch": [
+      "hinweis",
+      "fertigkeit:investigation"
+    ]
+  },
+  "kraeuter": {
+    "titel": "Heilkräuter",
+    "kurz": "Sammeln und heilen (Heilkunde SG 10).",
+    "lang": "Wo Heilkräuter wachsen, kannst du sie außerhalb von Kämpfen sammeln (Heilkunde SG 10). Gelingt es, reibst du daraus einen Umschlag für den am schwersten Verletzten der Gruppe: Er bekommt 1W4 + 2 Trefferpunkte zurück. Jeder Busch reicht nur einmal.",
+    "siehe_auch": [
+      "trefferpunkte",
+      "fertigkeit:medicine"
+    ]
+  },
+  "pilze": {
+    "titel": "Pilze",
+    "kurz": "Lecker, giftig oder komisch?",
+    "lang": "Pilze kann man probieren (jeder einmal pro Stelle, im Kampf kostet es die Aktion). Was passiert, entscheidet der Zufall: Heilung, Kraft für den nächsten Kampf, Bauchweh (1W4 Schaden, aber nie bis zur Ohnmacht) oder einfach etwas Lustiges. Leuchtpilze sind sicher: Wer sie isst, leuchtet eine Weile grünlich – so gut wie eine Fackel.",
+    "siehe_auch": [
+      "dunkelheit"
+    ]
+  },
+  "wunschbrunnen": {
+    "titel": "Wunschbrunnen",
+    "kurz": "5 Gold hinein: Glück im nächsten Kampf.",
+    "lang": "Wirf 5 Goldmünzen in einen Brunnen und wünsch dir etwas (jeder einmal pro Ort, nicht im Kampf). Im nächsten Kampf hat dein erster Angriff Vorteil.",
+    "siehe_auch": [
+      "vorteil"
+    ]
+  },
+  "altar": {
+    "titel": "Altar",
+    "kurz": "Beten: Segen für den nächsten Kampf.",
+    "lang": "An einem Altar kannst du außerhalb von Kämpfen beten (Religion SG 10, jeder einmal pro Ort). Gelingt es, bist du im nächsten Kampf gesegnet: +1W4 auf Angriffswürfe und Rettungswürfe, so wie beim Zauber Segen.",
+    "siehe_auch": [
+      "zauber:bless",
+      "fertigkeit:religion"
+    ]
+  },
+  "sarg": {
+    "titel": "Sarg",
+    "kurz": "Deckel aufschieben: Grabbeigaben?",
+    "lang": "Einen steinernen Sargdeckel schiebst du mit Athletik SG 12 auf (jeder einmal). Darin liegen manchmal Goldmünzen oder sogar ein besonderer Gegenstand – oder nur Staub. Geschlossene Särge geben außerdem Deckung.",
+    "siehe_auch": [
+      "fertigkeit:athletics",
+      "deckung"
     ]
   }
 }

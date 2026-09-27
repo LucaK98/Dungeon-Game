@@ -19,7 +19,7 @@ import { dollCanvas } from "../ui/atlas";
 import { h } from "../ui/dom";
 import { showRollPrompt, type DiceOverlay } from "./dice";
 import { closeSheet, explainedLine, helpButton, maybeHint, openHelp, showRulesAnswer, showSheet } from "./help";
-import { minimapView } from "./minimap";
+import { minimapLegend, minimapView } from "./minimap";
 import { ABILITY_GLOSSAR } from "../engine/core";
 
 const ABILITY_ICON: Record<string, string> = { STR: "💪", DEX: "🤸", CON: "🫀", INT: "🧠", WIS: "🦉", CHA: "🗣️" };
@@ -540,6 +540,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         { class: "card map-card" },
         h("div", { class: "card-title" }, h("span", {}, `📍 ${v.roomName}`), v.turn.mine && v.minimap.reachable.length ? h("span", { class: "muted" }, "Tippe auf ein helles Feld") : null),
         map,
+        minimapLegend(v.minimap),
       ),
     );
     const groups: ActionGroup[] = ["attack", "spell", "item", "ability", "look"];
@@ -842,6 +843,12 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     if (view.mode === "combat") maybeHint(pid, "first_fight", view.beginnerMode, body);
     if (view.turn.mine) maybeHint(pid, "first_turn", view.beginnerMode, body);
     if (view.minimap.creatures.some((c) => c.enemy)) maybeHint(pid, "first_enemy", view.beginnerMode, body);
+    const mm = view.minimap;
+    const marks = mm.marks ?? "";
+    if (marks.includes("f")) maybeHint(pid, "first_fire", view.beginnerMode, body);
+    if (view.mode === "combat" && marks.includes("c")) maybeHint(pid, "first_cover", view.beginnerMode, body);
+    if (view.turn.mine && mm.reachable.some((p) => "di".includes(marks[(p.y - mm.y0) * mm.w + (p.x - mm.x0)] ?? "."))) maybeHint(pid, "first_rough", view.beginnerMode, body);
+    if (view.choices.some((c) => c.action.kind === "interact" && "use" in c.action && c.action.use && c.enabled)) maybeHint(pid, "first_prop", view.beginnerMode, body);
     if (me.hp === 0) maybeHint(pid, "first_down", view.beginnerMode, body);
     else if (me.hp < me.maxHp) maybeHint(pid, "first_damage", view.beginnerMode, body);
   }
