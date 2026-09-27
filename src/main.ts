@@ -1,5 +1,8 @@
 import "./style.css";
 import { defaultNet, parseRoute } from "./shared/route";
+import { setupInstall } from "./ui/install";
+
+setupInstall();
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 let teardown: (() => void) | undefined;

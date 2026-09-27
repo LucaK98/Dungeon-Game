@@ -12,6 +12,7 @@ import { cleanName, NAME_MAX_LENGTH, PLAYER_COLORS, type CharacterProfile, type 
 import { NAME_IDEAS } from "../shared/names";
 import { dollCanvas, drawDoll, loadAtlas } from "../ui/atlas";
 import { h } from "../ui/dom";
+import { installTip } from "../ui/install";
 import { helpButton, openHelp } from "./help";
 
 export interface Draft {
@@ -318,7 +319,8 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
     if (draft.ready) {
       const change = h("button", { class: "btn secondary", type: "button", textContent: "✏️ Doch noch ändern" });
       change.addEventListener("click", () => commit({ ready: false, step: 1 }));
-      return [header("Du bist bereit!", "Wenn alle bereit sind, startet das Abenteuer am Fernseher."), summary, h("p", { class: "waiting" }, "⏳ Warte auf die anderen …"), change];
+      const tip = installTip();
+      return [header("Du bist bereit!", "Wenn alle bereit sind, startet das Abenteuer am Fernseher."), summary, h("p", { class: "waiting" }, "⏳ Warte auf die anderen …"), change, ...(tip ? [tip] : [])];
     }
     const ready = h("button", { class: "btn primary big", type: "button", textContent: "✅ Bereit!" });
     ready.addEventListener("click", () => commit({ ready: true }));
