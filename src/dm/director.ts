@@ -21,6 +21,7 @@ import { resolveClue, validateResponse } from "./validate";
 import { filterEffects } from "./effects";
 import { glossaryAnswer, glossaryExcerpt, heroSummary } from "./rules-help";
 import { SKILL_IDS, type SkillId } from "../shared/rules";
+import { World } from "./world";
 
 export interface StoryState {
   storyId: string;
@@ -56,6 +57,8 @@ export interface DirectorOptions {
   /** Save point reached ("lang"): store this state. */
   onSave?: (state: StoryState) => void;
   onEnd?: (result: StoryResult) => void;
+  /** The living world: random events, greetings, time pressure, sleeping enemies (not in tests). */
+  world?: boolean;
 }
 
 export function newStoryState(story: Story, rng: Rng, duration: Duration, truth?: string): StoryState {
@@ -85,6 +88,7 @@ export class Director {
   /** Surroundings of the hero doing a free action (for the DM's ideas). */
   private actingRoom: { name: string; objects: string[] } | undefined;
   finished = false;
+  private world: World | undefined;
 
   constructor(
     readonly story: Story,
@@ -99,6 +103,24 @@ export class Director {
     game.onFreeText = (playerId, hero, text) => void this.freeText(playerId, hero, text);
     game.onSuggest = (playerId, hero) => this.suggest(playerId, hero);
     game.onAskRules = (playerId, hero, question) => this.askRules(playerId, hero, question);
+    if (opts.world) {
+      this.world = new World({
+        game,
+        rng,
+        story,
+        duration: opts.duration,
+        scene: () => this.scene,
+        now: this.now,
+        attitude: (npcId) => this.state.attitudes?.[npcId] ?? 0,
+        fight: (groups) => this.fight(groups, false, false),
+        changeGold: (amount) => this.changeGold(amount),
+        remember: (entry) => this.remember(entry),
+        nudge: async () => {
+          if (this.finished) return;
+          await this.askDm({ kind: "idle", seconds: Math.round((this.now() - this.game.lastActionAt) / 1000) });
+        },
+      });
+    }
   }
 
   // ---------------------------------------------------------------- helpers
@@ -237,6 +259,7 @@ export class Director {
     });
     if (scene.dark) map.dark = true;
     this.game.loadMap(map, npcs);
+    this.world?.newScene();
     this.lowestHpRatio = 1;
     this.updateView();
     await this.askDm({ kind: "scene_start" });
@@ -288,10 +311,10 @@ export class Director {
     switch (step.kind) {
       case "narrate":
       case "explore":
-        if (step.kind === "explore") await this.game.waitFor(() => this.heroInLastRoom());
+        if (step.kind === "explore") await this.roam(this.game.waitFor(() => this.heroInLastRoom()));
         break;
       case "reach":
-        await this.game.waitFor(() => (step.target === "exit" ? this.heroInLastRoom() : this.heroNextTo(step.target ?? "")));
+        await this.roam(this.game.waitFor(() => (step.target === "exit" ? this.heroInLastRoom() : this.heroNextTo(step.target ?? ""))));
         break;
       case "check": {
         const c = step.check!;
@@ -415,7 +438,12 @@ export class Director {
 
   // ---------------------------------------------------------------- fights
 
-  private async fight(groups: MonsterGroup[], training = false): Promise<"won" | "lost" | "defeat"> {
+  /** While the story waits for the heroes, the world keeps moving. */
+  private roam<T>(wait: Promise<T>): Promise<T> {
+    return this.world ? this.world.roam(wait) : wait;
+  }
+
+  private async fight(groups: MonsterGroup[], training = false, stealth = true): Promise<"won" | "lost" | "defeat"> {
     // NPCs who turn into enemies leave their peaceful figure behind.
     for (const g of groups) {
       const npc = this.story.npcs.find((n) => n.name === g.name);
@@ -432,7 +460,9 @@ export class Director {
       : [];
     if (allies.length) this.game.narrate(allies.map((a) => ({ text: `${a.name.replace(" (hilft euch)", "")} stürmt herbei und kämpft an eurer Seite!` })));
     const track = setInterval(() => this.trackHardship(), 500);
-    const { winner, spawned } = await this.game.fight(groups, { training, allies });
+    // Ordinary enemies may not have noticed the heroes yet: sneak up, talk, or attack.
+    const staged = this.world && stealth && !training && !hasBoss && this.game.idle;
+    const { winner, spawned } = staged ? await this.world!.stealthyFight(groups, allies) : await this.game.fight(groups, { training, allies });
     clearInterval(track);
     this.trackHardship();
     if (spawned.some((m) => m.monsterId === "red-dragon-wyrmling" && m.dead)) this.set(["drache_tot"]);

@@ -245,6 +245,20 @@ export class Ambience {
     this.scene.time.delayedCall(1200, () => e.destroy());
   }
 
+  /** Golden glitter (a find, a blessing). */
+  sparkle(x: number, y: number): void {
+    const e = this.scene.add.particles(x * TILE, y * TILE, "amb-dot", { lifespan: 1100, speed: { min: 8, max: 40 }, gravityY: -10, scale: { start: 0.25, end: 0 }, alpha: { start: 1, end: 0 }, tint: [0xffe070, 0xfff6c0, 0xffb830], blendMode: Phaser.BlendModes.ADD, emitting: false }).setDepth(DEPTH_GLOW);
+    e.explode(24);
+    this.scene.time.delayedCall(1400, () => e.destroy());
+  }
+
+  /** Water splashing up. */
+  splash(x: number, y: number): void {
+    const e = this.scene.add.particles(x * TILE, y * TILE, "amb-drop", { lifespan: 700, speed: { min: 20, max: 60 }, angle: { min: 200, max: 340 }, gravityY: 160, scaleX: 0.6, scaleY: 0.6, alpha: { start: 0.9, end: 0 }, tint: 0xbfe6ff, emitting: false }).setDepth(DEPTH_AIR);
+    e.explode(18);
+    this.scene.time.delayedCall(900, () => e.destroy());
+  }
+
   // ---------------------------------------------------------------- critters
 
   private walkable(p: GridPos): boolean {

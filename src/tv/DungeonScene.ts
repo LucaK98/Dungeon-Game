@@ -5,7 +5,7 @@ import Phaser from "phaser";
 import { sizeInSquares } from "../engine/combat";
 import { dollFrames } from "../shared/doll";
 import type { Creature } from "../shared/game";
-import { cellIndex, type DungeonMap } from "../shared/map";
+import { cellIndex, type DungeonMap, type MapObject } from "../shared/map";
 import { THEMES } from "../map/modules";
 import { assetUrl } from "../ui/atlas";
 import { Ambience } from "./ambience";
@@ -35,6 +35,8 @@ interface Figure {
   /** The sprites: breathes, turns around and hops, independent of the ring and HP bar. */
   body: Phaser.GameObjects.Container;
   hpBar?: Phaser.GameObjects.Graphics;
+  /** 💤 or 👀 over enemies that have not noticed the heroes yet. */
+  mood?: Phaser.GameObjects.Text;
   /** Last square, to face the walking direction. */
   lastX?: number;
 }
@@ -43,6 +45,9 @@ export class DungeonScene extends Phaser.Scene {
   private session!: GameSession;
   private figures = new Map<string, Figure>();
   private torches: { sprite: Phaser.GameObjects.Image; x: number; y: number; phase: number }[] = [];
+  /** Camp fires and cauldrons: light without a torch sprite. */
+  private fires: { x: number; y: number; phase: number }[] = [];
+  private objectImages = new Map<string, Phaser.GameObjects.Image>();
   private fogCanvas!: Phaser.Textures.CanvasTexture;
   private unexploredCanvas!: Phaser.Textures.CanvasTexture;
   private dark!: Phaser.GameObjects.RenderTexture;
@@ -71,6 +76,8 @@ export class DungeonScene extends Phaser.Scene {
     const map = this.session.map;
     this.figures.clear();
     this.torches = [];
+    this.fires = [];
+    this.objectImages.clear();
     prepareTiles(this);
 
     this.ambience = new Ambience(this, () => this.session, (x, y, frame) => this.tile(x, y, frame));
@@ -83,6 +90,8 @@ export class DungeonScene extends Phaser.Scene {
 
     const cam = this.cameras.main;
     cam.setZoom(ZOOM * RES);
+    // Rounding each tile to whole pixels leaves a thin seam through the middle of the screen at odd zooms.
+    cam.roundPixels = false;
     this.applyBounds();
     cam.setBackgroundColor("#000000");
     this.focusParty(true);
@@ -130,11 +139,38 @@ export class DungeonScene extends Phaser.Scene {
 
   private drawObjects(map: DungeonMap): void {
     for (const o of map.objects) {
-      if (o.state === "hidden") continue;
-      // Tall objects (trees, statues) are sorted with the figures.
-      const depth = o.blocking ? 100 + o.y * 10 : 2;
-      this.tile(o.x * TILE, o.y * TILE, o.frame).setOrigin(0).setDepth(depth);
+      if (o.kind === "campfire" || o.kind === "cauldron") {
+        this.fires.push({ x: o.x + 0.5, y: o.y + 0.5, phase: Math.random() * 10 });
+        if (o.kind === "campfire") this.ambience.torchSparks(o.x + 0.5, o.y + 0.4);
+        this.ambience.smoke(o.x + 0.5, o.y + 0.2, o.kind === "cauldron" ? 0x7fd06a : 0x9a9590);
+      }
+      this.syncObject(o);
     }
+  }
+
+  /** Draws an object or updates it after it changed (opened, used, found). */
+  private syncObject(o: MapObject): void {
+    let img = this.objectImages.get(o.id);
+    // Hidden traps stay invisible; secrets show only as a faint hint.
+    const visible = !!o.frame && !(o.kind === "trap" && o.state === "hidden");
+    if (!visible) {
+      if (img) {
+        this.objectImages.delete(o.id);
+        img.destroy();
+      }
+      return;
+    }
+    if (!img) {
+      img = this.tile(o.x * TILE, o.y * TILE, o.frame).setOrigin(0);
+      this.objectImages.set(o.id, img);
+    } else if (img.frame.name !== o.frame) {
+      img.setFrame(o.frame);
+      this.tweens.add({ targets: img, scaleX: img.scaleX * 1.15, scaleY: img.scaleY * 1.15, duration: 120, yoyo: true });
+    }
+    // Tall objects (trees, statues) are sorted with the figures; the chandelier hangs above everyone.
+    const hanging = o.kind === "chandelier" && o.state !== "used";
+    img.setDepth(hanging ? 4400 : o.blocking ? 100 + o.y * 10 : 2);
+    img.setAlpha(o.kind === "secret" ? (o.state === "hidden" ? 0.5 : 1) : 1);
   }
 
   // ---------------------------------------------------------------- figures
@@ -184,6 +220,7 @@ export class DungeonScene extends Phaser.Scene {
       if (f.lastX !== undefined && c.pos.x !== f.lastX) this.face(f, c.pos.x > f.lastX ? 1 : -1, c);
     } else if (!animate) f.container.setPosition(x, y);
     f.lastX = c.pos.x;
+    this.showMood(f, c);
     if (f.hpBar) {
       f.hpBar.clear();
       if (c.hp < c.maxHp) {
@@ -214,6 +251,7 @@ export class DungeonScene extends Phaser.Scene {
         f.container.setAngle(c.hp === 0 && c.kind === "pc" ? 90 : 0).setAlpha(c.hp === 0 ? 0.7 : 1);
       }
     }
+    for (const o of this.session.map.objects) this.syncObject(o);
     this.fogDirty = true;
     if (this.time.now > this.spotlightUntil) this.focusParty(false);
   }
@@ -240,6 +278,37 @@ export class DungeonScene extends Phaser.Scene {
         this.time.delayedCall(160, () => images.forEach((img) => img.clearTint()));
       }
     });
+  }
+
+  /** Sleeping enemies get a floating 💤, watching ones a 👀. */
+  private showMood(f: Figure, c: Creature): void {
+    const mood = c.effects.some((e) => e.id === "asleep") ? "💤" : c.effects.some((e) => e.id === "on-guard") ? "👀" : "";
+    if (!mood) {
+      if (f.mood) {
+        this.tweens.killTweensOf(f.mood);
+        f.mood.destroy();
+        f.mood = undefined;
+      }
+      return;
+    }
+    if (f.mood?.text === mood) return;
+    f.mood?.destroy();
+    f.mood = this.add.text(8, -22, mood, crisp({ fontSize: "22px" })).setOrigin(0.5).setScale(0.5);
+    f.container.add(f.mood);
+    this.tweens.add({ targets: f.mood, y: -27, alpha: 0.55, duration: 1100, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+  }
+
+  /** A little show at a square (from events and free actions). */
+  fx(kind: "puff" | "shake" | "sparkle" | "splash", pos?: { x: number; y: number }): void {
+    const x = (pos?.x ?? 0) + 0.5;
+    const y = (pos?.y ?? 0) + 0.5;
+    if (kind === "shake") {
+      this.shake(true);
+      if (pos) this.ambience.puff(x, y, 0xa89f8f, 30);
+    } else if (!pos) return;
+    else if (kind === "puff") this.ambience.puff(x, y);
+    else if (kind === "sparkle") this.ambience.sparkle(x, y);
+    else this.ambience.splash(x, y);
   }
 
   /** Heroes look right by default, the DCSS monsters to the left. */
@@ -377,7 +446,7 @@ export class DungeonScene extends Phaser.Scene {
         erase(x, y, NIGHT_NONE + wobble);
       }
     }
-    for (const t of this.torches) {
+    for (const t of [...this.torches, ...this.fires]) {
       const flicker = Math.sin(time / 90 + t.phase) * 0.15 + Math.sin(time / 37 + t.phase * 3) * 0.1;
       erase(t.x, t.y, TORCH_LIGHT + flicker);
     }

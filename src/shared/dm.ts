@@ -52,6 +52,8 @@ export type DmTrigger =
   | { kind: "rules_question"; question: string; playerId: PlayerId; heroName: string; glossary: { title: string; text: string }[]; hero: string }
   /** A player asks "Was könnte ich tun?" – answered with a few ideas, nothing happens yet. */
   | { kind: "suggest"; playerId: PlayerId; heroName: string }
+  /** Nobody has done anything for a while: say something to get the group going. */
+  | { kind: "idle"; seconds: number }
   | { kind: "scene_end" }
   | { kind: "story_end" };
 

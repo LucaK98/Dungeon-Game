@@ -15,6 +15,26 @@ import { clearSave, writeSave } from "./save";
 import { createSession, type GameSession } from "./session";
 import { UiScene } from "./UiScene";
 import { initRes } from "./render";
+import { THEMES } from "../map/modules";
+import { cellIndex } from "../shared/map";
+import { play, setAmbience, unlockSoundOnGesture } from "../ui/sound";
+
+/** Sounds for a roll on the TV: dice first, then what happened. */
+function rollSounds(r: import("../shared/view").RollOutcome): void {
+  if (r.title === "Sieg!") return play("victory");
+  if (r.title === "Niederlage") return play("defeat");
+  const hits = r.hits ?? [];
+  const after = () => {
+    if (hits.some((h) => h.crit)) play("crit");
+    else if (hits.some((h) => !h.miss && !h.heal && h.amount > 0)) play("hit");
+    else if (hits.some((h) => h.heal)) play("heal");
+    else if (hits.some((h) => h.miss)) play("miss");
+  };
+  if (r.dice.length) {
+    play("dice");
+    setTimeout(after, 420);
+  } else after();
+}
 
 export interface BoardOptions {
   seed?: number;
@@ -61,12 +81,24 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     scene: [scene, UiScene],
   });
 
+  unlockSoundOnGesture();
+  /** Background sound for where the heroes are: wind, crickets, drips or a quiet hum. */
+  const updateAmbience = (c: GameController) => {
+    const map = c.map;
+    const lead = c.heroes().find((h) => h.pos && !h.dead);
+    if (!lead?.pos) return;
+    const room = map.rooms[map.roomOf[cellIndex(map, lead.pos.x, lead.pos.y)] ?? -1];
+    if (!room) return;
+    setAmbience({ outdoor: THEMES[room.theme].outdoor, night: !!map.dark, cave: ["cave", "mine", "lair"].includes(room.theme) });
+  };
   let controller: GameController | undefined;
+  let worldTimer: ReturnType<typeof setInterval> | undefined;
   let uiReady = false;
   const early: import("../shared/story").Narration[] = [];
   let closeEnd: (() => void) | undefined;
   const wire = () => {
     controller?.destroy();
+    if (worldTimer) clearInterval(worldTimer);
     const c = new GameController(
       session,
       rng,
@@ -78,12 +110,14 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     c.on({
       changed: () => {
         if (scene.sys.isActive()) scene.refresh();
+        updateAmbience(c);
         game.events.emit("order", c.mode === "combat" ? c.orderEntries() : []);
         if (c.storyView) game.events.emit("chapter", c.storyView.chapter);
       },
       turn: (name, color, free) => game.events.emit("turn", name, color, free),
       roll: (r) => {
         game.events.emit("roll", r);
+        rollSounds(r);
         if (scene.sys.isActive() && r.hits?.length) {
           scene.showHits(r.hits);
           const big = r.hits.some((h) => !h.miss && !h.heal && (h.crit || h.amount >= 10));
@@ -93,21 +127,30 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       roomRevealed: (name) => scene.showRoomName(name),
       combat: (started) => {
         game.events.emit("combat", started);
+        if (started) play("fight");
         if (scene.sys.isActive()) scene.setCombatLayout(started);
       },
       narration: (lines) => {
+        if (lines.some((l) => l.text.startsWith("✨"))) play("chime");
         // The UI scene may not exist yet (story intro): keep the lines until it is ready.
         if (uiReady) game.events.emit("narration", lines);
         else early.push(...lines);
       },
+      fx: (kind, pos) => {
+        if (scene.sys.isActive()) scene.fx(kind, pos);
+        play(kind === "puff" ? "thud" : kind === "shake" ? "rumble" : kind === "splash" ? "splash" : "coin");
+      },
       spotlight: (id) => {
         if (scene.sys.isActive()) scene.spotlight(id);
+        play("boss");
       },
       mapChanged: () => {
         if (scene.sys.isActive() || scene.sys.isPaused()) scene.scene.restart();
       },
     });
     c.start();
+    // Characters stroll, guards patrol.
+    worldTimer = setInterval(() => c.tickWorld(), 3000);
     // Test hook for browser play-throughs (dev server only, not in the published build).
     if (import.meta.env.DEV) (window as unknown as { __couchTv?: unknown }).__couchTv = { game: c };
 
@@ -131,6 +174,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       if (uiReady) showAi();
       const director = new Director(story, state, c, dm, rng, {
         duration,
+        world: true,
         onSave: (saved) => {
           writeSave({ savedAt: Date.now(), state: { ...saved, minutesBefore: director.minutesPlayed() }, heroes: c.heroes().map((h) => structuredClone(h)), players: host.lobby.players });
           c.narrate([{ text: "💾 Speicherpunkt erreicht. Ihr könnt das Spiel hier später fortsetzen." }]);
@@ -179,6 +223,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
 
   return () => {
     offLobby();
+    if (worldTimer) clearInterval(worldTimer);
+    setAmbience(undefined);
     closeEnd?.();
     controller?.destroy();
     window.removeEventListener("keydown", onKey);

@@ -51,7 +51,13 @@ export type ObjectKind =
   | "trap"
   | "gold"
   | "potion"
-  | "item";
+  | "item"
+  | "barrel"
+  | "lever"
+  | "chandelier"
+  | "secret"
+  | "campfire"
+  | "cauldron";
 
 export interface MapObject {
   id: string;
@@ -64,6 +70,8 @@ export interface MapObject {
   /** Doors: open/closed, chests: opened, traps: found/triggered. */
   state?: "open" | "closed" | "hidden" | "found" | "used";
   roomId?: string;
+  /** Levers: what pulling does ("cache", "trap", "door"); secrets: "plate" or "runes". */
+  variant?: string;
 }
 
 export interface PlacedRoom {

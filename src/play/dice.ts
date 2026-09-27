@@ -1,6 +1,7 @@
 /**
  * Dice on the phone: the player taps, the die tumbles, and it lands on the value the TV rolled.
  */
+import { play } from "../ui/sound";
 import { h } from "../ui/dom";
 import type { RollOutcome, RollPrompt } from "../shared/view";
 import { explainedLine, term } from "./help";
@@ -62,6 +63,8 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
     lines.replaceChildren(...r.lines.map((l) => explainedLine(l)));
     done.hidden = false;
     if (r.crit && "vibrate" in navigator) navigator.vibrate([80, 60, 160]);
+    if (r.crit) play("crit");
+    else if (r.success === true) play("chime");
   };
 
   stage.addEventListener("click", () => {
@@ -73,6 +76,7 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
       stage.replaceChildren(dieSvg(prompt.sides, String(1 + Math.floor(Math.random() * prompt.sides)), "rolling"));
     }, 70);
     if ("vibrate" in navigator) navigator.vibrate(30);
+    play("dice");
     onRoll();
   });
 

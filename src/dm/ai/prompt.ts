@@ -83,6 +83,8 @@ PASSENDE REGELN AUS DEM GLOSSAR: ${t.glossary.map((g) => `${g.title}: ${g.text}`
 Antworte in answer kurz (2–4 Sätze), freundlich und für Einsteiger verständlich, nur mit Regeln aus dem Glossar oder aus dem Spielstand. Erfinde keine Regeln. Sag konkret, was der Held jetzt tun kann. narration darf leer bleiben.`;
     case "suggest":
       return `${t.heroName} fragt: „Was könnte ich jetzt tun?“ Schlage 3 kurze, kreative Ideen für freie Aktionen vor (Ich-Form, je höchstens 8 Wörter), die zur Lage, zur Umgebung und zu den Figuren passen. narration darf leer bleiben.`;
+    case "idle":
+      return `Seit ${t.seconds} Sekunden hat niemand etwas getan. Erzähle in 1–2 Sätzen etwas Kleines, das die Helden neugierig macht oder an ihr Ziel erinnert: ein Geräusch, eine Bewegung, oder eine Figur der Szene spricht sie an (npc_say, passend zu ihrer Haltung gegenüber der Gruppe). Keine Monster, keine Effekte, keine Probe.`;
     case "story_end":
       return "Das Abenteuer ist zu Ende. Wähle das passende Ende (ending) und erzähle einen kurzen Ausklang, der auf das zurückblickt, was die Helden erlebt haben.";
     default:

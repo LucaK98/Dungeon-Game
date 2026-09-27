@@ -81,7 +81,13 @@ export type EffectId =
   /** Behind cover: +2 armour class. */
   | "cover"
   /** Angered by a failed trick: advantage on its next attack. */
-  | "enraged";
+  | "enraged"
+  /** Has not noticed the heroes yet: sleeping … */
+  | "asleep"
+  /** … or keeping watch and walking up and down. */
+  | "on-guard"
+  /** Caught off guard when the fight starts: loses its first turn. */
+  | "surprised";
 
 export interface ActiveEffect {
   id: EffectId;

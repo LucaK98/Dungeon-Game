@@ -2,6 +2,7 @@
  * TV screens before the lobby: title, "How to play" (5 slides), story and length.
  * Big text for the sofa; works with mouse, touch and keyboard (arrow keys + Enter).
  */
+import { play, setSoundEnabled, soundEnabled } from "../ui/sound";
 import { planScenes } from "../dm/planner";
 import type { Duration, Story } from "../shared/story";
 import { spriteCanvas } from "../ui/atlas";
@@ -16,7 +17,8 @@ const SLIDES: { title: string; text: string; icon: string }[] = [
   { icon: "🏰", title: "Was ist das für ein Spiel?", text: "Ihr erlebt gemeinsam ein Abenteuer als Heldengruppe. Der Fernseher zeigt die Welt, ein Erzähler führt euch durch die Geschichte." },
   { icon: "📱", title: "Wer macht was?", text: "Jede und jeder steuert eine Figur mit dem eigenen Handy. Der Computer rechnet alle Regeln aus. Ihr entscheidet, was eure Helden tun." },
   { icon: "🎲", title: "Was ist der W20?", text: "Ein Würfel mit 20 Seiten. Ob etwas klappt, entscheidet der Wurf plus eure Boni. Jeder Wurf wird auf Handy und Fernseher erklärt." },
-  { icon: "🦶", title: "Wie läuft ein Zug?", text: "Ihr seid der Reihe nach dran. In deinem Zug darfst du laufen UND eine Aktion machen: angreifen, zaubern, dich umsehen oder etwas benutzen." },
+  { icon: "🦶", title: "Wer ist wann dran?", text: "Beim Erkunden alle gleichzeitig: Lauft los, schaut euch um, redet mit Leuten. Im Kampf seid ihr der Reihe nach dran und dürft laufen UND eine Aktion machen: angreifen, zaubern oder etwas benutzen." },
+  { icon: "✨", title: "Die Welt lebt", text: "Unterwegs passiert etwas: Händler, Fallen, Geheimnisse. Dann erscheint eine Entscheidung auf allen Handys. Fässer, Hebel und Kronleuchter könnt ihr benutzen, schlafende Gegner überraschen – und mit „Freie Aktion“ alles andere versuchen." },
   { icon: "🏆", title: "Gewonnen oder verloren?", text: "Ihr gewinnt zusammen – oder verliert zusammen. Fällt ein Held, können die anderen ihn wieder aufwecken. Und es gibt immer eine zweite Chance." },
 ];
 
@@ -99,6 +101,14 @@ export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new
     const cont = h("button", { class: "tv-btn", type: "button", textContent: "💾 Gespeichertes Spiel fortsetzen", hidden: !opts.canContinue });
     const speech = h("button", { class: "tv-btn small", type: "button" });
     const settings = h("button", { class: "tv-btn small", type: "button", textContent: "⚙️ Einstellungen" });
+    const sound = h("button", { class: "tv-btn small", type: "button" });
+    const renderSound = () => (sound.textContent = soundEnabled() ? "🎵 Geräusche: an" : "🔇 Geräusche: aus");
+    renderSound();
+    sound.addEventListener("click", () => {
+      setSoundEnabled(!soundEnabled());
+      renderSound();
+      play("chime");
+    });
     let speechOn = opts.speech;
     const renderSpeech = () => (speech.textContent = speechOn ? "🔊 Vorlesen: an" : "🔈 Vorlesen: aus");
     renderSpeech();
@@ -117,7 +127,7 @@ export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new
         h("h1", { class: "title-name" }, "Couch-Dungeon"),
         h("p", { class: "title-sub" }, "Ein Abenteuer für 1–6 Helden · Fernseher + Handys"),
         h("div", { class: "tv-col" }, newGame, howto, cont),
-        h("div", { class: "tv-row" }, speech, settings),
+        h("div", { class: "tv-row" }, speech, sound, settings),
         h("p", { class: "credits" }, "5E compatible · enthält Material aus dem SRD 5.1 (CC-BY-4.0) · Grafik: Dungeon Crawl Stone Soup (CC0)"),
       ),
     );

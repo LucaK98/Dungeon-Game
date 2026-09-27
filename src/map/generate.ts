@@ -2,6 +2,7 @@
  * Builds a dungeon from room modules: places them one after another, connected by corridors,
  * and optionally hangs side rooms (treasure, traps) off free exits.
  */
+import { decorate } from "./decorate";
 import type { Rng } from "../engine/rng";
 import type { GridPos } from "../shared/game";
 import type { CellKind, DungeonMap, MapObject, ObjectKind, PlacedRoom, RoomModule, RoomTag } from "../shared/map";
@@ -384,6 +385,7 @@ export function generateDungeon(rng: Rng, plan: DungeonPlan): DungeonMap {
     explored: new Array(width * height).fill(false),
     overlays,
   };
+  decorate(map, seed);
   return map;
 }
 

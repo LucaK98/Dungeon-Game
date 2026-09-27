@@ -38,6 +38,16 @@ export function pickEnding(story: Story, truth: string, flags: string[]): Ending
   );
 }
 
+/** The narrator nudges a quiet group with a small happening (no rules involved). */
+const IDLE_LINES = [
+  "Irgendwo knackt ein Ast. Dann ist es wieder still.",
+  "Ein kühler Luftzug streicht an euch vorbei, als wolle er euch weiterschieben.",
+  "In der Ferne ruft jemand – oder war es nur der Wind?",
+  "Ein Käfer krabbelt über eure Stiefel und verschwindet in einer Ritze.",
+  "Die Schatten scheinen sich ein kleines Stück bewegt zu haben.",
+  "Ihr hört euren eigenen Herzschlag. Worauf wartet ihr noch?",
+];
+
 export class ScriptedDM implements DungeonMaster {
   constructor(private story: Story) {}
 
@@ -104,6 +114,17 @@ export class ScriptedDM implements DungeonMaster {
       case "rules_question": {
         const best = trigger.glossary[0];
         return { ...respond([]), answer: best ? `${best.title}: ${best.text}` : glossaryAnswer(trigger.question) };
+      }
+
+      case "idle": {
+        // Something small happens and the goal is repeated.
+        const atmo = IDLE_LINES[Math.floor(ctx.minutesPlayed * 7) % IDLE_LINES.length]!;
+        const step = scene.steps.find((s) => s.id === ctx.stepId);
+        const npc = step?.kind === "reach" && step.target && step.target !== "exit" ? this.story.npcs.find((n) => n.id === step.target) : undefined;
+        return respond([
+          { text: atmo },
+          npc ? { text: `${npc.name} wartet schon auf euch.` } : { text: `Euer Ziel: ${scene.ziel}` },
+        ].map((l, i) => (i === 1 ? { ...l, tip: { key: "freie_aktion", text: "Keine Idee? Tippt auf dem Handy auf „💡 Ideen“ – oder lauft einfach los." } } : l)));
       }
 
       case "scene_end": {

@@ -2673,5 +2673,75 @@
       "vorteil",
       "freie_aktion"
     ]
+  },
+  "ueberrascht": {
+    "titel": "Überrascht",
+    "kurz": "Wer überrumpelt wird, verliert seinen ersten Zug.",
+    "lang": "Schlafen Gegner oder passen sie nicht auf, könnt ihr euch anschleichen. Gelingt die Heimlichkeits-Probe, beginnt der Kampf mit einer Überraschung: Die Gegner sind überrascht und verlieren ihren ersten Zug. Ihr dürft also zuerst zuschlagen. Misslingt die Probe, bemerken sie euch und der Kampf beginnt ganz normal.",
+    "beispiel": "Zwei Goblins schlafen am Feuer. Pip schleicht sich an (Heimlichkeit 15 gegen SG 10) – die Goblins sind überrascht und können in der ersten Runde nichts tun.",
+    "siehe_auch": [
+      "fertigkeit:stealth",
+      "initiative"
+    ]
+  },
+  "ereignis": {
+    "titel": "Ereignis",
+    "kurz": "Unterwegs passiert etwas – ihr entscheidet, wie ihr reagiert.",
+    "lang": "Während ihr erkundet, bleibt die Welt nicht stehen: Ein Händler kommt vorbei, eine Falle schnappt zu, im Wasser glitzert etwas. Auf den Handys erscheinen dann Entscheidungen. Wer zuerst tippt, entscheidet für die Gruppe. Manche Entscheidungen brauchen eine Probe, andere kosten Gold. Wer zu lange zögert, verpasst die Gelegenheit.",
+    "beispiel": "Ein verletzter Wanderer bittet um Hilfe. Ilmarin verarztet ihn (Heilkunde SG 10) und bekommt zum Dank einen Heiltrank.",
+    "siehe_auch": [
+      "entscheidung"
+    ]
+  },
+  "fass": {
+    "titel": "Fass",
+    "kurz": "Durchsuchen oder auf Gegner rollen.",
+    "lang": "Neben einem Fass kannst du es außerhalb von Kämpfen durchsuchen – manchmal liegt Gold oder eine Fackel darin. Im Kampf kannst du es mit deiner Aktion auf einen Gegner rollen (bis zu 4 Felder vom Fass entfernt): Gelingt eine Probe auf Athletik (SG 10), bekommt er 1W6 Schaden und kleine oder mittelgroße Gegner fallen um. Danach ist das Fass kaputt.",
+    "siehe_auch": [
+      "zustand:prone",
+      "fertigkeit:athletics"
+    ]
+  },
+  "kronleuchter": {
+    "titel": "Kronleuchter",
+    "kurz": "Lass ihn auf die Gegner krachen!",
+    "lang": "Hängt ein Kronleuchter über dem Raum, kannst du ihn im Kampf mit deiner Aktion herunterholen – aus bis zu 5 Feldern Entfernung. Gelingt eine Probe auf Akrobatik (SG 12), stürzt er herab: Alle Gegner direkt darunter (auf seinem Feld und den Feldern daneben) bekommen 2W6 Schaden. Das klappt nur einmal – lockt die Gegner also vorher darunter!",
+    "siehe_auch": [
+      "fertigkeit:acrobatics"
+    ]
+  },
+  "hebel": {
+    "titel": "Hebel",
+    "kurz": "Ziehen – und schauen, was passiert.",
+    "lang": "Ein Hebel an der Wand kann eine versteckte Klappe mit Schätzen öffnen, eine Tür aufschwingen lassen … oder eine Falle auslösen. Du weißt es erst, wenn du ziehst. Außerhalb von Kämpfen kostet das nichts, im Kampf deine Aktion.",
+    "siehe_auch": [
+      "falle"
+    ]
+  },
+  "geheimnis": {
+    "titel": "Geheimnis",
+    "kurz": "Eine lose Bodenplatte oder seltsame Zeichen – dahinter steckt oft ein Schatz.",
+    "lang": "In manchen Räumen gibt es Verstecke: Eine Bodenplatte liegt etwas höher als die anderen, oder in der Wand sind schwach leuchtende Zeichen eingeritzt. Wer „Umsehen“ benutzt, bemerkt sie leichter. Stell dich daneben und untersuche sie: Bodenplatten mit Nachforschungen, Zeichen mit Arkaner Kunde (SG 12). Jeder darf es einmal versuchen.",
+    "siehe_auch": [
+      "umsehen",
+      "fertigkeit:investigation",
+      "fertigkeit:arcana"
+    ]
+  },
+  "lagerfeuer": {
+    "titel": "Lagerfeuer",
+    "kurz": "Kurz rasten und Wunden versorgen.",
+    "lang": "An einem Lagerfeuer könnt ihr euch außerhalb von Kämpfen kurz aufwärmen: Alle Helden heilen 1W6 Trefferpunkte. Das geht einmal pro Ort. In der Nacht spendet das Feuer außerdem Licht.",
+    "siehe_auch": [
+      "trefferpunkte"
+    ]
+  },
+  "kessel": {
+    "titel": "Hexenkessel",
+    "kurz": "Heiltrank oder Hexengebräu?",
+    "lang": "Im Kessel brodelt etwas. Wer davon kostet, würfelt auf Naturkunde (SG 13): Gelingt es, heilt der Trank 2W4 Trefferpunkte. Misslingt es, wird dir übel und du bekommst 1W4 Schaden. Jeder Held kann es einmal probieren.",
+    "siehe_auch": [
+      "fertigkeit:nature"
+    ]
   }
 }

@@ -177,6 +177,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       case "cast":
         return { ...a, targetIds: ids };
       case "use_item":
+      case "interact":
         return { ...a, targetId: ids[0]! };
       case "feature":
         // The TV caps healing at what the target is missing.
@@ -553,6 +554,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     tabs.replaceChildren(mk("action", "⚔️ Aktion"), mk("sheet", "📋 Figur"), mk("inventory", "🎒 Taschen"), mk("clues", `🔎 Hinweise${view?.story?.clues.length ? ` (${view.story.clues.length})` : ""}`));
   }
 
+  let lastChoiceKey = "";
+
   function render(): void {
     if (!view) return;
     const me = view.me;
@@ -562,6 +565,13 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     const scroll = window.scrollY;
     body.replaceChildren(...(tab === "action" ? renderActionTab(view) : tab === "sheet" ? renderSheetTab(me) : tab === "inventory" ? renderInventoryTab(me, view) : renderCluesTab(view)));
     window.scrollTo(0, scroll);
+    // A new decision for the group: bring it into view and buzz once.
+    const choiceKey = (view.story?.choices ?? []).map((c) => c.id).join("|");
+    if (choiceKey && choiceKey !== lastChoiceKey) {
+      if ("vibrate" in navigator) navigator.vibrate([40, 40, 40]);
+      if (tab === "action") body.querySelector(".story-choices")?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    lastChoiceKey = choiceKey;
     const pid = playerId();
     if (view.mode === "combat") maybeHint(pid, "first_fight", view.beginnerMode, body);
     if (view.turn.mine) maybeHint(pid, "first_turn", view.beginnerMode, body);

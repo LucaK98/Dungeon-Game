@@ -28,7 +28,7 @@ import type { ActionChoice, MiniMap, OrderEntry, PlayerView, RollOutcome, RollPr
 import type { MonsterGroup, Narration } from "../shared/story";
 import type { CheckResult } from "../shared/game";
 import type { SkillId } from "../shared/rules";
-import type { DungeonMap } from "../shared/map";
+import type { DungeonMap, MapObject } from "../shared/map";
 import { createCharacter } from "../engine/creatures";
 import { scaleGroup } from "../dm/planner";
 import { getModule, moduleExits } from "../map/modules";
@@ -67,6 +67,8 @@ export interface GameEvents {
   mapChanged(): void;
   /** A boss enters: the board shows it off. */
   spotlight(creatureId: string): void;
+  /** A little show on the board (dust, sparkle, splash, shaking screen) at a square. */
+  fx(kind: "puff" | "shake" | "sparkle" | "splash", pos: GridPos | undefined): void;
 }
 
 export interface ControllerOptions {
@@ -76,6 +78,11 @@ export interface ControllerOptions {
   autoHeroes?: boolean;
   /** Old behaviour: heroes explore in turns as well (default: everyone at the same time). */
   turnBasedExplore?: boolean;
+}
+
+/** Has not noticed the heroes yet (sleeping or keeping watch). */
+function unaware(c: Creature): boolean {
+  return hasEffect(c, "asleep") || hasEffect(c, "on-guard");
 }
 
 export class GameController {
@@ -225,8 +232,9 @@ export class GameController {
       chest: "Truhe", door: "Tür", fountain: "Brunnen", statue: "Statue", altar: "Altar", column: "Säule", throne: "Thron",
       boulder: "Felsbrocken", box: "Kisten und Fässer", tree: "Bäume", trap: "", gold: "Goldmünzen am Boden", potion: "ein Fläschchen am Boden",
       item: "etwas Glänzendes am Boden", "stairs-down": "Treppe nach unten", "stairs-up": "Treppe nach oben",
+      barrel: "Fässer", lever: "ein Hebel an der Wand", chandelier: "ein Kronleuchter an der Decke", campfire: "ein Lagerfeuer", cauldron: "ein brodelnder Kessel", secret: "",
     };
-    const near = map.objects.filter((o) => Math.max(Math.abs(o.x - hero.pos!.x), Math.abs(o.y - hero.pos!.y)) <= 8 && (o.kind !== "trap" || o.state === "found"));
+    const near = map.objects.filter((o) => Math.max(Math.abs(o.x - hero.pos!.x), Math.abs(o.y - hero.pos!.y)) <= 8 && (o.kind !== "trap" || o.state === "found") && o.state !== "used");
     const objects = [...new Set(near.map((o) => NAMES[o.kind] ?? o.kind).filter(Boolean))];
     const around = [...Array(9).keys()].map((k) => ({ x: hero.pos!.x + (k % 3) - 1, y: hero.pos!.y + Math.floor(k / 3) - 1 }));
     if (around.some((p) => ["water", "deep"].includes(map.cells[cellIndex(map, p.x, p.y)] ?? ""))) objects.push("Wasser");
@@ -537,13 +545,18 @@ export class GameController {
 
   /** Enemies that notice the heroes: visible and not too far away. */
   private awakeEnemies(): Creature[] {
-    return this.enemiesVisible().filter((e) => isActive(e) && this.heroes().some((h) => isActive(h) && distanceFt(h, e) <= 60));
+    return this.enemiesVisible().filter((e) => isActive(e) && this.heroes().some((h) => isActive(h) && distanceFt(h, e) <= (unaware(e) ? 10 : 60)));
   }
 
   private checkCombatStart(): boolean {
     if (this.mode !== "explore") return false;
     const enemies = this.awakeEnemies();
     if (!enemies.length) return false;
+    // Someone walked right up to a sleeping or watching enemy: everybody wakes up.
+    if (this.staged) {
+      this.engage(false, "Ihr seid zu nah herangekommen – sie haben euch bemerkt!");
+      return true;
+    }
     this.pending = undefined;
     this.mode = "combat";
     this.lanceUsed.clear();
@@ -619,6 +632,16 @@ export class GameController {
       this.endTurn();
       return;
     }
+    // Taken by surprise: this turn is lost.
+    if (hasEffect(monster, "surprised")) {
+      monster.effects = monster.effects.filter((e) => e.id !== "surprised");
+      this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: id, title: `${monster.name} ist überrascht`, sides: 20, dice: [], kept: 0, lines: [{ text: `😲 ${monster.name} ist überrascht und verliert den ersten Zug.`, glossarKeys: ["ueberrascht"] }] });
+      this.emit("changed");
+      const delay = this.opts.monsterDelayMs ?? 1200;
+      if (delay <= 0) this.endTurn();
+      else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
+      return;
+    }
     const outcomes = runAutoTurn(this.rng, this.battle, id, { walkable: (p) => isWalkable(this.map, p) });
     for (const o of outcomes) {
       if (!o.ok) continue;
@@ -638,7 +661,11 @@ export class GameController {
 
   // ---------------------------------------------------------------- actions
 
+  /** When a phone last did something (the game master speaks up when it is quiet for long). */
+  lastActionAt = Date.now();
+
   handle(playerId: PlayerId, action: PlayerAction): void {
+    this.lastActionAt = Date.now();
     if (action.kind === "set_beginner_mode") {
       this.beginner.set(playerId, action.on);
       this.sendView(playerId);
@@ -733,7 +760,7 @@ export class GameController {
         return;
       }
       case "interact":
-        this.interact(playerId, hero, action.objectId);
+        this.interact(playerId, hero, action.objectId, action.targetId);
         return;
       case "check":
         this.ask(playerId, hero, { title: `Umsehen (${nameOf("skills", action.skill)})`, sides: 20, glossarKey: "umsehen" }, () => this.lookAround(hero));
@@ -986,8 +1013,12 @@ export class GameController {
     else inv.push({ itemId, qty });
   }
 
-  private interact(playerId: PlayerId, hero: Creature, objectId: string): void {
+  private interact(playerId: PlayerId, hero: Creature, objectId: string, targetId?: string): void {
     const o = this.map.objects.find((x) => x.id === objectId);
+    if (o && ["barrel", "lever", "chandelier", "secret", "campfire", "cauldron"].includes(o.kind)) {
+      this.useObject(playerId, hero, o, targetId);
+      return;
+    }
     if (!o || !hero.pos || Math.max(Math.abs(o.x - hero.pos.x), Math.abs(o.y - hero.pos.y)) > 1) {
       this.sendTo(playerId, { type: "action_error", reason: "Dafür musst du direkt daneben stehen." });
       return;
@@ -1016,6 +1047,222 @@ export class GameController {
     this.broadcast();
   }
 
+  // ---------------------------------------------------------------- things to play with
+
+  /** Heroes who already tasted from the cauldron / searched a secret in vain (once each). */
+  private triedObject = new Set<string>();
+  private restedAtFire = new Set<string>();
+
+  private objectRange(o: MapObject): number {
+    return o.kind === "chandelier" ? 5 : 1;
+  }
+
+  /** Uses up the hero's action in a fight (object tricks cost an action there). */
+  private spendAction(hero: Creature): string | undefined {
+    if (this.mode !== "combat") return undefined;
+    const turn = this.battle.combat?.turn;
+    if (!turn || turn.creatureId !== hero.id) return "Du bist nicht dran.";
+    if (turn.actions <= 0) return "Du hast deine Aktion schon benutzt.";
+    turn.actions--;
+    return undefined;
+  }
+
+  private objectRoll(hero: Creature, title: string, check: { roll: { rolls: number[]; natural: number }; success: boolean } | undefined, lines: ExplainedLine[]): RollOutcome {
+    return {
+      id: `o${++this.rollCounter}`,
+      creatureId: hero.id,
+      ...(hero.playerId ? { playerId: hero.playerId } : {}),
+      title,
+      sides: 20,
+      dice: check?.roll.rolls ?? [],
+      kept: check?.roll.natural ?? 0,
+      lines,
+      ...(check ? { success: check.success } : {}),
+    };
+  }
+
+  private hurtNoKnockout(c: Creature, dice: string): number {
+    const d = Math.max(0, Math.min(rollDice(this.rng, parseDice(dice)).total, c.hp - 1));
+    applyDamage(this.rng, c, d);
+    return d;
+  }
+
+  private useObject(playerId: PlayerId, hero: Creature, o: MapObject, targetId?: string): void {
+    const far = !hero.pos || Math.max(Math.abs(o.x - hero.pos.x), Math.abs(o.y - hero.pos.y)) > this.objectRange(o);
+    if (far) {
+      this.sendTo(playerId, { type: "action_error", reason: o.kind === "chandelier" ? "Dafür musst du näher heran (5 Felder)." : "Dafür musst du direkt daneben stehen." });
+      return;
+    }
+    const at = { x: o.x, y: o.y };
+    const done = (r: RollOutcome, fx?: "puff" | "shake" | "sparkle" | "splash") => {
+      if (fx) this.emit("fx", fx, at);
+      this.emit("changed");
+      return r;
+    };
+    const rollThen = (title: string, skill: SkillId, dc: number, glossarKey: string, then: (success: boolean, lines: ExplainedLine[], check: ReturnType<typeof skillCheck>) => RollOutcome) => {
+      this.ask(playerId, hero, { title: `${title} (${nameOf("skills", skill)}, SG ${dc})`, sides: 20, glossarKey }, () => {
+        const err = this.spendAction(hero);
+        if (err) return { error: err };
+        const check = skillCheck(this.rng, hero, skill, dc);
+        return then(check.success, explainCheck(this.battle, hero.id, check), check);
+      });
+    };
+    const quick = (r: RollOutcome | { error: string }) => {
+      if ("error" in r) this.sendTo(playerId, { type: "action_error", reason: r.error });
+      else this.publishRoll(r);
+      this.afterAction();
+    };
+
+    switch (o.kind) {
+      case "barrel": {
+        if (o.state === "used") return;
+        if (this.mode !== "combat") {
+          if (o.state === "found") return;
+          o.state = "found";
+          const r = this.rng.next();
+          const lines: ExplainedLine[] = [];
+          if (r < 0.4) {
+            const gold = rollDice(this.rng, parseDice("1d6")).total;
+            this.addItem(hero, "gold", gold);
+            lines.push({ text: `🛢️ ${hero.name} kramt im Fass und findet ${gold} Goldmünzen!`, glossarKeys: ["gegenstand:gold"] });
+          } else if (r < 0.65) {
+            this.addItem(hero, "torch", 1);
+            lines.push({ text: `🛢️ Im Fass liegt eine Fackel. ${hero.name} nimmt sie mit.`, glossarKeys: ["gegenstand:torch"] });
+          } else lines.push({ text: `🛢️ Nur saurer Wein und alte Äpfel. ${hero.name} verzieht das Gesicht.`, glossarKeys: [] });
+          quick(done(this.objectRoll(hero, "Fass durchsuchen", undefined, lines)));
+          return;
+        }
+        const target = targetId ? this.battle.creatures[targetId] : undefined;
+        if (!target || !isActive(target) || !target.pos || Math.max(Math.abs(target.pos.x - o.x), Math.abs(target.pos.y - o.y)) > 4) {
+          this.sendTo(playerId, { type: "action_error", reason: "Kein Gegner in Rollweite (4 Felder vom Fass)." });
+          return;
+        }
+        rollThen("Fass rollen", "athletics", 10, "fass", (ok, lines, check) => {
+          o.state = "used";
+          o.blocking = false;
+          o.frame = "";
+          let dmgDone = 0;
+          if (ok) {
+            const dmg = rollDice(this.rng, parseDice("1d6")).total;
+            dmgDone = dmg;
+            applyDamage(this.rng, target, dmg);
+            lines.push({ text: `🛢️ Das Fass donnert gegen ${target.name}: ${dmg} Schaden!`, glossarKeys: [] });
+            if (["tiny", "small", "medium"].includes(target.size) && !this.bossIds.has(target.id) && isActive(target) && addCondition(target, { id: "prone" })) {
+              lines.push({ text: `${target.name} fällt um.`, glossarKeys: ["zustand:prone"] });
+            }
+          } else lines.push({ text: `🛢️ Das Fass rollt knapp an ${target.name} vorbei und zerschellt an der Wand.`, glossarKeys: [] });
+          return done({ ...this.objectRoll(hero, "Fass rollen", check, lines), ...(ok ? { hits: [{ targetId: target.id, amount: dmgDone }] } : { hits: [{ targetId: target.id, amount: 0, miss: true }] }) }, "puff");
+        });
+        return;
+      }
+      case "chandelier": {
+        if (o.state === "used" || this.mode !== "combat") return;
+        rollThen("Kronleuchter abstürzen lassen", "acrobatics", 12, "kronleuchter", (ok, lines, check) => {
+          const hits: { targetId: string; amount: number }[] = [];
+          if (ok) {
+            o.state = "used";
+            o.frame = "chandelier.down";
+            lines.push({ text: "💥 Das Seil reißt – der Kronleuchter kracht herunter!", glossarKeys: [] });
+            for (const c of Object.values(this.battle.creatures)) {
+              if (!c.pos || !isActive(c) || c.side !== "enemy" || Math.max(Math.abs(c.pos.x - o.x), Math.abs(c.pos.y - o.y)) > 1) continue;
+              const dmg = rollDice(this.rng, parseDice("2d6")).total;
+              applyDamage(this.rng, c, dmg);
+              hits.push({ targetId: c.id, amount: dmg });
+              lines.push({ text: `${c.name} wird getroffen: ${dmg} Schaden!`, glossarKeys: [] });
+            }
+            if (!hits.length) lines.push({ text: "Leider stand niemand darunter.", glossarKeys: [] });
+          } else lines.push({ text: "Das Seil hält. Der Kronleuchter schaukelt nur bedrohlich.", glossarKeys: [] });
+          return done({ ...this.objectRoll(hero, "Kronleuchter", check, lines), ...(hits.length ? { hits } : {}) }, ok ? "shake" : undefined);
+        });
+        return;
+      }
+      case "lever": {
+        if (o.state === "used") return;
+        const err = this.spendAction(hero);
+        if (err) {
+          this.sendTo(playerId, { type: "action_error", reason: err });
+          return;
+        }
+        o.state = "used";
+        o.frame = "lever.on";
+        const lines: ExplainedLine[] = [{ text: `🕹️ ${hero.name} zieht den Hebel. Es klackt irgendwo in der Wand …`, glossarKeys: [] }];
+        let fx: "sparkle" | "puff" | undefined = "puff";
+        const door = this.map.objects.filter((d) => d.kind === "door" && d.state === "closed").sort((a, b) => Math.hypot(a.x - o.x, a.y - o.y) - Math.hypot(b.x - o.x, b.y - o.y))[0];
+        if (o.variant === "trap") {
+          const d = this.hurtNoKnockout(hero, "1d4");
+          lines.push({ text: `🏹 Ein Pfeil schnellt aus der Wand und trifft ${hero.name}: ${d} Schaden. Eine Falle!`, glossarKeys: ["falle"] });
+        } else if (o.variant === "door" && door) {
+          door.state = "open";
+          door.frame = "door.open";
+          door.blocking = false;
+          lines.push({ text: "🚪 Rumpelnd schwingt eine Tür auf.", glossarKeys: [] });
+        } else {
+          const gold = rollDice(this.rng, parseDice("2d8")).total;
+          this.addItem(hero, "gold", gold);
+          lines.push({ text: `🗝️ Eine Klappe springt auf! Dahinter: ${gold} Goldmünzen.`, glossarKeys: ["gegenstand:gold"] });
+          fx = "sparkle";
+        }
+        quick(done(this.objectRoll(hero, "Hebel", undefined, lines), fx));
+        return;
+      }
+      case "secret": {
+        if (o.state === "found") return;
+        const key = `${o.id}:${hero.id}`;
+        if (this.triedObject.has(key)) {
+          this.sendTo(playerId, { type: "action_error", reason: "Du hast hier schon gesucht. Vielleicht findet jemand anderes mehr?" });
+          return;
+        }
+        const runes = o.variant === "runes";
+        rollThen(runes ? "Zeichen untersuchen" : "Bodenplatte untersuchen", runes ? "arcana" : "investigation", 12, "geheimnis", (ok, lines, check) => {
+          this.triedObject.add(key);
+          if (ok) {
+            o.state = "found";
+            if (!runes) o.frame = "secret.found";
+            const gold = rollDice(this.rng, parseDice("2d10")).total;
+            this.addItem(hero, "gold", gold);
+            lines.push({ text: runes ? `✨ Die Zeichen leuchten auf – ein Stein gleitet zur Seite. Dahinter: ${gold} Goldmünzen!` : `✨ Die Platte lässt sich anheben. Darunter: ${gold} Goldmünzen!`, glossarKeys: ["gegenstand:gold"] });
+            if (this.rng.next() < 0.4) {
+              this.addItem(hero, "potion-of-healing", 1);
+              lines.push({ text: "…und ein Heiltrank!", glossarKeys: ["gegenstand:potion-of-healing"] });
+            }
+          } else lines.push({ text: runes ? "Die Zeichen bleiben stumm." : "Die Platte wackelt, aber rührt sich nicht.", glossarKeys: [] });
+          return done(this.objectRoll(hero, "Geheimnis", check, lines), ok ? "sparkle" : undefined);
+        });
+        return;
+      }
+      case "campfire": {
+        if (this.mode === "combat" || this.restedAtFire.size) return;
+        this.restedAtFire.add(hero.id);
+        const lines: ExplainedLine[] = [{ text: "🔥 Ihr wärmt euch kurz am Feuer und verbindet eure Kratzer.", glossarKeys: [] }];
+        for (const h of this.heroes().filter((x) => !x.dead)) {
+          const amount = rollDice(this.rng, parseDice("1d6")).total;
+          const before = h.hp;
+          heal(h, amount);
+          if (h.hp > before) lines.push({ text: `${h.name}: +${h.hp - before} Trefferpunkte`, glossarKeys: [] });
+        }
+        quick(done(this.objectRoll(hero, "Am Feuer", undefined, lines)));
+        return;
+      }
+      case "cauldron": {
+        const key = `${o.id}:${hero.id}`;
+        if (this.triedObject.has(key) || this.mode === "combat") return;
+        rollThen("Aus dem Kessel kosten", "nature", 13, "kessel", (ok, lines, check) => {
+          this.triedObject.add(key);
+          if (ok) {
+            const amount = rollDice(this.rng, parseDice("2d4")).total;
+            heal(hero, amount);
+            lines.push({ text: `🧪 Bitter, aber heilsam: ${hero.name} erhält ${amount} Trefferpunkte.`, glossarKeys: [] });
+          } else {
+            const d = this.hurtNoKnockout(hero, "1d4");
+            lines.push({ text: `🤢 Igitt! Das war nichts für Menschenmägen. ${d} Schaden.`, glossarKeys: [] });
+          }
+          return done(this.objectRoll(hero, "Hexenkessel", check, lines), ok ? "sparkle" : "puff");
+        });
+        return;
+      }
+    }
+  }
+
   private lookAround(hero: Creature): RollOutcome | { error: string } {
     const turn = this.battle.combat?.turn;
     if (turn && turn.creatureId === hero.id) {
@@ -1026,8 +1273,12 @@ export class GameController {
     const lines = explainCheck(this.battle, hero.id, check);
     const roomIndex = hero.pos ? (this.map.roomOf[cellIndex(this.map, hero.pos.x, hero.pos.y)] ?? -1) : -1;
     const traps = this.map.objects.filter((o) => o.kind === "trap" && o.state === "hidden" && (roomIndex < 0 || o.roomId === this.map.rooms[roomIndex]?.id));
+    const secrets = this.map.objects.filter((o) => o.kind === "secret" && o.state === "hidden" && (roomIndex < 0 || o.roomId === this.map.rooms[roomIndex]?.id));
     if (check.success) {
       traps.forEach((t) => (t.state = "found"));
+      // Secrets become easy to spot (and can be examined up close).
+      secrets.forEach((s) => (s.state = "closed"));
+      if (secrets.length) lines.push({ text: `🔍 ${hero.name} bemerkt etwas Merkwürdiges ${secrets[0]!.variant === "runes" ? "an der Wand" : "am Boden"}. Schaut es euch aus der Nähe an!`, glossarKeys: ["geheimnis"] });
       lines.push({
         text: traps.length
           ? `👀 ${hero.name} entdeckt ${traps.length === 1 ? "eine versteckte Falle" : `${traps.length} versteckte Fallen`} im Boden!`
@@ -1177,7 +1428,7 @@ export class GameController {
     }
     const seen = (p: GridPos) => !light || light[(p.y - y0) * w + (p.x - x0)] !== "2";
     const objects = map.objects
-      .filter((o) => o.state !== "hidden" && o.state !== "used" && inWindow(o) && map.explored[cellIndex(map, o.x, o.y)])
+      .filter((o) => !!o.frame && o.state !== "hidden" && inWindow(o) && map.explored[cellIndex(map, o.x, o.y)])
       .map((o) => ({ x: o.x, y: o.y, frame: o.frame }));
     const creatures = Object.values(this.battle.creatures)
       .filter((c) => !c.dead && c.pos && inWindow(c.pos) && map.explored[cellIndex(map, c.pos.x, c.pos.y)])
@@ -1306,6 +1557,189 @@ export class GameController {
 
   /** Spawns monsters in the heroes' current room and starts a fight. Resolves with the winner. */
   fight(groups: MonsterGroup[], opts: { training?: boolean; allies?: { monster: string; name: string }[] } = {}): Promise<{ winner: "party" | "enemy"; spawned: Creature[] }> {
+    const spawned = this.spawnGroups(groups, opts.allies ?? []);
+    this.training = !!opts.training;
+    return new Promise((resolve) => {
+      if (!spawned.length) {
+        resolve({ winner: "party", spawned });
+        return;
+      }
+      this.fightWaiter = (winner) => resolve({ winner, spawned });
+      this.emit("changed");
+      const boss = spawned.find((m) => this.bossIds.has(m.id));
+      if (boss) this.emit("spotlight", boss.id);
+      if (this.mode === "combat") return;
+      // Start the fight even if the monsters stand a bit further away.
+      this.forceCombat([...spawned.map((m) => m.id), ...this.alliesInPlay()]);
+    });
+  }
+
+  private alliesInPlay(): string[] {
+    return Object.values(this.battle.creatures).filter((c) => c.side === "party" && c.kind === "monster" && !c.dead).map((c) => c.id);
+  }
+
+  /** Monsters placed but not fighting yet (sleeping or keeping watch), waiting for the heroes' decision. */
+  private staged: { spawned: Creature[]; resolve: (r: { winner: "party" | "enemy"; spawned: Creature[] }) => void } | undefined;
+  /** Patrol direction of watching monsters. */
+  private patrolDir = new Map<string, GridPos>();
+
+  /**
+   * Like fight(), but the monsters have not noticed the heroes yet: they sleep or keep watch.
+   * The fight starts with engage() (optionally with a surprise), or not at all with pacifyStaged().
+   * Walking right up to them starts it, too.
+   */
+  stageFight(groups: MonsterGroup[], state: "asleep" | "on-guard", opts: { allies?: { monster: string; name: string }[] } = {}): { spawned: Creature[]; done: Promise<{ winner: "party" | "enemy"; spawned: Creature[] }> } {
+    const spawned = this.spawnGroups(groups, opts.allies ?? []);
+    this.training = false;
+    for (const m of spawned) addEffect(m, state, 999, m.id);
+    const done = new Promise<{ winner: "party" | "enemy"; spawned: Creature[] }>((resolve) => {
+      if (!spawned.length) {
+        resolve({ winner: "party", spawned });
+        return;
+      }
+      this.staged = { spawned, resolve };
+      this.fightWaiter = (winner) => resolve({ winner, spawned });
+    });
+    this.emit("changed");
+    this.broadcast();
+    return { spawned, done };
+  }
+
+  get hasStagedFight(): boolean {
+    return !!this.staged;
+  }
+
+  /** The staged fight begins. With surprise, the monsters lose their first turn. */
+  engage(surprise: boolean, line?: string): void {
+    const staged = this.staged;
+    if (!staged) return;
+    this.staged = undefined;
+    this.cancelChoice();
+    for (const m of staged.spawned) {
+      m.effects = m.effects.filter((e) => e.id !== "asleep" && e.id !== "on-guard");
+      if (surprise && isActive(m)) addEffect(m, "surprised", 1, m.id);
+    }
+    if (line) this.addLog([{ text: line, glossarKeys: surprise ? ["ueberrascht"] : [] }]);
+    const alive = staged.spawned.filter((m) => this.battle.creatures[m.id] && isActive(m));
+    if (!alive.length) {
+      const waiter = this.fightWaiter;
+      this.fightWaiter = undefined;
+      waiter?.("party");
+      return;
+    }
+    this.forceCombat([...alive.map((m) => m.id), ...this.alliesInPlay()]);
+  }
+
+  /** The heroes talked their way past: the staged monsters leave, the fight counts as won. */
+  pacifyStaged(): void {
+    const staged = this.staged;
+    if (!staged) return;
+    this.staged = undefined;
+    for (const m of staged.spawned) delete this.battle.creatures[m.id];
+    const waiter = this.fightWaiter;
+    this.fightWaiter = undefined;
+    this.emit("changed");
+    this.broadcast();
+    waiter?.("party");
+  }
+
+  /** Takes back the open story choice (an event ran out of time, or a fight began). */
+  cancelChoice(): void {
+    if (!this.choiceWaiter) return;
+    const waiter = this.choiceWaiter;
+    this.choiceWaiter = undefined;
+    this.storyChoices = [];
+    this.broadcast();
+    waiter({ id: "", playerId: "" });
+  }
+
+  /** Nothing is open: no roll, no choice, no fight. */
+  get idle(): boolean {
+    return this.mode === "explore" && !this.pending && !this.choiceWaiter && !this.staged;
+  }
+
+  fx(kind: "puff" | "shake" | "sparkle" | "splash", pos?: GridPos): void {
+    this.emit("fx", kind, pos);
+  }
+
+  /** Someone walks up to the heroes for an event (a figure next to them). */
+  spawnVisitor(monster: string, name: string, near?: Creature): string | undefined {
+    const lead = near ?? this.heroes().find((h) => isActive(h) && h.pos);
+    if (!lead?.pos) return undefined;
+    const taken = (p: GridPos) => Object.values(this.battle.creatures).some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
+    const spots: GridPos[] = [];
+    for (let r = 2; r <= 3 && !spots.length; r++) {
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const p = { x: lead.pos.x + dx, y: lead.pos.y + dy };
+        if (Math.max(Math.abs(dx), Math.abs(dy)) === r && isWalkable(this.map, p) && !taken(p)) spots.push(p);
+      }
+    }
+    const pos = spots[this.rng.int(0, Math.max(0, spots.length - 1))];
+    if (!pos) return undefined;
+    const c = createMonster(monster, `visitor${++this.rollCounter}`, { name, side: "neutral" });
+    c.pos = pos;
+    this.battle.creatures[c.id] = c;
+    this.map.explored[cellIndex(this.map, pos.x, pos.y)] = true;
+    this.emit("changed");
+    this.broadcast();
+    return c.id;
+  }
+
+  removeCreature(id: string): void {
+    if (!this.battle.creatures[id]) return;
+    delete this.battle.creatures[id];
+    this.emit("changed");
+    this.broadcast();
+  }
+
+  private npcHomes = new Map<string, GridPos>();
+
+  /**
+   * The world moves a little on its own (called every few seconds by the board, not in tests):
+   * story characters stroll around their spot, watching monsters walk up and down.
+   */
+  tickWorld(): void {
+    if (this.destroyed || this.mode !== "explore") return;
+    let moved = false;
+    const creatures = Object.values(this.battle.creatures);
+    const free = (p: GridPos) => isWalkable(this.map, p) && !creatures.some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
+    const heroes = this.heroes().filter((h) => h.pos && !h.dead);
+    const heroNear = (p: GridPos, d: number) => heroes.some((h) => Math.max(Math.abs(h.pos!.x - p.x), Math.abs(h.pos!.y - p.y)) <= d);
+    for (const c of creatures) {
+      if (!c.pos || c.dead) continue;
+      if (c.id.startsWith("npc-") && c.side === "neutral") {
+        if (!this.npcHomes.has(c.id)) this.npcHomes.set(c.id, { ...c.pos });
+        // Stays put while someone talks to them; otherwise strolls now and then.
+        if (heroNear(c.pos, 2) || this.rng.next() > 0.25) continue;
+        const home = this.npcHomes.get(c.id)!;
+        const options = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+          .map((d) => ({ x: c.pos!.x + d.x, y: c.pos!.y + d.y }))
+          .filter((p) => free(p) && Math.max(Math.abs(p.x - home.x), Math.abs(p.y - home.y)) <= 2);
+        if (!options.length) continue;
+        c.pos = options[this.rng.int(0, options.length - 1)]!;
+        moved = true;
+      } else if (hasEffect(c, "on-guard")) {
+        let dir = this.patrolDir.get(c.id) ?? (this.rng.next() < 0.5 ? { x: 1, y: 0 } : { x: 0, y: 1 });
+        let next = { x: c.pos.x + dir.x, y: c.pos.y + dir.y };
+        if (!free(next)) {
+          dir = { x: -dir.x, y: -dir.y };
+          next = { x: c.pos.x + dir.x, y: c.pos.y + dir.y };
+        }
+        this.patrolDir.set(c.id, dir);
+        if (free(next)) {
+          c.pos = next;
+          moved = true;
+        }
+      }
+    }
+    if (!moved) return;
+    this.emit("changed");
+    this.broadcast();
+    // A patrol may walk right into the heroes.
+    this.checkCombatStart();
+  }
+
+  private spawnGroups(groups: MonsterGroup[], allies: { monster: string; name: string }[]): Creature[] {
     const players = this.heroes().length;
     const spawned: Creature[] = [];
     const lead = this.heroes().find((h) => isActive(h) && h.pos) ?? this.heroes()[0]!;
@@ -1334,7 +1768,7 @@ export class GameController {
         if (g.boss) this.bossIds.add(m.id);
       }
     }
-    for (const a of opts.allies ?? []) {
+    for (const a of allies) {
       const pos = freeSpots(room.spots.party)[0];
       if (!pos) continue;
       const ally = createMonster(a.monster, `ally${++this.rollCounter}`, { name: a.name, side: "party" });
@@ -1343,20 +1777,7 @@ export class GameController {
     }
     // Everyone involved sees the monsters.
     for (const m of spawned) this.map.explored[cellIndex(this.map, m.pos!.x, m.pos!.y)] = true;
-    this.training = !!opts.training;
-    return new Promise((resolve) => {
-      if (!spawned.length) {
-        resolve({ winner: "party", spawned });
-        return;
-      }
-      this.fightWaiter = (winner) => resolve({ winner, spawned });
-      this.emit("changed");
-      const boss = spawned.find((m) => this.bossIds.has(m.id));
-      if (boss) this.emit("spotlight", boss.id);
-      if (this.mode === "combat") return;
-      // Start the fight even if the monsters stand a bit further away.
-      this.forceCombat([...spawned.map((m) => m.id), ...Object.values(this.battle.creatures).filter((c) => c.side === "party" && c.kind === "monster" && !c.dead).map((c) => c.id)]);
-    });
+    return spawned;
   }
 
   private forceCombat(extraIds: string[]): void {
@@ -1389,6 +1810,11 @@ export class GameController {
     this.session.map = map;
     this.findsThisMap = 0;
     this.firstAidThisMap.clear();
+    this.npcHomes.clear();
+    this.triedObject.clear();
+    this.restedAtFire.clear();
+    this.patrolDir.clear();
+    this.staged = undefined;
     for (const c of Object.values(this.battle.creatures)) if (c.kind === "monster") delete this.battle.creatures[c.id];
     const start = map.rooms[0]!;
     const exit = moduleExits(getModule(start.moduleId))[0]?.cells[0] ?? { x: 1, y: 1 };
@@ -1413,6 +1839,8 @@ export class GameController {
         const i = Number(k);
         return o.startsWith("torch") ? [{ x: i % map.width, y: Math.floor(i / map.width), radiusFt: 15 }] : [];
       });
+      // Camp fires and the witch's fire light up the night, too.
+      for (const o of map.objects) if (o.kind === "campfire" || o.kind === "cauldron") lights.push({ x: o.x, y: o.y, radiusFt: 20 });
       this.battle.darkness = { lights };
     } else delete this.battle.darkness;
     this.mode = "explore";
@@ -1632,9 +2060,37 @@ export class GameController {
       });
     }
     for (const o of this.map.objects) {
+      // The chandelier hangs over the room: it can be brought down from a few squares away.
+      if (o.kind === "chandelier" && o.state !== "used" && this.mode === "combat" && me.pos && Math.max(Math.abs(o.x - me.pos.x), Math.abs(o.y - me.pos.y)) <= 5) {
+        const under = enemies.filter((e) => e.pos && Math.max(Math.abs(e.pos.x - o.x), Math.abs(e.pos.y - o.y)) <= 1);
+        const reason = costReason("action");
+        choices.push({ id: `chandelier:${o.id}`, group: "look", label: "💥 Kronleuchter abstürzen lassen", detail: `Akrobatik SG 12 · 2W6 Schaden für alle Gegner darunter${under.length ? ` (${under.map((u) => u.name).join(", ")})` : " (gerade niemand)"}`, glossarKey: "kronleuchter", cost: "action", enabled: !reason, ...(reason ? { reason } : {}), recommended: under.length >= 2, action: { kind: "interact", objectId: o.id } });
+      }
       if (!me.pos || Math.max(Math.abs(o.x - me.pos.x), Math.abs(o.y - me.pos.y)) > 1) continue;
       if (o.kind === "chest" && o.state !== "open") {
         choices.push({ id: `open:${o.id}`, group: "look", label: "Truhe öffnen", detail: "Direkt neben dir · kostet nichts", glossarKey: "truhe", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
+      }
+      if (o.kind === "barrel" && o.state !== "used" && !(this.mode !== "combat" && o.state === "found")) {
+        if (this.mode === "combat") {
+          const targets = enemies.filter((e) => e.pos && Math.max(Math.abs(e.pos.x - o.x), Math.abs(e.pos.y - o.y)) <= 4);
+          const reason = costReason("action") ?? (targets.length ? undefined : "Kein Gegner in Rollweite (4 Felder vom Fass).");
+          choices.push({ id: `barrel:${o.id}`, group: "look", label: "🛢️ Fass auf Gegner rollen", detail: "Athletik SG 10 · 1W6 Schaden, kleine Gegner fallen um", glossarKey: "fass", cost: "action", enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "interact", objectId: o.id }, targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `TP ${t.hp}/${t.maxHp}` })), pick: { min: 1, max: 1, repeat: false } });
+        } else choices.push({ id: `search:${o.id}`, group: "look", label: "🛢️ Fass durchsuchen", detail: "Direkt neben dir · kostet nichts", glossarKey: "fass", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
+      }
+      if (o.kind === "lever" && o.state !== "used") {
+        const reason = this.mode === "combat" ? costReason("action") : notMine;
+        choices.push({ id: `lever:${o.id}`, group: "look", label: "🕹️ Hebel ziehen", detail: this.mode === "combat" ? "Kostet deine Aktion · was passiert wohl?" : "Direkt neben dir · was passiert wohl?", glossarKey: "hebel", cost: this.mode === "combat" ? "action" : "free", enabled: !reason && (mine || this.mode !== "combat"), ...(reason ? { reason } : {}), action: { kind: "interact", objectId: o.id } });
+      }
+      if (o.kind === "secret" && o.state !== "found") {
+        const reason = this.mode === "combat" ? costReason("action") : notMine;
+        const runes = o.variant === "runes";
+        choices.push({ id: `secret:${o.id}`, group: "look", label: runes ? "🔍 Zeichen an der Wand untersuchen" : "🔍 Bodenplatte untersuchen", detail: runes ? "Arkane Kunde SG 12" : "Nachforschungen SG 12", glossarKey: "geheimnis", cost: this.mode === "combat" ? "action" : "free", enabled: !reason, ...(reason ? { reason } : {}), recommended: o.state === "closed", action: { kind: "interact", objectId: o.id } });
+      }
+      if (o.kind === "campfire" && this.mode !== "combat" && !this.restedAtFire.size) {
+        choices.push({ id: `fire:${o.id}`, group: "look", label: "🔥 Am Feuer rasten", detail: "Alle heilen ein wenig (einmal pro Ort)", glossarKey: "lagerfeuer", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
+      }
+      if (o.kind === "cauldron" && this.mode !== "combat" && !this.triedObject.has(`${o.id}:${me.id}`)) {
+        choices.push({ id: `cauldron:${o.id}`, group: "look", label: "🧪 Aus dem Kessel kosten", detail: "Naturkunde SG 13: Heiltrank oder Hexengebräu?", glossarKey: "kessel", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
       }
       if (o.kind === "door") {
         choices.push({ id: `door:${o.id}`, group: "look", label: o.state === "open" ? "Tür schließen" : "Tür öffnen", detail: "Direkt neben dir · kostet nichts", glossarKey: "aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
