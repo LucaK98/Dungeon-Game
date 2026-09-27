@@ -3076,7 +3076,7 @@ export class GameController {
     const seen = (p: GridPos) => !light || light[(p.y - y0) * w + (p.x - x0)] !== "2";
     const objects = map.objects
       .filter((o) => !!o.frame && o.state !== "hidden" && inWindow(o) && map.explored[cellIndex(map, o.x, o.y)])
-      .map((o) => ({ x: o.x, y: o.y, frame: o.frame }));
+      .map((o) => ({ id: o.id, x: o.x, y: o.y, frame: o.frame }));
     const creatures = Object.values(this.battle.creatures)
       .filter((c) => !c.dead && c.pos && inWindow(c.pos) && map.explored[cellIndex(map, c.pos.x, c.pos.y)])
       // Enemies in the dark stay hidden; the own group is always known.
@@ -3727,7 +3727,9 @@ export class GameController {
         enabled: !reason,
         ...(reason ? { reason } : {}),
         action: { kind: "attack", targetId: "", optionId: option.id },
-        targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)} · ${Math.round(distanceFt(me, t) / 5)} Felder` })),
+        targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)} · ${Math.round(distanceFt(me, t) / 5)} Felder · ${Math.round(hitChance(toHit, armorClass(t)) * 100)} %`, chance: hitChance(toHit, armorClass(t)) })),
+        ...(targets.length ? { chance: Math.max(...targets.map((t) => hitChance(toHit, armorClass(t)))) } : {}),
+        avg: option.damage.reduce((sum, d) => sum + averageOf(d.dice), 0) + sumParts(option.damageBonus),
       });
       if (pc.features.includes("stunning-strike") && option.kind === "melee" && kiLeft > 0) {
         choices.push({
@@ -3794,8 +3796,19 @@ export class GameController {
         ...(reason ? { reason } : {}),
         action: { kind: "cast", spellId, ...(slot > spell.level ? { slotLevel: slot } : {}), targetIds: area ? targets.map((t) => t.id) : [] },
       };
+      const spellHit = spell.attack ? sumParts(spellAttackParts(me, spellId)) : undefined;
+      const dice = spellDice(spell.damage, slot, pc.level);
+      if (dice) choice.avg = averageOf(dice);
+      else if (spell.heal) {
+        const heal = spell.heal[String(slot)] ?? Object.values(spell.heal)[0];
+        if (heal) {
+          choice.avg = averageOf(heal);
+          choice.avgKind = "heal";
+        }
+      }
       if (!area && spell.id !== "divine-favor") {
-        choice.targets = targets.map((t) => ({ id: t.id, name: t.id === me.id ? `${t.name} (du)` : t.name, detail: `TP ${t.hp}/${t.maxHp}` }));
+        choice.targets = targets.map((t) => ({ id: t.id, name: t.id === me.id ? `${t.name} (du)` : t.name, detail: `TP ${t.hp}/${t.maxHp}${spellHit !== undefined ? ` · ${Math.round(hitChance(spellHit, armorClass(t)) * 100)} %` : ""}`, ...(spellHit !== undefined ? { chance: hitChance(spellHit, armorClass(t)) } : {}) }));
+        if (spellHit !== undefined && targets.length) choice.chance = Math.max(...targets.map((t) => hitChance(spellHit, armorClass(t))));
         choice.pick = { min: 1, max: n, repeat };
       } else if (spell.id === "divine-favor") {
         choice.action = { kind: "cast", spellId, targetIds: [me.id] };
@@ -4027,6 +4040,22 @@ export class GameController {
 }
 
 /** Hit point changes of an action, for floating numbers on the board. */
+/** The damage dice of a spell at this slot (or character level for cantrips). */
+function spellDice(d: { byCharLevel?: Record<string, string>; bySlot?: Record<string, string> } | undefined, slot: number, level: number): string | undefined {
+  if (!d) return undefined;
+  if (d.bySlot) return d.bySlot[String(slot)] ?? Object.values(d.bySlot)[0];
+  if (d.byCharLevel) {
+    const keys = Object.keys(d.byCharLevel).map(Number).filter((k) => k <= level).sort((a, b) => b - a);
+    return d.byCharLevel[String(keys[0] ?? Object.keys(d.byCharLevel)[0])];
+  }
+  return undefined;
+}
+
+/** Chance that a d20 + bonus reaches the armour class (a 1 always misses, a 20 always hits). */
+function hitChance(bonus: number, ac: number): number {
+  return Math.min(0.95, Math.max(0.05, (21 - (ac - bonus)) / 20));
+}
+
 /** Brewed and tinkered things with their own use (see useCustomItem). */
 const CUSTOM_ITEMS = ["leuchttrank", "staerketrank", "stolperdraht", "oelflasche", "brandflasche"];
 

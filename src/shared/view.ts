@@ -42,7 +42,7 @@ export interface MiniMap {
    * "h" high place, "f" fire, "i" ice (slippery and difficult), "c" cover furniture.
    */
   marks?: string;
-  objects: { x: number; y: number; frame: string }[];
+  objects: { id: string; x: number; y: number; frame: string }[];
   creatures: MiniCreature[];
   /** Squares the player can walk to this turn. */
   reachable: GridPos[];
@@ -69,7 +69,12 @@ export interface ActionChoice {
   recommended?: boolean;
   /** The action to send; targets are filled in by the phone when `targets` is set. */
   action: PlayerAction;
-  targets?: { id: string; name: string; detail: string }[];
+  targets?: { id: string; name: string; detail: string; /** Chance to hit this target (0..1). */ chance?: number }[];
+  /** Best chance to hit among the targets (attacks and spell attacks), for "gute Chance" on the phone. */
+  chance?: number;
+  /** Average damage (or healing) of one use. */
+  avg?: number;
+  avgKind?: "damage" | "heal";
   /** How many targets to pick (magic missile: 3 darts, bless: up to 3). */
   pick?: { min: number; max: number; repeat: boolean };
   /** Group vote: who picked this so far, and whether it is my vote. */

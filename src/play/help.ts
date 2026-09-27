@@ -346,9 +346,10 @@ export function maybeHint(playerId: string, id: HintId, beginner: boolean, host:
     // ignore
   }
   const hint = HINTS[id];
-  const ok = h("button", { class: "btn primary", type: "button", textContent: "Verstanden" });
-  const more = h("button", { class: "btn secondary", type: "button", textContent: "Mehr dazu" });
-  const bubble = h("div", { class: "hint", role: "status" }, h("strong", {}, `💡 ${hint.title}`), h("p", {}, hint.text), h("div", { class: "row" }, more, ok));
+  const ok = h("button", { class: "btn primary small", type: "button", textContent: "Verstanden" });
+  const more = h("button", { class: "btn secondary small", type: "button", textContent: "Mehr dazu" });
+  // One calm line at a time; the next tip comes once this one is gone.
+  const bubble = h("div", { class: "hint compact", role: "status" }, h("div", { class: "hint-text" }, h("strong", {}, `💡 ${hint.title} `), h("span", {}, hint.text)), h("div", { class: "row" }, more, ok));
   ok.addEventListener("click", () => bubble.remove());
   more.addEventListener("click", () => {
     bubble.remove();
