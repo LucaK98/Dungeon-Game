@@ -1,3 +1,4 @@
+import type { Difficulty } from "./difficulty";
 import type { DollLook } from "./doll";
 import type { PlayerId, RoomCode } from "./types";
 
@@ -26,7 +27,7 @@ export interface LobbyState {
   phase: "lobby" | "playing";
   players: LobbyPlayer[];
   /** Chosen on the TV before the lobby. */
-  story?: { id: string; title: string; duration: "kurz" | "mittel" | "lang" };
+  story?: { id: string; title: string; duration: "kurz" | "mittel" | "lang"; difficulty?: Difficulty };
 }
 
 /** Player colours: easy to tell apart on a TV, with names for the phone. */

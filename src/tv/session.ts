@@ -4,6 +4,7 @@
  */
 import { applyGear, createCharacter, createMonster } from "../engine/creatures";
 import type { Rng } from "../engine/rng";
+import { DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import type { Battle, Creature, GridPos } from "../shared/game";
 import type { CharacterProfile } from "../shared/lobby";
 import type { DungeonMap } from "../shared/map";
@@ -34,6 +35,8 @@ export interface SessionOptions {
   plan?: DungeonPlan;
   /** Story games place their own monsters. */
   noMonsters?: boolean;
+  /** Decides the healing potions at the start. */
+  difficulty?: Difficulty;
 }
 
 export function createSession(rng: Rng, opts: SessionOptions): GameSession {
@@ -55,11 +58,17 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
     });
     c.playerId = playerId;
     c.appearance = { look: { ...profile.look }, color: profile.color };
-    // A hero from the hero book brings gold, potions and equipment along.
+    // Healing potions by difficulty (a hero from the hero book keeps the ones they saved up).
+    if (c.pc) {
+      const want = Math.max(DIFFICULTY[opts.difficulty ?? "normal"].potions, legacy?.potions ?? 0);
+      const potion = c.pc.inventory.find((it) => it.itemId === "potion-of-healing");
+      if (potion) potion.qty = want;
+      else if (want) c.pc.inventory.push({ itemId: "potion-of-healing", qty: want });
+      c.pc.inventory = c.pc.inventory.filter((it) => it.itemId !== "potion-of-healing" || it.qty > 0);
+    }
+    // A hero from the hero book brings gold and equipment along.
     if (legacy && c.pc) {
       if (legacy.gold) c.pc.inventory.push({ itemId: "gold", qty: legacy.gold });
-      const potion = c.pc.inventory.find((it) => it.itemId === "potion-of-healing");
-      if (potion) potion.qty = Math.max(potion.qty, legacy.potions);
       applyGear(c, legacy.gear);
       c.pc.stories = [...legacy.stories];
     }

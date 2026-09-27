@@ -482,6 +482,14 @@ body.tip-mode::after {
 .cover-tile { width: 10vh; height: 10vh; image-rendering: pixelated; }
 .duration-min { font-size: 3.4vh; color: var(--accent); font-weight: 700; }
 .tv-story { font-size: 2.8vh; margin: 0; color: var(--accent); }
+.difficulty-grid { grid-template-columns: repeat(4, 1fr); gap: 2vh; }
+.difficulty-card { font-size: 2.2vh; }
+.difficulty-icon { font-size: 6vh; line-height: 1; }
+.difficulty-points { margin: 0; padding-left: 2.4vh; color: var(--muted); display: flex; flex-direction: column; gap: 0.6vh; }
+.difficulty-leicht { border-color: #3f6b3a; }
+.difficulty-schwer { border-color: #8a4a1e; }
+.difficulty-toedlich { border-color: #7a1f1f; }
+@media (max-width: 900px) { .difficulty-grid { grid-template-columns: repeat(2, 1fr); } }
 .end-inner { max-width: 80vw; display: flex; flex-direction: column; gap: 2vh; align-items: center; text-align: center; }
 .end-icon { font-size: 12vh; }
 .end h1 { font-size: 7vh; margin: 0; color: var(--accent); }

@@ -2,6 +2,7 @@
  * TV lobby: big room code, QR code and the players with their figures.
  * Plain DOM (sharp text from 3 m away); the Phaser board starts with the game.
  */
+import { DIFFICULTY } from "../shared/difficulty";
 import QRCode from "qrcode";
 import { nameOf } from "../engine/names";
 import { MAX_PLAYERS, type LobbyPlayer, type LobbyState } from "../shared/lobby";
@@ -53,7 +54,7 @@ export function renderLobby(root: HTMLElement, host: GameHost, onStart: () => vo
     h(
       "section",
       { class: "tv-players" },
-      host.lobby.story ? h("p", { class: "tv-story" }, `📖 ${host.lobby.story.title} · ${{ kurz: "Kurz", mittel: "Mittel", lang: "Lang" }[host.lobby.story.duration]}`) : null,
+      host.lobby.story ? h("p", { class: "tv-story" }, `📖 ${host.lobby.story.title} · ${{ kurz: "Kurz", mittel: "Mittel", lang: "Lang" }[host.lobby.story.duration]} · ${DIFFICULTY[host.lobby.story.difficulty ?? "normal"].icon} ${DIFFICULTY[host.lobby.story.difficulty ?? "normal"].label}`) : null,
       h("h2", {}, "Eure Heldengruppe"),
       slots,
       hint,

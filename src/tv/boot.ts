@@ -10,7 +10,8 @@ import { cloudLoad, formatCode, newCloudId } from "../net/cloud-save";
 import { setSpeechEnabled, speechEnabled, warmUpVoices } from "./speech";
 import { setMood, unlockMusicOnGesture } from "../ui/music";
 import { settingsScreen } from "./settings";
-import { cloudLoadScreen, howToPlay, pickDuration, pickStory, titleScreen } from "./start-screens";
+import { cloudLoadScreen, howToPlay, pickDifficulty, pickDuration, pickStory, titleScreen } from "./start-screens";
+import type { Difficulty } from "../shared/difficulty";
 
 export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>): () => void {
   document.body.classList.add("is-tv");
@@ -24,12 +25,12 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
     stopView = undefined;
   };
 
-  const play = (story: Story | undefined, duration: Duration | undefined, resume?: BoardOptions["resume"], cloud?: BoardOptions["cloud"]) => {
+  const play = (story: Story | undefined, duration: Duration | undefined, resume?: BoardOptions["resume"], cloud?: BoardOptions["cloud"], difficulty?: Difficulty) => {
     clear();
     stopView = startBoard(root, host!, {
       demo: route.demo,
       ...(cloud ? { cloud } : {}),
-      ...(story && duration ? { story: { story, duration } } : {}),
+      ...(story && duration ? { story: { story, duration, ...(difficulty ? { difficulty } : {}) } } : {}),
       ...(resume ? { resume } : {}),
       onExit: () => {
         host!.backToLobby();
@@ -38,12 +39,12 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
     });
   };
 
-  const lobby = (story: Story, duration: Duration) => {
+  const lobby = (story: Story, duration: Duration, difficulty: Difficulty) => {
     clear();
-    host!.setStory({ id: story.id, title: story.title, duration });
+    host!.setStory({ id: story.id, title: story.title, duration, difficulty });
     stopView = renderLobby(root, host!, () => {
       host!.startGame();
-      play(story, duration);
+      play(story, duration, undefined, undefined, difficulty);
     });
   };
 
@@ -70,7 +71,7 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
         if (closed) return;
         const story = isSaveGame(data) ? getStory(data.state.storyId) : undefined;
         if (!isSaveGame(data) || !story) continue;
-        host!.setStory({ id: story.id, title: story.title, duration: data.state.duration });
+        host!.setStory({ id: story.id, title: story.title, duration: data.state.duration, difficulty: data.state.difficulty ?? "normal" });
         host!.restorePlayers(data.players);
         // Another device: this game goes on under a new code.
         play(story, data.state.duration, { state: data.state, heroes: data.heroes }, newCloudId());
@@ -79,7 +80,7 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
       if (choice === "continue" && save) {
         const story = getStory(save.state.storyId);
         if (story) {
-          host!.setStory({ id: story.id, title: story.title, duration: save.state.duration });
+          host!.setStory({ id: story.id, title: story.title, duration: save.state.duration, difficulty: save.state.difficulty ?? "normal" });
           host!.restorePlayers(save.players);
           play(story, save.state.duration, { state: save.state, heroes: save.heroes }, save.cloud);
           return;
@@ -87,7 +88,8 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
       }
       const story = await pickStory(root, STORIES);
       const duration = await pickDuration(root, story);
-      lobby(story, duration);
+      const difficulty = await pickDifficulty(root);
+      lobby(story, duration, difficulty);
       return;
     }
   }
@@ -107,7 +109,7 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
       }
       // After a TV reload in the middle of the lobby, go straight back to it.
       const story = host.lobby.story ? getStory(host.lobby.story.id) : undefined;
-      if (story && host.lobby.phase === "lobby" && host.lobby.players.length) lobby(story, host.lobby.story!.duration);
+      if (story && host.lobby.phase === "lobby" && host.lobby.players.length) lobby(story, host.lobby.story!.duration, host.lobby.story!.difficulty ?? "normal");
       else void menu();
     })
     .catch((err: unknown) => {

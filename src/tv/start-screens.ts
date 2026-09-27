@@ -2,6 +2,7 @@
  * TV screens before the lobby: title, "How to play" (5 slides), story and length.
  * Big text for the sofa; works with mouse, touch and keyboard (arrow keys + Enter).
  */
+import { DIFFICULTIES, DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import { musicEnabled, setMusicEnabled } from "../ui/music";
 import { play, setSoundEnabled, soundEnabled } from "../ui/sound";
 import { planScenes } from "../dm/planner";
@@ -202,6 +203,40 @@ export function pickDuration(root: HTMLElement, story: Story): Promise<Duration>
       return b;
     });
     const s = screen(root, h("section", { class: "pick" }, h("h1", {}, `${story.title}: Wie lange wollt ihr spielen?`), h("div", { class: "duration-grid" }, ...cards)));
+  });
+}
+
+export function pickDifficulty(root: HTMLElement): Promise<Difficulty> {
+  return new Promise((resolve) => {
+    const cards = DIFFICULTIES.map((d) => {
+      const rules = DIFFICULTY[d];
+      const b = h(
+        "button",
+        { class: `duration-card difficulty-card difficulty-${d}`, type: "button" },
+        h("div", { class: "difficulty-icon" }, rules.icon),
+        h("h2", {}, rules.label),
+        d === "normal" ? h("span", { class: "badge" }, "Empfohlen") : null,
+        h("p", {}, rules.text),
+        h("ul", { class: "difficulty-points" }, ...rules.points.map((p) => h("li", {}, p))),
+      );
+      b.addEventListener("click", () => {
+        s.close();
+        resolve(d);
+      });
+      return b;
+    });
+    const s = screen(
+      root,
+      h(
+        "section",
+        { class: "pick" },
+        h("h1", {}, "Wie schwer soll es werden?"),
+        h("p", { class: "slide-text" }, "🎲 Gewürfelt wird immer ehrlich wie mit einem echten Würfel – nur die Welt wird leichter oder härter."),
+        h("div", { class: "duration-grid difficulty-grid" }, ...cards),
+      ),
+    );
+    // "Normal" is chosen when you just press Enter.
+    setTimeout(() => cards[DIFFICULTIES.indexOf("normal")]?.focus(), 0);
   });
 }
 

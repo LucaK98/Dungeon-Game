@@ -435,3 +435,18 @@ export function createMonster(monsterId: string, id: string, opts: { name?: stri
     dead: false,
   };
 }
+
+/**
+ * Makes a monster fit the difficulty: more or fewer hit points, a better or worse aim, harder hits.
+ * The changes show up in the breakdown ("Schwierigkeit +1"), so nothing is hidden.
+ */
+export function hardenMonster(c: Creature, rules: { hp: number; attack: number; damage: number }): void {
+  if (rules.hp !== 1) {
+    c.maxHp = Math.max(1, Math.round(c.maxHp * rules.hp));
+    c.hp = c.maxHp;
+  }
+  for (const a of c.attacks) {
+    if (rules.attack) a.toHit = [...a.toHit, { label: "Schwierigkeit", value: rules.attack, glossarKey: "schwierigkeit" }];
+    if (rules.damage) a.damageBonus = [...a.damageBonus, { label: "Schwierigkeit", value: rules.damage, glossarKey: "schwierigkeit" }];
+  }
+}

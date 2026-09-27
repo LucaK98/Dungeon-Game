@@ -7,6 +7,7 @@ import { countAiCall, loadAiSettings, providersFrom } from "../dm/ai/settings";
 import { randomRng, seededRng, type Rng } from "../engine/rng";
 import type { Creature } from "../shared/game";
 import type { RollOutcome } from "../shared/view";
+import type { Difficulty } from "../shared/difficulty";
 import type { Duration, Story } from "../shared/story";
 import { BOARD_HEIGHT, BOARD_WIDTH, DungeonScene } from "./DungeonScene";
 import { endScreen } from "./end-screen";
@@ -46,7 +47,7 @@ function rollSounds(r: RollOutcome, impactMs = 0, tumbled = false): void {
 export interface BoardOptions {
   seed?: number;
   demo?: boolean;
-  story?: { story: Story; duration: Duration };
+  story?: { story: Story; duration: Duration; difficulty?: Difficulty };
   /** Continue a saved game. */
   resume?: { state: StoryState; heroes: Creature[] };
   /** Save code of this game in the cloud (a new one is made if missing). */
@@ -61,12 +62,13 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   container.className = "tv";
   root.append(container);
   const rng: Rng = opts.seed !== undefined ? seededRng(opts.seed) : randomRng();
+  const difficulty: Difficulty = opts.resume?.state.difficulty ?? opts.story?.difficulty ?? "normal";
   const players = () => host.lobby.players.filter((p) => p.profile).map((p) => ({ playerId: p.id, profile: p.profile! }));
 
   const newSession = (): GameSession => {
     if (opts.story) {
       const first = sceneById(opts.story.story, (opts.resume?.state ?? newStoryState(opts.story.story, rng, opts.story.duration)).plan[0]!);
-      const session = createSession(rng, { players: players(), plan: { path: sceneRooms(first, opts.story.duration) }, noMonsters: true });
+      const session = createSession(rng, { players: players(), plan: { path: sceneRooms(first, opts.story.duration) }, noMonsters: true, difficulty });
       if (opts.resume) {
         for (const h of opts.resume.heroes) session.battle.creatures[h.id] = structuredClone(h);
       }
@@ -123,6 +125,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       { autoHeroes: !!opts.demo },
     );
     controller = c;
+    c.difficulty = difficulty;
     // Who the TV is waiting on to roll (the hero whose phone shows the die).
     let askedFor: string | undefined;
     const showHitsLater = (hits: NonNullable<RollOutcome["hits"]>, delay: number) =>
@@ -198,7 +201,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
 
     if (opts.story) {
       const { story, duration } = opts.story;
-      const state = opts.resume ? structuredClone(opts.resume.state) : newStoryState(story, rng, duration);
+      const state = opts.resume ? structuredClone(opts.resume.state) : { ...newStoryState(story, rng, duration), difficulty };
       const providers = providersFrom(loadAiSettings(), host.lobby.room);
       let aiStatus: AiStatus | undefined = providers ? { kind: "ok", model: providers[0]!.model } : undefined;
       const showAi = () => game.events.emit("ai-status", aiStatus);

@@ -2744,5 +2744,15 @@
     "siehe_auch": [
       "fertigkeit:nature"
     ]
+  },
+  "schwierigkeit": {
+    "titel": "Schwierigkeit",
+    "kurz": "Die gewählte Schwierigkeitsstufe macht die Welt leichter oder härter – der Würfel bleibt ehrlich.",
+    "lang": "Vor dem Abenteuer wählt ihr Leicht, Normal, Schwer oder Tödlich. Auf Leicht treffen Monster etwas schlechter, haben weniger Trefferpunkte und Proben sind leichter. Auf Schwer und Tödlich treffen Monster besser, halten mehr aus, und Proben brauchen eine höhere Zahl. Der Würfel selbst wird nie verändert: jede Zahl von 1 bis 20 ist immer gleich wahrscheinlich.",
+    "beispiel": "Auf Schwer: Goblin 🎲 11 + 4 (Angriffsbonus) + 1 (Schwierigkeit) = 16.",
+    "siehe_auch": [
+      "angriffsbonus",
+      "schwierigkeitsgrad"
+    ]
   }
 }

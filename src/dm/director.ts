@@ -23,6 +23,7 @@ import { glossaryAnswer, glossaryExcerpt, heroSummary } from "./rules-help";
 import { SKILL_IDS, type SkillId } from "../shared/rules";
 import { World } from "./world";
 import { buildHighlights, type Recap } from "../shared/recap";
+import type { Difficulty } from "../shared/difficulty";
 
 export interface StoryState {
   storyId: string;
@@ -42,6 +43,8 @@ export interface StoryState {
   chronicle?: string[];
   /** Attitude of story characters towards the group, −3 … +3. */
   attitudes?: Record<string, number>;
+  /** How tough the world is (older saves: normal). */
+  difficulty?: Difficulty;
 }
 
 export interface StoryResult {

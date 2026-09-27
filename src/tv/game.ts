@@ -11,7 +11,8 @@ import { getSpell } from "../engine/data";
 import { averageOf, parseDice, rollDice } from "../engine/dice";
 import { explainCheck, explainDamage, explainDeathSave, explainHp, explainInitiative, explainOutcome, type ExplainedLine } from "../engine/explain";
 import { runAutoTurn } from "../engine/ai";
-import { createMonster } from "../engine/creatures";
+import { createMonster, hardenMonster } from "../engine/creatures";
+import { DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import { findPath } from "../engine/grid";
 import { nameOf } from "../engine/names";
 import type { Rng } from "../engine/rng";
@@ -115,6 +116,8 @@ export class GameController {
   private firstAidThisMap = new Set<string>();
   private waiters: { pred: () => boolean; resolve: () => void }[] = [];
   /** Free text from a phone goes to the DM. */
+  /** How tough the world is (the dice stay honest). */
+  difficulty: Difficulty = "normal";
   onFreeText: ((playerId: PlayerId, hero: Creature, text: string) => void) | undefined;
   /** Asks the game master for free-action ideas (set by the Director). */
   onSuggest: ((playerId: PlayerId, hero: Creature) => Promise<string[]>) | undefined;
@@ -544,6 +547,7 @@ export class GameController {
     monsterIds.forEach((id, i) => {
       if (!free[i]) return;
       const m = createMonster(id, `spawn-${++this.rollCounter}`, { name: `${nameOf("monsters", id)} ${i + 1}` });
+      hardenMonster(m, DIFFICULTY[this.difficulty]);
       m.pos = free[i];
       this.battle.creatures[m.id] = m;
     });
@@ -672,6 +676,11 @@ export class GameController {
   /** When a phone last did something (the game master speaks up when it is quiet for long). */
   lastActionAt = Date.now();
 
+  /** A check's target number on this difficulty (never below 5). */
+  sg(dc: number): number {
+    return Math.max(5, dc + DIFFICULTY[this.difficulty].dc);
+  }
+
   handle(playerId: PlayerId, action: PlayerAction): void {
     this.lastActionAt = Date.now();
     if (action.kind === "set_beginner_mode") {
@@ -787,7 +796,7 @@ export class GameController {
         this.interact(playerId, hero, action.objectId, action.targetId);
         return;
       case "check":
-        this.ask(playerId, hero, { title: `Umsehen (${nameOf("skills", action.skill)})`, sides: 20, glossarKey: "umsehen", need: rollNeed("SG", LOOK_DC, sumParts(skillParts(hero, "perception"))) }, () => this.lookAround(hero));
+        this.ask(playerId, hero, { title: `Umsehen (${nameOf("skills", action.skill)})`, sides: 20, glossarKey: "umsehen", need: rollNeed("SG", this.sg(LOOK_DC), sumParts(skillParts(hero, "perception"))) }, () => this.lookAround(hero));
         return;
       default: {
         const engineAction = this.toEngineAction(action);
@@ -1007,7 +1016,7 @@ export class GameController {
     const trap = this.map.objects.find((o) => o.kind === "trap" && o.x === hero.pos!.x && o.y === hero.pos!.y);
     if (!trap) return [];
     trap.state = "used";
-    const save = savingThrow(this.rng, hero, "DEX", TRAP_DC);
+    const save = savingThrow(this.rng, hero, "DEX", this.sg(TRAP_DC));
     const lines: ExplainedLine[] = [{ text: `💥 Klick! ${hero.name} tritt auf eine versteckte Falle. Pfeile schießen aus der Wand!`, glossarKeys: ["falle"] }];
     lines.push(...explainCheck(this.battle, hero.id, save));
     if (save.success) {
@@ -1336,7 +1345,8 @@ export class GameController {
       this.emit("changed");
       return r;
     };
-    const rollThen = (title: string, skill: SkillId, dc: number, glossarKey: string, then: (success: boolean, lines: ExplainedLine[], check: ReturnType<typeof skillCheck>) => RollOutcome) => {
+    const rollThen = (title: string, skill: SkillId, baseDc: number, glossarKey: string, then: (success: boolean, lines: ExplainedLine[], check: ReturnType<typeof skillCheck>) => RollOutcome) => {
+      const dc = this.sg(baseDc);
       this.ask(playerId, hero, { title: `${title} (${nameOf("skills", skill)}, SG ${dc})`, sides: 20, glossarKey, need: rollNeed("SG", dc, sumParts(skillParts(hero, skill))) }, () => {
         const err = this.spendAction(hero);
         if (err) return { error: err };
@@ -1509,7 +1519,7 @@ export class GameController {
       if (turn.actions <= 0) return { error: "Du hast deine Aktion schon benutzt." };
       turn.actions--;
     }
-    const check = skillCheck(this.rng, hero, "perception", LOOK_DC);
+    const check = skillCheck(this.rng, hero, "perception", this.sg(LOOK_DC));
     const lines = explainCheck(this.battle, hero.id, check);
     const roomIndex = hero.pos ? (this.map.roomOf[cellIndex(this.map, hero.pos.x, hero.pos.y)] ?? -1) : -1;
     const traps = this.map.objects.filter((o) => o.kind === "trap" && o.state === "hidden" && (roomIndex < 0 || o.roomId === this.map.rooms[roomIndex]?.id));
@@ -1772,7 +1782,8 @@ export class GameController {
   }
 
   /** A skill check for one hero; resolves when the phone has rolled. */
-  check(hero: Creature, skill: SkillId, dc: number, title: string): Promise<CheckResult> {
+  check(hero: Creature, skill: SkillId, baseDc: number, title: string): Promise<CheckResult> {
+    const dc = this.sg(baseDc);
     return new Promise((resolve) => {
       const playerId = hero.playerId!;
       const run = (): RollOutcome => {
@@ -1798,7 +1809,7 @@ export class GameController {
 
   /** Spawns monsters in the heroes' current room and starts a fight. Resolves with the winner. */
   fight(groups: MonsterGroup[], opts: { training?: boolean; allies?: { monster: string; name: string }[] } = {}): Promise<{ winner: "party" | "enemy"; spawned: Creature[] }> {
-    const spawned = this.spawnGroups(groups, opts.allies ?? []);
+    const spawned = this.spawnGroups(groups, opts.allies ?? [], !!opts.training);
     this.training = !!opts.training;
     return new Promise((resolve) => {
       if (!spawned.length) {
@@ -1980,7 +1991,9 @@ export class GameController {
     this.checkCombatStart();
   }
 
-  private spawnGroups(groups: MonsterGroup[], allies: { monster: string; name: string }[]): Creature[] {
+  private spawnGroups(groups: MonsterGroup[], allies: { monster: string; name: string }[], training = false): Creature[] {
+    const rules = DIFFICULTY[this.difficulty];
+    const extra = groups.some((g) => g.boss) && !rules.extraWithBoss ? 0 : rules.extraMonsters;
     const players = this.heroes().length;
     const spawned: Creature[] = [];
     const lead = this.heroes().find((h) => isActive(h) && h.pos) ?? this.heroes()[0]!;
@@ -1998,12 +2011,14 @@ export class GameController {
       return out;
     };
     for (const g of groups) {
-      const count = scaleGroup(g, players);
+      // Harder levels bring one more of the rank and file (never in the training fight).
+      const count = scaleGroup(g, players) + (g.boss || training || !g.count ? 0 : extra);
       const spots = freeSpots(g.boss ? [...room.spots.boss, ...room.spots.monster] : room.spots.monster);
       for (let i = 0; i < count && spots.length; i++) {
         const pos = spots.shift()!;
         const m = createMonster(g.monster, `m${++this.rollCounter}`, { name: count > 1 ? `${g.name ?? nameOf("monsters", g.monster)} ${i + 1}` : (g.name ?? nameOf("monsters", g.monster)) });
         m.pos = pos;
+        if (!training) hardenMonster(m, rules);
         this.battle.creatures[m.id] = m;
         spawned.push(m);
         if (g.boss) this.bossIds.add(m.id);
