@@ -90,6 +90,8 @@ export type GameEvent =
   | { type: "reward"; reward: import("./reward").Reward }
   /** TV → one phone: ideas for a free action. */
   | { type: "suggestions"; ideas: string[] }
+  /** A free action could mean several things: „Meinst du …?“ – the phone sends the chosen action. */
+  | { type: "free_text_options"; text: string; options: { label: string; detail: string; action: PlayerAction }[] }
   /** TV → one phone: the game master's answer to a rules question. */
   | { type: "rules_answer"; question: string; answer: string }
   /** TV → unknown phone during the game: heroes whose phone is gone and can be taken over. */

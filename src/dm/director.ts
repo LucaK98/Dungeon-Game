@@ -236,7 +236,8 @@ export class Director {
       raw = { narration: "", next: "await_action" };
     }
     const { response } = validateResponse(raw, { story: this.story, scene: this.scene, truth: this.state.truth, eventsUsed: this.state.eventsUsed });
-    const lines: Narration[] = response.script ?? (response.narration ? [{ text: response.narration }] : []);
+    // Free text from the game master is kept short (read aloud in full; long texts lose the table).
+    const lines: Narration[] = response.script ?? (response.narration ? [{ text: shorten(response.narration, trigger.kind === "scene_start" || trigger.kind === "final_blow" || trigger.kind === "campfire" ? 3 : 2) }] : []);
     if (response.npc_say) lines.push({ npc: response.npc_say.name, text: response.npc_say.text });
     this.game.narrate(lines);
     if (response.reveal_twist) this.state.twistRevealed = true;
@@ -280,7 +281,49 @@ export class Director {
       narration: [],
       choices: [],
       clues: this.state.clues.map((id) => ({ text: this.story.clues.find((c) => c.id === id)!.text })),
+      ...this.taskList(),
     });
+  }
+
+  /** Steps of this scene done so far (for the checklist). */
+  private doneSteps = new Set<string>();
+
+  /** The scene as a checklist: what is done, what is to do now, and how many more come. */
+  private taskList(): { tasks: { text: string; done: boolean }[]; moreTasks: number } {
+    const steps = this.scene.steps.filter((s) => s.kind !== "narrate" && (!s.truths || s.truths.includes(this.state.truth)));
+    const tasks: { text: string; done: boolean }[] = [];
+    let more = 0;
+    let current = false;
+    for (const s of steps) {
+      if (this.doneSteps.has(s.id)) tasks.push({ text: this.taskText(s), done: true });
+      else if (!current && (s.id === this.stepId || !this.stepId)) {
+        tasks.push({ text: this.taskText(s), done: false });
+        current = true;
+      } else if (current || tasks.length) more++;
+    }
+    return { tasks, moreTasks: more };
+  }
+
+  private taskText(s: Step): string {
+    switch (s.kind) {
+      case "reach": {
+        if (!s.target || s.target === "exit") return "Den Weg nach draußen finden";
+        const npc = this.story.npcs.find((n) => n.id === s.target);
+        return `Zu ${npc?.name ?? "der Person"} gehen`;
+      }
+      case "explore":
+        return "Die Gegend erkunden";
+      case "check":
+        return s.check?.title ?? "Eine Probe bestehen";
+      case "fight":
+        return "Den Kampf bestehen";
+      case "use_item":
+        return "Etwas öffnen oder benutzen";
+      case "choice":
+        return "Gemeinsam entscheiden";
+      default:
+        return "Weiter";
+    }
   }
 
   // ---------------------------------------------------------------- main loop
@@ -481,6 +524,7 @@ export class Director {
 
   private async playScene(scene: Scene): Promise<"done" | "defeat"> {
     this.scene = scene;
+    this.doneSteps.clear();
     this.stepId = undefined;
     const { act } = actOf(this.story, scene.id);
     if (act.level && this.game.levelUp(act.level)) {
@@ -503,6 +547,7 @@ export class Director {
     this.game.loadMap(map, npcs);
     this.sceneItemUses = this.game.itemUses;
     this.world?.newScene(this.state.sceneIndex === 0);
+    this.game.sceneCard(scene.title, scene.ziel);
     this.lowestHpRatio = 1;
     this.updateView();
     await this.askDm({ kind: "scene_start" });
@@ -528,6 +573,7 @@ export class Director {
       }
     }
     this.stepId = undefined;
+    this.updateView();
     await this.leaveVote();
     const end = await this.askDm({ kind: "scene_end" });
     if (end.trigger_event) {
@@ -624,6 +670,7 @@ export class Director {
         break;
     }
     if (result === "defeat") return result;
+    this.doneSteps.add(step.id);
     this.set(step.set);
     if (step.clue) this.addClue(step.clue);
     for (const c of step.clues ?? []) this.addClue(c);
@@ -962,4 +1009,12 @@ export class Director {
     this.opts.onEnd?.(result);
     return result;
   }
+}
+
+/** At most `sentences` sentences (and never more than about 320 characters). */
+export function shorten(text: string, sentences: number): string {
+  const parts = text.match(/[^.!?…]+[.!?…]+["“”»«]?\s*|[^.!?…]+$/g) ?? [text];
+  let out = parts.slice(0, sentences).join("").trim();
+  if (out.length > 320) out = `${out.slice(0, 317).replace(/\s+\S*$/, "")} …`;
+  return out;
 }

@@ -905,3 +905,36 @@ body.tip-mode::after {
 .chip.heal { color: #7fe38a; background: rgba(90, 220, 110, 0.14); }
 .chip.range, .chip.slots, .chip.area { color: #cfc4ad; }
 .chip.area { color: #ffb45e; }
+
+/* ---------------------------------------------------------------- turn in two steps */
+.steps { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.4rem; margin-top: 0.4rem; align-items: stretch; }
+.step { display: flex; gap: 0.45rem; align-items: center; padding: 0.4rem 0.55rem; border-radius: 12px; background: rgba(255, 255, 255, 0.06); border: 2px solid var(--player, #e0a526); }
+.step.done { opacity: 0.55; border-color: #3f7a45; }
+.step-n { font-size: 1.3rem; font-weight: 800; color: var(--player, #e0a526); }
+.step.done .step-n { color: #7fe38a; }
+.step-text { display: flex; flex-direction: column; line-height: 1.15; }
+.step-sub { font-size: 0.78rem; opacity: 0.85; }
+.turn-line { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.turn-timer { margin-left: auto; font-weight: 800; font-size: 0.95rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: #2a241e; color: #e0c68a; }
+.turn-timer.urgent { background: #5a1e1a; color: #ffb0a6; animation: pulse-t 1s infinite; }
+@keyframes pulse-t { 50% { transform: scale(1.08); } }
+.ctl-status.next-up { border-color: #e0a526; }
+.turn-sub.next { color: #ffd75e; font-weight: 700; }
+
+/* ---------------------------------------------------------------- enemy card */
+.enemy-card { margin-bottom: 0.6rem; }
+.enemy-hp { height: 12px; border-radius: 6px; background: #3a2f27; overflow: hidden; margin-bottom: 0.4rem; }
+.enemy-hp-bar { height: 100%; }
+.enemy-hp-bar.ok { background: #4caf50; }
+.enemy-hp-bar.hurt { background: #e0b030; }
+.enemy-hp-bar.low { background: #e04040; }
+.chip.danger.high { background: #5a1e1a; color: #ffb0a6; }
+.chip.danger.mid { background: #4a3d16; color: #ffe08a; }
+.chip.danger.low { background: #24452a; color: #aef0b0; }
+
+/* ---------------------------------------------------------------- scene checklist */
+.st-tasks { list-style: none; padding: 0; margin: 0.35rem 0; display: grid; gap: 0.2rem; }
+.st-tasks li.open { color: #ffe08a; font-weight: 700; }
+.st-tasks li.done { opacity: 0.6; }
+.st-tasks li.more { font-size: 0.85rem; opacity: 0.7; }
+.steps > .lamp { align-self: center; }

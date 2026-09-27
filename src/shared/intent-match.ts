@@ -13,7 +13,8 @@ export interface IntentMatch {
   targetNames: string[];
 }
 
-export type MatchOutcome = { match: IntentMatch } | { blocked: string; choice: ActionChoice } | undefined;
+/** `ask`: not clear which one is meant – the phone asks „Meinst du …?“ with these options. */
+export type MatchOutcome = { match: IntentMatch } | { ask: IntentMatch[] } | { blocked: string; choice: ActionChoice } | undefined;
 
 const has = (t: string, re: RegExp) => re.test(t);
 
@@ -136,9 +137,21 @@ export function matchFreeText(text: string, choices: ActionChoice[], meId?: stri
     return { blocked: top.reason ?? "Das geht gerade nicht.", choice: top };
   }
   const c = best.c;
-  if (!c.targets) return { match: { choice: c, action: c.action, targetNames: [] } };
   const healing = c.avgKind === "heal" || c.id === "item:potion";
-  let chosen = mentionedTargets(t, c.targets, meId);
+  const named = mentionedTargets(t, c.targets ?? [], meId);
+  // Several enemies in reach and none (or more than one) is meant clearly: ask which one.
+  if (c.targets && !healing && (c.pick?.max ?? 1) === 1 && c.targets.length > 1 && named.length !== 1) {
+    const pool = named.length > 1 ? named : c.targets;
+    return { ask: pool.slice(0, 4).map((x) => build(c, [x])) };
+  }
+  return { match: build(c, named) };
+}
+
+/** The action for a button with its targets (named ones, else the best guess). */
+function build(c: ActionChoice, named: NonNullable<ActionChoice["targets"]>): IntentMatch {
+  if (!c.targets) return { choice: c, action: c.action, targetNames: [] };
+  const healing = c.avgKind === "heal" || c.id === "item:potion";
+  let chosen = named;
   if (!chosen.length) {
     const sorted = healing ? [...c.targets].sort((a, b) => hpOf(a.detail) - hpOf(b.detail)) : [...c.targets].sort((a, b) => (b.chance ?? 0) - (a.chance ?? 0));
     chosen = sorted.slice(0, 1);
@@ -151,5 +164,5 @@ export function matchFreeText(text: string, choices: ActionChoice[], meId?: stri
   const action: PlayerAction =
     a.kind === "attack" ? { ...a, targetId: ids[0]! } : a.kind === "cast" ? { ...a, targetIds: ids } : a.kind === "use_item" ? { ...a, targetId: ids[0]! } : a;
   const names = [...new Set(ids)].map((id) => c.targets!.find((x) => x.id === id)!.name.replace(" (du)", ""));
-  return { match: { choice: c, action, targetNames: names } };
+  return { choice: c, action, targetNames: names };
 }

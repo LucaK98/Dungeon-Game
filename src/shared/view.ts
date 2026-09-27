@@ -25,6 +25,11 @@ export interface MiniCreature {
   /** 0..1 */
   health: number;
   down: boolean;
+  /** Enemies: armour class, hit points and how dangerous they are for this hero. */
+  ac?: number;
+  hp?: number;
+  maxHp?: number;
+  danger?: "leicht" | "gefährlich" | "sehr gefährlich";
 }
 
 export interface MiniMap {
@@ -91,6 +96,12 @@ export interface TurnInfo {
   bonusAction: boolean;
   /** Free exploration: everyone may act at the same time. */
   free?: boolean;
+  /** Full movement of this hero (to show "① Bewegen" as done). */
+  speedFt?: number;
+  /** Exploring in turns: seconds until a silent player is skipped. */
+  secondsLeft?: number;
+  /** This hero is next after the active one. */
+  nextUp?: boolean;
 }
 
 export interface OrderEntry {
@@ -177,6 +188,10 @@ export interface StoryView {
   /** Story decisions anyone may take (group "story"). */
   choices: ActionChoice[];
   clues: { text: string }[];
+  /** The scene's goal as a checklist: done steps ticked, the current one open, the rest only counted. */
+  tasks?: { text: string; done: boolean }[];
+  /** How many more tasks follow (not shown yet: no spoilers). */
+  moreTasks?: number;
   /** A group vote is running: how many have voted, of how many. */
   vote?: { cast: number; total: number };
 }

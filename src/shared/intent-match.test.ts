@@ -44,12 +44,12 @@ describe("free text → own buttons", () => {
     expect(m.action).toEqual({ kind: "attack", targetId: "g1", optionId: "rapier" });
   });
   it("shooting means the bow, stabbing a melee weapon", () => {
-    expect(hit("Ich schieße auf den Goblin")!.choice.id).toBe("attack:shortbow");
-    expect(hit("Ich steche zu")!.choice.id).toBe("attack:rapier");
+    expect(hit("Ich schieße auf Goblin 1")!.choice.id).toBe("attack:shortbow");
+    expect(hit("Ich steche Goblin 2 nieder")!.choice.id).toBe("attack:rapier");
     expect(hit("Ich werfe meinen Dolch nach Goblin 2")!.action).toMatchObject({ targetId: "g2", optionId: "dagger" });
   });
   it("spells by name or element; healing goes to the most hurt friend", () => {
-    expect(hit("Ich schleudere Feuer auf ihn")!.choice.id).toBe("spell:fire-bolt");
+    expect(hit("Ich schleudere Feuer auf Goblin 1")!.choice.id).toBe("spell:fire-bolt");
     expect(hit("Ich heile meinen Freund")!.action).toEqual({ kind: "cast", spellId: "cure-wounds", targetIds: ["ole"] });
     expect(hit("Ich heile mich")!.action).toMatchObject({ targetIds: ["me"] });
   });
@@ -58,6 +58,13 @@ describe("free text → own buttons", () => {
     expect(matchFreeText("Ich frage den Wirt nach dem Weg", all, "me")).toBeUndefined();
     expect(matchFreeText("Ich schaue mich im Haus um", all, "me")).toBeUndefined();
   });
+  it("asks when it is not clear whom or what is meant", () => {
+    const r = matchFreeText("Ich schieße auf den Goblin", all, "me");
+    expect(r && "ask" in r && r.ask.map((m) => m.targetNames[0])).toEqual(["Goblin 1", "Goblin 2"]);
+    const one = [{ ...rapier, targets: [goblins[0]!] }, { ...bow, targets: [goblins[0]!] }];
+    expect(hit("Ich schieße", one)!.choice.id).toBe("attack:shortbow");
+  });
+
   it("says why when the fitting attack is not possible", () => {
     const far = { ...rapier, enabled: false, reason: "Kein Gegner in Reichweite. Geh näher heran.", targets: [] };
     const r = matchFreeText("Ich greife mit dem Rapier an", [far], "me");

@@ -154,9 +154,16 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
           game.events.emit("log", c.recentLog(14), added);
         }
         updateAmbience(c);
-        game.events.emit("order", c.mode === "combat" ? c.orderEntries() : []);
-        if (c.storyView) game.events.emit("chapter", c.storyView.chapter, c.storyView.goal);
+        // The group at the left edge: in fights and when exploring in turns (who is next).
+        game.events.emit("order", c.mode === "combat" || !c.freeExplore ? c.orderEntries() : []);
+        if (c.storyView) {
+          game.events.emit("chapter", c.storyView.chapter, c.storyView.goal);
+          game.events.emit("notes", c.storyView.tasks ?? [], c.storyView.moreTasks ?? 0, c.storyView.clues.map((x) => x.text));
+        }
       },
+      clock: (seconds) => game.events.emit("clock", seconds),
+      round: (ended) => game.events.emit("round", ended),
+      scene: (title, goal) => game.events.emit("scene-card", title, goal),
       turn: (name, color, free, info) => {
         askedFor = undefined;
         game.events.emit("turn", name, color, free, info);
@@ -322,8 +329,17 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     uiReady = true;
     if (early.length) game.events.emit("narration", early.splice(0));
     controller?.announceTurn();
-    if (controller?.storyView) game.events.emit("chapter", controller.storyView.chapter, controller.storyView.goal);
-    if (controller) game.events.emit("log", controller.recentLog(14), 0);
+    if (controller?.storyView) {
+      game.events.emit("chapter", controller.storyView.chapter, controller.storyView.goal);
+      game.events.emit("notes", controller.storyView.tasks ?? [], controller.storyView.moreTasks ?? 0, controller.storyView.clues.map((x) => x.text));
+    }
+    if (controller) {
+      game.events.emit("log", controller.recentLog(14), 0);
+      game.events.emit("order", controller.mode === "combat" || !controller.freeExplore ? controller.orderEntries() : []);
+      // Once more when the pictures are surely loaded.
+      const c = controller;
+      setTimeout(() => game.events.emit("order", c.mode === "combat" || !c.freeExplore ? c.orderEntries() : []), 2500);
+    }
   });
 
   host.onPlayerEvent((e, from) => {

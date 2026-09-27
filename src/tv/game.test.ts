@@ -273,3 +273,27 @@ describe("hero book levels", () => {
     expect(level("p3")).toBe(2);
   });
 });
+
+describe("free text: walking and asking", () => {
+  it("„Ich gehe zu Ilmarin“ walks next to Ilmarin (as far as the turn allows)", async () => {
+    const { game, session } = setup(4);
+    const { isWalkable } = await import("../map/walk");
+    const { cellIndex } = await import("../shared/map");
+    const p1 = game.heroOf("p1")!;
+    const p2 = game.heroOf("p2")!;
+    const map = session.map;
+    // Put Ilmarin a few squares away on a free, explored square.
+    let spot: { x: number; y: number } | undefined;
+    for (let y = 0; y < map.height && !spot; y++) {
+      for (let x = 0; x < map.width && !spot; x++) {
+        const d = Math.max(Math.abs(x - p1.pos!.x), Math.abs(y - p1.pos!.y));
+        if (d >= 4 && d <= 5 && isWalkable(map, { x, y }) && map.explored[cellIndex(map, x, y)]) spot = { x, y };
+      }
+    }
+    expect(spot).toBeDefined();
+    p2.pos = spot!;
+    game.broadcast();
+    game.handle("p1", { kind: "free_text", text: "Ich gehe zu Ilmarin" });
+    expect(Math.max(Math.abs(p1.pos!.x - spot!.x), Math.abs(p1.pos!.y - spot!.y))).toBe(1);
+  });
+});

@@ -19,6 +19,9 @@ const FONT = "system-ui, sans-serif";
 export class UiScene extends Phaser.Scene {
   private banner!: Phaser.GameObjects.Text;
   private turnText!: Phaser.GameObjects.Text;
+  private logLines: ExplainedLine[] = [];
+  private notes: { tasks: { text: string; done: boolean }[]; more: number; clues: string[] } = { tasks: [], more: 0, clues: [] };
+  private notesKey = "";
   private goal!: Phaser.GameObjects.Text;
   /** "Runde 3 · danach: Brunhild, Ole" above the name. */
   private turnInfo!: Phaser.GameObjects.Text;
@@ -79,6 +82,38 @@ export class UiScene extends Phaser.Scene {
       if (!this.telling) void this.tell();
     };
     // Top left: the chapter, and below it the goal right now in one line (always in sight).
+    // Exploring in turns: the seconds left for a silent player, and a short note when a round is over.
+    const onClock = (seconds?: number) => {
+      const base = this.turnInfo.getData("base") as string | undefined;
+      if (base === undefined) return;
+      this.turnInfo.setText(seconds !== undefined && seconds <= 60 ? `${base} · ⏱ ${seconds} s` : base);
+      this.turnInfo.setColor(seconds !== undefined && seconds <= 15 ? "#ff8a7e" : "#e0c68a");
+    };
+    const onRound = (ended: number) => this.showBanner(`🔔 Runde ${ended} vorbei`);
+    // A new scene: title and goal big in the middle for a few seconds.
+    const sceneCard = this.add.container(MAP_RIGHT / 2, BOARD_HEIGHT * 0.36).setDepth(45).setAlpha(0);
+    const onSceneCard = (title: string, goal: string) => {
+      this.tweens.killTweensOf(sceneCard);
+      sceneCard.removeAll(true);
+      const t = this.add.text(0, -30, title, crisp({ fontFamily: FONT, fontSize: "64px", fontStyle: "bold", color: "#ffd75e", stroke: "#000", strokeThickness: 10, align: "center", wordWrap: { width: 1100 } })).setOrigin(0.5, 1);
+      const g = this.add.text(0, 10, `🎯 ${goal}`, crisp({ fontFamily: FONT, fontSize: "36px", color: "#f3e9d2", stroke: "#000", strokeThickness: 8, align: "center", wordWrap: { width: 1100 } })).setOrigin(0.5, 0);
+      const w = Math.max(t.width, g.width) + 120;
+      const bg = this.add.graphics();
+      bg.fillStyle(0x0d0b09, 0.88).fillRoundedRect(-w / 2, -t.height - 70, w, t.height + g.height + 120, 26);
+      bg.lineStyle(5, 0xe0a526, 1).strokeRoundedRect(-w / 2, -t.height - 70, w, t.height + g.height + 120, 26);
+      sceneCard.add([bg, t, g]);
+      sceneCard.setAlpha(0).setScale(0.9);
+      this.tweens.add({ targets: sceneCard, alpha: 1, scale: 1, duration: 450, ease: "Back.easeOut" });
+      this.tweens.add({ targets: sceneCard, alpha: 0, delay: 3800, duration: 700 });
+    };
+    this.game.events.on("scene-card", onSceneCard);
+    this.events.once("shutdown", () => this.game.events.off("scene-card", onSceneCard));
+    this.game.events.on("clock", onClock);
+    this.game.events.on("round", onRound);
+    this.events.once("shutdown", () => {
+      this.game.events.off("clock", onClock);
+      this.game.events.off("round", onRound);
+    });
     const onChapter = (text: string, goal?: string) => {
       this.chapter.setText(text);
       this.goal.setText(goal ? `🎯 ${goal}` : "");
@@ -102,7 +137,20 @@ export class UiScene extends Phaser.Scene {
     this.game.events.on("turn", onTurn);
     this.game.events.on("roll", onRoll);
     this.game.events.on("asked", onAsked);
-    const onLog = (lines: ExplainedLine[], added = 0) => this.showLog(lines, added);
+    const onLog = (lines: ExplainedLine[], added = 0) => {
+      this.logLines = lines;
+      this.showLog(lines, added);
+    };
+    // Tasks and clues at the top of the right column (redrawn only when they change).
+    const onNotes = (tasks: { text: string; done: boolean }[], more: number, clues: string[]) => {
+      const key = JSON.stringify([tasks, more, clues.slice(-3)]);
+      if (key === this.notesKey) return;
+      this.notesKey = key;
+      this.notes = { tasks, more, clues };
+      this.showLog(this.logLines, 0);
+    };
+    this.game.events.on("notes", onNotes);
+    this.events.once("shutdown", () => this.game.events.off("notes", onNotes));
     this.game.events.on("log", onLog);
     // The campfire rest: a warm panel at the top while the phones tell and shop.
     const campBox = this.add.container(MAP_RIGHT / 2 + 60, 96).setDepth(40);
@@ -353,8 +401,8 @@ export class UiScene extends Phaser.Scene {
     // A roll that was asked for and never thrown (the turn moved on): take the waiting die away.
     if (this.asking) this.clearRollBox();
     this.turnText.setText(free ? `🧭 ${name}` : `▶ ${name} ist dran`);
-    this.turnInfo.setText(info ?? "");
-    const w = Math.max(this.turnText.width, this.turnInfo.width) + 60;
+    this.turnInfo.setText(info ?? "").setColor("#e0c68a").setData("base", info);
+    const w = Math.max(this.turnText.width, this.turnInfo.width + (info ? 130 : 0)) + 60;
     const top = info ? BOARD_HEIGHT - 150 : BOARD_HEIGHT - 110;
     const h = info ? 120 : 80;
     this.turnBox.clear();
@@ -377,7 +425,9 @@ export class UiScene extends Phaser.Scene {
       bg.lineStyle(e.active ? 5 : 3, edge, 1).strokeRoundedRect(0, y, e.active ? 320 : 290, row - 6, 12);
       this.orderBar.add(bg);
       const frames = e.look ? dollFrames(e.look) : e.monsterId ? [`monster.${e.monsterId}`] : [];
-      for (const f of frames) this.orderBar.add(this.add.image(44, y + (row - 6) / 2, TILES, f).setScale((2 * scale) / UP));
+      // (Right at the start the upscaled tiles may not be ready yet: the portrait comes with the next update.)
+      const atlas = this.textures.exists(TILES) ? this.textures.get(TILES) : undefined;
+      for (const f of frames) if (atlas?.has(f)) this.orderBar.add(this.add.image(44, y + (row - 6) / 2, TILES, f).setScale((2 * scale) / UP));
       const name = this.add.text(88, y + 8 * scale, e.name, crisp({ fontFamily: FONT, fontSize: `${Math.round(26 * Math.max(0.75, scale))}px`, color: e.health <= 0 ? "#8d8172" : "#f3e9d2", fontStyle: e.active ? "bold" : "normal" }));
       this.orderBar.add(name);
       if (e.initiative !== undefined) this.orderBar.add(this.add.text(e.active ? 300 : 270, y + 8 * scale, String(e.initiative), crisp({ fontFamily: FONT, fontSize: `${Math.round(24 * Math.max(0.75, scale))}px`, color: "#b3a58a" })).setOrigin(1, 0));
@@ -524,12 +574,42 @@ export class UiScene extends Phaser.Scene {
     const bg = this.add.graphics();
     bg.fillStyle(0x0d0b09, 0.88).fillRoundedRect(x, top, width, bottom - top, 18);
     bg.lineStyle(3, 0x5a4d42, 1).strokeRoundedRect(x, top, width, bottom - top, 18);
-    const title = this.add.text(x + 22, top + 18, "📜 Was ist passiert?", crisp({ fontFamily: FONT, fontSize: "28px", color: "#e0a526", fontStyle: "bold" }));
-    box.add([bg, title]);
+    box.add(bg);
+    // At the top: the scene as a checklist, and the clues found (as small notes).
+    let ny = top + 18;
+    const n = this.notes;
+    if (n.tasks.length) {
+      box.add(this.add.text(x + 22, ny, "🎯 Aufgaben", crisp({ fontFamily: FONT, fontSize: "26px", color: "#e0a526", fontStyle: "bold" })));
+      ny += 38;
+      for (const t of n.tasks) {
+        const line = this.add.text(x + 26, ny, `${t.done ? "✅" : "⬜"} ${t.text}`, crisp({ fontFamily: FONT, fontSize: "22px", color: t.done ? "#8fbf8f" : "#ffe08a", fontStyle: t.done ? "normal" : "bold", wordWrap: { width: width - 50 } }));
+        box.add(line);
+        ny += line.height + 6;
+      }
+      if (n.more) {
+        box.add(this.add.text(x + 26, ny, `… und ${n.more} weitere`, crisp({ fontFamily: FONT, fontSize: "20px", color: "#8f8574" })));
+        ny += 30;
+      }
+      ny += 8;
+    }
+    if (n.clues.length) {
+      box.add(this.add.text(x + 22, ny, `🧩 Hinweise (${n.clues.length})`, crisp({ fontFamily: FONT, fontSize: "26px", color: "#e0a526", fontStyle: "bold" })));
+      ny += 38;
+      for (const c of n.clues.slice(-3)) {
+        const t = this.add.text(x + 36, ny + 6, c, crisp({ fontFamily: FONT, fontSize: "19px", color: "#2b2013", wordWrap: { width: width - 72 }, lineSpacing: 2 }));
+        const paper = this.add.graphics();
+        paper.fillStyle(0xf1dfa6, 0.95).fillRoundedRect(x + 24, ny, width - 48, t.height + 12, 6);
+        box.add([paper, t]);
+        ny += t.height + 20;
+      }
+      ny += 4;
+    }
+    const title = this.add.text(x + 22, ny, "📜 Was ist passiert?", crisp({ fontFamily: FONT, fontSize: "28px", color: "#e0a526", fontStyle: "bold" }));
+    box.add(title);
     const texts = lines.map((l) => l.text);
     const fresh = Math.min(added, texts.length);
     let y = bottom - 18;
-    const limit = top + 70;
+    const limit = ny + 52;
     for (let i = texts.length - 1; i >= 0; i--) {
       const text = texts[i]!;
       const age = texts.length - 1 - i;
@@ -696,6 +776,8 @@ export class UiScene extends Phaser.Scene {
 
 /** Colour of a log line: green for hits and successes, red for misses and failures. */
 function logColor(text: string): string {
+  const bullet = (Object.keys(BULLET_ICON) as (keyof typeof BULLET_ICON)[]).find((k) => text.startsWith(`${BULLET_ICON[k]} `));
+  if (bullet) return BULLET_COLOR[bullet];
   if (/nicht geschafft|verfehlt|daneben|misslingt|fehlschlag|→ kein treffer/i.test(text)) return "#f0a3a3";
   if (/treffer|geschafft|erfolg|kritisch/i.test(text)) return "#a8e6a3";
   if (/^(⬆️|✨|💰|🎁|🏆)/u.test(text)) return "#ffd75e";

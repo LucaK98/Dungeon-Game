@@ -38,7 +38,8 @@ import { BRIBE_PER_ENEMY } from "../dm/effects";
 import { glossaryAnswer } from "../dm/rules-help";
 import { isTrick } from "../dm/free-actions";
 import { matchFreeText } from "../shared/intent-match";
-import { bulletsFor } from "../shared/bullets";
+import { nameFits, walkIntent } from "../shared/walk-text";
+import { BULLET_ICON, bulletsFor } from "../shared/bullets";
 import type { AttackOption, Creature, GridPos, TurnState } from "../shared/game";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
@@ -59,6 +60,10 @@ export interface StoryChoiceOffer {
   recommended?: boolean;
 }
 
+/** Talking to someone ("Ich frage den Wirt …"). */
+const TALK = /\b(frag|sag|sprech|sprich|red|erzähl|bitt|ruf|grüß|begrüß|unterhalt|plauder|flüster)\w*/;
+/** Dice sums and rule details: on the phones, not in the TV's log column. */
+const MATH_LINE = /= -?\d+ gegen (RK|SG)|^🎲|^💥|gewürfelt|Bei einem kritischen Treffer|Rettungswurf-SG|hat jetzt \d+ Trefferpunkte|^[^:]+: 🎲/;
 /** Exploring in turns: a player who does nothing this long is skipped (ms). */
 const SILENT_TURN_MS = 90_000;
 const LOG_SIZE = 40;
@@ -81,6 +86,12 @@ export interface GameEvents {
   changed(): void;
   roll(outcome: RollOutcome): void;
   turn(name: string, color: string | undefined, free?: boolean, info?: string): void;
+  /** Exploring in turns: seconds left for the active player (undefined = no clock). */
+  clock(seconds: number | undefined): void;
+  /** Exploring in turns: a round is over. */
+  round(ended: number): void;
+  /** A new scene: a big title card on the TV for a few seconds. */
+  scene(title: string, goal: string): void;
   roomRevealed(name: string): void;
   lines(lines: ExplainedLine[]): void;
   combat(started: boolean): void;
@@ -306,6 +317,47 @@ export class GameController {
 
   private heroByRef(ref: string): Creature | undefined {
     return this.heroes().find((h) => h.playerId === ref || h.id === ref);
+  }
+
+  /** Where "Ich gehe zu …" leads: the nearest creature or thing whose name fits (only what the heroes have seen). */
+  private walkGoal(hero: Creature, target: string): { pos: GridPos; name: string } | undefined {
+    if (!hero.pos) return undefined;
+    const map = this.map;
+    const seen = (p: GridPos) => !!map.explored[cellIndex(map, p.x, p.y)];
+    const found: { pos: GridPos; name: string }[] = [];
+    for (const c of Object.values(this.battle.creatures)) {
+      if (c.id === hero.id || c.dead || !c.pos || !seen(c.pos)) continue;
+      if (nameFits(target, c.name) || (c.monsterId && nameFits(target, nameOf("monsters", c.monsterId)))) found.push({ pos: c.pos, name: c.name });
+    }
+    const KIND: Record<string, string> = {
+      chest: "Truhe", door: "Tür Tor", fountain: "Brunnen", statue: "Statue", altar: "Altar", column: "Säule", throne: "Thron", boulder: "Felsbrocken Felsen",
+      tree: "Baum", "stairs-down": "Treppe", "stairs-up": "Treppe", barrel: "Fass Fässer", lever: "Hebel", campfire: "Lagerfeuer Feuer", cauldron: "Kessel", box: "Kisten",
+    };
+    for (const o of map.objects) {
+      if (!seen(o) || (o.kind === "trap" && o.state !== "found")) continue;
+      const name = o.kind === "prop" ? `${propDef(o)?.name ?? ""}${o.prop === "counter" ? " Theke Bar" : ""}` : (KIND[o.kind] ?? "");
+      if (name && nameFits(target, name)) found.push({ pos: { x: o.x, y: o.y }, name: name.split(" ")[0]! });
+    }
+    if (/ausgang|weiter|nächsten raum/.test(target)) {
+      const last = map.rooms[map.rooms.length - 1]!;
+      found.push({ pos: { x: last.x + Math.floor(last.w / 2), y: last.y + Math.floor(last.h / 2) }, name: "Ausgang" });
+    }
+    const d = (p: GridPos) => Math.max(Math.abs(p.x - hero.pos!.x), Math.abs(p.y - hero.pos!.y));
+    return found.sort((a, b) => d(a.pos) - d(b.pos))[0];
+  }
+
+  /** Walks as close as this turn allows (right next to it when possible). */
+  private walkTowards(playerId: PlayerId, hero: Creature, goal: { pos: GridPos; name: string }): void {
+    const d = (p: GridPos) => Math.max(Math.abs(p.x - goal.pos.x), Math.abs(p.y - goal.pos.y));
+    const now = d(hero.pos!);
+    if (now <= 1) return;
+    const best = this.reachable(hero).sort((a, b) => d(a) - d(b) || Math.max(Math.abs(a.x - hero.pos!.x), Math.abs(a.y - hero.pos!.y)) - Math.max(Math.abs(b.x - hero.pos!.x), Math.abs(b.y - hero.pos!.y)))[0];
+    if (!best || d(best) >= now) {
+      this.sendTo(playerId, { type: "action_error", reason: `Zu ${goal.name} kommst du in diesem Zug nicht näher heran.` });
+      return;
+    }
+    this.addLog([{ text: `🦶 ${hero.name} geht ${d(best) <= 1 ? "zu" : "Richtung"} ${goal.name}.`, glossarKeys: ["bewegung"] }]);
+    this.move(playerId, hero, best);
   }
 
   /** Objects near a hero, in words (for the game master's ideas). */
@@ -582,6 +634,7 @@ export class GameController {
     const c = this.active();
     if (!c) return;
     this.turnStartedAt = Date.now();
+    this.turnActivityAt = this.turnStartedAt;
     this.emit("turn", c.name, c.appearance?.color ?? (c.side === "enemy" ? "#b03030" : undefined), false, this.turnInfo());
   }
 
@@ -598,8 +651,27 @@ export class GameController {
     return `Runde ${combat.round}${next.length ? ` · danach: ${next.join(", ")}` : ""}`;
   }
 
-  /** When the current turn began (turn-based exploring: a silent player is skipped after a while). */
+  /** When the current turn began / the active player last did something (a silent player is skipped). */
   private turnStartedAt = Date.now();
+  private turnActivityAt = Date.now();
+
+  /** Exploring in turns: seconds until the active player is skipped (undefined in fights and free exploring). */
+  secondsLeft(): number | undefined {
+    if (this.freeExplore || this.mode !== "explore" || !this.active()?.playerId) return undefined;
+    const since = Date.now() - Math.max(this.turnStartedAt, this.turnActivityAt);
+    return Math.max(0, Math.ceil((SILENT_TURN_MS - since) / 1000));
+  }
+
+  /** The hero whose turn comes after the active one. */
+  private nextUp(): Creature | undefined {
+    const combat = this.battle.combat;
+    if (!combat) return undefined;
+    for (let k = 1; k < combat.order.length; k++) {
+      const c = this.battle.creatures[combat.order[(combat.turnIndex + k) % combat.order.length]!.creatureId];
+      if (c && isActive(c)) return c;
+    }
+    return undefined;
+  }
 
   /** Turn-based exploring: called at the end of every round (the world may do something then). */
   onRoundEnd: ((round: number) => void) | undefined;
@@ -617,6 +689,7 @@ export class GameController {
         if (this.checkWinner()) return;
         // Exploring in turns: people in the scene move now, and now and then something happens.
         if (this.mode === "explore") {
+          this.emit("round", round);
           this.tickWorld(true);
           if (this.mode !== "explore") return;
           this.onRoundEnd?.(this.battle.combat.round);
@@ -939,6 +1012,7 @@ export class GameController {
 
   handle(playerId: PlayerId, action: PlayerAction): void {
     this.lastActionAt = Date.now();
+    if (this.active()?.playerId === playerId) this.turnActivityAt = this.lastActionAt;
     if (action.kind === "set_beginner_mode") {
       this.beginner.set(playerId, action.on);
       this.sendView(playerId);
@@ -1067,17 +1141,49 @@ export class GameController {
         this.move(playerId, hero, action.to);
         return;
       case "free_text": {
-        // "Ich schieße mit dem Bogen auf den Goblin": that is simply the bow attack (or the fitting spell).
         const said = action.text.trim();
+        // "Ich gehe zur Theke (und frage nach dem Weg)": walk there first, as far as the movement goes.
+        const walk = said ? walkIntent(said) : undefined;
+        let spoke = false;
+        if (walk) {
+          const goal = this.walkGoal(hero, walk.target);
+          if (goal) {
+            this.emit("speech", hero.id, said);
+            spoke = true;
+            this.walkTowards(playerId, hero, goal);
+            // Nothing else to do, or the walk started a fight / ended the turn.
+            if (!walk.rest || this.active()?.id !== hero.id) return;
+          }
+        }
+        // "Ich frage den Wirt nach dem Weg": step up to the person first (the answer comes as a speech bubble).
+        if (!walk && TALK.test(said.toLowerCase())) {
+          const npc = Object.values(this.battle.creatures).find((c) => c.side === "neutral" && !c.dead && c.pos && nameFits(said.toLowerCase(), c.name));
+          if (npc?.pos && hero.pos && Math.max(Math.abs(npc.pos.x - hero.pos.x), Math.abs(npc.pos.y - hero.pos.y)) > 2) {
+            this.emit("speech", hero.id, said);
+            spoke = true;
+            this.walkTowards(playerId, hero, { pos: npc.pos, name: npc.name });
+            if (this.active()?.id !== hero.id) return;
+          }
+        }
+        // "Ich schieße mit dem Bogen auf den Goblin": that is simply the bow attack (or the fitting spell).
         const found = said ? matchFreeText(said, this.choicesFor(hero, true, false), hero.id, isTrick(said)) : undefined;
         if (found && "blocked" in found) {
           this.sendTo(playerId, { type: "action_error", reason: `${found.choice.label}: ${found.blocked}` });
           return;
         }
+        if (found && "ask" in found) {
+          // Not clear: „Meinst du …?“ on the phone.
+          this.sendTo(playerId, {
+            type: "free_text_options",
+            text: said,
+            options: found.ask.map((m) => ({ label: `${m.choice.label}${m.targetNames.length ? ` → ${m.targetNames.join(", ")}` : ""}`, detail: m.choice.detail, action: m.action })),
+          });
+          return;
+        }
         if (found) {
           const { choice, targetNames } = found.match;
           this.addLog([{ text: `${hero.name}: „${said.slice(0, 100)}“ → ${choice.label}${targetNames.length ? ` auf ${targetNames.join(", ")}` : ""}`, glossarKeys: [choice.glossarKey] }]);
-          this.emit("speech", hero.id, said);
+          if (!spoke) this.emit("speech", hero.id, said);
           this.handle(playerId, found.match.action);
           return;
         }
@@ -1092,7 +1198,7 @@ export class GameController {
         }
         this.statsOf(hero.id).freeActions++;
         this.addLog([{ text: `${hero.name} versucht: „${action.text.slice(0, 140)}“`, glossarKeys: ["freie_aktion"] }]);
-        if (action.text.trim()) this.emit("speech", hero.id, action.text.trim());
+        if (action.text.trim() && !spoke) this.emit("speech", hero.id, action.text.trim());
         this.onFreeText?.(playerId, hero, action.text.slice(0, 300));
         this.broadcast();
         return;
@@ -1212,7 +1318,11 @@ export class GameController {
       });
     }
     this.track(r);
-    this.addLog(r.lines);
+    // TV: who did what, then the coloured points ("⚔️ −7 Schaden an Goblin 1").
+    const actor = this.battle.creatures[r.creatureId]?.name;
+    const head = r.lines[0]?.text && !MATH_LINE.test(r.lines[0].text) ? r.lines[0].text : `${actor ? `${actor}: ` : ""}${r.title}`;
+    const tv = r.bullets?.length ? [{ text: head, glossarKeys: r.lines[0]?.glossarKeys ?? [] }, ...r.bullets.map((b) => ({ text: `${BULLET_ICON[b.tone]} ${b.text}`, glossarKeys: [] }))] : undefined;
+    this.addLog(r.lines, tv);
     this.sendAll({ type: "roll_result", result: r });
     this.emit("roll", r);
   }
@@ -1229,7 +1339,9 @@ export class GameController {
     const turn = this.battle.combat?.turn;
     const c = this.active();
     // Nothing left to do → next turn automatically.
-    if (c && turn && turn.actions <= 0 && !turn.bonusAction && turn.movementLeftFt <= 0) {
+    // (A bonus action counts only when there is something to use it for.)
+    const bonusLeft = () => !!c && this.choicesFor(c, true, false).some((x) => x.cost === "bonus" && x.enabled);
+    if (c && turn && turn.actions <= 0 && (turn.attacksLeft ?? 0) <= 0 && turn.movementLeftFt <= 0 && (!turn.bonusAction || !bonusLeft())) {
       this.endTurn();
       return;
     }
@@ -1584,6 +1696,11 @@ export class GameController {
   /** The hero who struck down a boss (taken by the director after the fight). */
   private bossKill: { heroId: string; boss: string } | undefined;
   private blowAsk: { heroId: string; boss: string; resolve: (text: string) => void } | undefined;
+
+  /** A new scene begins: its title and goal big on the TV. */
+  sceneCard(title: string, goal: string): void {
+    this.emit("scene", title, goal);
+  }
 
   /** A big note at the top of the TV while the table waits for something (undefined = away). */
   banner(info: { icon: string; title: string; text: string } | undefined): void {
@@ -2984,18 +3101,23 @@ export class GameController {
     this.broadcast();
   }
 
-  /** Counts every line ever logged (the TV redraws its log column when it changes). */
+  /** Counts every line ever put in the TV's log column (it redraws when this changes). */
   logCount = 0;
+  /** The TV's log column: short lines with symbols, no dice sums (those stay on the phones). */
+  private tvLog: ExplainedLine[] = [];
 
-  /** The newest log lines (oldest first). */
+  /** The newest lines of the TV's log column (oldest first). */
   recentLog(n: number): ExplainedLine[] {
-    return this.log.slice(-n);
+    return this.tvLog.slice(-n);
   }
 
-  private addLog(lines: ExplainedLine[]): void {
-    this.logCount += lines.length;
+  /** `tv`: what the TV's log column shows instead (default: the same lines without the calculations). */
+  private addLog(lines: ExplainedLine[], tv: ExplainedLine[] = lines.filter((l) => !MATH_LINE.test(l.text))): void {
     this.log.push(...lines);
     if (this.log.length > LOG_SIZE) this.log.splice(0, this.log.length - LOG_SIZE);
+    this.logCount += tv.length;
+    this.tvLog.push(...tv);
+    if (this.tvLog.length > LOG_SIZE) this.tvLog.splice(0, this.tvLog.length - LOG_SIZE);
   }
 
   broadcast(): void {
@@ -3045,6 +3167,9 @@ export class GameController {
         movementLeftFt: mine ? (turn?.movementLeftFt ?? 0) : 0,
         actions: mine ? (turn?.actions ?? 0) + (turn?.attacksLeft ?? 0) : 0,
         bonusAction: mine ? (turn?.bonusAction ?? false) : false,
+        speedFt: me.speedFt,
+        ...(mine && this.secondsLeft() !== undefined ? { secondsLeft: this.secondsLeft()! } : {}),
+        ...(!mine && !free && this.nextUp()?.id === me.id ? { nextUp: true } : {}),
       },
       order,
       roomName: roomIndex >= 0 ? this.map.rooms[roomIndex]!.name : "Gang",
@@ -3148,6 +3273,7 @@ export class GameController {
         ...(c.monsterId ? { monsterId: c.monsterId } : {}),
         health: c.maxHp ? c.hp / c.maxHp : 0,
         down: c.hp === 0,
+        ...(c.side === "enemy" ? { ac: armorClass(c), hp: c.hp, maxHp: c.maxHp, danger: dangerFor(me, c) } : {}),
       }));
     return { x0, y0, w, h, frames, overlays, ground, marks, objects, creatures, reachable: mine && !this.pending ? this.reachable(me).filter(inWindow) : [], ...(light ? { light } : {}) };
   }
@@ -3202,6 +3328,7 @@ export class GameController {
 
   setStoryView(view: StoryView | undefined): void {
     this.storyView = view;
+    this.emit("changed");
     this.broadcast();
   }
 
@@ -3519,10 +3646,13 @@ export class GameController {
     if (this.destroyed || this.mode !== "explore") return;
     if (!this.freeExplore && !roundEnd) {
       const c = this.active();
-      if (c?.playerId && !this.pending && Date.now() - this.turnStartedAt > SILENT_TURN_MS && Date.now() - this.lastActionAt > SILENT_TURN_MS) {
+      const left = this.secondsLeft();
+      if (c?.playerId && !this.pending && left === 0) {
         this.addLog([{ text: `⏭️ ${c.name} war eine Weile still – der Nächste ist dran.`, glossarKeys: ["zug_beenden"] }]);
         this.endTurn();
+        return;
       }
+      this.emit("clock", this.pending ? undefined : left);
       return;
     }
     if (roundEnd || this.tickSurfaces()) this.broadcast();
@@ -4255,4 +4385,11 @@ function hitsOf(o: ActionOutcome): NonNullable<RollOutcome["hits"]> {
       break;
   }
   return hits;
+}
+
+/** How dangerous an enemy is for this hero: its strongest hit and its toughness against the hero's. */
+function dangerFor(me: Creature, enemy: Creature): "leicht" | "gefährlich" | "sehr gefährlich" {
+  const hit = Math.max(0, ...enemy.attacks.map((a) => a.damage.reduce((sum, d) => sum + averageOf(d.dice), 0) + sumParts(a.damageBonus)));
+  const score = hit / Math.max(1, me.maxHp) + enemy.maxHp / Math.max(1, me.maxHp) / 3;
+  return score >= 0.9 ? "sehr gefährlich" : score >= 0.45 ? "gefährlich" : "leicht";
 }

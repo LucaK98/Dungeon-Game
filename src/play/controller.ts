@@ -14,7 +14,7 @@ import { armorClass } from "../engine/combat";
 import { EMOTES, type PlayerAction } from "../shared/events";
 import type { Creature } from "../shared/game";
 import { ABILITIES } from "../shared/rules";
-import type { ActionChoice, ActionGroup, CampView, PlayerView, RollOutcome, RollPrompt } from "../shared/view";
+import type { ActionChoice, ActionGroup, CampView, MiniCreature, PlayerView, RollOutcome, RollPrompt } from "../shared/view";
 import { dollCanvas } from "../ui/atlas";
 import { h } from "../ui/dom";
 import { showRollPrompt, type DiceOverlay } from "./dice";
@@ -45,6 +45,8 @@ export interface Controller {
   setView(view: PlayerView): void;
   requestRoll(prompt: RollPrompt): void;
   rollResult(result: RollOutcome): void;
+  /** A free action could mean several things: „Meinst du …?“ */
+  freeTextOptions(text: string, options: { label: string; detail: string; action: PlayerAction }[]): void;
   error(reason: string): void;
   /** Ideas from the game master for the free-action sheet. */
   suggestions(ideas: string[]): void;
@@ -147,6 +149,23 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   let lockedOpen = false;
   let storyOpen = false;
   let pulseTurn = false;
+  /** Exploring in turns: when this player's turn is skipped (local clock), and whether we warned already. */
+  let turnEnds: number | undefined;
+  let warnedAt: number | undefined;
+  let wasNextUp = false;
+  const tickTimer = () => {
+    const el = status.querySelector<HTMLElement>(".turn-timer");
+    if (!el || turnEnds === undefined) return;
+    const left = Math.max(0, Math.ceil((turnEnds - Date.now()) / 1000));
+    el.textContent = `⏱ ${left} s`;
+    el.classList.toggle("urgent", left <= 15);
+    el.hidden = left > 60;
+    if (left <= 10 && left > 0 && warnedAt !== turnEnds) {
+      warnedAt = turnEnds;
+      if ("vibrate" in navigator) navigator.vibrate([60, 60, 60]);
+    }
+  };
+  setInterval(tickTimer, 1000);
   /** A walk being planned on the map (the second tap on the same square walks). */
   let walkPlan: { to: GridPos; route: GridPos[]; cost: number; difficult: number; provoked: string[] } | undefined;
   let bigMap: HTMLElement | undefined;
@@ -253,10 +272,12 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   function renderStatus(v: PlayerView): void {
     status.style.setProperty("--player", v.turn.mine ? (v.me.appearance?.color ?? "#e0a526") : (v.turn.activeColor ?? "#888"));
     if (!v.turn.mine) {
-      status.className = "ctl-status waiting";
+      status.className = `ctl-status waiting${v.turn.nextUp ? " next-up" : ""}`;
       status.replaceChildren(
         h("div", { class: "turn-line" }, h("span", {}, "⏳ "), h("strong", {}, v.turn.activeName), h("span", {}, " ist dran")),
-        h("p", { class: "turn-sub" }, "Du kannst derweil brauen, in die Taschen schauen oder Hinweise lesen."),
+        v.turn.nextUp
+          ? h("p", { class: "turn-sub next" }, "⏭️ Du bist als Nächstes dran – überleg dir schon mal, was du tust!")
+          : h("p", { class: "turn-sub" }, "Du kannst derweil brauen, in die Taschen schauen oder Hinweise lesen."),
         renderOrder(v) ?? "",
       );
       return;
@@ -271,18 +292,24 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       );
       return;
     }
+    // Your turn in two steps: ① walk, ② do something. What is done gets a tick.
+    const step = (n: string, label: string, sub: string, done: boolean, key: string) =>
+      h("div", { class: `step${done ? " done" : ""}`, dataset: { help: key } }, h("span", { class: "step-n" }, done ? "✔" : n), h("div", { class: "step-text" }, h("strong", {}, label), h("span", { class: "step-sub" }, sub)));
+    const moved = fields === 0;
+    const acted = v.turn.actions <= 0;
     status.replaceChildren(
-      h("div", { class: "turn-line" }, h("strong", {}, "🎯 Du bist dran!")),
+      h("div", { class: "turn-line" }, h("strong", {}, "🎯 Du bist dran!"), v.turn.secondsLeft !== undefined ? h("span", { class: "turn-timer" }) : "", lamp("❤️", `${v.me.hp}/${v.me.maxHp}`, v.me.hp > 0, "trefferpunkte")),
       h(
         "div",
-        { class: "lamps" },
-        lamp("❤️", `${v.me.hp}/${v.me.maxHp}`, v.me.hp > 0, "trefferpunkte"),
-        lamp("🦶", `${fields} ${fields === 1 ? "Feld" : "Felder"}`, fields > 0, "bewegung"),
-        lamp("⚔️", "Aktion", v.turn.actions > 0, "aktion"),
-        lamp("✨", "Bonus", v.turn.bonusAction, "bonusaktion"),
+        { class: "steps" },
+        step("①", "🦶 Bewegen", moved ? "erledigt" : `noch ${fields} ${fields === 1 ? "Feld" : "Felder"} – tippe auf die Karte`, moved, "bewegung"),
+        step("②", "⚔️ Aktion", acted ? "erledigt" : v.mode === "combat" ? "angreifen, zaubern, helfen …" : "reden, untersuchen, benutzen …", acted, "aktion"),
+        v.mode === "combat" && v.turn.bonusAction ? lamp("✨", "Bonus", true, "bonusaktion") : "",
       ),
       renderOrder(v) ?? "",
     );
+    turnEnds = v.turn.secondsLeft !== undefined ? Date.now() + v.turn.secondsLeft * 1000 : undefined;
+    tickTimer();
   }
 
   // ---------------------------------------------------------------- action tab
@@ -441,7 +468,14 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         { class: "card st-card" },
         h("div", { class: "st-chapter" }, st.chapter),
         h("strong", { class: "st-scene" }, st.scene),
-        h("div", { class: "st-goal" }, `🎯 Ziel: ${st.goal}`),
+        st.tasks?.length
+          ? h(
+              "ul",
+              { class: "st-tasks" },
+              ...st.tasks.map((t) => h("li", { class: t.done ? "done" : "open" }, `${t.done ? "✅" : "⬜"} ${t.text}`)),
+              ...(st.moreTasks ? [h("li", { class: "more" }, `… und ${st.moreTasks} weitere`)] : []),
+            )
+          : h("div", { class: "st-goal" }, `🎯 Ziel: ${st.goal}`),
         ...last.map((l) =>
           h(
             "p",
@@ -616,7 +650,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   }
 
   /** What can be done with the thing on a square (enemy, ally, furniture, animal, oil …). */
-  function actionsAt(v: PlayerView, p: GridPos): { title: string; list: { choice: ActionChoice; targetId?: string }[] } | undefined {
+  function actionsAt(v: PlayerView, p: GridPos): { title: string; list: { choice: ActionChoice; targetId?: string }[]; enemy?: MiniCreature } | undefined {
     const mm = v.minimap;
     const creature = mm.creatures.find((c) => c.x === p.x && c.y === p.y && !c.me);
     const objects = mm.objects.filter((o) => o.x === p.x && o.y === p.y);
@@ -628,8 +662,26 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       else if (c.action.kind === "interact" && objects.some((o) => o.id === (c.action as { objectId: string }).objectId)) list.push({ choice: c });
       else if (c.action.kind === "ground" && c.action.x === p.x && c.action.y === p.y) list.push({ choice: c });
     }
-    if (!list.length) return undefined;
-    return { title: creature ? creature.name : "Hier", list };
+    if (!list.length && !creature?.enemy) return undefined;
+    return { title: creature ? creature.name : "Hier", list, ...(creature?.enemy ? { enemy: creature } : {}) };
+  }
+
+  /** A short card about an enemy: life bar, armour, how dangerous. */
+  function enemyCard(c: MiniCreature): HTMLElement {
+    const pct = Math.round(c.health * 100);
+    const tone = c.danger === "sehr gefährlich" ? "high" : c.danger === "gefährlich" ? "mid" : "low";
+    return h(
+      "div",
+      { class: "enemy-card" },
+      h("div", { class: "enemy-hp" }, h("div", { class: `enemy-hp-bar ${pct > 50 ? "ok" : pct > 25 ? "hurt" : "low"}`, style: `width:${pct}%` })),
+      h(
+        "div",
+        { class: "chips" },
+        h("span", { class: "chip" }, c.hp !== undefined ? `❤️ ${c.hp}/${c.maxHp}` : `❤️ ${pct} %`),
+        c.ac !== undefined ? h("span", { class: "chip", dataset: { help: "ruestungsklasse" } }, `🛡️ RK ${c.ac}`) : "",
+        c.danger ? h("span", { class: `chip danger ${tone}` }, tone === "high" ? "☠️ sehr gefährlich" : tone === "mid" ? "⚠️ gefährlich" : "🙂 leicht") : "",
+      ),
+    );
   }
 
   /** A tap on the map: act on what stands there, or plan a walk (a second tap walks). */
@@ -660,7 +712,12 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         closeSheet();
         planWalk(v, p);
       });
-      showSheet(`🎯 ${here.title}`, h("div", { class: "targets" }, ...buttons), walk);
+      showSheet(
+        `${here.enemy ? "👹" : "🎯"} ${here.title}`,
+        ...(here.enemy ? [enemyCard(here.enemy)] : []),
+        buttons.length ? h("div", { class: "targets" }, ...buttons) : h("p", { class: "muted small" }, v.turn.mine ? "Gerade kannst du hier nichts tun – geh näher heran." : "Warte, bis du dran bist."),
+        ...(walk ? [walk] : []),
+      );
       return;
     }
     planWalk(v, p);
@@ -1208,6 +1265,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         }
         if (!seen) showGoalIntro(v.goal);
       }
+      // Next in line: a short buzz, so there is time to think.
+      if (v.turn.nextUp && !wasNextUp && "vibrate" in navigator) navigator.vibrate(40);
+      wasNextUp = !!v.turn.nextUp;
       const becameMine = v.turn.mine && !wasMine;
       wasMine = v.turn.mine;
       view = v;
@@ -1332,6 +1392,20 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
           return chip;
         }),
       );
+    },
+    freeTextOptions(text, options) {
+      const buttons = options.map((o) => {
+        const b = h("button", { class: "choice-btn", type: "button" }, h("span", { class: "choice-label" }, o.label), h("span", { class: "choice-detail" }, o.detail));
+        b.addEventListener("click", () => {
+          closeSheet();
+          if ("vibrate" in navigator) navigator.vibrate(12);
+          send(o.action);
+        });
+        return b;
+      });
+      const no = h("button", { class: "btn secondary", type: "button", textContent: "✖ Nein, etwas anderes" });
+      no.addEventListener("click", () => closeSheet());
+      showSheet("🤔 Meinst du …?", h("p", { class: "muted small" }, `„${text}“`), h("div", { class: "targets" }, ...buttons), no);
     },
     rollResult(result) {
       if (dice && result.playerId === playerId()) {
