@@ -126,6 +126,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     );
     controller = c;
     c.difficulty = difficulty;
+    // Lines already in the TV's log column.
+    let shownLog = -1;
     // Who the TV is waiting on to roll (the hero whose phone shows the die).
     let askedFor: string | undefined;
     const showHitsLater = (hits: NonNullable<RollOutcome["hits"]>, delay: number) =>
@@ -137,6 +139,11 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     c.on({
       changed: () => {
         if (scene.sys.isActive()) scene.refresh();
+        if (c.logCount !== shownLog) {
+          const added = shownLog < 0 ? 0 : c.logCount - shownLog;
+          shownLog = c.logCount;
+          game.events.emit("log", c.recentLog(14), added);
+        }
         updateAmbience(c);
         game.events.emit("order", c.mode === "combat" ? c.orderEntries() : []);
         if (c.storyView) game.events.emit("chapter", c.storyView.chapter);
@@ -176,6 +183,22 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         // The UI scene may not exist yet (story intro): keep the lines until it is ready.
         if (uiReady) game.events.emit("narration", lines);
         else early.push(...lines);
+      },
+      reward: (r) => {
+        const active = scene.sys.isActive();
+        if (r.kind === "gold") {
+          if (active) scene.showGain(r.heroId, `+${r.amount} 💰`);
+          play("coin");
+          return;
+        }
+        if (r.kind === "item") {
+          if (active) scene.showGain(r.heroId, `+${r.qty} ${r.icon}`, "#b8f5c0");
+          play("pop");
+          return;
+        }
+        if (active) scene.showGain(r.heroId, r.kind === "level" ? `⬆️ Stufe ${r.level}` : `${r.icon} ${r.title}`);
+        play(r.kind === "level" ? "victory" : "chime");
+        game.events.emit("reward", r, c.battle.creatures[r.heroId]?.appearance?.look);
       },
       emote: (id, emoji) => {
         if (scene.sys.isActive()) scene.showEmote(id, emoji);
@@ -251,6 +274,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     if (early.length) game.events.emit("narration", early.splice(0));
     controller?.announceTurn();
     if (controller?.storyView) game.events.emit("chapter", controller.storyView.chapter);
+    if (controller) game.events.emit("log", controller.recentLog(14), 0);
   });
 
   host.onPlayerEvent((e, from) => {

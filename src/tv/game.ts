@@ -13,6 +13,7 @@ import { explainCheck, explainDamage, explainDeathSave, explainHp, explainInitia
 import { runAutoTurn } from "../engine/ai";
 import { createMonster, hardenMonster } from "../engine/creatures";
 import { DIFFICULTY, type Difficulty } from "../shared/difficulty";
+import { itemIcon, itemTitle, levelGains, type Reward } from "../shared/reward";
 import { findPath } from "../engine/grid";
 import { nameOf } from "../engine/names";
 import type { Rng } from "../engine/rng";
@@ -73,6 +74,8 @@ export interface GameEvents {
   spotlight(creatureId: string): void;
   /** A hero has to roll now (the TV shows the waiting die). */
   asked(prompt: RollPrompt, creatureId: string, name: string, color: string | undefined): void;
+  /** A hero gained something: the TV celebrates it. */
+  reward(reward: Reward): void;
   /** A player reacted (emoji over their hero). */
   emote(creatureId: string, emoji: string): void;
   /** A little show on the board (dust, sparkle, splash, shaking screen) at a square. */
@@ -1055,6 +1058,16 @@ export class GameController {
     if (entry) entry.qty += qty;
     else inv.push({ itemId, qty });
     if (itemId === "gold" && qty > 0) this.statsOf(hero.id).gold += qty;
+    if (qty > 0) {
+      const who = { heroId: hero.id, name: hero.name, ...(hero.appearance ? { color: hero.appearance.color } : {}) };
+      this.reward(hero, itemId === "gold" ? { kind: "gold", ...who, amount: qty } : { kind: "item", ...who, itemId, title: itemTitle(itemId), icon: itemIcon(itemId), qty });
+    }
+  }
+
+  /** Tells the TV and the hero's phone what the hero just gained. */
+  private reward(hero: Creature, reward: Reward): void {
+    this.emit("reward", reward);
+    if (hero.playerId) this.sendTo(hero.playerId, { type: "reward", reward });
   }
 
   // ---------------------------------------------------------------- equipment
@@ -1149,6 +1162,7 @@ export class GameController {
     // Told once (the narration also lands in the log).
     this.narrate([{ text: lines.map((l) => l.text).join(" ") }]);
     this.emit("fx", "sparkle", hero.pos);
+    this.reward(hero, { kind: "gear", heroId: hero.id, name: hero.name, ...(hero.appearance ? { color: hero.appearance.color } : {}), icon: g.icon, title: g.name, detail: g.detail, how });
   }
 
   /** A random piece nobody in the group has yet, preferably one this hero can use. */
@@ -1567,7 +1581,16 @@ export class GameController {
     this.broadcast();
   }
 
+  /** Counts every line ever logged (the TV redraws its log column when it changes). */
+  logCount = 0;
+
+  /** The newest log lines (oldest first). */
+  recentLog(n: number): ExplainedLine[] {
+    return this.log.slice(-n);
+  }
+
   private addLog(lines: ExplainedLine[]): void {
+    this.logCount += lines.length;
     this.log.push(...lines);
     if (this.log.length > LOG_SIZE) this.log.splice(0, this.log.length - LOG_SIZE);
   }
@@ -2130,6 +2153,8 @@ export class GameController {
       if (h.pc.stories) next.pc!.stories = [...h.pc.stories];
       this.battle.creatures[h.id] = next;
       changed = true;
+      const gained = levelGains(h, next);
+      this.reward(next, { kind: "level", heroId: h.id, name: h.name, ...(h.appearance ? { color: h.appearance.color } : {}), level, ...gained });
     }
     if (changed) this.broadcast();
     return changed;

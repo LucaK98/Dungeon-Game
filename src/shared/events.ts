@@ -68,6 +68,8 @@ export type GameEvent =
   | { type: "hero_saved"; hero: import("./herobook").SavedHero }
   /** TV → all phones: the look back at the end of the adventure. */
   | { type: "recap"; recap: import("./recap").Recap }
+  /** TV → one phone: this hero gained something (level, equipment, gold, an item). */
+  | { type: "reward"; reward: import("./reward").Reward }
   /** TV → one phone: ideas for a free action. */
   | { type: "suggestions"; ideas: string[] }
   /** TV → one phone: the game master's answer to a rules question. */

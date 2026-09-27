@@ -17,7 +17,13 @@ import type { GameSession } from "./session";
 export const BOARD_WIDTH = 1920;
 export const BOARD_HEIGHT = 1080;
 const TILE = 32;
-const ZOOM = 2;
+/** Board zoom: small maps fill the screen, big ones scroll with the heroes. */
+const MIN_ZOOM = 2.5;
+const MAX_ZOOM = 3.4;
+/** The right column of the TV belongs to the "Was ist passiert?" log. */
+export const LOG_PANEL = 470;
+/** In combat the initiative bar takes the left edge. */
+export const ORDER_PANEL = 340;
 
 /** Darkness per cell: unexplored = black, indoor = dim, outdoor (daylight) = almost clear. */
 const DARK_INDOOR = 0.72;
@@ -106,10 +112,9 @@ export class DungeonScene extends Phaser.Scene {
     this.createLighting(map);
 
     const cam = this.cameras.main;
-    cam.setZoom(ZOOM * RES);
     // Rounding each tile to whole pixels leaves a thin seam through the middle of the screen at odd zooms.
     cam.roundPixels = false;
-    this.applyBounds();
+    this.layout();
     cam.setBackgroundColor("#000000");
     this.focusParty(true);
 
@@ -310,6 +315,22 @@ export class DungeonScene extends Phaser.Scene {
     });
   }
 
+  /** "+25 💰" or "+1 🧪" rises from a hero (a coin chime from the board goes with it). */
+  showGain(id: string, text: string, color = "#ffd75e"): void {
+    const c = this.session.battle.creatures[id];
+    const f = this.figures.get(id);
+    const pos = f ? { x: f.container.x, y: f.container.y } : c?.pos ? { x: (c.pos.x + 0.5) * TILE, y: (c.pos.y + 0.5) * TILE } : undefined;
+    if (!pos) return;
+    const label = this.add
+      .text(pos.x, pos.y - 20, text, crisp({ fontFamily: "system-ui, sans-serif", fontSize: "30px", fontStyle: "bold", color, stroke: "#2a1a00", strokeThickness: 6 }))
+      .setOrigin(0.5)
+      .setScale(0.2)
+      .setDepth(6000);
+    this.tweens.add({ targets: label, scale: 0.55, duration: 260, ease: "Back.easeOut" });
+    this.tweens.add({ targets: label, y: pos.y - 62, alpha: 0, delay: 900, duration: 1400, ease: "Cubic.easeIn", onComplete: () => label.destroy() });
+    this.ambience?.sparkle(pos.x, pos.y - 8);
+  }
+
   /** Sleeping enemies get a floating 💤, watching ones a 👀. */
   private showMood(f: Figure, c: Creature): void {
     const mood = c.effects.some((e) => e.id === "asleep") ? "💤" : c.effects.some((e) => e.id === "on-guard") ? "👀" : "";
@@ -387,7 +408,7 @@ export class DungeonScene extends Phaser.Scene {
     this.camTarget.set(f ? f.container.x : (c.pos.x + n / 2) * TILE, f ? f.container.y : (c.pos.y + n / 2) * TILE);
     this.spotlightUntil = this.time.now + 2600;
     const cam = this.cameras.main;
-    const base = ZOOM * RES;
+    const base = this.zoomBase;
     this.tweens.add({ targets: cam, zoom: base * 1.3, duration: 900, ease: "Sine.easeInOut", yoyo: true, hold: 1000, onComplete: () => cam.setZoom(base) });
     if (f) this.tweens.add({ targets: f.body, scaleX: 1.25, scaleY: 1.25, duration: 300, yoyo: true, delay: 700, ease: "Back.easeOut" });
   }
@@ -395,8 +416,23 @@ export class DungeonScene extends Phaser.Scene {
   /** In combat the initiative bar takes the left edge; the map moves next to it. */
   setCombatLayout(on: boolean): void {
     this.ambience?.setCombat(on);
-    const left = on ? 340 : 0;
-    this.cameras.main.setViewport(Math.round(left * RES), 0, Math.round((BOARD_WIDTH - left) * RES), Math.round(BOARD_HEIGHT * RES));
+    this.combatLayout = on;
+    this.layout();
+  }
+
+  private combatLayout = false;
+  private zoomBase = MIN_ZOOM * RES;
+
+  /** The map's part of the screen (between the initiative bar and the log) and a zoom that fills it. */
+  private layout(): void {
+    const cam = this.cameras.main;
+    const left = this.combatLayout ? ORDER_PANEL : 0;
+    cam.setViewport(Math.round(left * RES), 0, Math.round((BOARD_WIDTH - left - LOG_PANEL) * RES), Math.round(BOARD_HEIGHT * RES));
+    const map = this.session.map;
+    const fit = Math.min(cam.width / (map.width * TILE), cam.height / (map.height * TILE)) / RES;
+    this.zoomBase = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, fit)) * RES;
+    this.tweens.killTweensOf(cam);
+    cam.setZoom(this.zoomBase);
     this.applyBounds();
   }
 

@@ -1,9 +1,14 @@
 import Phaser from "phaser";
 import { dollFrames } from "../shared/doll";
 import type { Narration } from "../shared/story";
-import type { OrderEntry, RollOutcome, RollPrompt } from "../shared/view";
+import type { ExplainedLine, OrderEntry, RollOutcome, RollPrompt } from "../shared/view";
+import type { Reward } from "../shared/reward";
+import type { DollLook } from "../shared/doll";
 import { speak, stopSpeaking } from "./speech";
-import { BOARD_HEIGHT, BOARD_WIDTH } from "./DungeonScene";
+import { BOARD_HEIGHT, BOARD_WIDTH, LOG_PANEL } from "./DungeonScene";
+
+/** Right edge of the map on the TV (the log column is next to it). */
+const MAP_RIGHT = BOARD_WIDTH - LOG_PANEL;
 import type { AiStatus } from "../dm/ai/aidm";
 import { crisp, RES, TILES, UP } from "./render";
 
@@ -30,24 +35,32 @@ export class UiScene extends Phaser.Scene {
   private aiBadge: Phaser.GameObjects.Text | undefined;
   private skipLine: (() => void) | undefined;
   private asking = false;
+  private rewards: { r: Reward; look?: DollLook }[] = [];
+  private rewardTimer: Phaser.Time.TimerEvent | undefined;
+  private rewardShowing = false;
+  private logBox!: Phaser.GameObjects.Container;
   private tumbling: ReturnType<typeof setTimeout> | undefined;
   private tumbleFlips: Phaser.Time.TimerEvent | undefined;
 
   create(): void {
+    // A fresh start (new map): no card is on screen any more.
+    this.rewardShowing = false;
+    this.rewardTimer = undefined;
     // Board pixels → screen pixels.
     this.cameras.main.setOrigin(0, 0).setZoom(RES);
     this.orderBar = this.add.container(20, 150);
     this.banner = this.add
       // In the middle of the screen: at the top the dice card would cover it during fights.
-      .text(BOARD_WIDTH / 2, BOARD_HEIGHT * 0.42, "", crisp({ fontFamily: FONT, fontSize: "64px", color: "#f3e9d2", stroke: "#000", strokeThickness: 12 }))
+      .text(MAP_RIGHT / 2, BOARD_HEIGHT * 0.42, "", crisp({ fontFamily: FONT, fontSize: "64px", color: "#f3e9d2", stroke: "#000", strokeThickness: 12 }))
       .setOrigin(0.5)
       .setAlpha(0);
     this.turnBox = this.add.graphics();
     this.turnText = this.add.text(40, BOARD_HEIGHT - 70, "", crisp({ fontFamily: FONT, fontSize: "44px", color: "#fff", stroke: "#000", strokeThickness: 8 })).setOrigin(0, 0.5);
-    this.rollBox = this.add.container(BOARD_WIDTH - 40, 40);
+    this.rollBox = this.add.container(MAP_RIGHT - 30, 40);
+    this.logBox = this.add.container(0, 0);
     this.chapter = this.add.text(24, 20, "", crisp({ fontFamily: FONT, fontSize: "26px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 }));
     this.narrationBox = this.add.container(0, 0).setAlpha(0);
-    this.aiBadge = this.add.text(BOARD_WIDTH - 24, BOARD_HEIGHT - 20, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setOrigin(1, 1);
+    this.aiBadge = this.add.text(MAP_RIGHT - 24, BOARD_HEIGHT - 20, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setOrigin(1, 1);
 
     const onRoom = (name: string) => this.showBanner(name);
     const onTurn = (name: string, color?: string, free?: boolean) => this.showTurn(name, color, free);
@@ -79,6 +92,10 @@ export class UiScene extends Phaser.Scene {
     this.game.events.on("turn", onTurn);
     this.game.events.on("roll", onRoll);
     this.game.events.on("asked", onAsked);
+    const onLog = (lines: ExplainedLine[], added = 0) => this.showLog(lines, added);
+    this.game.events.on("log", onLog);
+    const onReward = (r: Reward, look?: DollLook) => this.queueReward(r, look);
+    this.game.events.on("reward", onReward);
     this.game.events.on("order", onOrder);
     this.game.events.on("combat", onCombat);
     // Ask the board for the current state (turn) now that we can show it.
@@ -132,8 +149,9 @@ export class UiScene extends Phaser.Scene {
     box.removeAll(true);
     this.tweens.killTweensOf(box);
     box.setAlpha(1);
-    const width = 1180;
-    const x = (BOARD_WIDTH - width) / 2 + 180;
+    // Between the initiative bar (left, in fights) and the log column.
+    const width = 1060;
+    const x = MAP_RIGHT - width - 30;
     const speaker = line.npc ? this.add.text(x + 30, 0, line.npc, crisp({ fontFamily: FONT, fontSize: "30px", color: "#e0a526", fontStyle: "bold" })) : undefined;
     const text = this.add.text(x + 30, 0, "", crisp({ fontFamily: FONT, fontSize: "34px", color: "#f3e9d2", wordWrap: { width: width - 60 }, lineSpacing: 8, fontStyle: line.npc ? "italic" : "normal" }));
     // Measure the full height first.
@@ -247,12 +265,167 @@ export class UiScene extends Phaser.Scene {
     this.rollBox.removeAll(true);
   }
 
+  /** Rewards are shown one card at a time; level-ups of the whole group share one card. */
+  private queueReward(r: Reward, look?: DollLook): void {
+    this.rewards.push({ r, ...(look ? { look } : {}) });
+    if (this.rewardShowing || this.rewardTimer) return;
+    // Wait a moment: all heroes level up at once and should land on the same card.
+    this.rewardTimer = this.time.delayedCall(350, () => {
+      this.rewardTimer = undefined;
+      this.nextReward();
+    });
+  }
+
+  private nextReward(): void {
+    const first = this.rewards.shift();
+    if (!first) {
+      this.rewardShowing = false;
+      return;
+    }
+    this.rewardShowing = true;
+    let items = [first];
+    if (first.r.kind === "level") {
+      items = [first, ...this.rewards.filter((x) => x.r.kind === "level")];
+      this.rewards = this.rewards.filter((x) => x.r.kind !== "level");
+    }
+    const card = this.rewardCard(items);
+    card.setScale(0.6).setAlpha(0);
+    this.tweens.add({ targets: card, scale: 1, alpha: 1, duration: 450, ease: "Back.easeOut" });
+    const stay = first.r.kind === "level" ? 7000 + items.length * 1200 : 5000;
+    this.tweens.add({
+      targets: card,
+      alpha: 0,
+      y: card.y - 40,
+      delay: stay,
+      duration: 700,
+      onComplete: () => {
+        this.tweens.killTweensOf(card.list);
+        card.destroy();
+        this.nextReward();
+      },
+    });
+  }
+
+  /** The celebration card: a golden frame with rays, the heroes and what they gained. */
+  private rewardCard(items: { r: Reward; look?: DollLook }[]): Phaser.GameObjects.Container {
+    const width = 900;
+    const cx = MAP_RIGHT / 2 + 60;
+    const card = this.add.container(cx, BOARD_HEIGHT * 0.36).setDepth(50);
+    const parts: Phaser.GameObjects.GameObject[] = [];
+    const first = items[0]!.r;
+    const head = first.kind === "level" ? `⬆️ Stufe ${first.level}!` : "🎁 Beute!";
+    const sub = first.kind === "level" ? "Ihr seid stärker geworden" : first.kind === "gear" ? first.how : "";
+    let y = 0;
+    const title = this.add.text(0, 40, head, crisp({ fontFamily: FONT, fontSize: "60px", fontStyle: "bold", color: "#ffd75e", stroke: "#3a2400", strokeThickness: 10 })).setOrigin(0.5, 0);
+    parts.push(title);
+    y = 40 + title.height;
+    if (sub) {
+      const t = this.add.text(0, y, sub, crisp({ fontFamily: FONT, fontSize: "26px", color: "#e8dcc4" })).setOrigin(0.5, 0);
+      parts.push(t);
+      y += t.height + 16;
+    }
+    for (const { r, look } of items) {
+      const rowTop = y;
+      // Level-ups show the hero, loot shows the piece itself.
+      const portrait = look && r.kind === "level" ? dollFrames(look) : [];
+      for (const f of portrait) parts.push(this.add.image(-width / 2 + 80, rowTop + 50, TILES, f).setScale(3 / UP));
+      const tx = -width / 2 + 150;
+      if (r.kind === "level") {
+        const name = this.add.text(tx, rowTop, r.name, crisp({ fontFamily: FONT, fontSize: "34px", fontStyle: "bold", color: r.color ?? "#f3e9d2", stroke: "#000", strokeThickness: 5 }));
+        const gains = r.gains.slice(0, 4).map((g) => `${g.icon} ${g.label} ${g.from} → ${g.to}`).join("    ");
+        const g = this.add.text(tx, rowTop + 46, gains || "Neue Kräfte", crisp({ fontFamily: FONT, fontSize: "26px", color: "#a8e6a3", wordWrap: { width: width - 190 }, lineSpacing: 6 }));
+        parts.push(name, g);
+        let rowH = 46 + g.height;
+        const news = [...r.features, ...r.spells].map((f) => f.name);
+        if (news.length) {
+          const n = this.add.text(tx, rowTop + rowH + 6, `✨ Neu: ${news.slice(0, 4).join(", ")}${news.length > 4 ? " …" : ""}`, crisp({ fontFamily: FONT, fontSize: "24px", color: "#ffd75e", wordWrap: { width: width - 190 } }));
+          parts.push(n);
+          rowH += 6 + n.height;
+        }
+        y += Math.max(100, rowH) + 18;
+      } else if (r.kind === "gear") {
+        const icon = this.add.text(-width / 2 + 80, rowTop + 50, r.icon, crisp({ fontSize: "72px" })).setOrigin(0.5);
+        const name = this.add.text(tx, rowTop, `${r.name} erhält`, crisp({ fontFamily: FONT, fontSize: "28px", color: r.color ?? "#f3e9d2", stroke: "#000", strokeThickness: 5 }));
+        const what = this.add.text(tx, rowTop + 38, r.title, crisp({ fontFamily: FONT, fontSize: "42px", fontStyle: "bold", color: "#ffd75e", stroke: "#3a2400", strokeThickness: 6 }));
+        const detail = this.add.text(tx, rowTop + 96, r.detail, crisp({ fontFamily: FONT, fontSize: "26px", color: "#e8dcc4", wordWrap: { width: width - 190 } }));
+        parts.push(icon, name, what, detail);
+        this.tweens.add({ targets: icon, angle: { from: -8, to: 8 }, duration: 600, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+        y += 96 + detail.height + 24;
+      }
+    }
+    const height = y + 20;
+    // Rays behind the card, slowly turning.
+    const rays = this.add.graphics();
+    rays.fillStyle(0xffd75e, 0.09);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const b = a + Math.PI / 24;
+      rays.fillTriangle(0, 0, Math.cos(a) * 640, Math.sin(a) * 640, Math.cos(b) * 640, Math.sin(b) * 640);
+    }
+    rays.setPosition(0, height / 2);
+    this.tweens.add({ targets: rays, angle: 360, duration: 24000, repeat: -1 });
+    const bg = this.add.graphics();
+    bg.fillStyle(0x17110a, 0.96).fillRoundedRect(-width / 2, 0, width, height, 26);
+    bg.lineStyle(6, 0xe0a526, 1).strokeRoundedRect(-width / 2, 0, width, height, 26);
+    bg.lineStyle(2, 0xffe9a8, 0.6).strokeRoundedRect(-width / 2 + 10, 10, width - 20, height - 20, 20);
+    const glow = this.add.graphics();
+    glow.lineStyle(14, 0xffd75e, 0.35).strokeRoundedRect(-width / 2 - 6, -6, width + 12, height + 12, 30);
+    this.tweens.add({ targets: glow, alpha: 0.2, duration: 700, yoyo: true, repeat: -1 });
+    card.add([rays, glow, bg, ...parts]);
+    card.setY(Math.max(40, BOARD_HEIGHT * 0.42 - height / 2));
+    card.setSize(width, height);
+    return card;
+  }
+
+  /**
+   * "📜 Was ist passiert?" in the right column: the newest lines at the bottom, older ones fade.
+   * Hits and successes are green, misses red, so the sofa can follow at a glance.
+   */
+  private showLog(lines: ExplainedLine[], added: number): void {
+    const box = this.logBox;
+    this.tweens.killTweensOf(box.list);
+    box.removeAll(true);
+    const x = MAP_RIGHT + 10;
+    const width = LOG_PANEL - 30;
+    const top = 20;
+    const bottom = BOARD_HEIGHT - 20;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0d0b09, 0.88).fillRoundedRect(x, top, width, bottom - top, 18);
+    bg.lineStyle(3, 0x5a4d42, 1).strokeRoundedRect(x, top, width, bottom - top, 18);
+    const title = this.add.text(x + 22, top + 18, "📜 Was ist passiert?", crisp({ fontFamily: FONT, fontSize: "28px", color: "#e0a526", fontStyle: "bold" }));
+    box.add([bg, title]);
+    const texts = lines.map((l) => l.text);
+    const fresh = Math.min(added, texts.length);
+    let y = bottom - 18;
+    const limit = top + 70;
+    for (let i = texts.length - 1; i >= 0; i--) {
+      const text = texts[i]!;
+      const age = texts.length - 1 - i;
+      const t = this.add.text(x + 30, 0, text, crisp({ fontFamily: FONT, fontSize: "22px", color: logColor(text), wordWrap: { width: width - 48 }, lineSpacing: 4 }));
+      if (y - t.height < limit) {
+        t.destroy();
+        break;
+      }
+      y -= t.height;
+      t.setY(y).setAlpha(age === 0 ? 1 : Math.max(0.45, 0.92 - age * 0.06));
+      const mark = this.add.graphics();
+      mark.fillStyle(age < fresh ? 0xe0a526 : 0x3b322b, 1).fillRoundedRect(x + 14, y + 3, 5, Math.max(18, t.height - 6), 2);
+      box.add([mark, t]);
+      if (age < fresh) {
+        // New lines slide in (always readable, even if the next update comes quickly).
+        t.setX(x + 50);
+        this.tweens.add({ targets: t, x: x + 30, duration: 300, ease: "Cubic.easeOut" });
+      }
+      y -= 12;
+    }
+  }
+
   /** A die drawn at (x, y) (its top-left), `size` wide, with a number on it. */
   private drawDie(x: number, y: number, size: number, fill: number, label: string, sides: number): { die: Phaser.GameObjects.Graphics; n: Phaser.GameObjects.Text; s: Phaser.GameObjects.Text } {
     const die = this.add.graphics();
     die.fillStyle(fill, 1).fillRoundedRect(x, y, size, size, size / 6);
     die.lineStyle(4, 0xf3e9d2, 1).strokeRoundedRect(x, y, size, size, size / 6);
-    const n = this.add.text(x + size / 2, y + size * 0.43, label, crisp({ fontFamily: FONT, fontSize: `${Math.round(size * 0.57)}px`, fontStyle: "bold", color: "#fff", stroke: "#000", strokeThickness: 6 })).setOrigin(0.5);
+    const n = this.add.text(x + size / 2, y + size * 0.43, label, crisp({ fontFamily: FONT, fontSize: `${Math.round(size * 0.46)}px`, fontStyle: "bold", color: "#fff", stroke: "#000", strokeThickness: 6 })).setOrigin(0.5);
     const s = this.add.text(x + size / 2, y + size * 0.87, `W${sides}`, crisp({ fontFamily: FONT, fontSize: `${Math.round(size / 6)}px`, color: "#f3e9d2" })).setOrigin(0.5);
     return { die, n, s };
   }
@@ -359,7 +532,7 @@ export class UiScene extends Phaser.Scene {
       const die = this.add.graphics();
       die.fillStyle(r.crit ? 0xb8860b : 0x7a2e22, 1).fillRoundedRect(-width + 24, 24, 120, 120, 20);
       die.lineStyle(4, 0xf3e9d2, 1).strokeRoundedRect(-width + 24, 24, 120, 120, 20);
-      const n = this.add.text(-width + 84, 76, String(r.kept), crisp({ fontFamily: FONT, fontSize: "68px", fontStyle: "bold", color: "#fff", stroke: "#000", strokeThickness: 6 })).setOrigin(0.5);
+      const n = this.add.text(-width + 84, 76, String(r.kept), crisp({ fontFamily: FONT, fontSize: r.kept >= 10 ? "56px" : "68px", fontStyle: "bold", color: "#fff", stroke: "#000", strokeThickness: 6 })).setOrigin(0.5);
       const sides = this.add.text(-width + 84, 128, `W${r.sides}`, crisp({ fontFamily: FONT, fontSize: "20px", color: "#f3e9d2" })).setOrigin(0.5);
       this.rollBox.add([die, n, sides]);
       if (r.dice.length > 1) {
@@ -372,4 +545,12 @@ export class UiScene extends Phaser.Scene {
     this.rollBox.setAlpha(1);
     this.tweens.add({ targets: this.rollBox, alpha: 0, delay: 5000 + r.lines.length * 700, duration: 800 });
   }
+}
+
+/** Colour of a log line: green for hits and successes, red for misses and failures. */
+function logColor(text: string): string {
+  if (/nicht geschafft|verfehlt|daneben|misslingt|fehlschlag|→ kein treffer/i.test(text)) return "#f0a3a3";
+  if (/treffer|geschafft|erfolg|kritisch/i.test(text)) return "#a8e6a3";
+  if (/^(⬆️|✨|💰|🎁|🏆)/u.test(text)) return "#ffd75e";
+  return "#e8dcc4";
 }

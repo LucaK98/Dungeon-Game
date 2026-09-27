@@ -3,10 +3,12 @@
  */
 import { getGear } from "../data/gear";
 import type { Recap } from "../shared/recap";
+import type { Reward } from "../shared/reward";
+import { play } from "../ui/sound";
 import { shareRecap } from "../ui/recap-image";
 import { abilityMod, saveParts, skillParts, sumParts } from "../engine/core";
 import { SRD } from "../engine/data";
-import { abilityName, abilityShort, nameOf } from "../engine/names";
+import { abilityName, nameOf } from "../engine/names";
 import { armorClass } from "../engine/combat";
 import { EMOTES, type PlayerAction } from "../shared/events";
 import type { Creature } from "../shared/game";
@@ -18,6 +20,8 @@ import { showRollPrompt, type DiceOverlay } from "./dice";
 import { closeSheet, explainedLine, helpButton, maybeHint, openHelp, showRulesAnswer, showSheet } from "./help";
 import { minimapView } from "./minimap";
 import { ABILITY_GLOSSAR } from "../engine/core";
+
+const ABILITY_ICON: Record<string, string> = { STR: "💪", DEX: "🤸", CON: "🫀", INT: "🧠", WIS: "🦉", CHA: "🗣️" };
 
 type Tab = "action" | "sheet" | "inventory" | "clues";
 
@@ -44,6 +48,8 @@ export interface Controller {
   rulesAnswer(question: string, answer: string): void;
   /** The look back at the end: own highlights first, then the group's. */
   recap(recap: Recap): void;
+  /** This hero gained something: a level, equipment, gold or an item. */
+  reward(reward: Reward): void;
 }
 
 /** Browser speech recognition (Chrome/Safari/Edge), if available. */
@@ -442,55 +448,72 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
 
   function renderSheetTab(me: Creature): HTMLElement[] {
     const pc = me.pc!;
+    const modClass = (n: number) => (n > 0 ? "pos" : n < 0 ? "neg" : "zero");
+    // The two best attributes are what this hero is good at.
+    const best = [...ABILITIES].sort((a, b) => me.abilities[b] - me.abilities[a]).slice(0, 2);
     const abilities = h(
       "div",
       { class: "abilities" },
-      ...ABILITIES.map((a) =>
-        h(
+      ...ABILITIES.map((a) => {
+        const score = me.abilities[a];
+        const mod = abilityMod(score);
+        return h(
           "div",
-          { class: "ability", dataset: { help: ABILITY_GLOSSAR[a] } },
-          h("span", { class: "ab-short" }, abilityShort(a)),
-          h("strong", {}, signed(abilityMod(me.abilities[a]))),
-          h("span", { class: "ab-score" }, String(me.abilities[a])),
-        ),
+          { class: `ability${best.includes(a) ? " best" : ""}`, dataset: { help: ABILITY_GLOSSAR[a] } },
+          h("span", { class: "ab-icon" }, ABILITY_ICON[a]),
+          h("span", { class: "ab-name" }, abilityName(a)),
+          h("strong", { class: `ab-mod ${modClass(mod)}` }, signed(mod)),
+          h("div", { class: "ab-bar" }, h("span", { style: `width:${Math.round((Math.min(20, score) / 20) * 100)}%` })),
+          h("span", { class: "ab-score" }, `Wert ${score}`),
+        );
+      }),
+    );
+    const stat = (icon: string, label: string, value: string, key: string) =>
+      h("div", { class: "stat", dataset: { help: key } }, h("span", { class: "stat-icon" }, icon), h("span", { class: "stat-label" }, label), h("strong", {}, value));
+    const hpPct = Math.round(Math.max(0, me.hp / me.maxHp) * 100);
+    const hero = h(
+      "div",
+      { class: "hero-banner", style: `--player:${me.appearance?.color ?? "#888"}` },
+      me.appearance ? dollCanvas(me.appearance.look, 4, "hero-doll") : h("span", {}),
+      h(
+        "div",
+        { class: "hero-info" },
+        h("strong", { class: "hero-name" }, me.name),
+        h("span", { class: "muted" }, `${nameOf("classes", pc.classId)} · ${nameOf("races", pc.raceId)}`),
+        h("span", { class: "hero-level", dataset: { help: "stufe" } }, `⭐ Stufe ${pc.level}`),
+        h("div", { class: "hero-hp", dataset: { help: "trefferpunkte" } }, h("span", { style: `width:${hpPct}%` }), h("em", {}, `❤️ ${me.hp} / ${me.maxHp}`)),
       ),
     );
-    const stat = (label: string, value: string, key: string) => h("div", { class: "stat", dataset: { help: key } }, h("span", {}, label), h("strong", {}, value));
     const stats = h(
       "div",
       { class: "stats" },
-      stat("Rüstungsklasse", String(armorClass(me)), "ruestungsklasse"),
-      stat("Trefferpunkte", `${me.hp}/${me.maxHp}`, "trefferpunkte"),
-      stat("Bewegung", `${me.speedFt / 5} Felder`, "bewegung"),
-      stat("Übungsbonus", signed(me.proficiencyBonus), "uebungsbonus"),
-      stat("Initiative", signed(abilityMod(me.abilities.DEX)), "initiative"),
-      stat("Volk", nameOf("races", pc.raceId), `volk:${pc.raceId}`),
+      stat("🛡️", "Rüstungsklasse", String(armorClass(me)), "ruestungsklasse"),
+      stat("👣", "Bewegung", `${me.speedFt / 5} Felder`, "bewegung"),
+      stat("🎯", "Übungsbonus", signed(me.proficiencyBonus), "uebungsbonus"),
+      stat("⚡", "Initiative", signed(abilityMod(me.abilities.DEX)), "initiative"),
     );
-    const saves = h(
-      "div",
-      { class: "list" },
-      ...ABILITIES.map((a) => {
-        const prof = pc.saveProficiencies.includes(a);
-        return h("div", { class: `list-row${prof ? " prof" : ""}`, dataset: { help: "rettungswurf" } }, h("span", {}, `${prof ? "★ " : ""}${abilityName(a)}`), h("strong", {}, signed(sumParts(saveParts(me, a)))));
-      }),
-    );
+    const row = (label: string, value: number, prof: boolean, help: string, icon?: string) =>
+      h(
+        "div",
+        { class: `list-row skill-row${prof ? " prof" : ""}`, dataset: { help } },
+        h("span", {}, icon ? h("i", { class: "row-icon" }, icon) : "", prof ? h("b", { class: "prof-dot", title: "geübt" }, "★") : "", label),
+        h("strong", { class: `mod-pill ${modClass(value)}` }, signed(value)),
+      );
+    const saves = h("div", { class: "list" }, ...ABILITIES.map((a) => row(abilityName(a), sumParts(saveParts(me, a)), pc.saveProficiencies.includes(a), "rettungswurf", ABILITY_ICON[a])));
     const skills = h(
       "div",
       { class: "list" },
-      ...SRD.skills.map((s) => {
-        const prof = pc.skillProficiencies.includes(s.id);
-        return h("div", { class: `list-row${prof ? " prof" : ""}`, dataset: { help: `fertigkeit:${s.id}` } }, h("span", {}, `${prof ? "★ " : ""}${nameOf("skills", s.id)}`), h("strong", {}, signed(sumParts(skillParts(me, s.id)))));
-      }),
+      ...SRD.skills.map((sk) => row(nameOf("skills", sk.id), sumParts(skillParts(me, sk.id)), pc.skillProficiencies.includes(sk.id), `fertigkeit:${sk.id}`, ABILITY_ICON[sk.ability])),
     );
     const features = [...new Set(pc.features)]
       .filter((f) => !f.startsWith("domain-spells-2"))
       .map((f) => h("button", { class: "chip", type: "button", textContent: nameOf("features", f), dataset: { help: `merkmal:${f}` }, onclick: () => openHelp(`merkmal:${f}`) }));
     const traits = pc.raceId ? SRD.races.find((r) => r.id === pc.raceId)!.traits.map((t) => h("button", { class: "chip", type: "button", textContent: nameOf("raceTraits", t), dataset: { help: `volksmerkmal:${t}` }, onclick: () => openHelp(`volksmerkmal:${t}`) })) : [];
     const out: HTMLElement[] = [
-      h("section", { class: "card" }, h("div", { class: "card-title" }, "Attribute"), abilities, h("p", { class: "muted small" }, "Groß: der Modifikator, der auf Würfe kommt. Klein: der Attributswert.")),
-      h("section", { class: "card" }, stats),
-      h("section", { class: "card" }, h("div", { class: "card-title" }, "Rettungswürfe (★ = geübt)"), saves),
-      h("section", { class: "card" }, h("div", { class: "card-title" }, "Fertigkeiten (★ = geübt)"), skills),
+      h("section", { class: "card hero-card" }, hero, stats),
+      h("section", { class: "card" }, h("div", { class: "card-title" }, "Attribute"), abilities, h("p", { class: "muted small" }, "Groß: was auf deine Würfe kommt. ⭐ = deine Stärken.")),
+      h("section", { class: "card" }, h("div", { class: "card-title" }, "Rettungswürfe"), h("p", { class: "muted small" }, "★ = geübt, da bist du besonders gut"), saves),
+      h("section", { class: "card" }, h("div", { class: "card-title" }, "Fertigkeiten"), h("p", { class: "muted small" }, "★ = geübt · Symbol = welches Attribut zählt"), skills),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Fähigkeiten"), h("div", { class: "chips" }, ...features, ...traits)),
     ];
     if (pc.spells.length) {
@@ -780,5 +803,71 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     error(reason) {
       showToast(reason);
     },
+    reward(r) {
+      if (r.kind === "gold" || r.kind === "item") {
+        // Small things: a shiny number rises under the header.
+        const pop = h("div", { class: `gain-pop ${r.kind}` }, r.kind === "gold" ? `💰 +${r.amount} Gold` : `${r.icon} +${r.qty} ${r.title}`);
+        document.body.append(pop);
+        setTimeout(() => pop.remove(), 2600);
+        play(r.kind === "gold" ? "coin" : "pop");
+        return;
+      }
+      showReward(r);
+    },
   };
+
+  /** The big moments: a new level (what got better) or a piece of equipment. */
+  function showReward(r: Extract<Reward, { kind: "level" | "gear" }>): void {
+    document.querySelector(".reward-sheet")?.remove();
+    const ok = h("button", { class: "btn primary big", type: "button", textContent: "Super! 🎉" });
+    const body: (HTMLElement | string)[] = [];
+    if (r.kind === "level") {
+      body.push(
+        h("div", { class: "reward-burst" }, "⬆️"),
+        h("h2", {}, `Stufe ${r.level}!`),
+        h("p", { class: "reward-sub" }, `${r.name} ist stärker geworden.`),
+        h(
+          "div",
+          { class: "gain-list" },
+          ...r.gains.map((g) =>
+            h(
+              "button",
+              { class: "gain-row", type: "button", onclick: () => g.glossarKey && openHelp(g.glossarKey) },
+              h("span", { class: "gain-icon" }, g.icon),
+              h("span", { class: "gain-label" }, g.label),
+              h("span", { class: "gain-from" }, g.from),
+              h("span", { class: "gain-arrow" }, "➜"),
+              h("strong", { class: "gain-to" }, g.to),
+            ),
+          ),
+        ),
+      );
+      const news = [...r.features, ...r.spells];
+      if (news.length) {
+        body.push(
+          h("p", { class: "reward-new" }, "✨ Neu gelernt – antippen für die Erklärung:"),
+          h("div", { class: "chips" }, ...news.map((f) => h("button", { class: "chip good", type: "button", textContent: f.name, onclick: () => openHelp(f.key) }))),
+        );
+      }
+    } else {
+      const look = h("button", { class: "btn big", type: "button", textContent: "🎒 In den Taschen ansehen" });
+      look.addEventListener("click", () => {
+        sheet.remove();
+        tab = "inventory";
+        render();
+      });
+      body.push(
+        h("div", { class: "reward-burst gear" }, r.icon),
+        h("p", { class: "reward-sub" }, r.how),
+        h("h2", {}, r.title),
+        h("p", { class: "reward-detail" }, r.detail),
+        look,
+      );
+    }
+    const sheet = h("div", { class: "reward-sheet" }, h("div", { class: "reward-card" }, h("div", { class: "reward-rays" }), ...body, ok));
+    ok.addEventListener("click", () => sheet.remove());
+    document.body.append(sheet);
+    play(r.kind === "level" ? "victory" : "chime");
+    if ("vibrate" in navigator) navigator.vibrate(r.kind === "level" ? [80, 50, 80, 50, 200] : [60, 40, 120]);
+  }
 }

@@ -142,6 +142,8 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
       } else if (e.type === "hero_saved") {
         saveToBook(e.hero);
         controller?.error(`📖 ${e.hero.profile.name} steht jetzt in deinem Heldenbuch (Stufe ${e.hero.legacy.level}). Beim nächsten Abenteuer kannst du mit ${e.hero.profile.name} weiterspielen.`);
+      } else if (e.type === "reward") {
+        controller?.reward(e.reward);
       } else if (e.type === "recap") {
         controller?.recap(e.recap);
       } else if (e.type === "suggestions") {
