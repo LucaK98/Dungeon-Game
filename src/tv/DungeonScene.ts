@@ -307,6 +307,19 @@ export class DungeonScene extends Phaser.Scene {
     this.tweens.add({ targets: f.mood, y: -27, alpha: 0.55, duration: 1100, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
   }
 
+  /** A player's reaction rises over their hero. */
+  showEmote(creatureId: string, emoji: string): void {
+    const f = this.figures.get(creatureId);
+    const c = this.session.battle.creatures[creatureId];
+    const x = f ? f.container.x : c?.pos ? (c.pos.x + 0.5) * TILE : undefined;
+    const y = f ? f.container.y : c?.pos ? (c.pos.y + 0.5) * TILE : undefined;
+    if (x === undefined || y === undefined) return;
+    const t = this.add.text(x + (Math.random() * 10 - 5), y - 18, emoji, crisp({ fontSize: "40px" })).setOrigin(0.5).setScale(0.1).setDepth(6100);
+    this.tweens.add({ targets: t, scale: 0.55, duration: 260, ease: "Back.easeOut" });
+    this.tweens.add({ targets: t, y: y - 58, alpha: { from: 1, to: 0 }, delay: 700, duration: 1300, ease: "Sine.easeIn", onComplete: () => t.destroy() });
+    if (f) this.tweens.add({ targets: f.body, y: 8, duration: 110, yoyo: true, repeat: 1, ease: "Quad.easeOut" });
+  }
+
   /** A little show at a square (from events and free actions). */
   fx(kind: "puff" | "shake" | "sparkle" | "splash", pos?: { x: number; y: number }): void {
     const x = (pos?.x ?? 0) + 0.5;

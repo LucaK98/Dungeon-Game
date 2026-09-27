@@ -19,6 +19,7 @@ import { initRes } from "./render";
 import { THEMES } from "../map/modules";
 import { cellIndex } from "../shared/map";
 import { play, setAmbience, unlockSoundOnGesture } from "../ui/sound";
+import { setMood } from "../ui/music";
 
 /** Sounds for a roll on the TV: dice first, then what happened. */
 function rollSounds(r: import("../shared/view").RollOutcome, impactMs = 0): void {
@@ -94,6 +95,12 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     const room = map.rooms[map.roomOf[cellIndex(map, lead.pos.x, lead.pos.y)] ?? -1];
     if (!room) return;
     setAmbience({ outdoor: THEMES[room.theme].outdoor, night: !!map.dark, cave: ["cave", "mine", "lair"].includes(room.theme) });
+    // Music: the fight decides; otherwise the place.
+    if (c.mode === "combat") setMood(c.enemiesInFight().some((e) => e.boss) ? "boss" : "fight");
+    else if (map.dark || ["cave", "mine", "lair", "crypt"].includes(room.theme)) setMood("night");
+    else if (["village", "town", "tavern"].includes(room.theme)) setMood("town");
+    else if (THEMES[room.theme].outdoor) setMood("wild");
+    else setMood("halls");
   };
   let controller: GameController | undefined;
   let worldTimer: ReturnType<typeof setInterval> | undefined;
@@ -136,6 +143,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       roomRevealed: (name) => scene.showRoomName(name),
       combat: (started) => {
         game.events.emit("combat", started);
+        updateAmbience(c);
         if (started) play("fight");
         if (scene.sys.isActive()) scene.setCombatLayout(started);
       },
@@ -144,6 +152,10 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         // The UI scene may not exist yet (story intro): keep the lines until it is ready.
         if (uiReady) game.events.emit("narration", lines);
         else early.push(...lines);
+      },
+      emote: (id, emoji) => {
+        if (scene.sys.isActive()) scene.showEmote(id, emoji);
+        play("pop");
       },
       fx: (kind, pos) => {
         if (scene.sys.isActive()) scene.fx(kind, pos);

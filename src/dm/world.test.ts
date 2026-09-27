@@ -259,3 +259,17 @@ describe("fight animations", () => {
     }
   });
 });
+
+describe("reactions", () => {
+  it("shows known emoji over the hero, not too often", () => {
+    const { game } = setup();
+    const seen: string[] = [];
+    game.on({ emote: (id, emoji) => seen.push(`${id}:${emoji}`) });
+    const hero = game.heroes()[0]!;
+    game.handle(hero.playerId!, { kind: "emote", emoji: "😂" });
+    game.handle(hero.playerId!, { kind: "emote", emoji: "😱" }); // too soon
+    game.handle(game.heroes()[1]!.playerId!, { kind: "emote", emoji: "👏" });
+    game.handle(game.heroes()[1]!.playerId!, { kind: "emote", emoji: "<script>" } as never);
+    expect(seen).toEqual([`${hero.id}:😂`, `${game.heroes()[1]!.id}:👏`]);
+  });
+});

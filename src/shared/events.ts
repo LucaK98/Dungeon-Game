@@ -32,7 +32,12 @@ export type PlayerAction =
   | { kind: "roll"; rollId: string }
   | { kind: "end_turn" }
   | { kind: "story_choice"; choiceId: string }
-  | { kind: "set_beginner_mode"; on: boolean };
+  | { kind: "set_beginner_mode"; on: boolean }
+  /** A quick reaction (😂 😱 👏 …) that floats over the hero on the TV. */
+  | { kind: "emote"; emoji: string };
+
+/** The reactions a phone can send. */
+export const EMOTES = ["😂", "😱", "👏", "❤️", "💀", "🔥", "🤔", "😡"] as const;
 
 export interface RollRequest {
   playerId: PlayerId;

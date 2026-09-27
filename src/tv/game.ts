@@ -17,7 +17,7 @@ import type { Rng } from "../engine/rng";
 import { maxTargets, validateCast } from "../engine/spells";
 import { isWalkable, partyStartSpots, revealAround } from "../map/walk";
 import { isLit } from "../engine/vision";
-import type { PlayerAction } from "../shared/events";
+import { EMOTES, type PlayerAction } from "../shared/events";
 import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
 import { glossaryAnswer } from "../dm/rules-help";
@@ -67,6 +67,8 @@ export interface GameEvents {
   mapChanged(): void;
   /** A boss enters: the board shows it off. */
   spotlight(creatureId: string): void;
+  /** A player reacted (emoji over their hero). */
+  emote(creatureId: string, emoji: string): void;
   /** A little show on the board (dust, sparkle, splash, shaking screen) at a square. */
   fx(kind: "puff" | "shake" | "sparkle" | "splash", pos: GridPos | undefined): void;
 }
@@ -115,6 +117,7 @@ export class GameController {
   /** Answers a rules question (set by the Director; without story the glossary answers). */
   onAskRules: ((playerId: PlayerId, hero: Creature, question: string) => Promise<string>) | undefined;
   private lastRules = new Map<PlayerId, number>();
+  private lastEmote = new Map<PlayerId, number>();
   /** Items used and chests opened (tutorial step "use_item"). */
   itemUses = 0;
   /** Training fight: nobody dies. */
@@ -673,6 +676,14 @@ export class GameController {
     }
     const hero = this.heroOf(playerId);
     if (!hero) return;
+    if (action.kind === "emote") {
+      // Only the known reactions, and not more than one per second and a half.
+      const now = Date.now();
+      if (!(EMOTES as readonly string[]).includes(action.emoji) || now - (this.lastEmote.get(playerId) ?? 0) < 1500) return;
+      this.lastEmote.set(playerId, now);
+      this.emit("emote", hero.id, action.emoji);
+      return;
+    }
     if (action.kind === "story_choice") {
       const offer = this.storyChoices.find((c) => c.id === action.choiceId);
       if (!offer || !this.choiceWaiter) {

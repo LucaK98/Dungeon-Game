@@ -6,7 +6,7 @@
  * Browsers only allow sound after the first tap or key press; until then everything is silent.
  */
 
-export type Sfx = "dice" | "hit" | "crit" | "miss" | "heal" | "victory" | "defeat" | "coin" | "chime" | "thud" | "splash" | "rumble" | "fight" | "boss" | "door";
+export type Sfx = "pop" | "dice" | "hit" | "crit" | "miss" | "heal" | "victory" | "defeat" | "coin" | "chime" | "thud" | "splash" | "rumble" | "fight" | "boss" | "door";
 
 export interface AmbienceKind {
   outdoor: boolean;
@@ -112,6 +112,9 @@ export function play(sfx: Sfx): void {
   if (!a || !master) return;
   const t = a.currentTime + 0.01;
   switch (sfx) {
+    case "pop":
+      tone(a, 660, t, 0.08, { to: 990, vol: 0.12 });
+      break;
     case "dice":
       // Dice rattling on the table: a few clicks, getting slower.
       for (let i = 0, at = 0; i < 7; i++) {

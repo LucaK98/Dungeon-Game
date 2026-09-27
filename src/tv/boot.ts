@@ -8,11 +8,13 @@ import { renderLobby } from "./lobby-view";
 import { isSaveGame, readSave } from "./save";
 import { cloudLoad, formatCode, newCloudId } from "../net/cloud-save";
 import { setSpeechEnabled, speechEnabled, warmUpVoices } from "./speech";
+import { setMood, unlockMusicOnGesture } from "../ui/music";
 import { settingsScreen } from "./settings";
 import { cloudLoadScreen, howToPlay, pickDuration, pickStory, titleScreen } from "./start-screens";
 
 export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>): () => void {
   document.body.classList.add("is-tv");
+  unlockMusicOnGesture();
   let stopView: (() => void) | undefined;
   let host: GameHost | undefined;
   let closed = false;
@@ -49,6 +51,7 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
     clear();
     // Natural voices download in the background while people pick a story and join.
     warmUpVoices();
+    setMood("wild");
     for (;;) {
       const save = readSave();
       const choice = await titleScreen(root, { canContinue: !!save, ...(save?.cloud ? { saveCode: formatCode(save.cloud.code) } : {}), speech: speechEnabled(), onSpeech: setSpeechEnabled });

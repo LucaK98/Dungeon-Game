@@ -2,6 +2,7 @@
  * TV screens before the lobby: title, "How to play" (5 slides), story and length.
  * Big text for the sofa; works with mouse, touch and keyboard (arrow keys + Enter).
  */
+import { musicEnabled, setMusicEnabled } from "../ui/music";
 import { play, setSoundEnabled, soundEnabled } from "../ui/sound";
 import { planScenes } from "../dm/planner";
 import type { Duration, Story } from "../shared/story";
@@ -105,6 +106,13 @@ export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new
     const speech = h("button", { class: "tv-btn small", type: "button" });
     const settings = h("button", { class: "tv-btn small", type: "button", textContent: "⚙️ Einstellungen" });
     const sound = h("button", { class: "tv-btn small", type: "button" });
+    const music = h("button", { class: "tv-btn small", type: "button" });
+    const renderMusic = () => (music.textContent = musicEnabled() ? "🎼 Musik: an" : "🎼 Musik: aus");
+    renderMusic();
+    music.addEventListener("click", () => {
+      setMusicEnabled(!musicEnabled());
+      renderMusic();
+    });
     const renderSound = () => (sound.textContent = soundEnabled() ? "🎵 Geräusche: an" : "🔇 Geräusche: aus");
     renderSound();
     sound.addEventListener("click", () => {
@@ -130,7 +138,7 @@ export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new
         h("h1", { class: "title-name" }, "Couch-Dungeon"),
         h("p", { class: "title-sub" }, "Ein Abenteuer für 1–6 Helden · Fernseher + Handys"),
         h("div", { class: "tv-col" }, newGame, howto, cont, cloud),
-        h("div", { class: "tv-row" }, speech, sound, settings),
+        h("div", { class: "tv-row" }, speech, sound, music, settings),
         h("p", { class: "credits" }, "5E compatible · enthält Material aus dem SRD 5.1 (CC-BY-4.0) · Grafik: Dungeon Crawl Stone Soup (CC0)"),
       ),
     );

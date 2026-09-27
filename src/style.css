@@ -536,3 +536,8 @@ body.tip-mode::after {
 .tv-screen > * { margin-top: auto; margin-bottom: auto; }
 .settings-ai[hidden] { display: none; }
 .pick .code-input { font-size: 5vh; max-width: 44vh; margin: 2vh auto; display: block; text-align: center; letter-spacing: 0.3em; }
+.emote-btn { position: fixed; right: max(14px, calc(50vw - 266px)); bottom: 78px; z-index: 35; width: 54px; height: 54px; border-radius: 50%; border: 2px solid #5a4d42; background: #1d1814ee; font-size: 1.6rem; box-shadow: 0 4px 14px #0008; cursor: pointer; }
+.emote-row { position: fixed; right: max(14px, calc(50vw - 266px)); bottom: 140px; z-index: 35; display: grid; grid-template-columns: repeat(4, 52px); gap: 6px; padding: 8px; border-radius: 16px; background: #1d1814f2; border: 2px solid #5a4d42; box-shadow: 0 6px 20px #000a; }
+.emote-row[hidden] { display: none; }
+.emote { width: 52px; height: 52px; font-size: 1.8rem; border: none; border-radius: 12px; background: #2a231d; cursor: pointer; }
+.emote:active { transform: scale(0.9); background: #3a3027; }

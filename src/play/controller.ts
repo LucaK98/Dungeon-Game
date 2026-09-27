@@ -5,7 +5,7 @@ import { abilityMod, saveParts, skillParts, sumParts } from "../engine/core";
 import { SRD } from "../engine/data";
 import { abilityName, abilityShort, nameOf } from "../engine/names";
 import { armorClass } from "../engine/combat";
-import type { PlayerAction } from "../shared/events";
+import { EMOTES, type PlayerAction } from "../shared/events";
 import type { Creature } from "../shared/game";
 import { ABILITIES } from "../shared/rules";
 import type { ActionChoice, ActionGroup, PlayerView, RollOutcome, RollPrompt } from "../shared/view";
@@ -70,7 +70,25 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   const body = h("main", { class: "ctl-body" });
   const toast = h("div", { class: "toast", hidden: true });
   const tabs = h("nav", { class: "ctl-tabs" });
-  root.append(header, status, body, tabs, toast);
+  // Quick reactions: a round button above the tabs opens a row of emoji.
+  const emoteRow = h("div", { class: "emote-row", hidden: true });
+  const emoteBtn = h("button", { class: "emote-btn", type: "button", textContent: "😀", title: "Reaktion zeigen" });
+  let emoteClose: ReturnType<typeof setTimeout> | undefined;
+  emoteBtn.addEventListener("click", () => {
+    emoteRow.hidden = !emoteRow.hidden;
+    if (emoteClose) clearTimeout(emoteClose);
+    if (!emoteRow.hidden) emoteClose = setTimeout(() => (emoteRow.hidden = true), 5000);
+  });
+  for (const emoji of EMOTES) {
+    const b = h("button", { class: "emote", type: "button", textContent: emoji });
+    b.addEventListener("click", () => {
+      send({ kind: "emote", emoji });
+      emoteRow.hidden = true;
+      if ("vibrate" in navigator) navigator.vibrate(15);
+    });
+    emoteRow.append(b);
+  }
+  root.append(header, status, body, tabs, toast, emoteRow, emoteBtn);
 
   const help = helpButton({
     view: () => view,

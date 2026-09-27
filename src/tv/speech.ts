@@ -7,6 +7,7 @@
  *   with its own pitch and tempo per character.
  * If a natural voice is not ready yet (still downloading) or fails, the browser voice speaks.
  */
+import { duckMusic } from "../ui/music";
 import { browserStyle, neuralVoice, speakable, sentences, voiceIsFemale, voiceScore } from "./voice/cast";
 
 const KEY = "couch-dungeon.speech";
@@ -215,9 +216,14 @@ export async function speak(text: string, speaker?: string): Promise<void> {
   const clean = speakable(text);
   if (!clean) return;
   const gen = ++generation;
-  if (voiceEngine() === "natural" && (await speakNatural(clean, speaker, gen))) return;
-  if (gen !== generation) return;
-  await speakBrowser(clean, speaker);
+  duckMusic(true);
+  try {
+    if (voiceEngine() === "natural" && (await speakNatural(clean, speaker, gen))) return;
+    if (gen !== generation) return;
+    await speakBrowser(clean, speaker);
+  } finally {
+    if (gen === generation) duckMusic(false);
+  }
 }
 
 /** Loads the natural voices early (when a game starts): narrator first, then the characters. */
