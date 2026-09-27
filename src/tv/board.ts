@@ -351,7 +351,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   };
   window.addEventListener("keydown", onKey);
   // Demo mode: handles for browser tests (look at fire, bubbles …).
-  if (opts.demo) (window as unknown as { __couch?: unknown }).__couch = { session: () => session, controller: () => controller, scene: () => scene };
+  if (opts.demo || location.hash.includes("debug")) (window as unknown as { __couch?: unknown }).__couch = { session: () => session, controller: () => controller, scene: () => scene };
 
   return () => {
     offLobby();
