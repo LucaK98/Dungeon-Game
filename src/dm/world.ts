@@ -52,6 +52,8 @@ export class World {
   private lastNudgeAt = 0;
   private used: string[] = [];
   private greeted = new Set<string>();
+  /** First scene: no events and no time pressure. */
+  private gentle = false;
   private running: Promise<void> | undefined;
   private timer: ReturnType<typeof setInterval> | undefined;
 
@@ -62,9 +64,11 @@ export class World {
   }
 
   /** A new scene: greetings start over, the first event comes after a while. */
-  newScene(): void {
+  newScene(firstOfStory = false): void {
     this.greeted.clear();
-    this.nextEventAt = this.host.now() + eventGapSeconds(this.host.rng, this.game.heroes().length) * 1000;
+    this.gentle = firstOfStory;
+    // The very first scene teaches the basics: no surprises there yet.
+    this.nextEventAt = firstOfStory ? Number.POSITIVE_INFINITY : this.host.now() + eventGapSeconds(this.host.rng, this.game.heroes().length) * 1000;
   }
 
   /** Lets the world run while the story waits for the heroes (reach/explore steps). */
@@ -88,7 +92,7 @@ export class World {
     const now = this.host.now();
     this.greetings();
     const clock = CLOCK[this.host.duration] * 60000;
-    if (now - this.stepStartedAt > clock * (this.warnings + 1)) {
+    if (!this.gentle && now - this.stepStartedAt > clock * (this.warnings + 1)) {
       this.warnings++;
       this.run(this.warnings === 1 ? Promise.resolve(this.game.narrate([clockWarning(this.place())])) : this.lateConsequence());
       return;

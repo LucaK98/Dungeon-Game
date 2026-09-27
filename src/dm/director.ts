@@ -259,7 +259,7 @@ export class Director {
     });
     if (scene.dark) map.dark = true;
     this.game.loadMap(map, npcs);
-    this.world?.newScene();
+    this.world?.newScene(this.state.sceneIndex === 0);
     this.lowestHpRatio = 1;
     this.updateView();
     await this.askDm({ kind: "scene_start" });
