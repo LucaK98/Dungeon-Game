@@ -2,6 +2,7 @@
  * TV screens before the lobby: title, "How to play" (5 slides), story and length.
  * Big text for the sofa; works with mouse, touch and keyboard (arrow keys + Enter).
  */
+import { newRandomStory } from "../dm/stories/random";
 import { DIFFICULTIES, DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import { musicEnabled, setMusicEnabled } from "../ui/music";
 import { play, setSoundEnabled, soundEnabled } from "../ui/sound";
@@ -173,8 +174,20 @@ export function pickStory(root: HTMLElement, stories: Story[]): Promise<Story> {
       });
       return b;
     });
-    const soon = h("div", { class: "story-card soon" }, h("h2", {}, "Weitere Geschichten"), h("p", {}, "„Der Rattenfänger von Hammelstein“ und „Walpurgisnacht am Brocken“ folgen bald."));
-    const s = screen(root, h("section", { class: "pick" }, h("h1", {}, "Welche Geschichte wollt ihr erleben?"), h("div", { class: "story-grid" }, ...cards, stories.length < 3 ? soon : "")));
+    // A new random adventure every time (quest, place, villain and twist are rolled).
+    const random = h(
+      "button",
+      { class: "story-card random-card", type: "button" },
+      h("div", { class: "story-cover random-dice" }, "🎲"),
+      h("h2", {}, "Zufallsabenteuer"),
+      h("p", { class: "story-sub" }, "ca. 30 Minuten · jedes Mal anders"),
+      h("p", {}, "Auftrag, Ort, Schurke und Wendung werden ausgewürfelt. Für Gruppen, die alle Geschichten schon kennen."),
+    );
+    random.addEventListener("click", () => {
+      s.close();
+      resolve(newRandomStory());
+    });
+    const s = screen(root, h("section", { class: "pick" }, h("h1", {}, "Welche Geschichte wollt ihr erleben?"), h("div", { class: "story-grid" }, ...cards, random)));
   });
 }
 

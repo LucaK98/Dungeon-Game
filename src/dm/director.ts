@@ -336,6 +336,8 @@ export class Director {
   }
 
   private campTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Items used before the current scene began (a "use_item" step counts uses in this scene). */
+  private sceneItemUses = 0;
 
   /** Index of the current scene within the plan without dropped scenes. */
   private activeIndex(): number {
@@ -356,7 +358,12 @@ export class Director {
       return { id: npc.id, name: npc.name, monster: npc.monster, room: n.room ?? 0 };
     });
     if (scene.dark) map.dark = true;
+    for (const room of map.rooms) {
+      const name = scene.roomNames?.[room.moduleId];
+      if (name) room.name = name;
+    }
     this.game.loadMap(map, npcs);
+    this.sceneItemUses = this.game.itemUses;
     this.world?.newScene(this.state.sceneIndex === 0);
     this.lowestHpRatio = 1;
     this.updateView();
@@ -440,6 +447,8 @@ export class Director {
         break;
       }
       case "use_item": {
+        // Somebody already opened a chest or used an item in this scene (e.g. during the fight): done.
+        if (this.game.itemUses > this.sceneItemUses) break;
         const before = this.game.itemUses;
         await this.game.waitFor(() => this.game.itemUses > before);
         break;

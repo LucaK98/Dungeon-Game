@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { generateStory } from "./stories/random";
 import { seededRng, type Rng } from "../engine/rng";
 import { isWalkable } from "../map/walk";
 import { defaultLook } from "../shared/doll";
@@ -197,7 +198,8 @@ async function playStory(opts: { heroes?: { name: string; classId: string; raceI
   return { result, state, narration, guard, campfires, finalBlows, game };
 }
 
-for (const STORY of STORIES) {
+// The written stories and a few random adventures (different villains, quests and twists).
+for (const STORY of [...STORIES, generateStory(7), generateStory(42), generateStory(1234), generateStory(99)]) {
   describe(`story format: ${STORY.id}`, () => {
     it("plans only mandatory scenes for Kurz and more for longer games", () => {
       const kurz = planScenes(STORY, "kurz");

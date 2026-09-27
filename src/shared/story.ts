@@ -121,6 +121,8 @@ export interface Scene {
   title: string;
   /** Room modules of this scene's map, in order. */
   rooms: string[];
+  /** Other names for rooms of this scene (module id → name), e.g. in random adventures. */
+  roomNames?: Record<string, string>;
   /** Extra rooms (inserted before the last one) for longer games. */
   extraRooms?: Partial<Record<Duration, string[]>>;
   pflicht: boolean;
