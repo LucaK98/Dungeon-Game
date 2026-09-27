@@ -53,6 +53,8 @@ export interface Recap {
   highlights: Highlight[];
   /** The most memorable free action, in the players' own words. */
   bestIdea?: string;
+  /** The final blow against the boss, in the player's words and as the game master told it. */
+  finalBlow?: { heroId: string; name: string; boss: string; text: string; narration: string };
   /** The secret goals, revealed. */
   goals?: { heroId: string; name: string; color: string; icon: string; reveal: string; done: boolean }[];
 }

@@ -38,6 +38,9 @@ export function endScreen(root: HTMLElement, r: StoryResult, onDone: () => void)
       h("h2", {}, "🌟 Eure Highlights"),
       highlights,
       r.recap.bestIdea ? h("p", { class: "best-idea" }, `🎭 Beste Idee: „${r.recap.bestIdea}“`) : "",
+      r.recap.finalBlow
+        ? h("div", { class: "end-blow" }, h("h2", {}, `⚔️ Der letzte Schlag: ${r.recap.finalBlow.name} gegen ${r.recap.finalBlow.boss}`), h("p", { class: "blow-quote" }, `„${r.recap.finalBlow.text}“`), r.recap.finalBlow.narration ? h("p", { class: "end-text" }, r.recap.finalBlow.narration) : "")
+        : "",
       r.recap.goals?.length
         ? h(
             "div",

@@ -86,6 +86,9 @@ Antworte in answer kurz (2–4 Sätze), freundlich und für Einsteiger verständ
       return `${t.heroName} fragt: „Was könnte ich jetzt tun?“ Schlage 3 kurze, kreative Ideen für freie Aktionen vor (Ich-Form, je höchstens 8 Wörter), die zur Lage, zur Umgebung und zu den Figuren passen. narration darf leer bleiben.`;
     case "idle":
       return `Seit ${t.seconds} Sekunden hat niemand etwas getan. Erzähle in 1–2 Sätzen etwas Kleines, das die Helden neugierig macht oder an ihr Ziel erinnert: ein Geräusch, eine Bewegung, oder eine Figur der Szene spricht sie an (npc_say, passend zu ihrer Haltung gegenüber der Gruppe). Keine Monster, keine Effekte, keine Probe.`;
+    case "final_blow":
+      return `${t.heroName} hat den Endgegner ${t.bossName} besiegt und beschreibt den letzten Schlag so: „${t.text}“
+Erzähle diesen Moment in 2–4 packenden, bildhaften Sätzen nach – so, wie ${t.heroName} es beschrieben hat, nur größer und filmreifer. Der Gegner ist besiegt, das steht fest. Keine Monster, keine Probe, keine Effekte.`;
     case "campfire":
       return `Die Helden rasten am Lagerfeuer und erzählen sich etwas über sich:
 ${t.tales.map((x) => `- ${x.heroName} (gefragt: „${x.question}“): „${x.text}“`).join("\n")}

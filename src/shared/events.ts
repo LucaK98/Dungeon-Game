@@ -42,7 +42,9 @@ export type PlayerAction =
   /** At the campfire: tell the others something, buy from the trader, ready to go on. */
   | { kind: "camp_tell"; text: string }
   | { kind: "camp_buy"; offerId: string }
-  | { kind: "camp_done" };
+  | { kind: "camp_done" }
+  /** The hero who struck down the final boss describes the blow (empty = skip). */
+  | { kind: "final_blow"; text: string };
 
 /** The reactions a phone can send. */
 export const EMOTES = ["😂", "😱", "👏", "❤️", "💀", "🔥", "🤔", "😡"] as const;

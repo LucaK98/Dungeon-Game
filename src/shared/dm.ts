@@ -57,6 +57,8 @@ export type DmTrigger =
   /** Nobody has done anything for a while: say something to get the group going. */
   | { kind: "idle"; seconds: number }
   | { kind: "scene_end" }
+  /** A hero struck down the final boss and described the blow in their own words. */
+  | { kind: "final_blow"; heroName: string; bossName: string; text: string }
   /** The heroes rested at the campfire and told each other something about themselves. */
   | { kind: "campfire"; tales: { heroName: string; question: string; text: string }[] }
   | { kind: "story_end" };

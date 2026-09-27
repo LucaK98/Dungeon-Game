@@ -77,6 +77,8 @@ export interface GameEvents {
   spotlight(creatureId: string): void;
   /** A hero has to roll now (the TV shows the waiting die). */
   asked(prompt: RollPrompt, creatureId: string, name: string, color: string | undefined): void;
+  /** A big note at the top of the TV (undefined = away). */
+  banner(info: { icon: string; title: string; text: string } | undefined): void;
   /** A group vote: the options with who voted for them (undefined = vote over). */
   vote(state: { total: number; cast: number; options: { label: string; voters: { name: string; color: string }[] }[] } | undefined): void;
   /** The campfire rest started, changed (ready count) or ended (undefined). */
@@ -838,6 +840,14 @@ export class GameController {
     }
     const hero = this.heroOf(playerId);
     if (!hero) return;
+    if (action.kind === "final_blow") {
+      const ask = this.blowAsk;
+      if (!ask || ask.heroId !== hero.id) return;
+      this.blowAsk = undefined;
+      ask.resolve(action.text.replace(/\s+/g, " ").trim().slice(0, 200));
+      this.broadcast();
+      return;
+    }
     if (action.kind === "camp_tell" || action.kind === "camp_buy" || action.kind === "camp_done") {
       const err = this.campAction(hero, action);
       if (err) this.sendTo(playerId, { type: "action_error", reason: err });
@@ -1344,6 +1354,40 @@ export class GameController {
   }
 
   /** Counts what a roll did (damage, kills, crits, healing, bad luck). */
+  // ---------------------------------------------------------------- the final blow
+
+  /** The hero who struck down a boss (taken by the director after the fight). */
+  private bossKill: { heroId: string; boss: string } | undefined;
+  private blowAsk: { heroId: string; boss: string; resolve: (text: string) => void } | undefined;
+
+  /** A big note at the top of the TV while the table waits for something (undefined = away). */
+  banner(info: { icon: string; title: string; text: string } | undefined): void {
+    this.emit("banner", info);
+  }
+
+  takeBossKill(): { heroId: string; boss: string } | undefined {
+    const k = this.bossKill;
+    this.bossKill = undefined;
+    return k;
+  }
+
+  /** Asks the hero's phone to describe the final blow; resolves with the text ("" = skipped). */
+  askFinalBlow(heroId: string, boss: string): Promise<string> {
+    return new Promise((resolve) => {
+      this.blowAsk = { heroId, boss, resolve };
+      this.broadcast();
+    });
+  }
+
+  /** No answer in time: go on without. */
+  endFinalBlow(): void {
+    const ask = this.blowAsk;
+    if (!ask) return;
+    this.blowAsk = undefined;
+    ask.resolve("");
+    this.broadcast();
+  }
+
   // ---------------------------------------------------------------- secret goals
 
   private goals = new Map<string, string>();
@@ -1422,7 +1466,10 @@ export class GameController {
           s.biggestHit = hit.amount;
           s.biggestHitTarget = target?.name.replace(/ \d+$/, "");
         }
-        if (target && (target.dead || target.hp <= 0)) s.kills++;
+        if (target && (target.dead || target.hp <= 0)) {
+          s.kills++;
+          if (this.bossIds.has(target.id)) this.bossKill = { heroId: actor.id, boss: target.name };
+        }
       }
       if (target?.kind === "pc") {
         const s = this.statsOf(target.id);
@@ -1869,6 +1916,7 @@ export class GameController {
     if (camp) view.camp = camp;
     const goal = this.goalView(me);
     if (goal) view.goal = goal;
+    if (this.blowAsk?.heroId === me.id) view.finalBlow = { boss: this.blowAsk.boss };
     if (this.storyView) view.story = { ...this.storyView, narration: this.narrationLog.slice(-4), choices: this.storyChoiceView(playerId), ...(this.votes ? { vote: { cast: this.votes.size, total: this.voters().length } } : {}) };
     return view;
   }

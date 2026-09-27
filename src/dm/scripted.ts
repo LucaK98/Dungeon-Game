@@ -147,6 +147,14 @@ export class ScriptedDM implements DungeonMaster {
         return respond([]);
       }
 
+      case "final_blow": {
+        const said = trigger.text.replace(/[.!]+$/, "");
+        return respond([
+          { text: `„${said}!“ – und genau so geschieht es.` },
+          { text: `${trigger.heroName} legt alle Kraft in diesen einen Moment. ${trigger.bossName} taumelt, bäumt sich ein letztes Mal auf … und stürzt. Stille. Dann bricht Jubel aus.` },
+        ]);
+      }
+
       case "campfire": {
         // Without AI: the fire answers with a quiet line; the tales stay in the chronicle.
         const line = CAMP_LINES[(ctx.sceneIndex + trigger.tales.length) % CAMP_LINES.length]!;

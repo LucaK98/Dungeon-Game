@@ -498,7 +498,37 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     return campCard.el;
   }
 
+  /** "Der letzte Schlag gehört dir": kept in place like the campfire card (typing is not interrupted). */
+  let blowCard: HTMLElement | undefined;
+
+  function finalBlowSection(boss: string): HTMLElement {
+    if (blowCard) return blowCard;
+    const input = h("textarea", { class: "text-input camp-input", rows: 3, maxLength: 200, placeholder: "z. B. Ich springe vom Felsen und ramme ihm die Lanze in die Brust!" }) as HTMLTextAreaElement;
+    const go = h("button", { class: "btn primary big", type: "button", textContent: "⚔️ So war's!" });
+    go.addEventListener("click", () => {
+      const text = input.value.trim();
+      if (text) send({ kind: "final_blow", text });
+    });
+    const skip = h("button", { class: "btn small", type: "button", textContent: "Mir fällt nichts ein – überspringen" });
+    skip.addEventListener("click", () => send({ kind: "final_blow", text: "" }));
+    const mic = micButton(input);
+    blowCard = h(
+      "section",
+      { class: "card blow-card" },
+      h("div", { class: "blow-icon" }, "⚔️"),
+      h("h2", {}, "Der letzte Schlag gehört dir!"),
+      h("p", {}, `Du hast ${boss} besiegt. Beschreib den anderen, wie es passiert ist – der Spielleiter erzählt es auf dem Fernseher nach.`),
+      input,
+      h("div", { class: "free-tools" }, ...(mic ? [mic] : []), go),
+      skip,
+    );
+    if ("vibrate" in navigator) navigator.vibrate([100, 60, 100, 60, 300]);
+    return blowCard;
+  }
+
   function renderActionTab(v: PlayerView): HTMLElement[] {
+    if (v.finalBlow) return [finalBlowSection(v.finalBlow.boss)];
+    blowCard = undefined;
     if (v.camp) return [campSection(v.camp)];
     campCard = undefined;
     const out: HTMLElement[] = [...renderStory(v)];
@@ -894,6 +924,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
               h("p", {}, `⚔️ ${me.stats.damageDealt} Schaden · 💀 ${me.stats.kills} besiegt · 🎯 ${me.stats.crits} Volltreffer · 💚 ${me.stats.healing} geheilt · 💰 ${me.stats.gold} Gold`),
               ...mine.map(card),
             )
+          : "",
+        recap.finalBlow
+          ? h("div", { class: "recap-blow" }, h("h2", {}, `⚔️ Der letzte Schlag: ${recap.finalBlow.name}`), h("p", { class: "blow-quote" }, `„${recap.finalBlow.text}“`), recap.finalBlow.narration ? h("p", { class: "muted" }, recap.finalBlow.narration) : "")
           : "",
         recap.goals?.length
           ? h(

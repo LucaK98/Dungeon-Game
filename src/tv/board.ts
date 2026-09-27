@@ -184,6 +184,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         if (uiReady) game.events.emit("narration", lines);
         else early.push(...lines);
       },
+      banner: (info) => game.events.emit("info-banner", info),
       vote: (state) => {
         game.events.emit("vote", state);
         if (state?.cast) play("pop");

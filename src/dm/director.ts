@@ -51,6 +51,8 @@ export interface StoryState {
   tales?: string[];
   /** Secret goal of each hero (hero id → goal id). */
   goals?: Record<string, string>;
+  /** The final blow against the boss (for the look back). */
+  finalBlow?: { heroId: string; name: string; boss: string; text: string; narration: string };
   /** How tough the world is (older saves: normal). */
   difficulty?: Difficulty;
 }
@@ -75,6 +77,8 @@ export interface DirectorOptions {
   world?: boolean;
   /** Rest at the campfire between chapters (default on). */
   camp?: boolean;
+  /** The player who defeats the final boss describes the blow (default on). */
+  finalBlow?: boolean;
 }
 
 /** Questions at the campfire: small, personal, easy to answer for beginners. */
@@ -92,6 +96,8 @@ export const CAMP_QUESTIONS = [
   "Was ist dein größter Traum?",
   "Was kannst du richtig gut, was die anderen noch nicht wissen?",
 ];
+/** The player has this long to describe the final blow (seconds). */
+const FINAL_BLOW_S = 90;
 /** The campfire ends after this long even if not everyone tapped "Weiter". */
 const CAMP_MINUTES = 5;
 
@@ -559,7 +565,10 @@ export class Director {
     clearInterval(track);
     this.trackHardship();
     if (spawned.some((m) => m.monsterId === "red-dragon-wyrmling" && m.dead)) this.set(["drache_tot"]);
+    const kill = this.game.takeBossKill();
     if (winner === "party") {
+      // The final boss: whoever struck the last blow tells how it happened.
+      if (kill && hasBoss && this.state.sceneIndex === this.state.plan.length - 1 && this.opts.finalBlow !== false) await this.finalBlow(kill);
       // Loot: bosses always drop something, other fights sometimes.
       if (!training && (hasBoss || this.rng.next() < 0.3)) {
         const heroes = this.heroes().filter((h) => !h.dead);
@@ -575,6 +584,32 @@ export class Director {
       return "defeat";
     }
     return "lost";
+  }
+
+  /** "Der letzte Schlag gehört dir": the player describes it, the game master tells it big. */
+  private async finalBlow(kill: { heroId: string; boss: string }): Promise<void> {
+    const hero = this.game.session.battle.creatures[kill.heroId];
+    if (!hero?.playerId) return;
+    this.game.narrate([{ text: `⚔️ ${kill.boss} ist besiegt! Der letzte Schlag gehört ${hero.name}. Beschreib ihn auf deinem Handy – wie ist es passiert?` }]);
+    this.game.banner({ icon: "⚔️", title: `Der letzte Schlag gehört ${hero.name}!`, text: "Beschreib auf dem Handy, wie du den Endgegner besiegt hast …" });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const limit = new Promise<string>((resolve) => {
+      timer = setTimeout(() => resolve(""), FINAL_BLOW_S * 1000);
+    });
+    const ask = this.game.askFinalBlow(hero.id, kill.boss);
+    const text = await Promise.race([ask, limit]);
+    clearTimeout(timer);
+    this.game.endFinalBlow();
+    this.game.banner(undefined);
+    if (!text) {
+      this.game.narrate([{ text: `${hero.name} steht schwer atmend über ${kill.boss}. Es ist vorbei.` }]);
+      return;
+    }
+    this.game.narrate([{ npc: hero.name, text: `„${text}“` }]);
+    const res = await this.askDm({ kind: "final_blow", heroName: hero.name, bossName: kill.boss, text });
+    const told = (res.script ?? []).map((l) => l.text).join(" ") || res.narration || "";
+    this.state.finalBlow = { heroId: hero.id, name: hero.name, boss: kill.boss, text, narration: told.slice(0, 600) };
+    this.remember(`Letzter Schlag: ${hero.name} gegen ${kill.boss}: „${text}“`);
   }
 
   private trackHardship(): void {
@@ -705,7 +740,7 @@ export class Director {
         return { text: c.text, falseLead: !!c.falseLeadFor };
       }),
       missed: relevant.filter((c) => !c.falseLeadFor && !this.state.clues.includes(c.id)).map((c) => ({ text: c.text })),
-      recap: { ...this.recap(ending), goals: this.game.finalizeGoals() },
+      recap: { ...this.recap(ending), goals: this.game.finalizeGoals(), ...(this.state.finalBlow ? { finalBlow: this.state.finalBlow } : {}) },
     };
     this.game.sendRecap(result.recap);
     this.game.saveHeroes(this.story.title);

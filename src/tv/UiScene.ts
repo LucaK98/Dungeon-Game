@@ -138,6 +138,24 @@ export class UiScene extends Phaser.Scene {
       });
     };
     this.game.events.on("vote", onVote);
+    // A big note while the table waits for one phone (e.g. the final blow).
+    const infoBox = this.add.container(MAP_RIGHT / 2 + 60, 96).setDepth(42);
+    const onInfo = (info?: { icon: string; title: string; text: string }) => {
+      this.tweens.killTweensOf(infoBox.list);
+      infoBox.removeAll(true);
+      if (!info) return;
+      const w = 900;
+      const title = this.add.text(-w / 2 + 140, 22, info.title, crisp({ fontFamily: FONT, fontSize: "40px", fontStyle: "bold", color: "#ffd75e", wordWrap: { width: w - 170 } }));
+      const text = this.add.text(-w / 2 + 140, 30 + title.height, info.text, crisp({ fontFamily: FONT, fontSize: "26px", color: "#f3e9d2", wordWrap: { width: w - 170 } }));
+      const height = Math.max(140, 50 + title.height + text.height);
+      const bg = this.add.graphics();
+      bg.fillStyle(0x1a0f0a, 0.95).fillRoundedRect(-w / 2, 0, w, height, 22);
+      bg.lineStyle(6, 0xe0a526, 1).strokeRoundedRect(-w / 2, 0, w, height, 22);
+      const icon = this.add.text(-w / 2 + 75, height / 2, info.icon, crisp({ fontSize: "76px" })).setOrigin(0.5);
+      this.tweens.add({ targets: icon, angle: { from: -10, to: 10 }, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      infoBox.add([bg, icon, title, text]);
+    };
+    this.game.events.on("info-banner", onInfo);
     const onReward = (r: Reward, look?: DollLook) => this.queueReward(r, look);
     this.game.events.on("reward", onReward);
     this.game.events.on("order", onOrder);
@@ -159,6 +177,7 @@ export class UiScene extends Phaser.Scene {
       this.game.events.off("reward", onReward);
       this.game.events.off("camp", onCamp);
       this.game.events.off("vote", onVote);
+      this.game.events.off("info-banner", onInfo);
       clearTimeout(this.tumbling);
     });
   }

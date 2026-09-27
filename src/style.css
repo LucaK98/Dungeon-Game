@@ -716,3 +716,14 @@ body.tip-mode::after {
 .vote-line { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.85rem; color: #cfe8d2; }
 .vote-mine { color: #8ff09c; }
 .vote-hint { margin: 0 12px 6px; }
+
+/* ---------------------------------------------------------------- final blow */
+.blow-card { display: flex; flex-direction: column; gap: 10px; text-align: center; background: radial-gradient(circle at 50% 0%, #5a1a10, #1a0f0a 65%); border: 2px solid #e0a526; box-shadow: 0 0 30px #e0a52644; }
+.blow-card h2 { margin: 0; color: #ffd75e; }
+.blow-card p { margin: 0; }
+.blow-icon { font-size: 3.4rem; line-height: 1; animation: bounce 1.2s ease-in-out infinite; }
+.blow-quote { font-size: 1.2rem; font-style: italic; color: #ffe9a8; }
+.recap-blow, .end-blow { margin: 12px 0; padding: 12px 16px; border-radius: 14px; background: #2a1a10; border: 2px solid #e0a526; }
+.end-blow { width: 100%; }
+.end-blow .blow-quote { font-size: 3vh; margin: 0; }
+.recap-blow h2, .end-blow h2 { margin: 0 0 6px; }
