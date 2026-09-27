@@ -50,7 +50,7 @@ function walkDistances(map: DungeonMap, goals: { x: number; y: number }[]): Map<
 }
 
 /** Plays the story with simple bots that use the same messages as the phones. */
-async function playStory(opts: { heroes?: { name: string; classId: string; raceId: string }[]; story?: Story; seed: number; duration: "kurz" | "mittel" | "lang"; truth?: string; players?: number; slow?: boolean; dm?: DungeonMaster; freeText?: boolean }) {
+async function playStory(opts: { heroes?: { name: string; classId: string; raceId: string }[]; story?: Story; seed: number; duration: "kurz" | "mittel" | "lang"; truth?: string; players?: number; slow?: boolean; dm?: DungeonMaster; freeText?: boolean; linger?: boolean }) {
   let clock = 0;
   const rng: Rng = seededRng(opts.seed);
   const botRng = seededRng(opts.seed + 1000);
@@ -61,6 +61,7 @@ async function playStory(opts: { heroes?: { name: string; classId: string; raceI
   });
   for (const c of Object.values(session.battle.creatures)) if (c.kind === "monster") delete session.battle.creatures[c.id];
   let lastError = "";
+  const lingered = new Set<number>();
   const game = new GameController(session, rng, (_to, e) => { if (e.type === "action_error") lastError = e.reason; }, () => {}, { monsterDelayMs: 0, turnBasedExplore: !process.env.FREEEXPLORE });
   game.start();
   const story = opts.story ?? STORY;
@@ -119,6 +120,13 @@ async function playStory(opts: { heroes?: { name: string; classId: string; raceI
     const v0 = game.viewFor(pids[0]!)!;
     const choices = v0.story?.choices.filter((c) => c.enabled) ?? [];
     if (choices.length) {
+      // "Noch umsehen" once per scene: the story must go on after two more rounds.
+      const stay = opts.linger ? choices.find((c) => c.id === "story:leave:stay") : undefined;
+      if (stay && !lingered.has(state.sceneIndex)) {
+        lingered.add(state.sceneIndex);
+        for (const p of pids) game.handle(p, stay.action);
+        continue;
+      }
       const pick = choices.find((c) => c.recommended) ?? choices[botRng.int(0, choices.length - 1)]!;
       game.handle(pids[botRng.int(0, pids.length - 1)]!, pick.action);
       continue;
@@ -301,6 +309,12 @@ for (const STORY of [...STORIES, generateStory(7), generateStory(42), generateSt
       expect(state.dropped.length).toBeGreaterThan(0);
     }, 60_000);
 
+    it("goes on after the group chose to look around a bit longer", async () => {
+      const { result, narration } = await playStory({ story: STORY, seed: 4, duration: "kurz", players: 2, linger: true });
+      expect(result).toBeDefined();
+      expect(narration.some((l) => l.includes("Ihr seht euch noch ein wenig um"))).toBe(true);
+    }, 60_000);
+
     it("can be won (not every game ends in defeat)", async () => {
       const endings: string[] = [];
       let blows = 0;
@@ -392,3 +406,23 @@ describe("AI game master in a whole story", () => {
     expect(narration.some((t) => t.includes("kalter Wind"))).toBe(true);
   }, 60000);
 });
+
+// Overnight stress test (only with STRESS=1): many seeds, all lengths and party sizes, random adventures.
+if (process.env.STRESS) {
+  describe("stress", () => {
+    const stories = [...STORIES, ...[3, 11, 17, 23, 31, 57, 77, 101].map((s) => generateStory(s))];
+    for (const story of stories) {
+      for (const duration of ["kurz", "mittel", "lang"] as const) {
+        it(`${story.id} ${duration}`, async () => {
+          const stuck: string[] = [];
+          for (const seed of [101, 202, 303]) {
+            const players = 1 + (seed % 6);
+            const { result, state, guard } = await playStory({ story, seed, duration, players, freeText: true });
+            if (!result) stuck.push(`seed ${seed} players ${players} guard ${guard} scene ${state.sceneIndex}/${state.plan.length}`);
+          }
+          expect(stuck).toEqual([]);
+        }, 600_000);
+      }
+    }
+  });
+}

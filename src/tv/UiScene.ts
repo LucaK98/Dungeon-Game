@@ -91,7 +91,7 @@ export class UiScene extends Phaser.Scene {
     };
     const onRound = (ended: number) => this.showBanner(`🔔 Runde ${ended} vorbei`);
     // A new scene: title and goal big in the middle for a few seconds.
-    const sceneCard = this.add.container(MAP_RIGHT / 2, BOARD_HEIGHT * 0.36).setDepth(45).setAlpha(0);
+    const sceneCard = this.add.container(MAP_RIGHT / 2, BOARD_HEIGHT * 0.24).setDepth(45).setAlpha(0);
     const onSceneCard = (title: string, goal: string) => {
       this.tweens.killTweensOf(sceneCard);
       sceneCard.removeAll(true);

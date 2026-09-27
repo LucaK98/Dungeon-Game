@@ -120,6 +120,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   let controller: GameController | undefined;
   let worldTimer: ReturnType<typeof setInterval> | undefined;
   let uiReady = false;
+  let earlyScene: { title: string; goal: string } | undefined;
   const early: import("../shared/story").Narration[] = [];
   let closeEnd: (() => void) | undefined;
   const wire = () => {
@@ -163,7 +164,11 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       },
       clock: (seconds) => game.events.emit("clock", seconds),
       round: (ended) => game.events.emit("round", ended),
-      scene: (title, goal) => game.events.emit("scene-card", title, goal),
+      scene: (title, goal) => {
+        // The first scene starts before the TV's overlay is ready: shown as soon as it is.
+        if (uiReady) game.events.emit("scene-card", title, goal);
+        else earlyScene = { title, goal };
+      },
       turn: (name, color, free, info) => {
         askedFor = undefined;
         game.events.emit("turn", name, color, free, info);
@@ -328,6 +333,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   game.events.on("ui-ready", () => {
     uiReady = true;
     if (early.length) game.events.emit("narration", early.splice(0));
+    if (earlyScene) game.events.emit("scene-card", earlyScene.title, earlyScene.goal);
+    earlyScene = undefined;
     controller?.announceTurn();
     if (controller?.storyView) {
       game.events.emit("chapter", controller.storyView.chapter, controller.storyView.goal);
