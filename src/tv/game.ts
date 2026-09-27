@@ -31,7 +31,7 @@ import type { MonsterGroup, Narration } from "../shared/story";
 import type { CheckResult } from "../shared/game";
 import type { SkillId } from "../shared/rules";
 import type { DungeonMap, MapObject } from "../shared/map";
-import { createCharacter, gearProblem, refreshAttacks } from "../engine/creatures";
+import { applyGear, createCharacter, gearProblem, refreshAttacks } from "../engine/creatures";
 import { scaleGroup } from "../dm/planner";
 import { getModule, moduleExits } from "../map/modules";
 import type { GameSession } from "./session";
@@ -1202,6 +1202,33 @@ export class GameController {
     }));
   }
 
+  /** The adventure is over: every phone gets its hero for the hero book. */
+  saveHeroes(storyTitle: string): void {
+    for (const h of this.heroes()) {
+      if (!h.playerId || !h.pc || !h.appearance || h.dead) continue;
+      const gear = h.pc.gear ?? { owned: [] };
+      // The figure as it looks without magic gear (the book puts the gear back on).
+      const look = { ...h.appearance.look } as Record<string, string | undefined>;
+      for (const [layer, v] of Object.entries(gear.lookBefore ?? {})) look[layer] = v;
+      const clean = Object.fromEntries(Object.entries(look).filter(([, v]) => v !== undefined)) as typeof h.appearance.look;
+      const qty = (id: string) => h.pc!.inventory.find((i) => i.itemId === id)?.qty ?? 0;
+      this.sendTo(h.playerId, {
+        type: "hero_saved",
+        hero: {
+          profile: { name: h.name, classId: h.pc.classId, raceId: h.pc.raceId, look: clean, color: h.appearance.color },
+          legacy: {
+            level: h.pc.level,
+            gold: qty("gold"),
+            potions: qty("potion-of-healing"),
+            gear: { owned: [...gear.owned], ...(gear.weapon ? { weapon: gear.weapon } : {}), ...(gear.armor ? { armor: gear.armor } : {}), ...(gear.trinket ? { trinket: gear.trinket } : {}) },
+            stories: [...(h.pc.stories ?? []), storyTitle],
+          },
+          savedAt: Date.now(),
+        },
+      });
+    }
+  }
+
   /** Sends the look back to every phone (their own highlights). */
   sendRecap(recap: Recap): void {
     this.sendAll({ type: "recap", recap });
@@ -2067,6 +2094,14 @@ export class GameController {
         if (own) own.qty = Math.max(own.qty, item.qty);
         else next.pc!.inventory.push({ ...item });
       }
+      // Keep the equipment (worn pieces go back on) and the hero book history.
+      if (h.pc.gear && next.appearance) {
+        const look = { ...next.appearance.look } as Record<string, string | undefined>;
+        for (const [layer, v] of Object.entries(h.pc.gear.lookBefore ?? {})) look[layer] = v;
+        next.appearance = { ...next.appearance, look: look as typeof next.appearance.look };
+        applyGear(next, h.pc.gear);
+      }
+      if (h.pc.stories) next.pc!.stories = [...h.pc.stories];
       this.battle.creatures[h.id] = next;
       changed = true;
     }

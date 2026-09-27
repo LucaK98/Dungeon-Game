@@ -1,6 +1,7 @@
 /**
  * Validation of character profiles sent by phones. The TV never trusts the phone.
  */
+import { sanitizeLegacy } from "../shared/herobook";
 import { PLAYABLE_CLASSES } from "../engine/creatures";
 import { SRD } from "../engine/data";
 import { DOLL_LAYERS, DOLL_OPTIONS, type DollLook, withAutoParts } from "../shared/doll";
@@ -31,5 +32,6 @@ export function sanitizeProfile(p: Partial<CharacterProfile> | null | undefined,
   if (!name || !PLAYABLE_CLASSES.includes(classId) || !RACES.includes(raceId)) return undefined;
   const free = PLAYER_COLORS.map((c) => c.id).filter((c) => !takenColors.includes(c));
   const color = p.color && free.includes(p.color) ? p.color : (free[0] ?? PLAYER_COLORS[0]!.id);
-  return { name, classId, raceId, look: sanitizeLook(p.look, raceId), color };
+  const legacy = sanitizeLegacy(p.legacy);
+  return { name, classId, raceId, look: sanitizeLook(p.look, raceId), color, ...(legacy ? { legacy } : {}) };
 }

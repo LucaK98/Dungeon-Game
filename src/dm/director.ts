@@ -618,6 +618,7 @@ export class Director {
       recap: this.recap(ending),
     };
     this.game.sendRecap(result.recap);
+    this.game.saveHeroes(this.story.title);
     this.opts.onEnd?.(result);
     return result;
   }

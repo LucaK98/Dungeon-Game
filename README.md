@@ -43,6 +43,13 @@ Jede Geschichte hat 4 geheime Wahrheiten (eine wird pro Partie ausgewürfelt), m
 - **Leben auf der Karte:** Staub, Glut, Tropfen, Glühwürmchen, kleine Tiere, atmende Figuren; Geräusche und leiser Hintergrund (auf dem Titelbild abschaltbar).
 - **Zeitdruck und Spielleiter:** Wer zu lange trödelt, wird gewarnt; wird es still am Tisch, meldet sich der Spielleiter.
 
+### Helden, Beute und Rückblick
+
+- **Ausrüstung:** Magische Waffen und Rüstungen (+1), Schutzring, Amulett, Stiefel – aus Truhen, Verstecken, von besiegten Anführern oder der fahrenden Schmiedin. Im Tab „Taschen“ anlegen, ablegen oder weitergeben; die Figur auf dem Fernseher trägt, was angelegt ist.
+- **Heldenbuch:** Am Ende speichert jedes Handy seinen Helden (Stufe, Gold, Tränke, Ausrüstung). Beim nächsten Abenteuer steht er auf dem Namens-Schritt zur Auswahl.
+- **Rückblick:** Highlights der Partie (härtester Schlag, Heiler, Pechvogel, …) auf Fernseher und Handys, als Bild zum Speichern oder Teilen.
+- **Reaktionen und Musik:** 😀-Knopf auf dem Handy; Musik je Lage (Erkunden, Stadt, Nacht, Kampf, Boss), live erzeugt.
+
 ### Speichern
 
 Jede Szene wird automatisch gespeichert: auf dem Fernseher und – mit Internet – in der Cloud (Supabase). Der Titelbildschirm zeigt den **Spielstand-Code** (z. B. `ZM4T-F6ZU`); an einem anderen Gerät über **☁️ Spielstand-Code eingeben** weiterspielen. Nur das Gerät, das gespeichert hat, kann den Spielstand überschreiben. SQL: `supabase/migrations`.

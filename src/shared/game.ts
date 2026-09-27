@@ -43,6 +43,8 @@ export interface PcInfo {
   shield: boolean;
   weaponIds: string[];
   inventory: { itemId: string; qty: number }[];
+  /** Adventures this hero already survived (hero book). */
+  stories?: string[];
   /** Found or bought equipment (src/data/gear.ts) and what is worn. */
   gear?: {
     owned: string[];

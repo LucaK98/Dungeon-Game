@@ -562,3 +562,9 @@ body.tip-mode::after {
 .gear-text .muted { font-size: 0.9rem; }
 .gear-buttons { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
 .gear-give { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 0; }
+.herobook { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+.herobook h2 { margin: 0; }
+.herobook-entry { --player: #888; display: flex; align-items: center; gap: 12px; text-align: left; border-left: 6px solid var(--player); }
+.herobook-entry .doll { width: 64px; height: 64px; image-rendering: pixelated; flex: none; }
+.herobook-text { display: flex; flex-direction: column; gap: 2px; }
+.herobook-text .muted { font-size: 0.85rem; }

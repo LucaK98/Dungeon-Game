@@ -10,6 +10,8 @@ export interface CharacterProfile {
   raceId: string;
   look: DollLook;
   color: string;
+  /** A hero from the hero book: level, gold and equipment from earlier adventures. */
+  legacy?: import("./herobook").HeroLegacy;
 }
 
 export interface LobbyPlayer {

@@ -307,6 +307,32 @@ export function refreshAttacks(c: Creature): void {
   c.speedFt = getRace(pc.raceId).speedFt + (trinket?.effect === "speed" ? trinket.bonus : 0);
 }
 
+/**
+ * Gives a fresh character the equipment of an earlier adventure (hero book): owned pieces and
+ * what was worn, if the class can use it. The figure's look follows the worn pieces.
+ */
+export function applyGear(c: Creature, gear: { owned: string[]; weapon?: string; armor?: string; trinket?: string }): void {
+  if (!c.pc) return;
+  c.pc.gear = { owned: [...gear.owned] };
+  for (const slot of ["weapon", "armor", "trinket"] as const) {
+    const id = gear[slot];
+    const g = id ? getGear(id) : undefined;
+    if (!id || !g || gearProblem(c, id)) continue;
+    c.pc.gear[slot] = id;
+    if (g.effect === "hp") {
+      c.maxHp += g.bonus;
+      c.hp += g.bonus;
+    }
+    if (g.doll && c.appearance) {
+      const look = c.appearance.look as Record<string, string | undefined>;
+      const before = (c.pc.gear.lookBefore ??= {});
+      before[g.doll.layer] = look[g.doll.layer];
+      look[g.doll.layer] = g.doll.id;
+    }
+  }
+  refreshAttacks(c);
+}
+
 /** Why a hero can't use a piece of equipment (undefined = fine). */
 export function gearProblem(c: Creature, gearId: string): string | undefined {
   const g = getGear(gearId);

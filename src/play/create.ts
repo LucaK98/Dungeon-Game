@@ -2,6 +2,7 @@
  * Character creation on the phone: name → class → people → figure → colour → ready.
  * Every change is sent to the TV right away so the figure appears there live.
  */
+import { loadBook, type HeroLegacy } from "../shared/herobook";
 import { GLOSSAR } from "../data/help/glossar";
 import { BEGINNER_CLASSES, PLAYABLE_CLASSES } from "../engine/creatures";
 import { SRD } from "../engine/data";
@@ -21,6 +22,8 @@ export interface Draft {
   look: DollLook;
   color: string;
   ready: boolean;
+  /** Picked from the hero book: level, gold and equipment come along. */
+  legacy?: HeroLegacy;
 }
 
 const DRAFT_KEY = "couch-dungeon.draft";
@@ -57,12 +60,12 @@ export function newDraft(): Draft {
 }
 
 export function draftFromProfile(p: CharacterProfile, ready: boolean): Draft {
-  return { step: ready ? 5 : 3, name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, ready };
+  return { step: ready ? 5 : 3, name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, ready, ...(p.legacy ? { legacy: p.legacy } : {}) };
 }
 
 export function profileOf(d: Draft): CharacterProfile | null {
   if (!cleanName(d.name) || !d.classId || !d.raceId) return null;
-  return { name: cleanName(d.name), classId: d.classId, raceId: d.raceId, look: withAutoParts(d.look), color: d.color };
+  return { name: cleanName(d.name), classId: d.classId, raceId: d.raceId, look: withAutoParts(d.look), color: d.color, ...(d.legacy ? { legacy: d.legacy } : {}) };
 }
 
 function cycle<T>(list: T[], current: T, dir: 1 | -1): T {
@@ -119,8 +122,37 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
     });
     const dice = h("button", { class: "btn secondary", type: "button", textContent: "🎲 Vorschlag" });
     dice.addEventListener("click", () => commit({ name: NAME_IDEAS[Math.floor(Math.random() * NAME_IDEAS.length)]! }));
-    queueMicrotask(() => input.focus());
-    return [header("Wie heißt deine Figur?", "Deine Figur ist der Held, den du im Spiel steuerst."), h("div", { class: "field" }, input, dice), next];
+    const book = loadBook();
+    // Heroes from earlier adventures: tap to play them again, with level and equipment.
+    const bookSection = book.length
+      ? h(
+          "section",
+          { class: "herobook" },
+          h("h2", {}, "📖 Dein Heldenbuch"),
+          h("p", { class: "lead" }, "Spiel mit einem bekannten Helden weiter – Stufe, Gold und Ausrüstung kommen mit."),
+          ...book.map((saved) => {
+            const p = saved.profile;
+            const l = saved.legacy;
+            const b = h(
+              "button",
+              { class: "choice herobook-entry", type: "button", style: `--player:${p.color}` },
+              dollCanvas(p.look, 2, "doll"),
+              h(
+                "span",
+                { class: "herobook-text" },
+                h("strong", {}, p.name),
+                h("span", {}, `${nameOf("classes", p.classId)} · Stufe ${l.level} · 💰 ${l.gold}${l.gear.owned.length ? ` · ✨ ${l.gear.owned.length}` : ""}`),
+                h("span", { class: "muted" }, l.stories.length ? `Erlebt: ${l.stories.slice(-2).join(", ")}` : ""),
+              ),
+            );
+            b.addEventListener("click", () => commit({ name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, legacy: l, step: 4 }));
+            return b;
+          }),
+          h("p", { class: "muted" }, "… oder oben einen neuen Namen eingeben."),
+        )
+      : null;
+    if (!book.length) queueMicrotask(() => input.focus());
+    return [header("Wie heißt deine Figur?", "Deine Figur ist der Held, den du im Spiel steuerst."), h("div", { class: "field" }, input, dice), next, ...(bookSection ? [bookSection] : [])];
   }
 
   function stepClass(): HTMLElement[] {
@@ -150,7 +182,8 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
         card.dataset.help = `klasse:${id}`;
         card.addEventListener("click", () => {
           const look = defaultLook(id, race, draft.look.base.endsWith("_2") ? 2 : 1);
-          commit({ classId: id, look: { ...look, hair: draft.look.hair, beard: draft.look.beard } as DollLook });
+          // Another class is another hero: the book's level and gear stay with the old one.
+          commit({ classId: id, look: { ...look, hair: draft.look.hair, beard: draft.look.beard } as DollLook, legacy: id === draft.classId ? draft.legacy : undefined });
         });
         return card;
       });
@@ -175,7 +208,7 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
       card.addEventListener("click", () => {
         const variant = draft.look.base.endsWith("_2") ? 2 : 1;
         const look = defaultLook(draft.classId || "fighter", r.id, variant);
-        commit({ raceId: r.id, look });
+        commit({ raceId: r.id, look, legacy: r.id === draft.raceId ? draft.legacy : undefined });
       });
       return card;
     });
@@ -261,7 +294,8 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
       { class: "summary", style: `--player:${draft.color}` },
       dollCanvas(draft.look, 5, "summary-figure"),
       h("strong", {}, cleanName(draft.name)),
-      h("span", {}, `${nameOf("classes", draft.classId)} · ${nameOf("races", draft.raceId)}`),
+      h("span", {}, `${nameOf("classes", draft.classId)} · ${nameOf("races", draft.raceId)}${draft.legacy ? ` · Stufe ${draft.legacy.level}` : ""}`),
+      draft.legacy ? h("span", { class: "muted" }, `📖 Aus dem Heldenbuch: 💰 ${draft.legacy.gold} Gold${draft.legacy.gear.owned.length ? ` · ✨ ${draft.legacy.gear.owned.length} Ausrüstung` : ""}`) : null,
     );
     if (draft.ready) {
       const change = h("button", { class: "btn secondary", type: "button", textContent: "✏️ Doch noch ändern" });

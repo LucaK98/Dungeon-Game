@@ -64,6 +64,8 @@ export type GameEvent =
   | { type: "lobby_profile"; profile: CharacterProfile | null; ready: boolean }
   | { type: "lobby_state"; lobby: LobbyState }
   | { type: "join_rejected"; reason: string }
+  /** TV → one phone: this hero goes into the hero book. */
+  | { type: "hero_saved"; hero: import("./herobook").SavedHero }
   /** TV → all phones: the look back at the end of the adventure. */
   | { type: "recap"; recap: import("./recap").Recap }
   /** TV → one phone: ideas for a free action. */

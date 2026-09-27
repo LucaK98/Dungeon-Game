@@ -1,3 +1,4 @@
+import { saveToBook } from "../shared/herobook";
 import { createTransport, type GameTransport } from "../net";
 import { nameOf } from "../engine/names";
 import type { PlayerAction, SeatOffer } from "../shared/events";
@@ -138,6 +139,9 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
         controller?.rollResult(e.result);
       } else if (e.type === "rules_answer") {
         controller?.rulesAnswer(e.question, e.answer);
+      } else if (e.type === "hero_saved") {
+        saveToBook(e.hero);
+        controller?.error(`📖 ${e.hero.profile.name} steht jetzt in deinem Heldenbuch (Stufe ${e.hero.legacy.level}). Beim nächsten Abenteuer kannst du mit ${e.hero.profile.name} weiterspielen.`);
       } else if (e.type === "recap") {
         controller?.recap(e.recap);
       } else if (e.type === "suggestions") {

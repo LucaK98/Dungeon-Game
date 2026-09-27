@@ -2,7 +2,7 @@
  * A running game on the TV: the dungeon, all creatures and who plays whom.
  * Pure data + setup; the Phaser scene draws it, the host changes it.
  */
-import { createCharacter, createMonster } from "../engine/creatures";
+import { applyGear, createCharacter, createMonster } from "../engine/creatures";
 import type { Rng } from "../engine/rng";
 import type { Battle, Creature, GridPos } from "../shared/game";
 import type { CharacterProfile } from "../shared/lobby";
@@ -45,15 +45,24 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
   const exit = moduleExits(getModule(start.moduleId))[0]?.cells[0] ?? { x: 1, y: 1 };
   const spots = partyStartSpots(map, opts.players.length, { x: start.x + exit.x, y: start.y + exit.y });
   opts.players.forEach(({ playerId, profile }, i) => {
+    const legacy = profile.legacy;
     const c = createCharacter({
       id: `hero-${i + 1}`,
       name: profile.name,
       classId: profile.classId,
       raceId: profile.raceId,
-      level: opts.level ?? 1,
+      level: Math.max(opts.level ?? 1, legacy?.level ?? 1),
     });
     c.playerId = playerId;
-    c.appearance = { look: profile.look, color: profile.color };
+    c.appearance = { look: { ...profile.look }, color: profile.color };
+    // A hero from the hero book brings gold, potions and equipment along.
+    if (legacy && c.pc) {
+      if (legacy.gold) c.pc.inventory.push({ itemId: "gold", qty: legacy.gold });
+      const potion = c.pc.inventory.find((it) => it.itemId === "potion-of-healing");
+      if (potion) potion.qty = Math.max(potion.qty, legacy.potions);
+      applyGear(c, legacy.gear);
+      c.pc.stories = [...legacy.stories];
+    }
     c.pos = spots[i] ?? spots[0];
     battle.creatures[c.id] = c;
     partyIds.push(c.id);

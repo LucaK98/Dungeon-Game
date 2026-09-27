@@ -383,3 +383,51 @@ describe("equipment", () => {
     expect(owned.length).toBe(1);
   });
 });
+
+describe("hero book", () => {
+  it("the TV only accepts sensible hero book data", async () => {
+    const { sanitizeLegacy } = await import("../shared/herobook");
+    const l = sanitizeLegacy({ level: 99, gold: 1e9, potions: -3, gear: { owned: ["longsword+1", "godsword", "longsword+1"], weapon: "longsword+1", armor: "godsword" }, stories: ["A", 5] });
+    expect(l).toEqual({ level: 3, gold: 999, potions: 0, gear: { owned: ["longsword+1"], weapon: "longsword+1" }, stories: ["A"] });
+    expect(sanitizeLegacy("nope")).toBeUndefined();
+  });
+
+  it("a hero from the book starts with level, gold, potions and worn equipment; the end saves them again", async () => {
+    const rng = seededRng(5);
+    const look = defaultLook("fighter", "human");
+    const session = createSession(rng, {
+      players: [{ playerId: "p1", profile: { name: "Brunhild", classId: "fighter", raceId: "human", look, color: "#e6194b", legacy: { level: 2, gold: 57, potions: 3, gear: { owned: ["longsword+1", "ring-protection"], weapon: "longsword+1", trinket: "ring-protection" }, stories: ["Der Drache vom Drachenfels"] } } }],
+      plan: { path: ["burghof", "gang_gerade", "wachstube"] },
+      noMonsters: true,
+    });
+    const hero = Object.values(session.battle.creatures)[0]!;
+    expect(hero.pc!.level).toBe(2);
+    expect(hero.pc!.inventory.find((i) => i.itemId === "gold")?.qty).toBe(57);
+    expect(hero.pc!.inventory.find((i) => i.itemId === "potion-of-healing")?.qty).toBe(3);
+    expect(hero.pc!.gear?.weapon).toBe("longsword+1");
+    expect(hero.attacks.find((a) => a.sourceId === "longsword")?.magical).toBe(true);
+    const sent: GameEvent[] = [];
+    const game = new GameController(session, rng, (_to, e) => sent.push(e), () => undefined, { monsterDelayMs: 0 });
+    game.saveHeroes("Der Rattenfänger");
+    const saved = sent.find((e) => e.type === "hero_saved");
+    expect(saved?.type === "hero_saved" && saved.hero.legacy.stories).toEqual(["Der Drache vom Drachenfels", "Der Rattenfänger"]);
+    expect(saved?.type === "hero_saved" && saved.hero.legacy.gold).toBe(57);
+    // The book keeps the plain look; the gear is put back on next time.
+    expect(saved?.type === "hero_saved" && saved.hero.profile.look.weapon).toBe(look.weapon);
+  });
+});
+
+describe("level up keeps the equipment", () => {
+  it("worn pieces stay on after a level up", () => {
+    const { game } = setup();
+    const hero = game.heroes()[0]!;
+    game.grantGear(hero, "longsword+1");
+    game.grantGear(hero, "amulet-health");
+    game.levelUp(2);
+    const after = game.heroes()[0]!;
+    expect(after.pc!.level).toBe(2);
+    expect(after.pc!.gear?.weapon).toBe("longsword+1");
+    expect(after.pc!.gear?.trinket).toBe("amulet-health");
+    expect(after.attacks.find((a) => a.sourceId === "longsword")?.magical).toBe(true);
+  });
+});
