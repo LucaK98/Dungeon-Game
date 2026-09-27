@@ -12,6 +12,7 @@ import { endScreen } from "./end-screen";
 import { GameController } from "./game";
 import type { GameHost } from "./host";
 import { clearSave, writeSave } from "./save";
+import { formatCode, newCloudId, type CloudId } from "../net/cloud-save";
 import { createSession, type GameSession } from "./session";
 import { UiScene } from "./UiScene";
 import { initRes } from "./render";
@@ -42,6 +43,8 @@ export interface BoardOptions {
   story?: { story: Story; duration: Duration };
   /** Continue a saved game. */
   resume?: { state: StoryState; heroes: Creature[] };
+  /** Save code of this game in the cloud (a new one is made if missing). */
+  cloud?: CloudId;
   /** Called when the story is over and the players want to go back. */
   onExit?: () => void;
 }
@@ -66,6 +69,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     return createSession(rng, { players: players() });
   };
   let session = newSession();
+  const cloud = opts.cloud ?? newCloudId();
   const scene = new DungeonScene(() => session);
 
   // The canvas has the screen's real resolution; the scenes zoom the 1920×1080 layout onto it.
@@ -175,9 +179,15 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       const director = new Director(story, state, c, dm, rng, {
         duration,
         world: true,
-        onSave: (saved) => {
-          writeSave({ savedAt: Date.now(), state: { ...saved, minutesBefore: director.minutesPlayed() }, heroes: c.heroes().map((h) => structuredClone(h)), players: host.lobby.players });
-          c.narrate([{ text: "💾 Speicherpunkt erreicht. Ihr könnt das Spiel hier später fortsetzen." }]);
+        onSave: (saved, announce) => {
+          // Every scene is saved (here and, with the code, online); long games announce their save points.
+          void writeSave({ savedAt: Date.now(), state: { ...saved, minutesBefore: director.minutesPlayed() }, heroes: c.heroes().map((h) => structuredClone(h)), players: host.lobby.players, cloud }).then((online) =>
+            // The board is rebuilt for the new scene: show the note once it is back.
+            setTimeout(() => {
+              game.events.emit("saved", online ? formatCode(cloud.code) : undefined);
+              if (announce) c.narrate([{ text: `💾 Speicherpunkt erreicht. Ihr könnt das Spiel später fortsetzen${online ? ` – auch an einem anderen Gerät mit dem Code ${formatCode(cloud.code)}` : ""}.` }]);
+            }, 2500),
+          );
         },
         onEnd: (result: StoryResult) => {
           clearSave();

@@ -54,8 +54,8 @@ export interface DirectorOptions {
   duration: Duration;
   truth?: string;
   now?: () => number;
-  /** Save point reached ("lang"): store this state. */
-  onSave?: (state: StoryState) => void;
+  /** A scene begins: store this state. `announce` at the real save points of long games. */
+  onSave?: (state: StoryState, announce: boolean) => void;
   onEnd?: (result: StoryResult) => void;
   /** The living world: random events, greetings, time pressure, sleeping enemies (not in tests). */
   world?: boolean;
@@ -226,7 +226,7 @@ export class Director {
         continue;
       }
       const scene = sceneById(this.story, id);
-      if (scene.savePoint && this.state.duration === "lang") this.opts.onSave?.(structuredClone(this.state));
+      this.opts.onSave?.(structuredClone(this.state), !!scene.savePoint && this.state.duration === "lang");
       const outcome = await this.playScene(scene);
       if (outcome === "defeat") break;
       const report = tempoCheck(this.story, this.state.plan.filter((s) => !this.state.dropped.includes(s)), this.activeIndex(), this.minutesPlayed());

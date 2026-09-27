@@ -56,6 +56,14 @@ export class UiScene extends Phaser.Scene {
       if (!this.telling) void this.tell();
     };
     const onChapter = (text: string) => this.chapter.setText(text);
+    // A short note under the chapter: the game was saved (with the code for another device).
+    const saved = this.add.text(24, 58, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setAlpha(0);
+    const onSaved = (code?: string) => {
+      saved.setText(code ? `💾 Gespeichert · Code zum Weiterspielen: ${code}` : "💾 Gespeichert").setAlpha(1);
+      this.tweens.killTweensOf(saved);
+      this.tweens.add({ targets: saved, alpha: 0, delay: 9000, duration: 1500 });
+    };
+    this.game.events.on("saved", onSaved);
     const onAi = (s: AiStatus | undefined) => this.showAiStatus(s);
     this.game.events.on("ai-status", onAi);
     const onSkip = () => this.skipLine?.();
@@ -79,6 +87,7 @@ export class UiScene extends Phaser.Scene {
       this.game.events.off("narration", onNarration);
       this.game.events.off("chapter", onChapter);
       this.game.events.off("ai-status", onAi);
+      this.game.events.off("saved", onSaved);
     });
   }
 

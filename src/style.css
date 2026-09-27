@@ -535,3 +535,4 @@ body.tip-mode::after {
 .tv-screen { align-items: flex-start; }
 .tv-screen > * { margin-top: auto; margin-bottom: auto; }
 .settings-ai[hidden] { display: none; }
+.pick .code-input { font-size: 5vh; max-width: 44vh; margin: 2vh auto; display: block; text-align: center; letter-spacing: 0.3em; }

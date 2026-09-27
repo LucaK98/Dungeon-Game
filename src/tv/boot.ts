@@ -5,10 +5,11 @@ import { h } from "../ui/dom";
 import { startBoard, type BoardOptions } from "./board";
 import { GameHost } from "./host";
 import { renderLobby } from "./lobby-view";
-import { readSave } from "./save";
+import { isSaveGame, readSave } from "./save";
+import { cloudLoad, formatCode, newCloudId } from "../net/cloud-save";
 import { setSpeechEnabled, speechEnabled } from "./speech";
 import { settingsScreen } from "./settings";
-import { howToPlay, pickDuration, pickStory, titleScreen } from "./start-screens";
+import { cloudLoadScreen, howToPlay, pickDuration, pickStory, titleScreen } from "./start-screens";
 
 export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>): () => void {
   document.body.classList.add("is-tv");
@@ -21,10 +22,11 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
     stopView = undefined;
   };
 
-  const play = (story: Story | undefined, duration: Duration | undefined, resume?: BoardOptions["resume"]) => {
+  const play = (story: Story | undefined, duration: Duration | undefined, resume?: BoardOptions["resume"], cloud?: BoardOptions["cloud"]) => {
     clear();
     stopView = startBoard(root, host!, {
       demo: route.demo,
+      ...(cloud ? { cloud } : {}),
       ...(story && duration ? { story: { story, duration } } : {}),
       ...(resume ? { resume } : {}),
       onExit: () => {
@@ -47,7 +49,7 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
     clear();
     for (;;) {
       const save = readSave();
-      const choice = await titleScreen(root, { canContinue: !!save, speech: speechEnabled(), onSpeech: setSpeechEnabled });
+      const choice = await titleScreen(root, { canContinue: !!save, ...(save?.cloud ? { saveCode: formatCode(save.cloud.code) } : {}), speech: speechEnabled(), onSpeech: setSpeechEnabled });
       if (closed) return;
       if (choice === "settings") {
         await settingsScreen(root);
@@ -58,12 +60,23 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
         await howToPlay(root);
         continue;
       }
+      if (choice === "cloud") {
+        const data = await cloudLoadScreen(root, cloudLoad);
+        if (closed) return;
+        const story = isSaveGame(data) ? getStory(data.state.storyId) : undefined;
+        if (!isSaveGame(data) || !story) continue;
+        host!.setStory({ id: story.id, title: story.title, duration: data.state.duration });
+        host!.restorePlayers(data.players);
+        // Another device: this game goes on under a new code.
+        play(story, data.state.duration, { state: data.state, heroes: data.heroes }, newCloudId());
+        return;
+      }
       if (choice === "continue" && save) {
         const story = getStory(save.state.storyId);
         if (story) {
           host!.setStory({ id: story.id, title: story.title, duration: save.state.duration });
           host!.restorePlayers(save.players);
-          play(story, save.state.duration, { state: save.state, heroes: save.heroes });
+          play(story, save.state.duration, { state: save.state, heroes: save.heroes }, save.cloud);
           return;
         }
       }

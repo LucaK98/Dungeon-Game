@@ -90,15 +90,18 @@ export function howToPlay(root: HTMLElement): Promise<void> {
 
 export interface TitleOptions {
   canContinue: boolean;
+  /** Save code of the local save (shown on the continue button). */
+  saveCode?: string;
   speech: boolean;
   onSpeech: (on: boolean) => void;
 }
 
-export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new" | "continue" | "howto" | "settings"> {
+export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new" | "continue" | "howto" | "settings" | "cloud"> {
   return new Promise((resolve) => {
     const newGame = h("button", { class: "tv-btn primary big", type: "button", textContent: "▶ Neues Abenteuer" });
     const howto = h("button", { class: "tv-btn", type: "button", textContent: "❓ Wie spielt man das?" });
-    const cont = h("button", { class: "tv-btn", type: "button", textContent: "💾 Gespeichertes Spiel fortsetzen", hidden: !opts.canContinue });
+    const cont = h("button", { class: "tv-btn", type: "button", textContent: `💾 Gespeichertes Spiel fortsetzen${opts.saveCode ? ` (Code ${opts.saveCode})` : ""}`, hidden: !opts.canContinue });
+    const cloud = h("button", { class: "tv-btn small", type: "button", textContent: "☁️ Spielstand-Code eingeben" });
     const speech = h("button", { class: "tv-btn small", type: "button" });
     const settings = h("button", { class: "tv-btn small", type: "button", textContent: "⚙️ Einstellungen" });
     const sound = h("button", { class: "tv-btn small", type: "button" });
@@ -126,18 +129,19 @@ export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new
         art,
         h("h1", { class: "title-name" }, "Couch-Dungeon"),
         h("p", { class: "title-sub" }, "Ein Abenteuer für 1–6 Helden · Fernseher + Handys"),
-        h("div", { class: "tv-col" }, newGame, howto, cont),
+        h("div", { class: "tv-col" }, newGame, howto, cont, cloud),
         h("div", { class: "tv-row" }, speech, sound, settings),
         h("p", { class: "credits" }, "5E compatible · enthält Material aus dem SRD 5.1 (CC-BY-4.0) · Grafik: Dungeon Crawl Stone Soup (CC0)"),
       ),
     );
-    const done = (v: "new" | "continue" | "howto" | "settings") => {
+    const done = (v: "new" | "continue" | "howto" | "settings" | "cloud") => {
       s.close();
       resolve(v);
     };
     newGame.addEventListener("click", () => done("new"));
     howto.addEventListener("click", () => done("howto"));
     cont.addEventListener("click", () => done("continue"));
+    cloud.addEventListener("click", () => done("cloud"));
     settings.addEventListener("click", () => done("settings"));
   });
 }
@@ -190,5 +194,43 @@ export function pickDuration(root: HTMLElement, story: Story): Promise<Duration>
       return b;
     });
     const s = screen(root, h("section", { class: "pick" }, h("h1", {}, `${story.title}: Wie lange wollt ihr spielen?`), h("div", { class: "duration-grid" }, ...cards)));
+  });
+}
+
+/** Enter a save code from another device; resolves with the loaded save (or undefined = back). */
+export function cloudLoadScreen(root: HTMLElement, load: (code: string) => Promise<unknown | undefined>): Promise<unknown | undefined> {
+  return new Promise((resolve) => {
+    const input = h("input", { class: "settings-input code-input", type: "text", autocomplete: "off", spellcheck: false, placeholder: "ABCD-2345", maxLength: 9 }) as HTMLInputElement;
+    const status = h("p", { class: "settings-status" });
+    const go = h("button", { class: "tv-btn primary", type: "button", textContent: "☁️ Laden" });
+    const back = h("button", { class: "tv-btn", type: "button", textContent: "← Zurück" });
+    const s = screen(
+      root,
+      h(
+        "section",
+        { class: "pick" },
+        h("h1", {}, "☁️ Spielstand laden"),
+        h("p", { class: "slide-text" }, "Gebt den Code ein, den der andere Fernseher oder Laptop beim Speichern angezeigt hat."),
+        input,
+        h("div", { class: "tv-row" }, go, back),
+        status,
+      ),
+    );
+    const finish = (v: unknown | undefined) => {
+      s.close();
+      resolve(v);
+    };
+    const tryLoad = async () => {
+      go.disabled = true;
+      status.textContent = "Suche den Spielstand …";
+      const data = await load(input.value);
+      go.disabled = false;
+      if (data) finish(data);
+      else status.textContent = "❌ Kein Spielstand mit diesem Code gefunden (oder keine Internetverbindung).";
+    };
+    go.addEventListener("click", () => void tryLoad());
+    input.addEventListener("keydown", (e) => e.key === "Enter" && void tryLoad());
+    back.addEventListener("click", () => finish(undefined));
+    setTimeout(() => input.focus(), 50);
   });
 }
