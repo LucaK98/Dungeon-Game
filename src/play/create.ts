@@ -2,12 +2,13 @@
  * Character creation on the phone: name → class → people → figure → colour → ready.
  * Every change is sent to the TV right away so the figure appears there live.
  */
-import { loadBook, removeFromBook, type HeroLegacy } from "../shared/herobook";
+import { loadBook, removeFromBook, saveToBook, type HeroLegacy } from "../shared/herobook";
+import { chooseImprovement, describeImprovement, needsImprovement } from "./improve";
 import { badgeById } from "../shared/achievements";
 import { GLOSSAR } from "../data/help/glossar";
 import { BEGINNER_CLASSES, PLAYABLE_CLASSES } from "../engine/creatures";
 import { SRD } from "../engine/data";
-import { nameOf } from "../engine/names";
+import { abilityName, nameOf } from "../engine/names";
 import { baseOptions, defaultLook, DOLL_OPTIONS, type DollLook, withAutoParts } from "../shared/doll";
 import { cleanName, NAME_MAX_LENGTH, PLAYER_COLORS, type CharacterProfile, type LobbyState } from "../shared/lobby";
 import { NAME_IDEAS } from "../shared/names";
@@ -145,10 +146,22 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
                 h("strong", {}, p.name),
                 h("span", {}, `${nameOf("classes", p.classId)} · Stufe ${l.level} · 💰 ${l.gold}${l.gear.owned.length ? ` · ✨ ${l.gear.owned.length}` : ""}`),
                 h("span", { class: "muted" }, l.stories.length ? `Erlebt: ${l.stories.slice(-2).join(", ")}` : ""),
+                needsImprovement(saved) ? h("span", { class: "book-improve" }, "⬆️ Verbesserung wählen!") : "",
+                l.improvements?.length ? h("span", { class: "muted" }, l.improvements.map((i) => describeImprovement(i, abilityName)).join(" · ")) : "",
                 l.badges?.length ? h("span", { class: "book-badges", title: l.badges.map((id) => badgeById(id)?.name ?? "").join(", ") }, l.badges.map((id) => badgeById(id)?.icon ?? "").join(" ")) : "",
               ),
             );
-            b.addEventListener("click", () => commit({ name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, legacy: l, step: 4 }));
+            b.addEventListener("click", () => {
+              const play = (legacy: typeof l) => commit({ name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, legacy, step: 4 });
+              // Level 4 without a chosen improvement: choose first.
+              if (!needsImprovement(saved)) return play(l);
+              void chooseImprovement(saved).then((imp) => {
+                if (!imp) return play(l);
+                const legacy = { ...l, improvements: [...(l.improvements ?? []), imp] };
+                saveToBook({ ...saved, legacy });
+                play(legacy);
+              });
+            });
             // Delete with a second tap, so nobody loses a hero by accident.
             const del = h("button", { class: "herobook-delete", type: "button", title: `${p.name} löschen`, attrs: { "aria-label": `${p.name} aus dem Heldenbuch löschen` } }, "🗑️");
             let armed: ReturnType<typeof setTimeout> | undefined;

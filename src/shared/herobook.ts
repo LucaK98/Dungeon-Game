@@ -5,6 +5,7 @@
 import { GEAR } from "../data/gear";
 import type { CharacterProfile } from "./lobby";
 import { sanitizeBadges, sanitizeTotals, type HeroTotals } from "./achievements";
+import { sanitizeImprovements } from "./improvements";
 
 export interface HeroLegacy {
   level: number;
@@ -16,6 +17,8 @@ export interface HeroLegacy {
   /** Earned badges (src/shared/achievements.ts) and running totals for them. */
   badges?: string[];
   totals?: HeroTotals;
+  /** Level-4 choices ("asi:STR+2", "talent:zaeh"). */
+  improvements?: string[];
 }
 
 export interface SavedHero {
@@ -37,15 +40,18 @@ export function sanitizeLegacy(raw: unknown): HeroLegacy | undefined {
   const armor = worn(l.gear?.armor);
   const trinket = worn(l.gear?.trinket);
   const badges = sanitizeBadges(l.badges);
+  const level = num(l.level, 1, 5);
+  const improvements = sanitizeImprovements(l.improvements, level);
   const totals = sanitizeTotals(l.totals);
   return {
-    level: num(l.level, 1, 3),
+    level,
     gold: num(l.gold, 0, 999),
     potions: num(l.potions, 0, 5),
     gear: { owned, ...(weapon ? { weapon } : {}), ...(armor ? { armor } : {}), ...(trinket ? { trinket } : {}) },
     stories: (Array.isArray(l.stories) ? l.stories : []).filter((s): s is string => typeof s === "string").map((s) => s.slice(0, 60)).slice(-10),
     ...(badges.length ? { badges } : {}),
     ...(Object.keys(totals).length ? { totals } : {}),
+    ...(improvements.length ? { improvements } : {}),
   };
 }
 

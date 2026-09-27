@@ -55,6 +55,7 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
       classId: profile.classId,
       raceId: profile.raceId,
       level: Math.max(opts.level ?? 1, legacy?.level ?? 1),
+      ...(legacy?.improvements?.length ? { improvements: legacy.improvements } : {}),
     });
     c.playerId = playerId;
     c.appearance = { look: { ...profile.look }, color: profile.color };

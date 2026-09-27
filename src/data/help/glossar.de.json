@@ -2775,5 +2775,79 @@
       "kritischer_treffer",
       "gegenstand:gold"
     ]
+  },
+  "merkmal:ability-score-improvement": {
+    "titel": "Attributswerterhöhung",
+    "kurz": "Auf Stufe 4 wirst du in etwas besser – du darfst wählen.",
+    "lang": "Wenn dein Held Stufe 4 erreicht, wählst du auf dem Handy: +2 auf ein Attribut, +1 auf zwei Attribute oder ein Talent (z. B. „Zäh“ für mehr Trefferpunkte). Kein Attribut kann über 20 steigen. Die Wahl bleibt im Heldenbuch gespeichert.",
+    "beispiel": "Stärke 16 → 18: Der Modifikator steigt von +3 auf +4. Du triffst öfter und machst mehr Schaden.",
+    "siehe_auch": [
+      "attributswert",
+      "modifikator",
+      "talent"
+    ]
+  },
+  "talent": {
+    "titel": "Talent",
+    "kurz": "Eine besondere Stärke, die du statt mehr Attributspunkten wählen kannst.",
+    "lang": "Statt ein Attribut zu erhöhen, kann dein Held auf Stufe 4 ein Talent lernen. „Zäh“ gibt 2 Trefferpunkte mehr pro Stufe, „Wachsam“ +5 auf die Initiative (du bist oft zuerst dran), „Flink“ 2 Felder mehr Bewegung.",
+    "beispiel": "Wachsam: 🎲 9 + 2 (Geschicklichkeit) + 5 (Wachsam) = 16 Initiative.",
+    "siehe_auch": [
+      "merkmal:ability-score-improvement",
+      "initiative",
+      "trefferpunkte"
+    ]
+  },
+  "merkmal:extra-attack": {
+    "titel": "Zusätzlicher Angriff",
+    "kurz": "Ab Stufe 5 greifst du mit einer Aktion zweimal an.",
+    "lang": "Kämpfer und Ritter ab Stufe 5 dürfen mit ihrer Angriffs-Aktion zweimal zuschlagen. Nach dem ersten Angriff bietet dir das Handy einfach noch einen an – du kannst auch ein anderes Ziel wählen.",
+    "beispiel": "Erster Schlag trifft den Goblin, er fällt. Der zweite Schlag geht auf den Wolf daneben.",
+    "siehe_auch": [
+      "aktion",
+      "angriffswurf"
+    ]
+  },
+  "merkmal:uncanny-dodge": {
+    "titel": "Unheimliches Ausweichen",
+    "kurz": "Der Schurke dreht sich im letzten Moment weg: halber Schaden.",
+    "lang": "Ab Stufe 5 halbiert ein Schurke den Schaden des ersten Treffers, den er in einer Runde abbekommt. Das geschieht automatisch und verbraucht seine Reaktion für diese Runde.",
+    "beispiel": "Der Oger trifft für 13 Schaden – Pip weicht aus und bekommt nur 6.",
+    "siehe_auch": [
+      "reaktion",
+      "schaden"
+    ]
+  },
+  "merkmal:destroy-undead-cr-1-2": {
+    "titel": "Untote zerstören",
+    "kurz": "Ab Stufe 5 zerfallen schwache Untote zu Staub, wenn du sie vertreibst.",
+    "lang": "Wenn ein Kleriker ab Stufe 5 Untote vertreibt und ein schwacher Untoter (zum Beispiel ein Skelett oder Zombie) seinen Rettungswurf nicht schafft, wird er sofort vernichtet, statt nur zu fliehen.",
+    "beispiel": "Drei Skelette, zwei scheitern am Rettungswurf – sie zerfallen zu Staub.",
+    "siehe_auch": [
+      "merkmal:channel-divinity-turn-undead",
+      "rettungswurf"
+    ]
+  },
+  "zauber:fireball": {
+    "titel": "Feuerball",
+    "kurz": "Eine Feuerkugel, die in einer großen Explosion alle Gegner um das Ziel trifft.",
+    "lang": "Ein Zauber des 3. Grades für Magier ab Stufe 5. Du wählst einen Gegner in bis zu 30 Feldern Entfernung; alle Gegner im Umkreis von 4 Feldern um ihn machen einen Rettungswurf auf Geschicklichkeit: 8W6 Feuerschaden, bei Erfolg die Hälfte. Deine Freunde bleiben verschont.",
+    "beispiel": "Vier Kobolde nebeneinander, 28 Feuerschaden: drei fallen sofort um, einer springt zur Seite (14).",
+    "siehe_auch": [
+      "rettungswurf",
+      "zauberplaetze",
+      "geschicklichkeit"
+    ]
+  },
+  "zauber:mass-healing-word": {
+    "titel": "Massen-Heilendes Wort",
+    "kurz": "Ein Wort, und bis zu sechs Freunde werden gleichzeitig geheilt.",
+    "lang": "Ein Zauber des 3. Grades für Kleriker ab Stufe 5. Mit einer Bonusaktion heilst du bis zu sechs Verbündete in 12 Feldern Umkreis um je 1W4 + deinen Weisheitsmodifikator. Perfekt, wenn mehrere Freunde am Boden liegen.",
+    "beispiel": "Zwei Helden liegen bei 0 TP – beide stehen mit 5 Trefferpunkten wieder auf.",
+    "siehe_auch": [
+      "bonusaktion",
+      "trefferpunkte",
+      "zauberplaetze"
+    ]
   }
 }

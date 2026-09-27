@@ -54,6 +54,8 @@ export function maxTargets(spell: SpellDef, slot: number): number {
       return 3 + (slot - 2);
     case "divine-favor":
       return 1;
+    case "mass-healing-word":
+      return 6;
     case "burning-hands":
     case "sleep":
       return 99;
@@ -97,7 +99,15 @@ export function castSpell(rng: Rng, battle: Battle, caster: Creature, req: CastR
   const spell = getSpell(req.spellId);
   const slot = spell.level === 0 ? 0 : (req.slotLevel ?? spell.level);
   if (slot > 0) caster.pc!.spellSlots[slot - 1]!--;
-  const targetIds = spell.rangeFt === "self" && spell.id !== "burning-hands" ? [caster.id] : req.targetIds;
+  let targetIds = spell.rangeFt === "self" && spell.id !== "burning-hands" ? [caster.id] : req.targetIds;
+  // Fireball: the chosen creature is the centre; everyone on its side within the blast is hit.
+  if (spell.id === "fireball" && targetIds[0]) {
+    const centre = battle.creatures[targetIds[0]]!;
+    const radius = spell.area?.sizeFt ?? 20;
+    targetIds = Object.values(battle.creatures)
+      .filter((c) => !c.dead && c.pos && c.side === centre.side && (c.id === centre.id || distanceFt(centre, c) <= radius))
+      .map((c) => c.id);
+  }
   const result: SpellResult = { type: "spell", casterId: caster.id, spellId: spell.id, slotLevel: slot, targets: [] };
   const charLevel = caster.pc?.level ?? 1;
   const castMod = abilityMod(caster.abilities[spellcastingAbility(caster, spell.id)]);
@@ -210,7 +220,8 @@ export function castSpell(rng: Rng, battle: Battle, caster: Creature, req: CastR
       return result;
     }
     case "cure-wounds":
-    case "healing-word": {
+    case "healing-word":
+    case "mass-healing-word": {
       for (const id of targetIds) {
         const t = target(id);
         if (t.creatureType === "undead" || t.dead) {

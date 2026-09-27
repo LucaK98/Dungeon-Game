@@ -95,7 +95,11 @@
     "spellcasting-wizard": "Zauberwirken",
     "thieves-cant": "Diebessprache",
     "improved-critical": "Verbesserter kritischer Treffer",
-    "disciple-of-life": "Jünger des Lebens"
+    "disciple-of-life": "Jünger des Lebens",
+    "ability-score-improvement": "Attributswerterhöhung",
+    "extra-attack": "Zusätzlicher Angriff",
+    "uncanny-dodge": "Unheimliches Ausweichen",
+    "destroy-undead-cr-1-2": "Untote zerstören"
   },
   "fightingStyles": {
     "defense": "Verteidigung",
@@ -168,7 +172,9 @@
     "guiding-bolt": "Lenkendes Geschoss",
     "shield-of-faith": "Schild des Glaubens",
     "divine-favor": "Göttliche Gunst",
-    "scorching-ray": "Sengender Strahl"
+    "scorching-ray": "Sengender Strahl",
+    "fireball": "Feuerball",
+    "mass-healing-word": "Massen-Heilendes Wort"
   },
   "monsters": {
     "rat": "Ratte",

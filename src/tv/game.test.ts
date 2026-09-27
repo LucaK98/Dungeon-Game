@@ -243,3 +243,30 @@ describe("group votes", () => {
     expect(result?.id).toBe("a");
   });
 });
+
+describe("hero book levels", () => {
+  it("a hero from the book who wins an adventure goes one level up (to 5 at most)", () => {
+    const rng = seededRng(4);
+    const legacy = (level: number) => ({ level, gold: 0, potions: 1, gear: { owned: [] }, stories: ["Alt"] });
+    const session = createSession(rng, {
+      players: [
+        { playerId: "p1", profile: { name: "Brunhild", classId: "fighter", raceId: "human", look: defaultLook("fighter", "human"), color: "#e6194b", legacy: legacy(3) } },
+        { playerId: "p2", profile: { name: "Mira", classId: "wizard", raceId: "elf", look: defaultLook("wizard", "elf"), color: "#4363d8", legacy: legacy(5) } },
+        { playerId: "p3", profile: { name: "Neu", classId: "rogue", raceId: "human", look: defaultLook("rogue", "human"), color: "#3cb44b" } },
+      ],
+      plan: { path: ["burghof"] },
+      noMonsters: true,
+    });
+    const sent: { to: string; event: GameEvent }[] = [];
+    const game = new GameController(session, rng, (to, event) => sent.push({ to, event }), () => {}, { monsterDelayMs: 0 });
+    game.start();
+    game.saveHeroes("Neu", { won: true, difficulty: "normal" });
+    const level = (pid: string) => {
+      const e = sent.find((s) => s.to === pid && s.event.type === "hero_saved")?.event;
+      return e?.type === "hero_saved" ? e.hero.legacy.level : undefined;
+    };
+    expect(level("p1")).toBe(4);
+    expect(level("p2")).toBe(5);
+    expect(level("p3")).toBe(2);
+  });
+});

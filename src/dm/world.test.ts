@@ -388,7 +388,7 @@ describe("hero book", () => {
   it("the TV only accepts sensible hero book data", async () => {
     const { sanitizeLegacy } = await import("../shared/herobook");
     const l = sanitizeLegacy({ level: 99, gold: 1e9, potions: -3, gear: { owned: ["longsword+1", "godsword", "longsword+1"], weapon: "longsword+1", armor: "godsword" }, stories: ["A", 5] });
-    expect(l).toEqual({ level: 3, gold: 999, potions: 0, gear: { owned: ["longsword+1"], weapon: "longsword+1" }, stories: ["A"] });
+    expect(l).toEqual({ level: 5, gold: 999, potions: 0, gear: { owned: ["longsword+1"], weapon: "longsword+1" }, stories: ["A"] });
     expect(sanitizeLegacy("nope")).toBeUndefined();
   });
 

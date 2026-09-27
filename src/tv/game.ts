@@ -11,7 +11,7 @@ import { getSpell } from "../engine/data";
 import { averageOf, parseDice, rollDice } from "../engine/dice";
 import { explainCheck, explainDamage, explainDeathSave, explainHp, explainInitiative, explainOutcome, type ExplainedLine } from "../engine/explain";
 import { runAutoTurn } from "../engine/ai";
-import { createMonster, hardenMonster } from "../engine/creatures";
+import { createMonster, hardenMonster, MAX_LEVEL } from "../engine/creatures";
 import { DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import { itemIcon, itemTitle, levelGains, type Reward } from "../shared/reward";
 import { GOAL_GOLD, goalById, goalReached } from "../shared/goals";
@@ -170,7 +170,9 @@ export class GameController {
     private sendTo: (playerId: PlayerId, event: import("../shared/events").GameEvent) => void,
     private sendAll: (event: import("../shared/events").GameEvent) => void,
     private opts: ControllerOptions = {},
-  ) {}
+  ) {
+    for (const c of Object.values(session.battle.creatures)) if (c.pc) this.startLevels.set(c.id, c.pc.level);
+  }
 
   destroy(): void {
     this.destroyed = true;
@@ -1394,6 +1396,9 @@ export class GameController {
   private goals = new Map<string, string>();
   private goalsMet = new Set<string>();
 
+  /** The level each hero started this adventure with (hero book heroes may start above the story's level). */
+  private startLevels = new Map<string, number>();
+
   /** Hands out the secret goals (hero id → goal id). */
   setGoals(goals: Record<string, string>): void {
     this.goals = new Map(Object.entries(goals).filter(([, id]) => goalById(id)));
@@ -1536,7 +1541,9 @@ export class GameController {
         hero: {
           profile: { name: h.name, classId: h.pc.classId, raceId: h.pc.raceId, look: clean, color: h.appearance.color },
           legacy: {
-            level: h.pc.level,
+            // Beyond the story's own levels: a won adventure brings a hero from the book one level further (up to 5).
+            level: Math.min(MAX_LEVEL, Math.max(h.pc.level, end.won && this.startLevels.has(h.id) ? this.startLevels.get(h.id)! + 1 : 0)),
+            ...(h.pc.improvements?.length ? { improvements: [...h.pc.improvements] } : {}),
             gold: qty("gold"),
             potions: qty("potion-of-healing"),
             gear: { owned: [...gear.owned], ...(gear.weapon ? { weapon: gear.weapon } : {}), ...(gear.armor ? { armor: gear.armor } : {}), ...(gear.trinket ? { trinket: gear.trinket } : {}) },
@@ -2516,7 +2523,7 @@ export class GameController {
     let changed = false;
     for (const h of this.heroes()) {
       if (!h.pc || h.pc.level >= level) continue;
-      const next = createCharacter({ id: h.id, name: h.name, classId: h.pc.classId, raceId: h.pc.raceId, level });
+      const next = createCharacter({ id: h.id, name: h.name, classId: h.pc.classId, raceId: h.pc.raceId, level, ...(h.pc.improvements ? { improvements: h.pc.improvements } : {}) });
       next.playerId = h.playerId;
       next.appearance = h.appearance;
       next.pos = h.pos;
@@ -2601,11 +2608,17 @@ export class GameController {
     // Spells
     for (const spellId of pc.spells) {
       const spell = getSpell(spellId);
-      const slot = spell.level;
+      // No slot of the spell's own level left: a higher one is used (stronger, where the spell allows).
+      let slot = spell.level;
+      if (slot && (pc.spellSlots[slot - 1] ?? 0) <= 0) {
+        const higher = pc.spellSlots.findIndex((n, i) => i + 1 > spell.level && n > 0);
+        if (higher >= 0) slot = higher + 1;
+      }
       const cost = spell.castingTime === "bonus" ? "bonus" : "action";
       const slotsLeft = slot ? (pc.spellSlots[slot - 1] ?? 0) : Infinity;
       const range = spell.rangeFt === "touch" ? 5 : spell.rangeFt === "self" ? (spell.area?.sizeFt ?? 0) : spell.rangeFt;
       const healing = !!spell.heal || spell.id === "bless" || spell.id === "shield-of-faith";
+      const upcast = slot > spell.level && spell.level > 0 ? ` · mit Platz Grad ${slot}` : "";
       let pool = healing ? allies : enemies;
       if (spell.id === "divine-favor") pool = [me];
       const targets = pool.filter((t) => t.id === me.id || distanceFt(me, t) <= range);
@@ -2620,12 +2633,12 @@ export class GameController {
         id: `spell:${spellId}`,
         group: "spell",
         label: nameOf("spells", spellId),
-        detail: `${kurz}${slot ? ` · noch ${slotsLeft} Platz${slotsLeft === 1 ? "" : "e"}` : ""}`,
+        detail: `${kurz}${slot ? ` · noch ${slotsLeft} Platz${slotsLeft === 1 ? "" : "e"}` : ""}${upcast}${spell.id === "fireball" ? " · trifft alle Gegner im Umkreis von 4 Feldern um das Ziel" : ""}`,
         glossarKey: `zauber:${spellId}`,
         cost,
         enabled: !reason,
         ...(reason ? { reason } : {}),
-        action: { kind: "cast", spellId, targetIds: area ? targets.map((t) => t.id) : [] },
+        action: { kind: "cast", spellId, ...(slot > spell.level ? { slotLevel: slot } : {}), targetIds: area ? targets.map((t) => t.id) : [] },
       };
       if (!area && spell.id !== "divine-favor") {
         choice.targets = targets.map((t) => ({ id: t.id, name: t.id === me.id ? `${t.name} (du)` : t.name, detail: `TP ${t.hp}/${t.maxHp}` }));
@@ -2635,7 +2648,7 @@ export class GameController {
       }
       // Validate the automatic part (area spells) with the engine.
       if (choice.enabled && area) {
-        const err = validateCast(this.battle, me, { spellId, targetIds: targets.map((t) => t.id) });
+        const err = validateCast(this.battle, me, { spellId, ...(slot > spell.level ? { slotLevel: slot } : {}), targetIds: targets.map((t) => t.id) });
         if (err) Object.assign(choice, { enabled: false, reason: err });
       }
       choices.push(choice);
@@ -2812,6 +2825,8 @@ const SPELL_FX: Record<string, Pick<ActionFx, "kind" | "element">> = {
   "burning-hands": { kind: "breath", element: "fire" },
   "guiding-bolt": { kind: "spell", element: "radiant" },
   "scorching-ray": { kind: "spell", element: "fire" },
+  fireball: { kind: "spell", element: "fire" },
+  "mass-healing-word": { kind: "heal" },
   "divine-favor": { kind: "buff", element: "radiant" },
   bless: { kind: "buff", element: "radiant" },
   "shield-of-faith": { kind: "buff", element: "radiant" },

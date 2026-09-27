@@ -294,5 +294,59 @@
         "2": "2d6"
       }
     }
+  },
+  {
+    "id": "fireball",
+    "level": 3,
+    "school": "evocation",
+    "classes": [
+      "sorcerer",
+      "wizard"
+    ],
+    "castingTime": "action",
+    "rangeFt": 150,
+    "concentration": false,
+    "durationRounds": 0,
+    "save": {
+      "ability": "DEX",
+      "onSuccess": "half"
+    },
+    "damage": {
+      "type": "fire",
+      "bySlot": {
+        "3": "8d6",
+        "4": "9d6",
+        "5": "10d6",
+        "6": "11d6",
+        "7": "12d6",
+        "8": "13d6",
+        "9": "14d6"
+      }
+    },
+    "area": {
+      "shape": "sphere",
+      "sizeFt": 20
+    }
+  },
+  {
+    "id": "mass-healing-word",
+    "level": 3,
+    "school": "evocation",
+    "classes": [
+      "cleric"
+    ],
+    "castingTime": "bonus",
+    "rangeFt": 60,
+    "concentration": false,
+    "durationRounds": 0,
+    "heal": {
+      "3": "1d4+MOD",
+      "4": "2d4+MOD",
+      "5": "3d4+MOD",
+      "6": "4d4+MOD",
+      "7": "5d4+MOD",
+      "8": "6d4+MOD",
+      "9": "7d4+MOD"
+    }
   }
 ]

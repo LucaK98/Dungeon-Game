@@ -735,3 +735,15 @@ body.tip-mode::after {
 .badge small { font-size: 0.7rem; text-align: center; line-height: 1.15; }
 .book-badges { font-size: 1.05rem; letter-spacing: 2px; }
 .goal-reveal.mine { box-shadow: 0 0 0 2px var(--accent) inset; }
+
+/* ---------------------------------------------------------------- level 4 choice */
+.improve-card { text-align: left; align-items: stretch; }
+.improve-card h2, .improve-card .reward-burst, .improve-card .reward-sub { text-align: center; align-self: center; }
+.improve-card h3 { margin: 10px 0 0; }
+.improve-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.improve-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px; border-radius: 12px; border: 2px solid #3b2f22; background: #1d1814; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.improve-btn:hover, .improve-btn:focus-visible { border-color: var(--accent); }
+.improve-btn:disabled { opacity: 0.45; }
+.improve-btn .muted { font-size: 0.8rem; }
+.improve-icon { font-size: 1.5rem; }
+.book-improve { color: #ffd75e; font-weight: 700; }

@@ -1,6 +1,7 @@
 /**
  * Builds creatures: player characters (with pregenerated defaults per class) and monsters.
  */
+import { parseImprovement, sanitizeImprovements } from "../shared/improvements";
 import type { AttackOption, Creature, FightingStyle, PcInfo, Resource, SaveAction, Side } from "../shared/game";
 import type { AbilityScores, DamagePart, SkillId, WeaponDef } from "../shared/rules";
 import { ABILITIES } from "../shared/rules";
@@ -56,6 +57,7 @@ const LOADOUTS: Record<string, Loadout> = {
     spells: [
       [1, ["fire-bolt", "ray-of-frost", "magic-missile", "burning-hands", "sleep"]],
       [3, ["scorching-ray"]],
+      [5, ["fireball"]],
     ],
   },
   rogue: {
@@ -70,9 +72,15 @@ const LOADOUTS: Record<string, Loadout> = {
     shield: true,
     weapons: ["mace", "crossbow-light"],
     skills: ["insight", "medicine"],
-    spells: [[1, ["sacred-flame", "cure-wounds", "healing-word", "bless", "guiding-bolt", "shield-of-faith"]]],
+    spells: [
+      [1, ["sacred-flame", "cure-wounds", "healing-word", "bless", "guiding-bolt", "shield-of-faith"]],
+      [5, ["mass-healing-word"]],
+    ],
   },
 };
+
+/** Highest level a hero can reach. */
+export const MAX_LEVEL = 5;
 
 /** Which classes we recommend to complete beginners. */
 export const BEGINNER_CLASSES = ["fighter", "paladin"];
@@ -198,10 +206,12 @@ export interface CharacterOptions {
   /** Base scores before racial bonuses; default: standard array by class. */
   baseAbilities?: AbilityScores;
   skills?: SkillId[];
+  /** Level-4 improvements from the hero book ("asi:STR+2", "talent:zaeh"). */
+  improvements?: string[];
 }
 
 export function createCharacter(opts: CharacterOptions): Creature {
-  const level = Math.min(3, Math.max(1, opts.level ?? 1));
+  const level = Math.min(MAX_LEVEL, Math.max(1, opts.level ?? 1));
   const cls = getClass(opts.classId);
   const race = getRace(opts.raceId);
   const loadout = LOADOUTS[opts.classId];
@@ -212,11 +222,20 @@ export function createCharacter(opts: CharacterOptions): Creature {
     (Object.fromEntries(ABILITY_PRIORITY[opts.classId]!.map((a, i) => [a, STANDARD_ARRAY[i]])) as AbilityScores);
   const abilities = { ...base };
   for (const a of ABILITIES) abilities[a] += race.abilityBonuses[a] ?? 0;
+  // Improvements from level 4 on: attributes (never above 20) or a talent.
+  const improvements = sanitizeImprovements(opts.improvements, level);
+  const talents: string[] = [];
+  for (const raw of improvements) {
+    const imp = parseImprovement(raw)!;
+    if (imp.kind === "talent") talents.push(imp.talent.id);
+    else for (const [a, v] of Object.entries(imp.bonus)) abilities[a as Ability] = Math.min(20, abilities[a as Ability] + (v ?? 0));
+  }
 
   const levelDef = cls.levels.find((l) => l.level === level)!;
   const conMod = abilityMod(abilities.CON);
   let maxHp = cls.hitDie + conMod + (level - 1) * (cls.hitDie / 2 + 1 + conMod);
   if (race.traits.includes("dwarven-toughness")) maxHp += level;
+  if (talents.includes("zaeh")) maxHp += 2 * level;
 
   const features = cls.levels.filter((l) => l.level <= level).flatMap((l) => l.features);
   if (opts.classId === "fighter" && level >= 3) features.push("improved-critical");
@@ -246,6 +265,7 @@ export function createCharacter(opts: CharacterOptions): Creature {
     spellSlotsMax: [...levelDef.spellSlots],
     resources: resourcesFor(cls.id, level),
     hitDie: cls.hitDie,
+    ...(improvements.length ? { improvements, talents } : {}),
   };
 
   const c: Creature = {
@@ -304,7 +324,7 @@ export function refreshAttacks(c: Creature): void {
   ];
   c.baseAc = armorClassParts(c.abilities, pc);
   const trinket = pc.gear?.trinket ? getGear(pc.gear.trinket) : undefined;
-  c.speedFt = getRace(pc.raceId).speedFt + (trinket?.effect === "speed" ? trinket.bonus : 0);
+  c.speedFt = getRace(pc.raceId).speedFt + (trinket?.effect === "speed" ? trinket.bonus : 0) + (pc.talents?.includes("flink") ? 10 : 0);
 }
 
 /**

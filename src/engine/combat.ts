@@ -251,6 +251,7 @@ export function rollDeathSave(rng: Rng, c: Creature): DeathSaveResult {
 export function rollInitiative(rng: Rng, c: Creature): InitiativeEntry {
   const roll = rollD20(rng, [], c.pc?.raceId === "halfling");
   const parts = [d20Part(roll), modPart(c, "DEX")];
+  if (c.pc?.talents?.includes("wachsam")) parts.push({ label: "Wachsam", value: 5, glossarKey: "talent" });
   return { creatureId: c.id, total: sumParts(parts), parts, roll };
 }
 

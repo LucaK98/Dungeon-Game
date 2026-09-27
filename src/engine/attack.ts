@@ -7,7 +7,7 @@ import type { BreakdownPart } from "../shared/types";
 import { canSee } from "./vision";
 import { advantage, d20Part, disadvantage, rollD20, sumParts, type AdvReason } from "./core";
 import { parseDice, rollDice, rollDie } from "./dice";
-import { acParts, damageCreature, distanceFt, hasCondition, hasEffect, isIncapacitated } from "./combat";
+import { acParts, damageCreature, distanceFt, hasCondition, hasEffect, isActive, isIncapacitated } from "./combat";
 import type { Rng } from "./rng";
 
 const PHYSICAL: DamageType[] = ["bludgeoning", "piercing", "slashing"];
@@ -199,8 +199,8 @@ export function resolveAttack(
   const dmgParts: DamagePart[] = weakSwarm ? option.damage.map(halveDice) : [...option.damage];
   const bonus = [...option.damageBonus];
   if (sneakAttackAllowed(battle, attacker, target, option, roll.mode)) {
-    const lvl = attacker.pc!.level;
-    const dice = lvl >= 3 ? 2 : 1;
+    // 1d6 at level 1, one more every two levels (2d6 at 3, 3d6 at 5).
+    const dice = Math.ceil(attacker.pc!.level / 2);
     dmgParts.push({ dice: `${dice}d6`, type: option.damage[0]!.type });
     if (battle.combat?.turn.creatureId === attacker.id) battle.combat.turn.sneakAttackUsed = true;
   }
@@ -218,6 +218,13 @@ export function resolveAttack(
   if (opts.dragonSlayer && target.creatureType === "dragon") {
     for (const l of damage.lines) l.final *= 2;
     damage.total *= 2;
+  }
+  // Uncanny Dodge (rogue, level 5): the first hit each round is halved (uses the reaction).
+  if (target.pc?.features.includes("uncanny-dodge") && battle.combat && !battle.combat.reactionUsed[target.id] && damage.total > 0 && isActive(target)) {
+    battle.combat.reactionUsed[target.id] = true;
+    for (const l of damage.lines) l.final = Math.floor(l.final / 2);
+    damage.total = Math.floor(damage.total / 2);
+    result.uncannyDodge = true;
   }
   result.damage = damage;
   result.hp = damageCreature(rng, battle, target, damage.total, {

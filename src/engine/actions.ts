@@ -3,6 +3,7 @@
  * (1 action, 1 bonus action, movement, 1 reaction per round).
  * The host calls `perform` for every player action and every monster decision.
  */
+import { getMonster } from "./data";
 import type { AttackResult, Battle, CheckResult, Creature, GridPos, HpChange, SpellResult } from "../shared/game";
 import type { BreakdownPart } from "../shared/types";
 import { inRange, resolveAttack, rollDamage } from "./attack";
@@ -52,7 +53,7 @@ export type ActionDetail =
   | { kind: "simple"; what: "dash" | "disengage" | "dodge" | "action-surge" | "stand-up" }
   | { kind: "hide"; check: CheckResult }
   | { kind: "heal"; what: "second-wind" | "lay-on-hands" | "potion"; targetId: string; parts: BreakdownPart[]; total: number; hp: HpChange }
-  | { kind: "turn-undead"; dc: number; results: { targetId: string; save: CheckResult; turned: boolean }[] };
+  | { kind: "turn-undead"; dc: number; results: { targetId: string; save: CheckResult; turned: boolean; destroyed?: boolean }[] };
 
 const fail = (reason: string): ActionOutcome => ({ ok: false, reason });
 
@@ -118,7 +119,8 @@ export function perform(rng: Rng, battle: Battle, actorId: string, action: Comba
         } else {
           const err = spend(battle, actor, "action");
           if (err) return fail(err);
-          turn.attacksLeft = Math.max(0, (actor.multiattack?.length ?? 1) - 1);
+          // Monsters: their multiattack; heroes from level 5 on: a second attack (Extra Attack).
+          turn.attacksLeft = Math.max(0, (actor.multiattack?.length ?? 1) - 1) + (actor.pc?.features.includes("extra-attack") ? 1 : 0);
         }
       }
       let smiteSlot: number | undefined;
@@ -264,11 +266,16 @@ export function perform(rng: Rng, battle: Battle, actorId: string, action: Comba
         const t = battle.creatures[id];
         if (!t || t.dead || t.creatureType !== "undead" || distanceFt(actor, t) > 30) continue;
         const save = savingThrow(rng, t, "WIS", dc);
-        if (!save.success) {
+        // Level 5: weak undead (challenge 1/2 or less) are destroyed instead.
+        const destroy = !save.success && actor.pc.features.includes("destroy-undead-cr-1-2") && !!t.monsterId && getMonster(t.monsterId).cr <= 0.5;
+        if (destroy) {
+          t.hp = 0;
+          t.dead = true;
+        } else if (!save.success) {
           addEffect(t, "turned", 10, actor.id);
           addCondition(t, { id: "frightened", rounds: 10, sourceId: actor.id });
         }
-        results.push({ targetId: id, save, turned: !save.success });
+        results.push({ targetId: id, save, turned: !save.success, ...(destroy ? { destroyed: true } : {}) });
       }
       return { ...ok, cost: "action", kind: "turn-undead", dc, results };
     }

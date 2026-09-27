@@ -57,6 +57,24 @@
         ],
         "spellSlots": [],
         "cantripsKnown": 0
+      },
+      {
+        "level": 4,
+        "proficiencyBonus": 2,
+        "features": [
+          "ability-score-improvement"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 5,
+        "proficiencyBonus": 3,
+        "features": [
+          "extra-attack"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
       }
     ]
   },
@@ -126,6 +144,29 @@
           3
         ],
         "cantripsKnown": 0
+      },
+      {
+        "level": 4,
+        "proficiencyBonus": 2,
+        "features": [
+          "ability-score-improvement"
+        ],
+        "spellSlots": [
+          3
+        ],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 5,
+        "proficiencyBonus": 3,
+        "features": [
+          "extra-attack"
+        ],
+        "spellSlots": [
+          4,
+          2
+        ],
+        "cantripsKnown": 0
       }
     ]
   },
@@ -183,6 +224,29 @@
           2
         ],
         "cantripsKnown": 3
+      },
+      {
+        "level": 4,
+        "proficiencyBonus": 2,
+        "features": [
+          "ability-score-improvement"
+        ],
+        "spellSlots": [
+          4,
+          3
+        ],
+        "cantripsKnown": 4
+      },
+      {
+        "level": 5,
+        "proficiencyBonus": 3,
+        "features": [],
+        "spellSlots": [
+          4,
+          3,
+          2
+        ],
+        "cantripsKnown": 4
       }
     ]
   },
@@ -247,6 +311,24 @@
         "spellSlots": [],
         "cantripsKnown": 0,
         "sneakAttackDice": 2
+      },
+      {
+        "level": 4,
+        "proficiencyBonus": 2,
+        "features": [
+          "ability-score-improvement"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
+      },
+      {
+        "level": 5,
+        "proficiencyBonus": 3,
+        "features": [
+          "uncanny-dodge"
+        ],
+        "spellSlots": [],
+        "cantripsKnown": 0
       }
     ]
   },
@@ -314,6 +396,31 @@
           2
         ],
         "cantripsKnown": 3
+      },
+      {
+        "level": 4,
+        "proficiencyBonus": 2,
+        "features": [
+          "ability-score-improvement"
+        ],
+        "spellSlots": [
+          4,
+          3
+        ],
+        "cantripsKnown": 4
+      },
+      {
+        "level": 5,
+        "proficiencyBonus": 3,
+        "features": [
+          "destroy-undead-cr-1-2"
+        ],
+        "spellSlots": [
+          4,
+          3,
+          2
+        ],
+        "cantripsKnown": 4
       }
     ]
   }

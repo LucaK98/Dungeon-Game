@@ -45,6 +45,9 @@ export interface PcInfo {
   inventory: { itemId: string; qty: number }[];
   /** Adventures this hero already survived (hero book). */
   stories?: string[];
+  /** Level-4 improvements (hero book) and the talents among them. */
+  improvements?: string[];
+  talents?: string[];
   /** Badges and running totals from the hero book. */
   badges?: string[];
   totals?: import("./achievements").HeroTotals;
@@ -256,6 +259,8 @@ export interface AttackResult {
   crit: boolean;
   damage?: DamageResult;
   hp?: HpChange;
+  /** The rogue halved the damage with their reaction. */
+  uncannyDodge?: boolean;
 }
 
 export interface TurnState {

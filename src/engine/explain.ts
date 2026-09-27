@@ -130,6 +130,7 @@ export function explainAttack(battle: Battle, r: AttackResult): ExplainedLine[] 
   out.push({ text: `${formatParts(r.parts)} = ${r.total} gegen RK ${r.targetAc} → ${verdict}`, glossarKeys: keys });
   if (r.crit) out.push({ text: "Bei einem kritischen Treffer werden alle Schadenswürfel doppelt gewürfelt.", glossarKeys: ["kritischer_treffer"] });
   if (r.damage) out.push(...explainDamage(r.damage));
+  if (r.uncannyDodge) out.push({ text: `🌀 Unheimliches Ausweichen: ${name(battle, r.targetId)} dreht sich weg – nur der halbe Schaden.`, glossarKeys: ["merkmal:uncanny-dodge"] });
   if (r.hp) out.push(...explainHp(battle, r.hp));
   return out;
 }
@@ -284,7 +285,7 @@ export function explainOutcome(battle: Battle, o: ActionOutcome): ExplainedLine[
         { text: `${who} hebt das heilige Symbol: Untote, weicht! (SG ${o.dc})`, glossarKeys: ["merkmal:channel-divinity-turn-undead"] },
         ...o.results.flatMap((r) => [
           ...explainCheck(battle, r.targetId, r.save),
-          { text: r.turned ? `${name(battle, r.targetId)} flieht in Panik.` : `${name(battle, r.targetId)} widersteht.`, glossarKeys: ["zustand:frightened"] },
+          { text: r.destroyed ? `☀️ ${name(battle, r.targetId)} zerfällt zu Staub!` : r.turned ? `${name(battle, r.targetId)} flieht in Panik.` : `${name(battle, r.targetId)} widersteht.`, glossarKeys: r.destroyed ? ["merkmal:destroy-undead-cr-1-2"] : ["zustand:frightened"] },
         ]),
       ];
   }
