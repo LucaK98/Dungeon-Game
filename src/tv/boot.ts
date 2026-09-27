@@ -7,7 +7,7 @@ import { GameHost } from "./host";
 import { renderLobby } from "./lobby-view";
 import { isSaveGame, readSave } from "./save";
 import { cloudLoad, formatCode, newCloudId } from "../net/cloud-save";
-import { setSpeechEnabled, speechEnabled } from "./speech";
+import { setSpeechEnabled, speechEnabled, warmUpVoices } from "./speech";
 import { settingsScreen } from "./settings";
 import { cloudLoadScreen, howToPlay, pickDuration, pickStory, titleScreen } from "./start-screens";
 
@@ -47,6 +47,8 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
 
   async function menu(): Promise<void> {
     clear();
+    // Natural voices download in the background while people pick a story and join.
+    warmUpVoices();
     for (;;) {
       const save = readSave();
       const choice = await titleScreen(root, { canContinue: !!save, ...(save?.cloud ? { saveCode: formatCode(save.cloud.code) } : {}), speech: speechEnabled(), onSpeech: setSpeechEnabled });

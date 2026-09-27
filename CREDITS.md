@@ -12,6 +12,12 @@ SRD-Daten im JSON-Format: [5e-bits/5e-database](https://github.com/5e-bits/5e-da
 
 - **Dungeon Crawl Stone Soup Tiles** (CC0) – https://opengameart.org/content/dungeon-crawl-32x32-tiles und https://opengameart.org/content/dungeon-crawl-32x32-tiles-supplemental, als Einzeldateien aus [Snowdrama/CC0-Dungeon-Pack](https://github.com/Snowdrama/CC0-Dungeon-Pack). Projekt: https://github.com/crawl/crawl
   Wir verwenden nur eine Auswahl (`scripts/assets/selection.ts`), zusammengefasst in `public/assets/atlas.png`. Die Herkunft jedes Tiles steht in `public/assets/tileset.json`.
+- Eigene Kacheln (Fass, Hebel, Kronleuchter, Geheimnisse, Kessel, Lagerfeuer), gezeichnet von `scripts/assets/draw-custom.ts` – CC0.
+
+## Stimmen
+
+- [Piper](https://github.com/rhasspy/piper) (MIT), Stimmen aus [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices): „thorsten“ und „thorsten_emotional“ (Thorsten Müller, CC0), „kerstin“ (CC0). Werden erst im Browser geladen, nicht mit dem Spiel ausgeliefert.
+- [onnxruntime-web](https://github.com/microsoft/onnxruntime) (MIT) und piper-phonemize / [espeak-ng](https://github.com/espeak-ng/espeak-ng) (GPL-3.0), zur Laufzeit von jsDelivr geladen.
 
 ## Software
 

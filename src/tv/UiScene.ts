@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { dollFrames } from "../shared/doll";
 import type { Narration } from "../shared/story";
 import type { OrderEntry, RollOutcome } from "../shared/view";
-import { speak } from "./speech";
+import { speak, stopSpeaking } from "./speech";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "./DungeonScene";
 import type { AiStatus } from "../dm/ai/aidm";
 import { crisp, RES, TILES, UP } from "./render";
@@ -182,11 +182,11 @@ export class UiScene extends Phaser.Scene {
       };
       // Space or Enter on the TV skips the current line.
       this.skipLine = () => {
-        if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+        stopSpeaking();
         finish();
       };
       const minTime = new Promise<void>((r) => this.time.delayedCall((1800 + full.length * 45 + (line.tip ? 2500 : 0)) * pace, () => r()));
-      const voice = waiting >= 3 ? Promise.resolve() : speak(line.text, !!line.npc);
+      const voice = waiting >= 3 ? Promise.resolve() : speak(line.text, line.npc);
       void Promise.all([minTime, voice]).then(finish);
     });
   }

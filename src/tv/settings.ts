@@ -8,6 +8,12 @@ import { GeminiProvider, GroqProvider, LlmError, ServerProvider, type ProviderId
 import { aiCallsToday, countAiCall, loadAiSettings, providersFrom, saveAiSettings, type AiSettings } from "../dm/ai/settings";
 import { h } from "../ui/dom";
 import { loadGraphicsMode, saveGraphicsMode, type GraphicsMode } from "./render";
+import { prepareVoice, setVoiceEngine, speak, voiceEngine, type VoiceEngine } from "./speech";
+
+const VOICES: { id: VoiceEngine; label: string; detail: string }[] = [
+  { id: "natural", label: "✨ Natürliche Stimmen", detail: "Kostenlos, jede Figur klingt anders. Lädt einmalig ca. 200 MB (danach offline)." },
+  { id: "browser", label: "🌐 Browser-Stimme", detail: "Sofort da. Am natürlichsten in Microsoft Edge („Natural“-Stimmen) oder Chrome." },
+];
 
 const GRAPHICS: { id: GraphicsMode; label: string }[] = [
   { id: "hd", label: "✨ HD (glatte Kanten)" },
@@ -175,10 +181,46 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     };
     renderGraphics();
 
+    const voiceRow = h("div", { class: "tv-row" });
+    const voiceStatus = h("p", { class: "muted" });
+    const renderVoices = () => {
+      const engine = voiceEngine();
+      voiceRow.replaceChildren(
+        ...VOICES.map((v) => {
+          const b = h("button", { class: `tv-btn${engine === v.id ? " primary" : ""}`, type: "button", textContent: v.label, title: v.detail });
+          b.addEventListener("click", () => {
+            setVoiceEngine(v.id);
+            renderVoices();
+          });
+          return b;
+        }),
+        h("button", { class: "tv-btn small", type: "button", textContent: "🔊 Stimmen testen", onclick: () => void testVoices() }),
+      );
+      voiceStatus.textContent = VOICES.find((v) => v.id === engine)!.detail;
+    };
+    const testVoices = async () => {
+      if (voiceEngine() === "natural") {
+        // Download first (with progress), so the test sounds like the game.
+        let ok = true;
+        for (const [who, label] of [[undefined, "Erzähler"], ["Wirtin Hilde", "Frauenstimme"], ["Schmied Hagen", "Männerstimme"]] as const) {
+          ok = await prepareVoice(who, (loaded, total) => {
+            voiceStatus.textContent = `⏬ Lade ${label}: ${total ? `${Math.round((loaded / total) * 100)} %` : `${Math.round(loaded / 1e6)} MB`}`;
+          });
+          if (!ok) break;
+        }
+        voiceStatus.textContent = ok ? "✅ Alle Stimmen geladen." : "❌ Die natürlichen Stimmen konnten nicht geladen werden (Internet?). Es spricht die Browser-Stimme.";
+      }
+      await speak("Willkommen, Helden! Heute Nacht beginnt euer Abenteuer.");
+      await speak("Ein Krug Met für die müden Wanderer? Setzt euch!", "Wirtin Hilde");
+      await speak("Ich schmiede euch die besten Klingen im ganzen Land.", "Schmied Hagen");
+      await speak("Wer wagt es, meine Höhle zu betreten?", "Oger");
+    };
+    renderVoices();
+
     const el = h(
       "main",
       { class: "tv-screen" },
-      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🖼 Grafik"), graphicsRow, h("div", { class: "tv-row" }, done)),
+      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🗣️ Stimmen"), voiceRow, voiceStatus, h("h2", {}, "🖼 Grafik"), graphicsRow, h("div", { class: "tv-row" }, done)),
     );
     done.addEventListener("click", () => {
       pull();
