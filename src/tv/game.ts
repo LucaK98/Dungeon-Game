@@ -3477,13 +3477,37 @@ export class GameController {
     });
   }
 
+  /**
+   * Where the phone map looks: in a fight at the hero and the nearest enemies (as many as fit),
+   * otherwise at the hero. The hero always stays on the map, with a square to spare.
+   */
+  private minimapFocus(me: Creature, pos: GridPos, w: number, h: number): GridPos {
+    if (this.mode !== "combat" || !me.pos) return pos;
+    const d = (c: Creature) => Math.max(Math.abs(c.pos!.x - pos.x), Math.abs(c.pos!.y - pos.y));
+    const foes = this.enemiesVisible()
+      .filter((c) => isActive(c) && c.pos && this.map.explored[cellIndex(this.map, c.pos.x, c.pos.y)])
+      .sort((a, b) => d(a) - d(b));
+    let box = { x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y };
+    for (const f of foes.slice(0, 4)) {
+      const next = { x1: Math.min(box.x1, f.pos!.x), y1: Math.min(box.y1, f.pos!.y), x2: Math.max(box.x2, f.pos!.x), y2: Math.max(box.y2, f.pos!.y) };
+      if (next.x2 - next.x1 > w - 3 || next.y2 - next.y1 > h - 3) break;
+      box = next;
+    }
+    const cx = Math.round((box.x1 + box.x2) / 2);
+    const cy = Math.round((box.y1 + box.y2) / 2);
+    const hw = Math.floor(w / 2) - 1;
+    const hh = Math.floor(h / 2) - 1;
+    return { x: Math.max(pos.x - hw, Math.min(pos.x + hw, cx)), y: Math.max(pos.y - hh, Math.min(pos.y + hh, cy)) };
+  }
+
   private minimap(me: Creature, mine: boolean): MiniMap {
     const map = this.map;
     const pos = me.pos ?? { x: 0, y: 0 };
     const w = Math.min(MINIMAP_W, map.width);
     const h = Math.min(MINIMAP_H, map.height);
-    const x0 = Math.max(0, Math.min(map.width - w, pos.x - Math.floor(w / 2)));
-    const y0 = Math.max(0, Math.min(map.height - h, pos.y - Math.floor(h / 2)));
+    const focus = this.minimapFocus(me, pos, w, h);
+    const x0 = Math.max(0, Math.min(map.width - w, focus.x - Math.floor(w / 2)));
+    const y0 = Math.max(0, Math.min(map.height - h, focus.y - Math.floor(h / 2)));
     const frames: string[] = [];
     const overlays: (string | null)[] = [];
     const ground: string[] = [];

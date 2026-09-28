@@ -66,6 +66,7 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
   let rolled = false;
   let pendingResult: RollOutcome | undefined;
   let started = 0;
+  let autoTimer: ReturnType<typeof setTimeout> | undefined;
 
   const showResult = (r: RollOutcome) => {
     if (rolling) clearInterval(rolling);
@@ -84,6 +85,20 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
     const how = h("details", { class: "dice-how" }, h("summary", {}, "🧮 Wie wurde gerechnet?"), ...r.lines.map((l) => explainedLine(l)));
     lines.replaceChildren(...(r.bullets?.length ? [bulletList(r.bullets), how] : r.lines.map((l) => explainedLine(l))));
     done.hidden = false;
+    // Closes by itself after a moment (long enough to read the points); a touch keeps it open.
+    if (loadPrefs().autoClose) {
+      const ms = Math.min(8000, 3500 + (r.bullets?.length ?? r.lines.length) * 700);
+      done.classList.add("autoclose");
+      done.style.setProperty("--autoclose", `${ms}ms`);
+      autoTimer = setTimeout(() => api.close(), ms);
+      const keep = () => {
+        if (autoTimer) clearTimeout(autoTimer);
+        autoTimer = undefined;
+        done.classList.remove("autoclose");
+      };
+      panel.addEventListener("pointerdown", keep, { once: true });
+      how.addEventListener("toggle", keep, { once: true });
+    }
     if (r.crit && "vibrate" in navigator) navigator.vibrate([80, 60, 160]);
     if (r.crit) play("crit");
     else if (r.success === true) play("chime");
@@ -122,6 +137,7 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
     },
     close() {
       if (rolling) clearInterval(rolling);
+      if (autoTimer) clearTimeout(autoTimer);
       window.removeEventListener("devicemotion", onMotion);
       if (!overlay.isConnected) return;
       overlay.remove();

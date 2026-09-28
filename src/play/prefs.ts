@@ -9,6 +9,8 @@ export interface PhonePrefs {
   autoEnd: boolean;
   /** Shake the phone to roll. */
   shake: boolean;
+  /** The roll result closes by itself after a few seconds. */
+  autoClose: boolean;
 }
 
 const KEY = "couch-dungeon.phone-prefs";
@@ -16,9 +18,9 @@ const KEY = "couch-dungeon.phone-prefs";
 export function loadPrefs(): PhonePrefs {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<PhonePrefs>;
-    return { simple: !!raw.simple, autoEnd: !!raw.autoEnd, shake: raw.shake !== false };
+    return { simple: !!raw.simple, autoEnd: !!raw.autoEnd, shake: raw.shake !== false, autoClose: raw.autoClose !== false };
   } catch {
-    return { simple: false, autoEnd: false, shake: true };
+    return { simple: false, autoEnd: false, shake: true, autoClose: true };
   }
 }
 

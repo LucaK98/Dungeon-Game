@@ -198,6 +198,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   let turnEnds: number | undefined;
   let warnedAt: number | undefined;
   let wasNextUp = false;
+  /** Level-ups and new gear shown together in one window. */
+  const rewardQueue: Extract<Reward, { kind: "level" | "gear" }>[] = [];
+  let rewardBox: { sheet: HTMLElement; stack: HTMLElement; ok: HTMLElement; count: number } | undefined;
   let queueWasMine = false;
   /** A move chosen while someone else is still on (one tap once it is this hero's turn). */
   let queued: { choiceId: string; group: ActionGroup; label: string; targetIds: string[]; targetNames: string[] } | undefined;
@@ -1087,7 +1090,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     };
     bigMapDraw = draw;
     zoomIn.addEventListener("click", () => {
-      bigZoom = Math.min(3, bigZoom + 0.5);
+      bigZoom = Math.min(4, bigZoom + 0.5);
       draw();
     });
     zoomOut.addEventListener("click", () => {
@@ -1095,6 +1098,30 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       draw();
     });
     close.addEventListener("click", closeBigMap);
+    // Two fingers zoom (the map stays under the fingers).
+    let pinch: { dist: number; zoom: number } | undefined;
+    const spread = (t: TouchList) => Math.hypot(t[0]!.clientX - t[1]!.clientX, t[0]!.clientY - t[1]!.clientY);
+    scroller.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 2) pinch = { dist: spread(e.touches), zoom: bigZoom };
+    }, { passive: true });
+    scroller.addEventListener("touchmove", (e) => {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault();
+      const canvas = scroller.querySelector("canvas");
+      if (!canvas) return;
+      const rect = scroller.getBoundingClientRect();
+      const mx = (e.touches[0]!.clientX + e.touches[1]!.clientX) / 2 - rect.left;
+      const my = (e.touches[0]!.clientY + e.touches[1]!.clientY) / 2 - rect.top;
+      const fx = (scroller.scrollLeft + mx) / canvas.clientWidth;
+      const fy = (scroller.scrollTop + my) / canvas.clientHeight;
+      bigZoom = Math.max(1, Math.min(4, pinch.zoom * (spread(e.touches) / pinch.dist)));
+      canvas.style.width = `${bigZoom * 100}%`;
+      scroller.scrollLeft = fx * canvas.clientWidth - mx;
+      scroller.scrollTop = fy * canvas.clientHeight - my;
+    }, { passive: false });
+    scroller.addEventListener("touchend", (e) => {
+      if (e.touches.length < 2) pinch = undefined;
+    });
     document.body.append(bigMap);
     draw();
   }
@@ -1798,8 +1825,30 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
 
   /** The big moments: a new level (what got better) or a piece of equipment. */
   function showReward(r: Extract<Reward, { kind: "level" | "gear" }>): void {
-    document.querySelector(".reward-sheet")?.remove();
-    const ok = h("button", { class: "btn primary big", type: "button", textContent: "Super! 🎉" });
+    // A roll result is still open: the news come together once it is closed (one "Weiter" for all).
+    const open = landed?.isOpen() ? landed : dice?.isOpen() ? dice : undefined;
+    if (open) {
+      rewardQueue.push(r);
+      if (rewardQueue.length === 1) open.onClosed(() => rewardQueue.splice(0).forEach(addRewardCard));
+      return;
+    }
+    addRewardCard(r);
+  }
+
+  /** Adds a card to the open reward window, or opens one. */
+  function addRewardCard(r: Extract<Reward, { kind: "level" | "gear" }>): void {
+    if (!rewardBox?.sheet.isConnected) {
+      const ok = h("button", { class: "btn primary big reward-ok", type: "button", textContent: "Super! 🎉" });
+      const stack = h("div", { class: "reward-stack" });
+      const sheet = h("div", { class: "reward-sheet" }, h("div", { class: "reward-bundle" }, stack, ok));
+      ok.addEventListener("click", () => {
+        sheet.remove();
+        rewardBox = undefined;
+      });
+      document.body.append(sheet);
+      rewardBox = { sheet, stack, ok, count: 0 };
+    }
+    const box = rewardBox!;
     const body: (HTMLElement | string)[] = [];
     if (r.kind === "level") {
       body.push(
@@ -1832,7 +1881,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     } else {
       const look = h("button", { class: "btn big", type: "button", textContent: "🎒 In den Taschen ansehen" });
       look.addEventListener("click", () => {
-        sheet.remove();
+        box.sheet.remove();
+        rewardBox = undefined;
         tab = "inventory";
         render();
       });
@@ -1844,9 +1894,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         look,
       );
     }
-    const sheet = h("div", { class: "reward-sheet" }, h("div", { class: "reward-card" }, h("div", { class: "reward-rays" }), ...body, ok));
-    ok.addEventListener("click", () => sheet.remove());
-    document.body.append(sheet);
+    box.stack.append(h("div", { class: "reward-card" }, h("div", { class: "reward-rays" }), ...body));
+    box.count++;
+    box.ok.textContent = box.count > 1 ? `Super! 🎉 (${box.count} Neuigkeiten)` : "Super! 🎉";
     play(r.kind === "level" ? "victory" : "chime");
     if ("vibrate" in navigator) navigator.vibrate(r.kind === "level" ? [80, 50, 80, 50, 200] : [60, 40, 120]);
   }

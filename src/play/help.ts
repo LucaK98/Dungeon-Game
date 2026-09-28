@@ -245,6 +245,7 @@ function openMenu(ctx: HelpContext): void {
         toggle("simple", "Einfache Ansicht: nur die wichtigsten Aktionen (alles andere hinter „Alle Aktionen“)"),
         toggle("autoEnd", "Zug nach meiner Aktion automatisch beenden"),
         toggle("shake", "Würfeln durch Schütteln", allowMotion),
+        toggle("autoClose", "Würfelergebnis schließt sich nach ein paar Sekunden selbst"),
       ]
     : [];
   showSheet("Hilfe", tip, what, askBtn, how, h("div", { class: "field" }, search, results), beginner, ...phone);
