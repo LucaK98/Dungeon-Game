@@ -7,7 +7,7 @@ import { SYSTEM_PROMPT } from "../dm/ai/prompt";
 import { GeminiProvider, GroqProvider, LlmError, ServerProvider, type ProviderId } from "../dm/ai/provider";
 import { aiCallsToday, countAiCall, loadAiSettings, providersFrom, saveAiSettings, type AiSettings } from "../dm/ai/settings";
 import { h } from "../ui/dom";
-import { loadGraphicsMode, saveGraphicsMode, type GraphicsMode } from "./render";
+import { loadGraphicsMode, loadLookMode, saveGraphicsMode, saveLookMode, type GraphicsMode, type LookMode } from "./render";
 import { prepareVoice, setVoiceEngine, speak, storytellerProblem, voiceEngine, type VoiceEngine } from "./speech";
 
 const VOICES: { id: VoiceEngine; label: string; detail: string }[] = [
@@ -19,6 +19,11 @@ const VOICES: { id: VoiceEngine; label: string; detail: string }[] = [
 const GRAPHICS: { id: GraphicsMode; label: string }[] = [
   { id: "hd", label: "✨ HD (glatte Kanten)" },
   { id: "pixel", label: "👾 Pixel (klassisch)" },
+];
+
+const LOOKS: { id: LookMode; label: string }[] = [
+  { id: "stimmung", label: "🕯️ Stimmungsvoll (Licht, Schatten, Details)" },
+  { id: "klassisch", label: "🗺️ Klassisch (hell, schont schwache Geräte)" },
 ];
 
 const PROVIDERS: { id: AiSettings["provider"]; label: string; detail: string }[] = [
@@ -182,6 +187,22 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     };
     renderGraphics();
 
+    const lookRow = h("div", { class: "tv-row" });
+    const renderLook = () => {
+      const mode = loadLookMode();
+      lookRow.replaceChildren(
+        ...LOOKS.map((g) => {
+          const b = h("button", { class: `tv-btn${mode === g.id ? " primary" : ""}`, type: "button", textContent: g.label });
+          b.addEventListener("click", () => {
+            saveLookMode(g.id);
+            renderLook();
+          });
+          return b;
+        }),
+      );
+    };
+    renderLook();
+
     const voiceRow = h("div", { class: "tv-row" });
     const voiceStatus = h("p", { class: "muted" });
     // The storyteller needs a Gemini key on this TV (also when the AI runs on the server).
@@ -234,7 +255,7 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     const el = h(
       "main",
       { class: "tv-screen" },
-      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("h2", {}, "🖼 Grafik"), graphicsRow, h("div", { class: "tv-row" }, done)),
+      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("h2", {}, "🖼 Grafik"), graphicsRow, h("p", { class: "muted" }, "Aussehen des Spielbretts (gilt ab der nächsten Karte):"), lookRow, h("div", { class: "tv-row" }, done)),
     );
     done.addEventListener("click", () => {
       pull();

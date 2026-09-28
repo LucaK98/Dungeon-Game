@@ -31,6 +31,27 @@ export function saveGraphicsMode(mode: GraphicsMode): void {
   }
 }
 
+/** Look of the board: "stimmung" (light and shadow, textures, outlines) or "klassisch" (as before). */
+export type LookMode = "stimmung" | "klassisch";
+
+const LOOK_KEY = "couch-dungeon.look";
+
+export function loadLookMode(): LookMode {
+  try {
+    return localStorage.getItem(LOOK_KEY) === "klassisch" ? "klassisch" : "stimmung";
+  } catch {
+    return "stimmung";
+  }
+}
+
+export function saveLookMode(mode: LookMode): void {
+  try {
+    localStorage.setItem(LOOK_KEY, mode);
+  } catch {
+    // Private mode: the choice lasts for this page only.
+  }
+}
+
 /** Screen pixels per board pixel (0.5 … 2), set once when the board starts. */
 export let RES = 1;
 /** Texture key and upscale factor of the tile atlas used by the scenes. */

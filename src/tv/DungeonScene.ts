@@ -12,7 +12,8 @@ import { assetUrl } from "../ui/atlas";
 import { Ambience } from "./ambience";
 import { CombatFx } from "./combat-fx";
 import type { ActionFx } from "../shared/view";
-import { crisp, prepareTiles, RES, TILES, UP } from "./render";
+import { crisp, loadLookMode, prepareTiles, RES, TILES, UP } from "./render";
+import { DETAIL_PX, detailFrame, ensureDetailTexture } from "./textures";
 import type { GameSession } from "./session";
 
 export const BOARD_WIDTH = 1920;
@@ -38,6 +39,11 @@ const NIGHT_DARKVISION = 7;
 const NIGHT_NONE = 1.4;
 const HERO_LIGHT = 5.5;
 const TORCH_LIGHT = 3.5;
+/** "Stimmungsvoll": darker rooms, light that walls block, a cool tint in the shadows. */
+const MOOD_DARK_INDOOR = 0.8;
+const MOOD_TORCH_LIGHT = 5;
+/** Pixels per square of the pre-computed light shapes (walls cast shadows). */
+const LIGHT_PX = 12;
 
 interface Figure {
   container: Phaser.GameObjects.Container;
@@ -87,6 +93,10 @@ export class DungeonScene extends Phaser.Scene {
   /** A boss entrance: the camera looks at it until then. */
   private spotlightUntil = 0;
   private lastLook = 0;
+  /** "Stimmungsvoll" look (setting): light and shadow, outlines, tinted shadows. */
+  private mood = false;
+  /** Light shapes with wall shadows, by light (torches, fires, glowing props). */
+  private shaped = new Map<string, Phaser.GameObjects.Image>();
 
   constructor(private getSession: () => GameSession) {
     super("dungeon");
@@ -108,6 +118,8 @@ export class DungeonScene extends Phaser.Scene {
     this.surfaceImages.clear();
     this.glows.clear();
     this.bubbles.clear();
+    this.shaped.clear();
+    this.mood = loadLookMode() === "stimmung";
     prepareTiles(this);
 
     this.ambience = new Ambience(this, () => this.session, (x, y, frame) => this.tile(x, y, frame));
@@ -131,6 +143,14 @@ export class DungeonScene extends Phaser.Scene {
     cam.roundPixels = false;
     this.layout();
     cam.setBackgroundColor("#000000");
+    // Stimmungsvoll: a soft vignette and a little more contrast and colour (WebGL only).
+    if (this.mood && this.renderer.type === Phaser.WEBGL) {
+      cam.postFX.clear();
+      cam.postFX.addVignette(0.5, 0.5, 0.92, 0.3);
+      const grade = cam.postFX.addColorMatrix();
+      grade.contrast(0.08);
+      grade.saturate(0.12, true);
+    }
     this.focusParty(true);
 
     this.showRoomName(map.rooms[0]!.name);
@@ -148,6 +168,17 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   private bakeMap(map: DungeonMap): void {
+    // Stimmungsvoll: bricks and flagstones with finer, seamless textures (drawn first, under everything).
+    const detail = new Map<string, Phaser.GameObjects.Blitter>();
+    const detailBlitter = (key: string) => {
+      let b = detail.get(key);
+      if (!b) {
+        b = this.add.blitter(0, 0, key);
+        this.add.container(0, 0, [b]).setScale(TILE / DETAIL_PX).setDepth(-1);
+        detail.set(key, b);
+      }
+      return b;
+    };
     // A blitter draws thousands of static tiles cheaply; the container scales the upscaled art back to world units.
     const blitter = this.add.blitter(0, 0, TILES);
     this.add.container(0, 0, [blitter]).setScale(1 / UP).setDepth(0);
@@ -157,8 +188,10 @@ export class DungeonScene extends Phaser.Scene {
         const i = cellIndex(map, x, y);
         const frame = map.frames[i];
         if (!frame) continue;
+        const key = this.mood ? ensureDetailTexture(this, frame) : undefined;
+        if (key) detailBlitter(key).create(x * DETAIL_PX, y * DETAIL_PX, detailFrame(x, y));
         // Forest "walls" are trees standing on grass.
-        blitter.create(x * s, y * s, frame);
+        else blitter.create(x * s, y * s, frame);
         const overlay = map.overlays[i];
         if (overlay && !overlay.startsWith("torch")) blitter.create(x * s, y * s, overlay);
       }
@@ -325,15 +358,15 @@ export class DungeonScene extends Phaser.Scene {
     // The body's origin is at the feet, so breathing stretches it upwards.
     const body = this.add.container(0, 12);
     container.add(body);
-    if (c.effects.some((e) => e.id === "wild-shape")) {
-      // A druid in wolf shape.
-      body.add(this.tile(0, -12, "monster.wolf"));
-    } else if (c.appearance) {
-      // No name labels: the coloured ring shows whose figure it is.
-      for (const frame of dollFrames(c.appearance.look)) body.add(this.tile(0, -12, frame));
-    } else if (c.monsterId) {
-      body.add(this.tile(0, -12, `monster.${c.monsterId}`));
+    // No name labels: the coloured ring shows whose figure it is.
+    const frames = c.effects.some((e) => e.id === "wild-shape") ? ["monster.wolf"] : c.appearance ? dollFrames(c.appearance.look) : c.monsterId ? [`monster.${c.monsterId}`] : [];
+    // Stimmungsvoll: a thin dark outline makes figures stand out on busy floors and in the dark.
+    if (this.mood) {
+      for (const [dx, dy] of [[-0.8, 0], [0.8, 0], [0, -0.8], [0, 0.8]] as const) {
+        for (const frame of frames) body.add(this.tile(dx, -12 + dy, frame).setTintFill(0x100a06).setAlpha(0.8).setData("outline", true));
+      }
     }
+    for (const frame of frames) body.add(this.tile(0, -12, frame));
     container.setScale(n);
     // Idle: everyone breathes, each at their own pace.
     this.tweens.add({ targets: body, scaleY: 1.035, scaleX: 0.99, duration: Phaser.Math.Between(1100, 1600), yoyo: true, repeat: -1, ease: "Sine.easeInOut", delay: Phaser.Math.Between(0, 1200) });
@@ -428,7 +461,8 @@ export class DungeonScene extends Phaser.Scene {
         .setDepth(6000);
       this.tweens.add({ targets: label, y: pos.y - 52, alpha: 0, delay: 250 + i * 120, duration: 1300, ease: "Cubic.easeOut", onComplete: () => label.destroy() });
       if (f && !hit.miss && !hit.heal) {
-        const images = f.body.list.filter((o): o is Phaser.GameObjects.Image => o instanceof Phaser.GameObjects.Image);
+        // The figure flashes red (outlines and the weapon glow keep their own colour).
+        const images = f.body.list.filter((o): o is Phaser.GameObjects.Image => o instanceof Phaser.GameObjects.Image && !o.getData("outline") && o !== f.glow);
         images.forEach((img) => img.setTintFill(0xff3030));
         this.tweens.add({ targets: f.container, x: pos.x + 3, duration: 50, yoyo: true, repeat: 2 });
         this.time.delayedCall(160, () => images.forEach((img) => img.clearTint()));
@@ -637,6 +671,7 @@ export class DungeonScene extends Phaser.Scene {
 
   private createLighting(map: DungeonMap): void {
     for (const key of ["fog", "unexplored", "light"]) if (this.textures.exists(key)) this.textures.remove(key);
+    for (const key of this.textures.getTextureKeys()) if (key.startsWith("ol-")) this.textures.remove(key);
     this.fogCanvas = this.textures.createCanvas("fog", map.width, map.height)!;
     this.unexploredCanvas = this.textures.createCanvas("unexplored", map.width, map.height)!;
     // Soft round light brush.
@@ -657,6 +692,61 @@ export class DungeonScene extends Phaser.Scene {
     this.dark = this.add.renderTexture(0, 0, map.width * TILE, map.height * TILE).setOrigin(0).setDepth(5000);
     // Soft light edges when the board is zoomed in on big screens.
     this.dark.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+  }
+
+  /**
+   * A light's shape with shadows: walls between the light and a square block it (soft edges).
+   * Drawn once per light and map, then erased out of the darkness like the round brush.
+   */
+  private shapedLight(key: string, lx: number, ly: number, radius: number): Phaser.GameObjects.Image {
+    const have = this.shaped.get(key);
+    if (have) return have;
+    const map = this.session.map;
+    const tex = `ol-${key}`;
+    if (this.textures.exists(tex)) this.textures.remove(tex);
+    const size = Math.ceil(radius * 2 * LIGHT_PX) + 8;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d")!;
+    const img = ctx.createImageData(size, size);
+    const wall = (x: number, y: number) => x < 0 || y < 0 || x >= map.width || y >= map.height || map.cells[cellIndex(map, x, y)] === "wall";
+    const sx = Math.floor(lx), sy = Math.floor(ly);
+    const seen = (tx: number, ty: number): boolean => {
+      const ex = Math.floor(tx), ey = Math.floor(ty);
+      const n = Math.ceil(Math.hypot(tx - lx, ty - ly) * 3);
+      for (let k = 1; k < n; k++) {
+        const cx = Math.floor(lx + ((tx - lx) * k) / n), cy = Math.floor(ly + ((ty - ly) * k) / n);
+        if ((cx === sx && cy === sy) || (cx === ex && cy === ey)) continue;
+        if (wall(cx, cy)) return false;
+      }
+      return true;
+    };
+    const half = size / 2;
+    for (let py = 0; py < size; py++) {
+      for (let px = 0; px < size; px++) {
+        const wx = lx + (px - half) / LIGHT_PX, wy = ly + (py - half) / LIGHT_PX;
+        const d = Math.hypot(wx - lx, wy - ly) / radius;
+        if (d >= 1) continue;
+        // Walls themselves catch the light on their face, so a lit wall square counts as seen.
+        if (!seen(wx, wy)) continue;
+        const a = d < 0.55 ? 1 - d * 0.27 : 0.85 * (1 - (d - 0.55) / 0.45);
+        img.data[(py * size + px) * 4 + 3] = Math.round(255 * Math.max(0, a));
+        img.data[(py * size + px) * 4] = img.data[(py * size + px) * 4 + 1] = img.data[(py * size + px) * 4 + 2] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    // Soft shadow edges.
+    const soft = document.createElement("canvas");
+    soft.width = size;
+    soft.height = size;
+    const sctx = soft.getContext("2d")!;
+    sctx.filter = "blur(4px)";
+    sctx.drawImage(canvas, 0, 0);
+    this.textures.addCanvas(tex, soft);
+    const image = this.make.image({ key: tex, add: false }).setOrigin(0.5).setScale(TILE / LIGHT_PX);
+    this.shaped.set(key, image);
+    return image;
   }
 
   private indoorCell(map: DungeonMap, i: number): boolean {
@@ -680,7 +770,11 @@ export class DungeonScene extends Phaser.Scene {
         unexplored.fillStyle = "#000";
         unexplored.fillRect(x, y, 1, 1);
       } else {
-        fog.fillStyle = `rgba(0,0,0,${map.dark ? DARK_NIGHT : this.indoorCell(map, i) ? DARK_INDOOR : DARK_OUTDOOR})`;
+        const indoor = this.indoorCell(map, i);
+        const a = map.dark ? DARK_NIGHT : indoor ? (this.mood ? MOOD_DARK_INDOOR : DARK_INDOOR) : DARK_OUTDOOR;
+        // Stimmungsvoll: shadows are a deep blue-violet instead of plain black (warm light against cool shade).
+        // (Empty space around the rooms stays plain black.)
+        fog.fillStyle = this.mood && !map.dark && map.frames[i] ? `rgba(10,8,26,${a})` : `rgba(0,0,0,${a})`;
         fog.fillRect(x, y, 1, 1);
       }
     }
@@ -713,14 +807,23 @@ export class DungeonScene extends Phaser.Scene {
         erase(x, y, NIGHT_NONE + wobble);
       }
     }
-    for (const t of [...this.torches, ...this.fires]) {
-      const flicker = Math.sin(time / 90 + t.phase) * 0.15 + Math.sin(time / 37 + t.phase * 3) * 0.1;
-      erase(t.x, t.y, TORCH_LIGHT + flicker);
-    }
     const map = this.session.map;
+    // Stimmungsvoll: the light's own shape with wall shadows, flickering a little.
+    const shaped = (key: string, x: number, y: number, radius: number, flicker: number, strength = 1) => {
+      const img = this.shapedLight(key, x, y, radius);
+      img.setScale((TILE / LIGHT_PX) * (1 + flicker * 0.04)).setAlpha(strength);
+      dark.erase(img, x * TILE, y * TILE);
+    };
+    [...this.torches, ...this.fires].forEach((t, k) => {
+      const flicker = Math.sin(time / 90 + t.phase) * 0.15 + Math.sin(time / 37 + t.phase * 3) * 0.1;
+      if (this.mood && !map.dark) shaped(`t${k}`, t.x, t.y, MOOD_TORCH_LIGHT, flicker);
+      else erase(t.x, t.y, TORCH_LIGHT + flicker);
+    });
     for (const o of map.objects) {
       const light = propLight(o);
-      if (light) erase(o.x + 0.5, o.y + 0.5, light.radius + 0.8 + Math.sin(time / 110 + o.x) * 0.1, 0.9);
+      if (!light) continue;
+      if (this.mood && !map.dark) shaped(o.id, o.x + 0.5, o.y + 0.5, light.radius + 1.6, Math.sin(time / 110 + o.x), 0.95);
+      else erase(o.x + 0.5, o.y + 0.5, light.radius + 0.8 + Math.sin(time / 110 + o.x) * 0.1, 0.9);
     }
     for (const [key, s] of Object.entries(map.surface ?? {})) {
       if (s.kind !== "fire") continue;
@@ -731,7 +834,7 @@ export class DungeonScene extends Phaser.Scene {
     for (const g of this.glows.values()) {
       const seen = map.explored[cellIndex(map, Math.floor(g.x), Math.floor(g.y))];
       const flicker = 0.85 + Math.sin(time / 95 + g.phase) * 0.1 + Math.sin(time / 41 + g.phase * 2) * 0.05;
-      g.img.setAlpha(seen ? g.strength * flicker : 0);
+      g.img.setAlpha(seen ? g.strength * flicker * (this.mood ? 1.4 : 1) : 0);
     }
     dark.draw(this.unexploredImage, 0, 0);
   }
