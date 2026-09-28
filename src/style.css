@@ -953,3 +953,14 @@ body.tip-mode::after {
 .choice-btn.urgent-heal { border-color: #3fbf6a; box-shadow: 0 0 0 3px rgb(63 191 106 / 35%); }
 .choice-btn.urgent-safe { border-color: #e8c440; box-shadow: 0 0 0 3px rgb(232 196 64 / 35%); }
 .prefs-title { margin: 14px 0 6px; font-weight: 700; }
+
+/* Queued move, targets on the map, undo, long press. */
+.queued-card { padding: 10px 12px; border: 1px dashed var(--accent); }
+.queued-card.mine { border-style: solid; box-shadow: 0 0 0 3px rgb(224 165 38 / 25%); display: grid; gap: 8px; }
+.queued-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.target-map { margin-bottom: 10px; }
+.target-map canvas { width: 100%; height: auto; border-radius: 10px; image-rendering: pixelated; }
+.undo-btn { width: 100%; margin-top: 8px; }
+.choice-btn, .minimap { -webkit-touch-callout: none; user-select: none; }
+.choice-btn.queueable { opacity: 0.85; border-style: dashed; }
+.queue-hint { font-size: 0.8em; color: var(--accent); font-weight: 700; }

@@ -23,7 +23,7 @@ import { dollCanvas } from "../ui/atlas";
 import { h } from "../ui/dom";
 import { showRollPrompt, type DiceOverlay } from "./dice";
 import { closeSheet, explainedLine, helpButton, maybeHint, openHelp, showRulesAnswer, showSheet } from "./help";
-import { minimapLegend, minimapView, planRoute, provokedBy } from "./minimap";
+import { minimapLegend, minimapView, onHold, planRoute, provokedBy } from "./minimap";
 import type { GridPos } from "../shared/game";
 import { canCraft, RECIPES } from "../shared/crafting";
 import { itemIcon } from "../shared/reward";
@@ -198,6 +198,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   let turnEnds: number | undefined;
   let warnedAt: number | undefined;
   let wasNextUp = false;
+  let queueWasMine = false;
+  /** A move chosen while someone else is still on (one tap once it is this hero's turn). */
+  let queued: { choiceId: string; group: ActionGroup; label: string; targetIds: string[]; targetNames: string[] } | undefined;
   let lastActions = 0;
   const tickTimer = () => {
     const el = status.querySelector<HTMLElement>(".turn-timer");
@@ -363,6 +366,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
 
   function choose(c: ActionChoice): void {
     if (!c.enabled) {
+      if (canQueue(c)) return queue(c);
       showToast(c.reason ?? "Das geht gerade nicht.");
       return;
     }
@@ -392,7 +396,67 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     }
   }
 
-  function pickTargets(c: ActionChoice): void {
+  /** Not this hero's turn yet: attacks, spells, items and abilities can be chosen in advance. */
+  function canQueue(c: ActionChoice): boolean {
+    const v = view;
+    return !!v && !v.turn.mine && !v.turn.free && !v.me.dead && v.me.hp > 0 && c.reason === "Warte, bis du dran bist." && ["attack", "spell", "item", "ability"].includes(c.group);
+  }
+
+  function queue(c: ActionChoice, targetId?: string): void {
+    const set = (ids: string[]) => {
+      const names = ids.map((id) => view?.minimap.creatures.find((x) => x.id === id)?.name ?? c.targets?.find((t) => t.id === id)?.name ?? "");
+      queued = { choiceId: c.id, group: c.group, label: c.label, targetIds: ids, targetNames: names.filter(Boolean) };
+      remember(c);
+      showToast("📌 Vorgemerkt – wenn du dran bist, reicht ein Tipp.");
+      render();
+    };
+    if (targetId) return set([targetId]);
+    // Attacks may aim at any enemy in sight: who is in reach is checked when the turn comes.
+    const enemies = (view?.minimap.creatures ?? []).filter((x) => x.enemy && !x.down).map((x) => ({ id: x.id, name: x.name, detail: `❤️ ${Math.round(x.health * 100)} %` }));
+    const targets = c.group === "attack" && enemies.length ? enemies : c.targets;
+    if (targets?.length && !(c.action.kind === "cast" && c.action.targetIds.length)) return pickTargets({ ...c, targets }, set);
+    set([]);
+  }
+
+  /** The queued move as it can be done now: the same choice, or walking there first if the enemy moved away. */
+  function queuedNow(v: PlayerView): { choice: ActionChoice; ids: string[] } | undefined {
+    if (!queued) return undefined;
+    const q = queued;
+    const fits = (c: ActionChoice) => c.enabled && (!q.targetIds.length || q.targetIds.every((id) => c.targets?.some((t) => t.id === id)));
+    const same = v.choices.find((c) => c.id === q.choiceId);
+    if (same && fits(same)) return { choice: same, ids: q.targetIds };
+    const walk = q.group === "attack" ? v.choices.find((c) => c.action.kind === "approach" && fits(c)) : undefined;
+    return walk ? { choice: walk, ids: q.targetIds } : undefined;
+  }
+
+  function queuedCard(v: PlayerView): HTMLElement | null {
+    if (!queued) return null;
+    const q = queued;
+    const cancel = h("button", { class: "btn secondary small", type: "button", textContent: "✖" });
+    cancel.addEventListener("click", () => {
+      queued = undefined;
+      render();
+    });
+    const what = `${q.label}${q.targetNames.length ? ` → ${q.targetNames.join(", ")}` : ""}`;
+    if (!v.turn.mine) return h("section", { class: "card queued-card" }, h("div", { class: "queued-row" }, h("span", {}, "📌 Vorgemerkt: ", h("strong", {}, what)), cancel));
+    const now = queuedNow(v);
+    if (!now) return null;
+    const go = h("button", { class: "btn primary big", type: "button", textContent: `▶ ${now.choice.label}${q.targetNames.length ? ` → ${q.targetNames.join(", ")}` : ""}` });
+    go.addEventListener("click", () => {
+      queued = undefined;
+      remember(now.choice);
+      send(now.ids.length ? withTargets(now.choice, now.ids) : now.choice.action);
+    });
+    const other = h("button", { class: "btn secondary", type: "button", textContent: "Doch etwas anderes" });
+    other.addEventListener("click", () => {
+      queued = undefined;
+      render();
+    });
+    return h("section", { class: "card queued-card mine" }, h("div", { class: "context-title" }, "📌 Dein vorgemerkter Zug"), go, other);
+  }
+
+  function pickTargets(c: ActionChoice, done?: (ids: string[]) => void): void {
+    const finish = (ids: string[]) => (done ? done(ids) : send(withTargets(c, ids)));
     const targets = c.targets ?? [];
     const pick = c.pick ?? { min: 1, max: 1, repeat: false };
     if (!targets.length) {
@@ -411,7 +475,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       b.addEventListener("click", () => {
         if (pick.max === 1) {
           closeSheet();
-          send(withTargets(c, [t.id]));
+          finish([t.id]);
           return;
         }
         const has = chosen.filter((x) => x === t.id).length;
@@ -426,12 +490,31 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     });
     confirm.addEventListener("click", () => {
       closeSheet();
-      send(withTargets(c, chosen));
+      finish(chosen);
     });
     counter();
     const note =
       pick.max > 1 ? h("p", { class: "lead" }, pick.repeat ? `Verteile ${pick.max} Geschosse: tippe ein Ziel mehrmals an.` : `Wähle bis zu ${pick.max} Ziele.`) : null;
-    showSheet(`${c.label}: Ziel wählen`, note, h("div", { class: "targets" }, ...buttons), pick.max > 1 ? confirm : null);
+    // The targets on the map too: tap the figure instead of looking for the name.
+    let map: HTMLElement | null = null;
+    const mm = view?.minimap;
+    const spots = mm ? targets.map((t) => ({ t, at: mm.creatures.find((x) => x.id === t.id) })).filter((x) => x.at) : [];
+    if (mm && spots.length) {
+      map = h(
+        "div",
+        { class: "target-map" },
+        minimapView(
+          mm,
+          (p) => {
+            const hit = spots.findIndex((x) => x.at!.x === p.x && x.at!.y === p.y);
+            if (hit >= 0) buttons[targets.indexOf(spots[hit]!.t)]!.click();
+          },
+          { targets: spots.map((x) => ({ x: x.at!.x, y: x.at!.y })) },
+        ),
+        h("p", { class: "muted small" }, "Tippe ein Ziel auf der Karte an – oder unten in der Liste."),
+      );
+    }
+    showSheet(`${c.label}: Ziel wählen`, note, map, h("div", { class: "targets" }, ...buttons), pick.max > 1 ? confirm : null);
   }
 
   let ideasBox: HTMLElement | undefined;
@@ -518,7 +601,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   function choiceButton(c: ActionChoice): HTMLElement {
     const b = h(
       "button",
-      { class: `choice-btn${c.enabled ? "" : " disabled"}${c.recommended ? " recommended" : ""}${c.votes?.mine ? " voted" : ""}${urgency(c)}`, type: "button", dataset: { help: c.glossarKey } },
+      { class: `choice-btn${c.enabled ? "" : canQueue(c) ? " queueable" : " disabled"}${c.recommended ? " recommended" : ""}${c.votes?.mine ? " voted" : ""}${urgency(c)}`, type: "button", dataset: { help: c.glossarKey } },
       h("span", { class: "choice-label" }, c.label, c.recommended ? h("span", { class: "rec" }, "⭐ Empfohlen") : null),
       ...choiceBody(c),
       c.votes
@@ -530,9 +613,61 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
           )
         : null,
       c.cost !== "free" ? h("span", { class: `cost cost-${c.cost}` }, c.cost === "bonus" ? "Bonus" : "Aktion") : null,
+      !c.enabled && canQueue(c) ? h("span", { class: "queue-hint" }, queued?.choiceId === c.id ? "📌 vorgemerkt" : "📌 vormerken") : null,
     );
     b.addEventListener("click", () => choose(c));
+    onHold(b, () => explainChoice(c));
     return b;
+  }
+
+  /** Long press on a button: what it does, what it costs, why it does not work right now. */
+  function explainChoice(c: ActionChoice): void {
+    const more = c.glossarKey ? h("button", { class: "btn secondary", type: "button", textContent: "📖 Mehr dazu" }) : null;
+    more?.addEventListener("click", () => {
+      closeSheet();
+      openHelp(c.glossarKey!);
+    });
+    showSheet(
+      `🔎 ${c.label}`,
+      h("div", { class: "chips" }, ...choiceChips(c)),
+      c.detail ? h("p", { class: "lead" }, c.detail) : null,
+      h("p", { class: "muted" }, c.cost === "free" ? "Kostet keine Aktion." : c.cost === "bonus" ? "Kostet deine Bonusaktion." : "Kostet deine Aktion."),
+      !c.enabled && c.reason ? h("p", { class: "route-warn" }, `⛔ ${c.reason}`) : null,
+      more,
+    );
+  }
+
+  /** Long press on the map: what is on this square. */
+  function explainCell(v: PlayerView, p: GridPos): void {
+    const mm = v.minimap;
+    const i = (p.y - mm.y0) * mm.w + (p.x - mm.x0);
+    const parts: (HTMLElement | null)[] = [];
+    if (!mm.frames[i]) parts.push(h("p", { class: "lead" }, "🌫️ Noch nicht erkundet."));
+    const who = mm.creatures.find((c) => c.x === p.x && c.y === p.y);
+    if (who) {
+      parts.push(h("p", { class: "lead" }, h("strong", {}, who.me ? `${who.name} (du)` : who.name), who.enemy ? " – Gegner" : who.color ? " – aus eurer Gruppe" : " – kein Gegner"));
+      if (who.enemy) parts.push(enemyCard(who));
+      else parts.push(h("p", { class: "muted" }, `❤️ ${Math.round(who.health * 100)} %${who.down ? " · bewusstlos!" : ""}`));
+    }
+    for (const o of mm.objects.filter((o) => o.x === p.x && o.y === p.y)) {
+      parts.push(h("p", { class: "lead" }, `📦 ${o.name ?? "Gegenstand"}`, o.use ? h("span", { class: "muted" }, ` · ${o.use}`) : ""));
+    }
+    const MARKS: Record<string, string> = {
+      d: "▨ Schwieriges Gelände: 2 Schritte pro Feld",
+      i: "🧊 Eis: glatt und schwierig – man kann ausrutschen",
+      h: "▲ Erhöht: Vorteil beim Schießen nach unten",
+      f: "🔥 Feuer: 1W6 Schaden, wer hineinläuft",
+      c: "🛡️ Deckung: daneben stehen = +2 RK gegen Fernangriffe",
+    };
+    const mark = mm.marks?.[i];
+    if (mark && MARKS[mark]) parts.push(h("p", {}, MARKS[mark]!));
+    if (v.turn.mine && !who?.me) {
+      const reach = mm.reachable.some((q) => q.x === p.x && q.y === p.y);
+      const route = reach ? planRoute(mm, p) : undefined;
+      parts.push(h("p", { class: "muted" }, reach ? `🦶 In diesem Zug erreichbar (${route?.cost ?? 1} ${route?.cost === 1 ? "Feld" : "Felder"}).` : "🦶 Zu weit für diesen Zug."));
+    }
+    if (parts.length === 0) parts.push(h("p", { class: "muted" }, "Hier ist nichts Besonderes."));
+    showSheet("🔎 Was ist hier?", ...parts);
   }
 
   function renderStory(v: PlayerView): HTMLElement[] {
@@ -770,6 +905,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     for (const c of v.choices) {
       if (c.group === "story" || c.group === "free" || c.group === "end") continue;
       if (creature && c.targets?.some((t) => t.id === creature.id)) list.push({ choice: c, targetId: creature.id });
+      else if (creature?.enemy && c.group === "attack" && c.action.kind === "attack" && canQueue(c)) list.push({ choice: c, targetId: creature.id });
       else if (creature && c.action.kind === "tame" && c.action.creatureId === creature.id) list.push({ choice: c });
       else if (c.action.kind === "interact" && objects.some((o) => o.id === (c.action as { objectId: string }).objectId)) list.push({ choice: c });
       else if (c.action.kind === "ground" && c.action.x === p.x && c.action.y === p.y) list.push({ choice: c });
@@ -809,6 +945,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         clone.addEventListener("click", () => {
           closeSheet();
           if (!choice.enabled) {
+            if (canQueue(choice)) return queue(choice, targetId);
             showToast(choice.reason ?? "Das geht gerade nicht.");
             return;
           }
@@ -833,6 +970,26 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       );
       return;
     }
+    // Something further away: walk there and use it / talk.
+    const thing = v.turn.mine ? v.minimap.objects.find((o) => o.x === p.x && o.y === p.y && o.use) : undefined;
+    const person = v.turn.mine ? v.minimap.creatures.find((c) => c.x === p.x && c.y === p.y && !c.me && !c.enemy && !c.color && !c.down) : undefined;
+    if (thing || person) {
+      send({ kind: "point", x: p.x, y: p.y });
+      const go = h("button", { class: "btn primary", type: "button", textContent: thing ? `🦶 Hingehen: ${thing.use}` : `🦶💬 Hingehen und mit ${person!.name} reden` });
+      go.addEventListener("click", () => {
+        closeSheet();
+        if (thing) send({ kind: "go_use", objectId: thing.id });
+        else freeText(`Ich spreche mit ${person!.name}: `);
+      });
+      const reachable = v.minimap.reachable.some((q) => q.x === p.x && q.y === p.y);
+      const walk = reachable ? h("button", { class: "btn secondary", type: "button", textContent: "Nur dorthin gehen" }) : null;
+      walk?.addEventListener("click", () => {
+        closeSheet();
+        planWalk(v, p);
+      });
+      showSheet(`🎯 ${thing?.name ?? person!.name}`, h("p", { class: "muted small" }, "Du läufst so weit, wie deine Bewegung reicht – und legst los, sobald du daneben stehst."), go, walk);
+      return;
+    }
     planWalk(v, p);
   }
 
@@ -855,11 +1012,20 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     render();
   }
 
+  function undoButton(): HTMLElement {
+    const b = h("button", { class: "btn secondary small undo-btn", type: "button", textContent: "↩️ Zurück (Schritt zurücknehmen)" });
+    b.addEventListener("click", () => {
+      walkPlan = undefined;
+      send({ kind: "undo_move" });
+    });
+    return b;
+  }
+
   function mapCard(v: PlayerView): HTMLElement {
     const plan = walkPlan && v.minimap.reachable.some((q) => q.x === walkPlan!.to.x && q.y === walkPlan!.to.y) ? walkPlan : undefined;
     if (!plan) walkPlan = undefined;
     const marks = plan ? { route: plan.route, selected: plan.to } : {};
-    const map = minimapView(v.minimap, tapMap, marks);
+    const map = minimapView(v.minimap, tapMap, marks, "minimap", (p) => explainCell(v, p));
     const full = h("button", { class: "map-full", type: "button", textContent: "⛶", title: "Karte groß" });
     full.addEventListener("click", () => openBigMap());
     let info: HTMLElement | null = null;
@@ -889,6 +1055,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       h("div", { class: "card-title" }, h("span", {}, `📍 ${v.roomName}`), h("span", { class: "muted small" }, hintText)),
       h("div", { class: "map-wrap" }, map, full),
       info ?? "",
+      v.turn.canUndo ? undoButton() : "",
       minimapLegend(v.minimap),
     );
   }
@@ -904,7 +1071,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     const draw = () => {
       if (!view || !bigMap) return;
       const plan = walkPlan;
-      const canvas = minimapView(view.minimap, (p) => tapMap(p), plan ? { route: plan.route, selected: plan.to } : {}, "minimap big");
+      const canvas = minimapView(view.minimap, (p) => tapMap(p), plan ? { route: plan.route, selected: plan.to } : {}, "minimap big", (p) => view && explainCell(view, p));
       canvas.style.width = `${bigZoom * 100}%`;
       scroller.replaceChildren(canvas);
       // Centre on the own hero.
@@ -944,6 +1111,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     if (v.camp) return [campSection(v.camp)];
     campCard = undefined;
     const top: HTMLElement[] = [];
+    const planned = queuedCard(v);
+    if (planned) top.push(planned);
     const here = contextCard(v);
     if (here) top.push(here);
     const suggestion = suggestionCard(v);
@@ -952,7 +1121,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     const actions: HTMLElement[] = [];
     // Simple view: the three most useful actions, the rest one tap away.
     if (loadPrefs().simple && !showAll) {
-      const usable = v.choices.filter((c) => c.enabled && ["attack", "spell", "item", "ability", "look"].includes(c.group));
+      const usable = v.choices.filter((c) => (c.enabled || canQueue(c)) && ["attack", "spell", "item", "ability", "look"].includes(c.group));
       const score = (c: ActionChoice) => (c === favouriteChoice(v) ? 100 : 0) + (c.recommended ? 50 : 0) + (favourites[c.id] ?? 0) + (c.group === "attack" ? 5 : c.group === "spell" ? 4 : 0) + (c.avg ?? 0) / 10 + ((c.avgKind === "heal" || c.id === "item:potion") && !urgency(c) ? -20 : 0);
       const best = [...usable].sort((a, b) => score(b) - score(a)).slice(0, 3);
       const more = h("button", { class: "btn secondary all-actions", type: "button", textContent: `▼ Alle Aktionen (${usable.length})` });
@@ -982,8 +1151,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     const locked: ActionChoice[] = [];
     for (const g of groups) {
       const all = v.choices.filter((c) => c.group === g);
-      const list = all.filter((c) => c.enabled);
-      locked.push(...all.filter((c) => !c.enabled));
+      // Waiting for the turn: attacks & co. can be queued, so they stay in their group.
+      const list = all.filter((c) => c.enabled || canQueue(c));
+      locked.push(...all.filter((c) => !c.enabled && !canQueue(c)));
       if (!list.length) continue;
       const open = !closedGroups.has(g);
       const head = h("button", { class: "group-head", type: "button" }, h("span", {}, GROUP_TITLES[g]), h("span", { class: "muted" }, `${list.length} ${open ? "▲" : "▼"}`));
@@ -1421,6 +1591,16 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       // Next in line: a short buzz, so there is time to think.
       if (v.turn.nextUp && !wasNextUp && "vibrate" in navigator) navigator.vibrate(40);
       wasNextUp = !!v.turn.nextUp;
+      // My turn begins: the queued move is ready – or it no longer works.
+      if (v.turn.mine && !queueWasMine && queued) {
+        if (queuedNow(v)) {
+          if ("vibrate" in navigator) navigator.vibrate([40, 40, 40]);
+        } else {
+          showToast(`📌 „${queued.label}“ geht gerade nicht mehr – such dir etwas anderes aus.`);
+          queued = undefined;
+        }
+      }
+      queueWasMine = v.turn.mine;
       // "Zug automatisch beenden": the action is used up and no bonus action is left to use.
       const actedNow = v.turn.mine && lastActions > 0 && v.turn.actions <= 0;
       lastActions = v.turn.mine ? v.turn.actions : 0;

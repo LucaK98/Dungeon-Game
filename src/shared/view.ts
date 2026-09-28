@@ -47,7 +47,8 @@ export interface MiniMap {
    * "h" high place, "f" fire, "i" ice (slippery and difficult), "c" cover furniture.
    */
   marks?: string;
-  objects: { id: string; x: number; y: number; frame: string }[];
+  /** name: what it is; use: what a hero could do with it once next to it ("Truhe öffnen"). */
+  objects: { id: string; x: number; y: number; frame: string; name?: string; use?: string }[];
   creatures: MiniCreature[];
   /** Squares the player can walk to this turn. */
   reachable: GridPos[];
@@ -102,6 +103,8 @@ export interface TurnInfo {
   secondsLeft?: number;
   /** This hero is next after the active one. */
   nextUp?: boolean;
+  /** The last move can still be taken back. */
+  canUndo?: boolean;
 }
 
 export interface OrderEntry {

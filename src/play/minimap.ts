@@ -16,9 +16,50 @@ export interface MapMarks {
   route?: GridPos[];
   /** A square that is selected (ring). */
   selected?: GridPos;
+  /** Possible targets (tap one to pick it). */
+  targets?: GridPos[];
 }
 
-export function minimapView(map: MiniMap, onTap: (p: GridPos) => void, marks: MapMarks = {}, cls = "minimap"): HTMLCanvasElement {
+/**
+ * Holding a finger on an element (about half a second) calls `fn` instead of the normal tap.
+ * The click that follows the hold is swallowed.
+ */
+export function onHold(el: HTMLElement, fn: (e: PointerEvent) => void, ms = 550): void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let start: { x: number; y: number } | undefined;
+  let held = false;
+  const stop = () => {
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+  };
+  el.addEventListener("pointerdown", (e) => {
+    held = false;
+    start = { x: e.clientX, y: e.clientY };
+    stop();
+    timer = setTimeout(() => {
+      held = true;
+      if ("vibrate" in navigator) navigator.vibrate(20);
+      fn(e);
+    }, ms);
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 12) stop();
+  });
+  for (const type of ["pointerup", "pointercancel", "pointerleave"]) el.addEventListener(type, stop);
+  el.addEventListener("contextmenu", (e) => e.preventDefault());
+  el.addEventListener(
+    "click",
+    (e) => {
+      if (!held) return;
+      held = false;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    },
+    true,
+  );
+}
+
+export function minimapView(map: MiniMap, onTap: (p: GridPos) => void, marks: MapMarks = {}, cls = "minimap", onLongPress?: (p: GridPos) => void): HTMLCanvasElement {
   const canvas = h("canvas", { class: cls, width: map.w * TILE, height: map.h * TILE, dataset: { help: "minikarte" } }) as HTMLCanvasElement;
   void loadAtlas().then((atlas) => {
     const ctx = canvas.getContext("2d")!;
@@ -112,6 +153,15 @@ export function minimapView(map: MiniMap, onTap: (p: GridPos) => void, marks: Ma
         ctx.fill();
       }
     }
+    for (const t of marks.targets ?? []) {
+      const x = (t.x - map.x0) * TILE;
+      const y = (t.y - map.y0) * TILE;
+      ctx.strokeStyle = "#ff5a5a";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(x + 1.5, y + 1.5, TILE - 3, TILE - 3);
+      ctx.setLineDash([]);
+    }
     if (marks.selected) {
       const x = (marks.selected.x - map.x0) * TILE;
       const y = (marks.selected.y - map.y0) * TILE;
@@ -120,12 +170,12 @@ export function minimapView(map: MiniMap, onTap: (p: GridPos) => void, marks: Ma
       ctx.strokeRect(x + 2, y + 2, TILE - 4, TILE - 4);
     }
   });
-  canvas.addEventListener("click", (e) => {
+  const cellAt = (e: MouseEvent): GridPos => {
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor(((e.clientX - rect.left) / rect.width) * map.w) + map.x0;
-    const y = Math.floor(((e.clientY - rect.top) / rect.height) * map.h) + map.y0;
-    onTap({ x, y });
-  });
+    return { x: Math.floor(((e.clientX - rect.left) / rect.width) * map.w) + map.x0, y: Math.floor(((e.clientY - rect.top) / rect.height) * map.h) + map.y0 };
+  };
+  if (onLongPress) onHold(canvas, (e) => onLongPress(cellAt(e)));
+  canvas.addEventListener("click", (e) => onTap(cellAt(e)));
   return canvas;
 }
 

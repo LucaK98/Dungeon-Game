@@ -166,6 +166,18 @@ function unaware(c: Creature): boolean {
   return hasEffect(c, "asleep") || hasEffect(c, "on-guard");
 }
 
+/** Objects in words (for the game master and the long-press info on the phone). */
+const OBJECT_NAMES: Record<string, string> = {
+  chest: "Truhe", door: "Tür", fountain: "Brunnen", statue: "Statue", altar: "Altar", column: "Säule", throne: "Thron",
+  boulder: "Felsbrocken", box: "Kisten und Fässer", tree: "Bäume", trap: "", gold: "Goldmünzen am Boden", potion: "ein Fläschchen am Boden",
+  item: "etwas Glänzendes am Boden", "stairs-down": "Treppe nach unten", "stairs-up": "Treppe nach oben",
+  barrel: "Fässer", lever: "ein Hebel an der Wand", chandelier: "ein Kronleuchter an der Decke", campfire: "ein Lagerfeuer", cauldron: "ein brodelnder Kessel", secret: "",
+};
+
+function objectName(o: MapObject): string {
+  return (o.kind === "prop" ? propDef(o)?.name : OBJECT_NAMES[o.kind]) || "Gegenstand";
+}
+
 export class GameController {
   private log: ExplainedLine[] = [];
   private pending: PendingRoll | undefined;
@@ -479,14 +491,8 @@ export class GameController {
     const map = this.map;
     const roomIndex = map.roomOf[cellIndex(map, hero.pos.x, hero.pos.y)] ?? -1;
     const room = roomIndex >= 0 ? map.rooms[roomIndex] : undefined;
-    const NAMES: Record<string, string> = {
-      chest: "Truhe", door: "Tür", fountain: "Brunnen", statue: "Statue", altar: "Altar", column: "Säule", throne: "Thron",
-      boulder: "Felsbrocken", box: "Kisten und Fässer", tree: "Bäume", trap: "", gold: "Goldmünzen am Boden", potion: "ein Fläschchen am Boden",
-      item: "etwas Glänzendes am Boden", "stairs-down": "Treppe nach unten", "stairs-up": "Treppe nach oben",
-      barrel: "Fässer", lever: "ein Hebel an der Wand", chandelier: "ein Kronleuchter an der Decke", campfire: "ein Lagerfeuer", cauldron: "ein brodelnder Kessel", secret: "",
-    };
     const near = map.objects.filter((o) => Math.max(Math.abs(o.x - hero.pos!.x), Math.abs(o.y - hero.pos!.y)) <= 8 && (o.kind !== "trap" || o.state === "found") && o.state !== "used");
-    const objects = [...new Set(near.map((o) => (o.kind === "prop" ? (propDef(o)?.name ?? "") : (NAMES[o.kind] ?? o.kind))).filter(Boolean))];
+    const objects = [...new Set(near.map((o) => (o.kind === "prop" ? (propDef(o)?.name ?? "") : (OBJECT_NAMES[o.kind] ?? o.kind))).filter(Boolean))];
     const surfaces = new Set(Object.entries(map.surface ?? {}).filter(([k]) => { const i = Number(k); return Math.max(Math.abs((i % map.width) - hero.pos!.x), Math.abs(Math.floor(i / map.width) - hero.pos!.y)) <= 8; }).map(([, v]) => v.kind));
     for (const k of surfaces) objects.push(({ puddle: "Pfützen", oil: "eine Öllache", ice: "Eis am Boden", fire: "Feuer!", mud: "Schlamm", warn: "bröckelnde Decke" } as Record<string, string>)[k]!);
     const around = [...Array(9).keys()].map((k) => ({ x: hero.pos!.x + (k % 3) - 1, y: hero.pos!.y + Math.floor(k / 3) - 1 }));
@@ -715,6 +721,8 @@ export class GameController {
   /** Actions that arrived while someone else was rolling: handled right after, in order. */
   private deferred: { playerId: PlayerId; action: PlayerAction }[] = [];
   private lastPoint = new Map<PlayerId, number>();
+  /** The last move, while it can still be taken back (nothing revealed, rolled or hit). */
+  private undo: { heroId: string; from: GridPos; costFt: number; companions: [string, GridPos][] } | undefined;
 
   private flushDeferred(): void {
     while (this.deferred.length && !this.pending) {
@@ -793,6 +801,7 @@ export class GameController {
   endTurn(): void {
     if (this.destroyed) return;
     this.pending = undefined;
+    this.undo = undefined;
     for (let guard = 0; guard < 40; guard++) {
       const round = this.battle.combat?.round;
       const start = nextTurn(this.rng, this.battle);
@@ -1218,6 +1227,7 @@ export class GameController {
       if (!this.pending || this.pending.playerId !== playerId || this.pending.prompt.id !== action.rollId) return;
       const pending = this.pending;
       this.pending = undefined;
+      this.undo = undefined;
       const result = pending.run();
       queueMicrotask(() => this.flushDeferred());
       if ("error" in result) this.sendTo(playerId, { type: "action_error", reason: result.error });
@@ -1241,6 +1251,11 @@ export class GameController {
       this.sendTo(playerId, { type: "action_error", reason: "Erst würfeln!" });
       return;
     }
+    if (action.kind === "undo_move") {
+      this.undoMove(playerId, hero);
+      return;
+    }
+    this.undo = undefined;
     if (action.kind === "use_item" && action.itemId === "torch") {
       this.toggleTorch(hero);
       return;
@@ -1276,6 +1291,20 @@ export class GameController {
       case "move":
         this.move(playerId, hero, action.to);
         return;
+      case "go_use": {
+        // Walk to the object, then use it right away if it is within reach.
+        const o = this.map.objects.find((x) => x.id === action.objectId);
+        if (!o || !hero.pos) {
+          this.sendTo(playerId, { type: "action_error", reason: "Das gibt es hier nicht mehr." });
+          return;
+        }
+        this.walkTowards(playerId, hero, { pos: { x: o.x, y: o.y }, name: objectName(o) });
+        if (this.active()?.id !== hero.id || this.pending) return;
+        const use = this.choicesFor(hero, true, false).find((c) => c.enabled && c.action.kind === "interact" && c.action.objectId === o.id && !c.targets?.length);
+        if (use) this.handle(playerId, use.action);
+        else if (Math.max(Math.abs(o.x - hero.pos.x), Math.abs(o.y - hero.pos.y)) <= 1) this.sendTo(playerId, { type: "action_error", reason: `Mit ${objectName(o)} kannst du gerade nichts machen.` });
+        return;
+      }
       case "free_text": {
         const said = action.text.trim();
         // "Ich gehe zur Theke (und frage nach dem Weg)": walk there first, as far as the movement goes.
@@ -1581,6 +1610,8 @@ export class GameController {
 
   private move(playerId: PlayerId, hero: Creature, to: GridPos): void {
     const turn = this.battle.combat?.turn;
+    const before = { pos: hero.pos ? { ...hero.pos } : undefined, ft: turn?.movementLeftFt ?? 0, hp: hero.hp, conditions: hero.conditions.length, explored: this.exploredCount(), mode: this.mode, prone: hasCondition(hero, "prone") };
+    const companions = this.heroes().filter((c) => c.companion && c.pos).map((c): [string, GridPos] => [c.id, { ...c.pos! }]);
     const steps = Math.floor((turn?.movementLeftFt ?? hero.speedFt) / 5);
     const path = findPath(this.battle, hero, (p) => p.x === to.x && p.y === to.y, (p) => isWalkable(this.map, p), steps);
     if (!path || path.length === 0 || pathCost(this.battle, path) > steps) {
@@ -1610,7 +1641,46 @@ export class GameController {
     this.emit("lines", lines);
     this.walkedThrough(hero, walk);
     if (this.mode !== "combat") this.companionsFollow(hero);
+    const quiet = outcome.kind === "move" && !outcome.opportunityAttacks.length && trapIndex < 0 && !lines.some((l) => /^(🗺️|💰|🧪)/.test(l.text));
+    this.undo = undefined;
     this.afterAction();
+    // Taking it back is fair as long as the move showed nothing new and nothing happened on the way.
+    const turnNow = this.battle.combat?.turn;
+    if (quiet && before.pos && !before.prone && this.active()?.id === hero.id && !this.pending && this.mode === before.mode && hero.hp === before.hp && hero.conditions.length === before.conditions && this.exploredCount() === before.explored && turnNow) {
+      this.undo = { heroId: hero.id, from: before.pos, costFt: before.ft - turnNow.movementLeftFt, companions };
+      this.broadcast();
+    }
+  }
+
+  private exploredCount(): number {
+    let n = 0;
+    for (const e of this.map.explored) if (e) n++;
+    return n;
+  }
+
+  /** "↩️ Zurück": the hero stands where they were, with the movement back. */
+  private undoMove(playerId: PlayerId, hero: Creature): void {
+    const u = this.undo;
+    const turn = this.battle.combat?.turn;
+    if (!u || u.heroId !== hero.id || !turn || this.active()?.id !== hero.id || this.pending) {
+      this.sendTo(playerId, { type: "action_error", reason: "Das lässt sich nicht mehr zurücknehmen." });
+      return;
+    }
+    const blocked = (p: GridPos) => Object.values(this.battle.creatures).some((c) => c.id !== hero.id && !c.dead && c.pos && c.pos.x === p.x && c.pos.y === p.y && !u.companions.some(([id]) => id === c.id));
+    if (blocked(u.from)) {
+      this.sendTo(playerId, { type: "action_error", reason: "Dort steht jetzt jemand anderes." });
+      return;
+    }
+    this.undo = undefined;
+    hero.pos = { ...u.from };
+    turn.movementLeftFt += u.costFt;
+    for (const [id, pos] of u.companions) {
+      const c = this.battle.creatures[id];
+      if (c && !c.dead) c.pos = { ...pos };
+    }
+    this.addLog([{ text: `↩️ ${hero.name} überlegt es sich anders und geht zurück.`, glossarKeys: ["bewegung"] }]);
+    this.emit("changed");
+    this.broadcast();
   }
 
   /** Ice on the way may throw you over; ending the move in fire burns. */
@@ -3121,6 +3191,42 @@ export class GameController {
     this.boons.clear();
   }
 
+  /** What a hero can do with an object right next to them (also used for "hingehen und benutzen"). */
+  private objectChoices(me: Creature, o: MapObject, enemies: Creature[], mine: boolean, costReason: (cost: "action" | "bonus") => string | undefined): ActionChoice[] {
+    const out: ActionChoice[] = [];
+    const notMine = mine ? undefined : "Warte, bis du dran bist.";
+    if (o.kind === "chest" && o.state !== "open") {
+      out.push({ id: `open:${o.id}`, group: "look", label: "Truhe öffnen", detail: "Direkt neben dir · kostet nichts", glossarKey: "truhe", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
+    }
+    if (o.kind === "barrel" && o.state !== "used" && !(this.mode !== "combat" && o.state === "found")) {
+      if (this.mode === "combat") {
+        const targets = enemies.filter((e) => e.pos && Math.max(Math.abs(e.pos.x - o.x), Math.abs(e.pos.y - o.y)) <= 4);
+        const reason = costReason("action") ?? (targets.length ? undefined : "Kein Gegner in Rollweite (4 Felder vom Fass).");
+        out.push({ id: `barrel:${o.id}`, group: "look", label: "🛢️ Fass auf Gegner rollen", detail: "Athletik SG 10 · 1W6 Schaden, kleine Gegner fallen um", glossarKey: "fass", cost: "action", enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "interact", objectId: o.id }, targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `TP ${t.hp}/${t.maxHp}` })), pick: { min: 1, max: 1, repeat: false } });
+      } else out.push({ id: `search:${o.id}`, group: "look", label: "🛢️ Fass durchsuchen", detail: "Direkt neben dir · kostet nichts", glossarKey: "fass", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
+    }
+    if (o.kind === "lever" && o.state !== "used") {
+      const reason = this.mode === "combat" ? costReason("action") : notMine;
+      out.push({ id: `lever:${o.id}`, group: "look", label: "🕹️ Hebel ziehen", detail: this.mode === "combat" ? "Kostet deine Aktion · was passiert wohl?" : "Direkt neben dir · was passiert wohl?", glossarKey: "hebel", cost: this.mode === "combat" ? "action" : "free", enabled: !reason && (mine || this.mode !== "combat"), ...(reason ? { reason } : {}), action: { kind: "interact", objectId: o.id } });
+    }
+    if (o.kind === "secret" && o.state !== "found") {
+      const reason = this.mode === "combat" ? costReason("action") : notMine;
+      const runes = o.variant === "runes";
+      out.push({ id: `secret:${o.id}`, group: "look", label: runes ? "🔍 Zeichen an der Wand untersuchen" : "🔍 Bodenplatte untersuchen", detail: runes ? "Arkane Kunde SG 12" : "Nachforschungen SG 12", glossarKey: "geheimnis", cost: this.mode === "combat" ? "action" : "free", enabled: !reason, ...(reason ? { reason } : {}), recommended: o.state === "closed", action: { kind: "interact", objectId: o.id } });
+    }
+    if (o.kind === "campfire" && this.mode !== "combat" && !this.restedAtFire.size) {
+      out.push({ id: `fire:${o.id}`, group: "look", label: "🔥 Am Feuer rasten", detail: "Alle heilen ein wenig (einmal pro Ort)", glossarKey: "lagerfeuer", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
+    }
+    if (o.kind === "cauldron" && this.mode !== "combat" && !this.triedObject.has(`${o.id}:${me.id}`)) {
+      out.push({ id: `cauldron:${o.id}`, group: "look", label: "🧪 Aus dem Kessel kosten", detail: "Naturkunde SG 13: Heiltrank oder Hexengebräu?", glossarKey: "kessel", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
+    }
+    if (o.kind === "prop" || o.kind === "altar" || o.kind === "fountain") out.push(...this.propChoices(me, o, enemies, mine, costReason));
+    if (o.kind === "door") {
+      out.push({ id: `door:${o.id}`, group: "look", label: o.state === "open" ? "Tür schließen" : "Tür öffnen", detail: "Direkt neben dir · kostet nichts", glossarKey: "aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
+    }
+    return out;
+  }
+
   /** What a hero can do with the props next to them (phone buttons). */
   private propChoices(me: Creature, o: MapObject, enemies: Creature[], mine: boolean, costReason: (cost: "action" | "bonus") => string | undefined): ActionChoice[] {
     const out: ActionChoice[] = [];
@@ -3326,6 +3432,7 @@ export class GameController {
         speedFt: me.speedFt,
         ...(mine && this.secondsLeft() !== undefined ? { secondsLeft: this.secondsLeft()! } : {}),
         ...(!mine && !free && this.nextUp()?.id === me.id ? { nextUp: true } : {}),
+        ...(mine && this.undo?.heroId === me.id ? { canUndo: true } : {}),
       },
       order,
       roomName: roomIndex >= 0 ? this.map.rooms[roomIndex]!.name : "Gang",
@@ -3413,7 +3520,10 @@ export class GameController {
     const seen = (p: GridPos) => !light || light[(p.y - y0) * w + (p.x - x0)] !== "2";
     const objects = map.objects
       .filter((o) => !!o.frame && o.state !== "hidden" && inWindow(o) && map.explored[cellIndex(map, o.x, o.y)])
-      .map((o) => ({ id: o.id, x: o.x, y: o.y, frame: o.frame }));
+      .map((o) => {
+        const use = mine && o.kind !== "trap" && o.kind !== "door" ? this.objectChoices(me, o, this.enemiesVisible().filter(isActive), true, () => undefined)[0]?.label : undefined;
+        return { id: o.id, x: o.x, y: o.y, frame: o.frame, name: objectName(o), ...(use ? { use } : {}) };
+      });
     const creatures = Object.values(this.battle.creatures)
       .filter((c) => !c.dead && c.pos && inWindow(c.pos) && map.explored[cellIndex(map, c.pos.x, c.pos.y)])
       // Enemies in the dark stay hidden; the own group is always known.
@@ -4347,35 +4457,7 @@ export class GameController {
         choices.push({ id: `chandelier:${o.id}`, group: "look", label: "💥 Kronleuchter abstürzen lassen", detail: `Akrobatik SG 12 · 2W6 Schaden für alle Gegner darunter${under.length ? ` (${under.map((u) => u.name).join(", ")})` : " (gerade niemand)"}`, glossarKey: "kronleuchter", cost: "action", enabled: !reason, ...(reason ? { reason } : {}), recommended: under.length >= 2, action: { kind: "interact", objectId: o.id } });
       }
       if (!me.pos || Math.max(Math.abs(o.x - me.pos.x), Math.abs(o.y - me.pos.y)) > 1) continue;
-      if (o.kind === "chest" && o.state !== "open") {
-        choices.push({ id: `open:${o.id}`, group: "look", label: "Truhe öffnen", detail: "Direkt neben dir · kostet nichts", glossarKey: "truhe", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
-      }
-      if (o.kind === "barrel" && o.state !== "used" && !(this.mode !== "combat" && o.state === "found")) {
-        if (this.mode === "combat") {
-          const targets = enemies.filter((e) => e.pos && Math.max(Math.abs(e.pos.x - o.x), Math.abs(e.pos.y - o.y)) <= 4);
-          const reason = costReason("action") ?? (targets.length ? undefined : "Kein Gegner in Rollweite (4 Felder vom Fass).");
-          choices.push({ id: `barrel:${o.id}`, group: "look", label: "🛢️ Fass auf Gegner rollen", detail: "Athletik SG 10 · 1W6 Schaden, kleine Gegner fallen um", glossarKey: "fass", cost: "action", enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "interact", objectId: o.id }, targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `TP ${t.hp}/${t.maxHp}` })), pick: { min: 1, max: 1, repeat: false } });
-        } else choices.push({ id: `search:${o.id}`, group: "look", label: "🛢️ Fass durchsuchen", detail: "Direkt neben dir · kostet nichts", glossarKey: "fass", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
-      }
-      if (o.kind === "lever" && o.state !== "used") {
-        const reason = this.mode === "combat" ? costReason("action") : notMine;
-        choices.push({ id: `lever:${o.id}`, group: "look", label: "🕹️ Hebel ziehen", detail: this.mode === "combat" ? "Kostet deine Aktion · was passiert wohl?" : "Direkt neben dir · was passiert wohl?", glossarKey: "hebel", cost: this.mode === "combat" ? "action" : "free", enabled: !reason && (mine || this.mode !== "combat"), ...(reason ? { reason } : {}), action: { kind: "interact", objectId: o.id } });
-      }
-      if (o.kind === "secret" && o.state !== "found") {
-        const reason = this.mode === "combat" ? costReason("action") : notMine;
-        const runes = o.variant === "runes";
-        choices.push({ id: `secret:${o.id}`, group: "look", label: runes ? "🔍 Zeichen an der Wand untersuchen" : "🔍 Bodenplatte untersuchen", detail: runes ? "Arkane Kunde SG 12" : "Nachforschungen SG 12", glossarKey: "geheimnis", cost: this.mode === "combat" ? "action" : "free", enabled: !reason, ...(reason ? { reason } : {}), recommended: o.state === "closed", action: { kind: "interact", objectId: o.id } });
-      }
-      if (o.kind === "campfire" && this.mode !== "combat" && !this.restedAtFire.size) {
-        choices.push({ id: `fire:${o.id}`, group: "look", label: "🔥 Am Feuer rasten", detail: "Alle heilen ein wenig (einmal pro Ort)", glossarKey: "lagerfeuer", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
-      }
-      if (o.kind === "cauldron" && this.mode !== "combat" && !this.triedObject.has(`${o.id}:${me.id}`)) {
-        choices.push({ id: `cauldron:${o.id}`, group: "look", label: "🧪 Aus dem Kessel kosten", detail: "Naturkunde SG 13: Heiltrank oder Hexengebräu?", glossarKey: "kessel", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
-      }
-      if (o.kind === "prop" || o.kind === "altar" || o.kind === "fountain") choices.push(...this.propChoices(me, o, enemies, mine, costReason));
-      if (o.kind === "door") {
-        choices.push({ id: `door:${o.id}`, group: "look", label: o.state === "open" ? "Tür schließen" : "Tür öffnen", detail: "Direkt neben dir · kostet nichts", glossarKey: "aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "interact", objectId: o.id } });
-      }
+      choices.push(...this.objectChoices(me, o, enemies, mine, costReason));
     }
     // Stray animals next to you can be tamed.
     for (const c of Object.values(this.battle.creatures)) {

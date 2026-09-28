@@ -33,6 +33,10 @@ export type PlayerAction =
   | { kind: "free_text"; text: string }
   /** Walk next to an enemy and attack it with this weapon (one button). */
   | { kind: "approach"; targetId: string; optionId: string }
+  /** Walk to an object and use it (chest, lever, table …) as soon as it is next to you. */
+  | { kind: "go_use"; objectId: string }
+  /** Take back the last move (only while nothing was revealed, rolled or hit). */
+  | { kind: "undo_move" }
   /** Points at a square on the map (shown on the TV), with a planned route if there is one. */
   | { kind: "point"; x: number; y: number; path?: { x: number; y: number }[] }
   /** Brew or tinker something from ingredients (allowed at any time, costs no action). */

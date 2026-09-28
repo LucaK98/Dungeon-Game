@@ -297,3 +297,50 @@ describe("free text: walking and asking", () => {
     expect(Math.max(Math.abs(p1.pos!.x - spot!.x), Math.abs(p1.pos!.y - spot!.y))).toBe(1);
   });
 });
+
+describe("easier controls", () => {
+  const viewOf = (last: ReturnType<typeof setup>["last"], pid: string) => {
+    const v = last(pid, "state_update");
+    if (v?.type !== "state_update") throw new Error("no view");
+    return v.state;
+  };
+
+  it("takes back a quiet step (↩️ Zurück), but not after another action", () => {
+    let tested = false;
+    for (let k = 0; k < 8 && !tested; k++) {
+      const { game, last, session } = setup(4);
+      const hero = game.heroOf("p1")!;
+      const from = { ...hero.pos! };
+      const ft = session.battle.combat?.turn?.movementLeftFt;
+      const near = viewOf(last, "p1").minimap.reachable.filter((q) => Math.max(Math.abs(q.x - from.x), Math.abs(q.y - from.y)) === 1);
+      const to = near[k];
+      if (!to) break;
+      game.handle("p1", { kind: "move", to });
+      if (!viewOf(last, "p1").turn.canUndo) continue;
+      game.handle("p1", { kind: "undo_move" });
+      expect(hero.pos).toEqual(from);
+      expect(session.battle.combat?.turn?.movementLeftFt).toBe(ft);
+      expect(viewOf(last, "p1").turn.canUndo).toBeFalsy();
+      // After something else, the step stays.
+      game.handle("p1", { kind: "move", to });
+      game.handle("p1", { kind: "check", skill: "perception" });
+      game.handle("p1", { kind: "undo_move" });
+      expect(hero.pos).toEqual(to);
+      tested = true;
+    }
+    expect(tested).toBe(true);
+  });
+
+  it("walks to an object further away and names what can be done with it", () => {
+    const { game, last } = setup(4);
+    const hero = game.heroOf("p1")!;
+    const v = viewOf(last, "p1");
+    const d = (o: { x: number; y: number }) => Math.max(Math.abs(o.x - hero.pos!.x), Math.abs(o.y - hero.pos!.y));
+    const thing = v.minimap.objects.filter((o) => o.use && d(o) > 1).sort((a, b) => d(a) - d(b))[0];
+    expect(thing, "an object to use").toBeDefined();
+    expect(thing!.name).toBeTruthy();
+    const before = d(thing!);
+    game.handle("p1", { kind: "go_use", objectId: thing!.id });
+    expect(d(thing!)).toBeLessThan(before);
+  });
+});
