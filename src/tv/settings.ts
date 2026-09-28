@@ -8,7 +8,7 @@ import { GeminiProvider, GroqProvider, LlmError, ServerProvider, type ProviderId
 import { aiCallsToday, countAiCall, loadAiSettings, providersFrom, saveAiSettings, type AiSettings } from "../dm/ai/settings";
 import { h } from "../ui/dom";
 import { loadGraphicsMode, loadLookMode, saveGraphicsMode, saveLookMode, type GraphicsMode, type LookMode } from "./render";
-import { prepareVoice, setVoiceEngine, speak, storytellerProblem, voiceEngine, type VoiceEngine } from "./speech";
+import { prepareVoice, setSpeechRate, setVoiceEngine, speak, speechRate, stopSpeaking, storytellerProblem, voiceEngine, type VoiceEngine } from "./speech";
 
 const VOICES: { id: VoiceEngine; label: string; detail: string }[] = [
   { id: "storyteller", label: "📖 Erzähler (Gemini)", detail: "Klingt wie ein echter Märchenerzähler – Figuren mit eigenen Stimmen. Braucht einen Gemini-Schlüssel und Internet; beim Gratis-Limit springt kurz die natürliche Stimme ein." },
@@ -19,6 +19,13 @@ const VOICES: { id: VoiceEngine; label: string; detail: string }[] = [
 const GRAPHICS: { id: GraphicsMode; label: string }[] = [
   { id: "hd", label: "✨ HD (glatte Kanten)" },
   { id: "pixel", label: "👾 Pixel (klassisch)" },
+];
+
+const RATES: { rate: number; label: string }[] = [
+  { rate: 0.8, label: "🐢 Langsam" },
+  { rate: 1, label: "Normal" },
+  { rate: 1.15, label: "Zügig" },
+  { rate: 1.3, label: "🐇 Schnell" },
 ];
 
 const LOOKS: { id: LookMode; label: string }[] = [
@@ -252,10 +259,29 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     };
     renderVoices();
 
+    // Speaking tempo (all voices; also how long a line stays on the TV).
+    const rateRow = h("div", { class: "tv-row" });
+    const renderRate = () => {
+      const now = speechRate();
+      rateRow.replaceChildren(
+        ...RATES.map((r) => {
+          const b = h("button", { class: `tv-btn${Math.abs(now - r.rate) < 0.01 ? " primary" : ""}`, type: "button", textContent: r.label });
+          b.addEventListener("click", () => {
+            setSpeechRate(r.rate);
+            renderRate();
+            stopSpeaking();
+            void speak("So schnell erzähle ich euch die Geschichte.");
+          });
+          return b;
+        }),
+      );
+    };
+    renderRate();
+
     const el = h(
       "main",
       { class: "tv-screen" },
-      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("h2", {}, "🖼 Grafik"), graphicsRow, h("p", { class: "muted" }, "Aussehen des Spielbretts (gilt ab der nächsten Karte):"), lookRow, h("div", { class: "tv-row" }, done)),
+      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("p", { class: "muted" }, "Sprechtempo (antippen zum Anhören):"), rateRow, h("h2", {}, "🖼 Grafik"), graphicsRow, h("p", { class: "muted" }, "Aussehen des Spielbretts (gilt ab der nächsten Karte):"), lookRow, h("div", { class: "tv-row" }, done)),
     );
     done.addEventListener("click", () => {
       pull();

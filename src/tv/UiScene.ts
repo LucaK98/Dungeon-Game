@@ -5,7 +5,7 @@ import type { Narration } from "../shared/story";
 import type { ExplainedLine, OrderEntry, RollOutcome, RollPrompt } from "../shared/view";
 import type { Reward } from "../shared/reward";
 import type { DollLook } from "../shared/doll";
-import { prefetchSpeech, speak, stopSpeaking } from "./speech";
+import { prefetchSpeech, speak, speechRate, stopSpeaking } from "./speech";
 import { BOARD_HEIGHT, BOARD_WIDTH, LOG_PANEL } from "./DungeonScene";
 
 /** Right edge of the map on the TV (the log column is next to it). */
@@ -385,7 +385,8 @@ export class UiScene extends Phaser.Scene {
         stopSpeaking();
         finish();
       };
-      const minTime = new Promise<void>((r) => this.time.delayedCall((1800 + full.length * 45) * pace, () => r()));
+      // Reading time follows the speech tempo setting.
+      const minTime = new Promise<void>((r) => this.time.delayedCall(((1800 + full.length * 45) * pace) / speechRate(), () => r()));
       // Fetch the next line's voice while this one is spoken.
       const upcoming = this.queue[0];
       if (upcoming) prefetchSpeech(upcoming.text, upcoming.npc);

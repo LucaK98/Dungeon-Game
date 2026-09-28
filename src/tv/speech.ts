@@ -17,6 +17,26 @@ const ENGINE_KEY = "couch-dungeon.voice-engine";
 
 export type VoiceEngine = "storyteller" | "natural" | "browser";
 
+const RATE_KEY = "couch-dungeon.speech-rate";
+
+/** How fast the voices speak (setting): 0.8 slow … 1.3 fast, 1 = normal. */
+export function speechRate(): number {
+  try {
+    const v = Number(localStorage.getItem(RATE_KEY));
+    return v >= 0.6 && v <= 1.6 ? v : 1;
+  } catch {
+    return 1;
+  }
+}
+
+export function setSpeechRate(rate: number): void {
+  try {
+    localStorage.setItem(RATE_KEY, String(rate));
+  } catch {
+    // ignore
+  }
+}
+
 export function speechEnabled(): boolean {
   try {
     return localStorage.getItem(KEY) !== "off";
@@ -94,7 +114,7 @@ function speakBrowser(text: string, name?: string): Promise<void> {
     const { voice, pitch, rate } = browserVoice(name);
     if (voice) u.voice = voice;
     u.pitch = pitch;
-    u.rate = rate;
+    u.rate = rate * speechRate();
     let done = false;
     const finish = () => {
       if (done) return;
@@ -105,7 +125,7 @@ function speakBrowser(text: string, name?: string): Promise<void> {
     u.onerror = finish;
     window.speechSynthesis.speak(u);
     // Some browsers never fire onend: don't block the story.
-    setTimeout(finish, 2500 + text.length * 90);
+    setTimeout(finish, 2500 + (text.length * 90) / speechRate());
   });
 }
 
@@ -175,7 +195,9 @@ export function prepareVoice(name?: string, progress?: (loaded: number, total: n
 }
 
 async function speakNatural(text: string, name: string | undefined, gen: number): Promise<boolean> {
-  const voice = neuralVoice(name);
+  const base = neuralVoice(name);
+  // Faster speech = shorter sounds (the pitch stays the same).
+  const voice = { ...base, lengthScale: base.lengthScale / speechRate() };
   if (broken.has(voice.model)) return false;
   if (!ready.has(voice.model)) {
     // First use: download in the background, the browser voice speaks this line.
@@ -215,7 +237,7 @@ async function speakStoryteller(text: string, name: string | undefined, gen: num
   const ctx = context();
   if (!ctx) return false;
   try {
-    const pcm = await geminiSpeech(key, text, name);
+    const pcm = await geminiSpeech(key, text, name, undefined, speechRate());
     if (gen !== generation) return true;
     await play(ctx, pcm, GEMINI_SAMPLE_RATE);
     storytellerProblem = undefined;
@@ -233,7 +255,7 @@ export function prefetchSpeech(text: string, speaker?: string): void {
   if (!speechEnabled() || voiceEngine() !== "storyteller" || Date.now() < storytellerPausedUntil) return;
   const key = geminiKey();
   const clean = speakable(text);
-  if (key && clean) void geminiSpeech(key, clean, speaker).catch(() => undefined);
+  if (key && clean) void geminiSpeech(key, clean, speaker, undefined, speechRate()).catch(() => undefined);
 }
 
 // ---------------------------------------------------------------- public

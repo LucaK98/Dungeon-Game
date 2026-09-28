@@ -48,9 +48,20 @@ export class TtsError extends Error {
 const cache = new Map<string, Promise<Float32Array>>();
 
 /** Audio for a line (from the cache when it was asked for before). */
-export function geminiSpeech(key: string, text: string, speaker?: string, fetchFn: typeof fetch = (...a) => fetch(...a)): Promise<Float32Array> {
-  const { voice, style } = geminiVoiceFor(speaker);
-  const id = `${voice}|${text}`;
+/** A spoken tempo instruction (the voice keeps its pitch; playing faster would make it squeaky). */
+export function tempoHint(rate: number): string {
+  if (rate <= 0.85) return " Sprich deutlich langsamer als sonst, mit längeren Pausen.";
+  if (rate < 0.97) return " Sprich etwas langsamer als sonst.";
+  if (rate >= 1.25) return " Sprich deutlich schneller als sonst, flott und ohne lange Pausen.";
+  if (rate > 1.03) return " Sprich etwas zügiger als sonst.";
+  return "";
+}
+
+export function geminiSpeech(key: string, text: string, speaker?: string, fetchFn: typeof fetch = (...a) => fetch(...a), rate = 1): Promise<Float32Array> {
+  const found = geminiVoiceFor(speaker);
+  const voice = found.voice;
+  const style = found.style + tempoHint(rate);
+  const id = `${voice}|${rate}|${text}`;
   const hit = cache.get(id);
   if (hit) return hit;
   const job = request(key, text, voice, style, fetchFn);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { geminiSpeech, geminiVoiceFor, pcm16ToFloat, TTS_MODEL } from "./gemini-tts";
+import { geminiSpeech, geminiVoiceFor, pcm16ToFloat, tempoHint, TTS_MODEL } from "./gemini-tts";
 
 describe("storyteller voice (Gemini TTS)", () => {
   it("sends the key only in the header, asks for audio with a storyteller style, and decodes the PCM", async () => {
@@ -27,5 +27,23 @@ describe("storyteller voice (Gemini TTS)", () => {
     expect(geminiVoiceFor().voice).not.toBe(geminiVoiceFor("Oger").voice);
     expect(geminiVoiceFor("Wirtin Hilde").voice).not.toBe(geminiVoiceFor("Schmied Hagen").voice);
     expect(pcm16ToFloat(btoa(String.fromCharCode(0xff, 0x7f)))[0]).toBeCloseTo(1, 3);
+  });
+});
+
+describe("speaking tempo for the storyteller", () => {
+  it("asks for a slower or faster reading instead of changing the pitch, and caches per tempo", async () => {
+    const bodies: string[] = [];
+    const audio = btoa(String.fromCharCode(0x00, 0x40));
+    const fake = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: audio } }] } }] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    await geminiSpeech("AQ.k", "Tempo-Probe eins.", undefined, fake, 0.8);
+    await geminiSpeech("AQ.k", "Tempo-Probe eins.", undefined, fake, 1.3);
+    await geminiSpeech("AQ.k", "Tempo-Probe eins.", undefined, fake, 1.3);
+    expect(bodies.length).toBe(2);
+    expect(bodies[0]).toContain("langsamer");
+    expect(bodies[1]).toContain("schneller");
+    expect(tempoHint(1)).toBe("");
   });
 });
