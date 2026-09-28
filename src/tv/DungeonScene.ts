@@ -505,6 +505,28 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   /** A speech bubble over a figure (a hero's idea, an NPC's words). */
+  /** A player points at a square on the phone: a ring in the hero's colour, and the planned route as dots. */
+  showPoint(heroId: string, at: { x: number; y: number }, path: { x: number; y: number }[]): void {
+    const hero = this.session.battle.creatures[heroId];
+    const color = hero?.appearance?.color ? Phaser.Display.Color.HexStringToColor(hero.appearance.color).color : 0xffd75e;
+    this.pointMarks?.destroy();
+    const g = this.add.graphics().setDepth(5200);
+    this.pointMarks = g;
+    for (const p of path.slice(0, -1)) {
+      g.fillStyle(0x000000, 0.5).fillCircle((p.x + 0.5) * TILE, (p.y + 0.5) * TILE, 4.5);
+      g.fillStyle(color, 1).fillCircle((p.x + 0.5) * TILE, (p.y + 0.5) * TILE, 3);
+    }
+    g.lineStyle(3.5, 0x000000, 0.55).strokeCircle((at.x + 0.5) * TILE, (at.y + 0.5) * TILE, TILE * 0.46);
+    g.lineStyle(2.5, color, 1).strokeCircle((at.x + 0.5) * TILE, (at.y + 0.5) * TILE, TILE * 0.46);
+    const ring = this.add.graphics().setDepth(5201);
+    ring.lineStyle(2, color, 1).strokeCircle(0, 0, TILE * 0.46);
+    ring.setPosition((at.x + 0.5) * TILE, (at.y + 0.5) * TILE);
+    this.tweens.add({ targets: ring, scale: 1.8, alpha: 0, duration: 700, repeat: 1, onComplete: () => ring.destroy() });
+    this.tweens.add({ targets: g, alpha: 0, delay: path.length ? 3500 : 1600, duration: 500, onComplete: () => g === this.pointMarks && (this.pointMarks = undefined) });
+  }
+
+  private pointMarks: Phaser.GameObjects.Graphics | undefined;
+
   showSpeech(creatureId: string, text: string): void {
     const f = this.figures.get(creatureId);
     if (!f) return;

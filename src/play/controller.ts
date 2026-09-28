@@ -18,6 +18,7 @@ import type { ActionChoice, ActionGroup, CampView, MiniCreature, PlayerView, Rol
 import { matchFreeText, matchUtility } from "../shared/intent-match";
 import { walkIntent } from "../shared/walk-text";
 import { isTrick } from "../dm/free-actions";
+import { loadPrefs } from "./prefs";
 import { dollCanvas } from "../ui/atlas";
 import { h } from "../ui/dom";
 import { showRollPrompt, type DiceOverlay } from "./dice";
@@ -182,12 +183,22 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   let wasMine = false;
   const closedGroups = new Set<ActionGroup>();
   let lockedOpen = false;
+  /** Simple view: everything else is shown after "Alle Aktionen". */
+  let showAll = false;
+  let favourites: Record<string, number> = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(`couch-dungeon.fav.${playerId()}`) ?? "{}") as Record<string, number>;
+    } catch {
+      return {};
+    }
+  })();
   let storyOpen = false;
   let pulseTurn = false;
   /** Exploring in turns: when this player's turn is skipped (local clock), and whether we warned already. */
   let turnEnds: number | undefined;
   let warnedAt: number | undefined;
   let wasNextUp = false;
+  let lastActions = 0;
   const tickTimer = () => {
     const el = status.querySelector<HTMLElement>(".turn-timer");
     if (!el || turnEnds === undefined) return;
@@ -249,6 +260,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     view: () => view,
     setBeginnerMode: (on) => send({ kind: "set_beginner_mode", on }),
     askRules: (question) => send({ kind: "ask_rules", question }),
+    onPrefs: () => render(),
   });
 
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -366,6 +378,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     const a = c.action;
     switch (a.kind) {
       case "attack":
+      case "approach":
         return { ...a, targetId: ids[0]! };
       case "cast":
         return { ...a, targetIds: ids };
@@ -424,13 +437,14 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   let ideasBox: HTMLElement | undefined;
   let ideaInput: HTMLTextAreaElement | undefined;
 
-  function freeText(): void {
+  function freeText(prefill = ""): void {
     const fighting = view?.mode === "combat";
     const input = h("textarea", {
       class: "text-input",
       rows: 3,
       placeholder: fighting ? "z. B. Ich werfe dem Räuber Sand in die Augen." : "z. B. Ich biete dem Oger Brot an, damit er uns vorbeilässt.",
     }) as HTMLTextAreaElement;
+    if (prefill) input.value = prefill;
     const go = h("button", { class: "btn primary big", type: "button", textContent: "Absenden" });
     const submit = (text: string) => {
       if (!text) return;
@@ -489,10 +503,22 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     queueMicrotask(() => input.focus());
   }
 
+  /** Green: someone is badly hurt and this heals. Yellow: you are nearly down and this keeps you safe. */
+  function urgency(c: ActionChoice): string {
+    const v = view;
+    if (!v || !c.enabled) return "";
+    const heals = c.avgKind === "heal" || c.id === "item:potion";
+    const hurt = v.minimap.creatures.some((x) => !x.enemy && x.color && x.health < 0.35) || v.me.hp / Math.max(1, v.me.maxHp) < 0.35;
+    if (heals && hurt) return " urgent-heal";
+    const safe = c.action.kind === "feature" && ["dodge", "disengage", "dash", "hide", "second-wind", "patient-defense"].includes(c.action.feature);
+    if (safe && v.me.hp / Math.max(1, v.me.maxHp) < 0.3) return " urgent-safe";
+    return "";
+  }
+
   function choiceButton(c: ActionChoice): HTMLElement {
     const b = h(
       "button",
-      { class: `choice-btn${c.enabled ? "" : " disabled"}${c.recommended ? " recommended" : ""}${c.votes?.mine ? " voted" : ""}`, type: "button", dataset: { help: c.glossarKey } },
+      { class: `choice-btn${c.enabled ? "" : " disabled"}${c.recommended ? " recommended" : ""}${c.votes?.mine ? " voted" : ""}${urgency(c)}`, type: "button", dataset: { help: c.glossarKey } },
       h("span", { class: "choice-label" }, c.label, c.recommended ? h("span", { class: "rec" }, "⭐ Empfohlen") : null),
       ...choiceBody(c),
       c.votes
@@ -693,9 +719,37 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   }
 
   /** Something to recommend right now (beginner mode): one big suggestion at the top. */
+  /** The attack or spell this player uses most (at least 3 times) – if it works right now. */
+  function favouriteChoice(v: PlayerView): ActionChoice | undefined {
+    const best = v.choices
+      .filter((c) => c.enabled && (c.group === "attack" || c.group === "spell") && c.targets?.length && c.avgKind !== "heal" && (favourites[c.id] ?? 0) >= 3)
+      .sort((a, b) => (favourites[b.id] ?? 0) - (favourites[a.id] ?? 0))[0];
+    return best;
+  }
+
+  /** Right next to something: a big button for it at the top (chest, table, a person to talk to …). */
+  function contextCard(v: PlayerView): HTMLElement | null {
+    if (!v.turn.mine) return null;
+    const things = v.choices.filter((c) => c.enabled && (c.action.kind === "interact" || c.action.kind === "tame" || c.action.kind === "ground")).slice(0, 2);
+    const me = v.minimap.creatures.find((c) => c.me);
+    const person = me ? v.minimap.creatures.find((c) => !c.me && !c.enemy && !c.color && !c.down && Math.max(Math.abs(c.x - me.x), Math.abs(c.y - me.y)) <= 1) : undefined;
+    if (!things.length && !person) return null;
+    const buttons = things.map((c) => {
+      const b = h("button", { class: "btn context-btn", type: "button", textContent: c.label });
+      b.addEventListener("click", () => choose(c));
+      return b;
+    });
+    if (person) {
+      const b = h("button", { class: "btn context-btn", type: "button", textContent: `💬 Mit ${person.name} reden` });
+      b.addEventListener("click", () => freeText(`Ich spreche mit ${person.name}: `));
+      buttons.push(b);
+    }
+    return h("section", { class: "card context-card" }, h("div", { class: "context-title" }, "📍 Hier"), h("div", { class: "context-row" }, ...buttons));
+  }
+
   function suggestionCard(v: PlayerView): HTMLElement | null {
     if (!v.beginnerMode || !v.turn.mine || v.story?.choices.length) return null;
-    const c = v.choices.find((x) => x.recommended && x.enabled);
+    const c = favouriteChoice(v) ?? v.choices.find((x) => x.recommended && x.enabled);
     if (!c) return null;
     const go = h("button", { class: "btn primary", type: "button", textContent: "Mach ich!" });
     go.addEventListener("click", () => choose(c));
@@ -748,6 +802,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     if (!v) return;
     const here = actionsAt(v, p);
     if (here) {
+      send({ kind: "point", x: p.x, y: p.y });
       const buttons = here.list.map(({ choice, targetId }) => {
         // A copy of the normal button without its own click (here the target is already known).
         const clone = choiceButton(choice).cloneNode(true) as HTMLElement;
@@ -795,6 +850,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     }
     const route = planRoute(v.minimap, p);
     walkPlan = { to: p, route: route?.path ?? [p], cost: route?.cost ?? 1, difficult: route?.difficult ?? 0, provoked: v.mode === "combat" ? provokedBy(v.minimap, p) : [] };
+    // The route shows on the TV too (everyone can say "not that way!").
+    send({ kind: "point", x: p.x, y: p.y, path: walkPlan.route });
     render();
   }
 
@@ -887,10 +944,39 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     if (v.camp) return [campSection(v.camp)];
     campCard = undefined;
     const top: HTMLElement[] = [];
+    const here = contextCard(v);
+    if (here) top.push(here);
     const suggestion = suggestionCard(v);
     if (suggestion) top.push(suggestion);
     top.push(...renderStory(v));
     const actions: HTMLElement[] = [];
+    // Simple view: the three most useful actions, the rest one tap away.
+    if (loadPrefs().simple && !showAll) {
+      const usable = v.choices.filter((c) => c.enabled && ["attack", "spell", "item", "ability", "look"].includes(c.group));
+      const score = (c: ActionChoice) => (c === favouriteChoice(v) ? 100 : 0) + (c.recommended ? 50 : 0) + (favourites[c.id] ?? 0) + (c.group === "attack" ? 5 : c.group === "spell" ? 4 : 0) + (c.avg ?? 0) / 10 + ((c.avgKind === "heal" || c.id === "item:potion") && !urgency(c) ? -20 : 0);
+      const best = [...usable].sort((a, b) => score(b) - score(a)).slice(0, 3);
+      const more = h("button", { class: "btn secondary all-actions", type: "button", textContent: `▼ Alle Aktionen (${usable.length})` });
+      more.addEventListener("click", () => {
+        showAll = true;
+        render();
+      });
+      actions.push(h("section", { class: "group" }, h("div", { class: "group-body" }, ...best.map(choiceButton))), more);
+      if (v.log.length) {
+        const lastLine = v.log[v.log.length - 1]!;
+        const ticker = h("button", { class: "log-ticker", type: "button" }, h("span", { class: "muted" }, "📜 "), h("span", {}, lastLine.text), h("span", { class: "muted" }, " ›"));
+        ticker.addEventListener("click", () => showSheet("📜 Was ist passiert?", h("div", { class: "log" }, ...v.log.slice(-15).map((l) => explainedLine(l)))));
+        actions.push(ticker);
+      }
+      return [h("div", { class: "action-grid" }, h("div", { class: "col-top" }, ...top), h("div", { class: "col-map" }, mapCard(v)), h("div", { class: "col-actions" }, ...actions))];
+    }
+    if (loadPrefs().simple) {
+      const less = h("button", { class: "btn secondary all-actions", type: "button", textContent: "▲ Weniger anzeigen" });
+      less.addEventListener("click", () => {
+        showAll = false;
+        render();
+      });
+      actions.push(less);
+    }
     // Only what works right now; the rest waits behind "Gerade nicht möglich".
     const groups: ActionGroup[] = ["attack", "spell", "item", "ability", "look"];
     const locked: ActionChoice[] = [];
@@ -932,6 +1018,15 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   /** Remembers what the player uses, for the quick buttons. */
   function remember(c: ActionChoice): void {
     if (!["attack", "spell", "item", "ability"].includes(c.group)) return;
+    // How often each attack or spell is used: the favourite becomes this player's suggestion.
+    if (c.group === "attack" || c.group === "spell") {
+      favourites[c.id] = (favourites[c.id] ?? 0) + 1;
+      try {
+        localStorage.setItem(`couch-dungeon.fav.${playerId()}`, JSON.stringify(favourites));
+      } catch {
+        // ignore
+      }
+    }
     recent = [c.id, ...recent.filter((id) => id !== c.id)].slice(0, 6);
     try {
       localStorage.setItem(`couch-dungeon.recent.${playerId()}`, JSON.stringify(recent));
@@ -1326,6 +1421,18 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       // Next in line: a short buzz, so there is time to think.
       if (v.turn.nextUp && !wasNextUp && "vibrate" in navigator) navigator.vibrate(40);
       wasNextUp = !!v.turn.nextUp;
+      // "Zug automatisch beenden": the action is used up and no bonus action is left to use.
+      const actedNow = v.turn.mine && lastActions > 0 && v.turn.actions <= 0;
+      lastActions = v.turn.mine ? v.turn.actions : 0;
+      if (actedNow && loadPrefs().autoEnd && !v.pendingRoll && !v.story?.choices.length) {
+        const bonusLeft = v.choices.some((c) => c.enabled && c.cost === "bonus");
+        if (!bonusLeft) {
+          setTimeout(() => {
+            const now = view;
+            if (now?.turn.mine && now.turn.actions <= 0 && !now.pendingRoll) send({ kind: "end_turn" });
+          }, 1800);
+        }
+      }
       const becameMine = v.turn.mine && !wasMine;
       wasMine = v.turn.mine;
       view = v;

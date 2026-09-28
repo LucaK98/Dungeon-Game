@@ -17,7 +17,7 @@ const HEROES = [
 ];
 
 /** A fight against three goblins, played through the same messages the phones send. */
-function goblinFight(seed: number, talk: boolean | "vivid" = false) {
+function goblinFight(seed: number, talk: boolean | "vivid" | "approach" = false) {
   const rng = seededRng(seed);
   const session = createSession(rng, {
     players: HEROES.map((h, i) => ({ playerId: `p${i}`, profile: { ...h, look: defaultLook(h.classId, h.raceId), color: "#fff" } })),
@@ -50,6 +50,7 @@ function goblinFight(seed: number, talk: boolean | "vivid" = false) {
   );
   let combatSeen = false;
   let typed = 0;
+  let approached = 0;
   game.on({ combat: (started) => started && (combatSeen = true) });
   game.start();
 
@@ -63,13 +64,22 @@ function goblinFight(seed: number, talk: boolean | "vivid" = false) {
       continue;
     }
     const heal = view.choices.find((c) => c.enabled && c.recommended && (c.group === "item" || c.id.startsWith("spell:healing") || c.id.startsWith("spell:cure")));
-    const attack = view.choices.find((c) => c.enabled && c.group === "attack" && c.targets?.length);
+    const attack = view.choices.find((c) => c.enabled && c.action.kind === "attack" && c.targets?.length);
     if (heal?.targets?.length) {
       const downed = heal.targets.find((t) => session.battle.creatures[t.id]!.hp === 0) ?? heal.targets[0]!;
       game.handle(pid, heal.action.kind === "use_item" ? { ...heal.action, targetId: downed.id } : { kind: "cast", spellId: heal.id.slice(6), targetIds: [downed.id] });
       continue;
     }
-    if (attack && talk) {
+    const approach = view.choices.find((c) => c.enabled && c.action.kind === "approach" && c.targets?.length);
+    if (talk === "approach" && approach) {
+      const from = { ...active.pos! };
+      game.handle(pid, { kind: "approach", targetId: approach.targets![0]!.id, optionId: (approach.action as { optionId: string }).optionId });
+      const after = game.viewFor(pid)!;
+      // Walked, then the attack roll waits for the tap (or already happened).
+      if ((active.pos!.x !== from.x || active.pos!.y !== from.y) && (after.pendingRoll || after.turn.actions === 0)) approached++;
+      continue;
+    }
+    if (attack && talk && talk !== "approach") {
       const who = attack.targets![0]!.name;
       game.handle(pid, { kind: "free_text", text: talk === "vivid" ? `Ich springe mit Anlauf vor und greife ${who} mit aller Kraft an` : `Ich greife ${who} an!` });
       if (game.viewFor(pid)!.log.some((l) => /„Ich greife Goblin \d an!“ → /.test(l.text))) typed++;
@@ -92,7 +102,7 @@ function goblinFight(seed: number, talk: boolean | "vivid" = false) {
     }
     game.handle(pid, { kind: "end_turn" });
   }
-  return { game, session, rolls, combatSeen, events, typed };
+  return { game, session, rolls, combatSeen, events, typed, approached };
 }
 
 describe("combat (A5)", () => {
@@ -123,6 +133,16 @@ describe("combat (A5)", () => {
     expect(said).toMatch(/Genau so macht es|versucht es genau so/);
     expect(JSON.stringify(events)).toContain("Stark beschrieben");
     expect(Object.values(session.battle.creatures).filter((c) => c.monsterId === "goblin").every((g) => g.dead)).toBe(true);
+  });
+
+  it("walks up and strikes with one button (hin und zuschlagen)", () => {
+    let approached = 0;
+    for (const seed of [1, 2, 3]) {
+      const r = goblinFight(seed, "approach");
+      expect(r.game.mode, `seed ${seed}`).toBe("explore");
+      approached += r.approached;
+    }
+    expect(approached).toBeGreaterThan(0);
   });
 
   it("lets the goblins act on their own", () => {

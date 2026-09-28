@@ -248,7 +248,7 @@ function build(c: ActionChoice, named: NonNullable<ActionChoice["targets"]>): In
   else ids = ids.slice(0, pick.max);
   const a = c.action;
   const action: PlayerAction =
-    a.kind === "attack" ? { ...a, targetId: ids[0]! } : a.kind === "cast" ? { ...a, targetIds: ids } : a.kind === "use_item" ? { ...a, targetId: ids[0]! } : a;
+    a.kind === "attack" || a.kind === "approach" ? { ...a, targetId: ids[0]! } : a.kind === "cast" ? { ...a, targetIds: ids } : a.kind === "use_item" ? { ...a, targetId: ids[0]! } : a;
   const names = [...new Set(ids)].map((id) => c.targets!.find((x) => x.id === id)!.name.replace(" (du)", ""));
   return { choice: c, action, targetNames: names };
 }

@@ -6,6 +6,7 @@ import { h } from "../ui/dom";
 import type { RollOutcome, RollPrompt } from "../shared/view";
 import { explainedLine, term } from "./help";
 import { BULLET_ICON, type Bullet } from "../shared/bullets";
+import { loadPrefs } from "./prefs";
 
 /** Coloured points: damage red, healing green, conditions yellow, protection blue. */
 export function bulletList(bullets: Bullet[]): HTMLElement {
@@ -39,7 +40,8 @@ export interface DiceOverlay {
 /** Shows the roll screen. `onRoll` is called when the player taps the die. */
 export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOverlay {
   const title = h("h2", {}, prompt.title);
-  const hint = h("p", { class: "lead" }, "Tippe auf den Würfel!");
+  const shake = loadPrefs().shake && "DeviceMotionEvent" in window;
+  const hint = h("p", { class: "lead" }, shake ? "Tippe auf den Würfel – oder schüttle das Handy!" : "Tippe auf den Würfel!");
   const stage = h("div", { class: "dice-stage" }, dieSvg(prompt.sides, "?", "idle"));
   const lines = h("div", { class: "dice-lines" });
   const done = h("button", { class: "btn primary big", type: "button", textContent: "Weiter", hidden: true });
@@ -100,6 +102,17 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
     onRoll();
   });
 
+  // Shaking the phone rolls too (a strong jolt, not just holding it).
+  let last: { x: number; y: number; z: number } | undefined;
+  const onMotion = (e: DeviceMotionEvent) => {
+    const a = e.accelerationIncludingGravity;
+    if (!a || a.x == null || a.y == null || a.z == null) return;
+    const now = { x: a.x, y: a.y, z: a.z };
+    if (last && !rolled && Math.abs(now.x - last.x) + Math.abs(now.y - last.y) + Math.abs(now.z - last.z) > 18) stage.click();
+    last = now;
+  };
+  if (shake) window.addEventListener("devicemotion", onMotion);
+
   const api: DiceOverlay = {
     land(result) {
       // Let the die tumble for at least 0.8 s, it feels better.
@@ -109,6 +122,7 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
     },
     close() {
       if (rolling) clearInterval(rolling);
+      window.removeEventListener("devicemotion", onMotion);
       if (!overlay.isConnected) return;
       overlay.remove();
       closedCbs.splice(0).forEach((cb) => cb());

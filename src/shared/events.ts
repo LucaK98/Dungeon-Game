@@ -31,6 +31,10 @@ export type PlayerAction =
   | { kind: "check"; skill: SkillId }
   | { kind: "interact"; objectId: string; targetId?: string; /** Props: which of their uses ("flip", "throw", "smash", …). */ use?: string }
   | { kind: "free_text"; text: string }
+  /** Walk next to an enemy and attack it with this weapon (one button). */
+  | { kind: "approach"; targetId: string; optionId: string }
+  /** Points at a square on the map (shown on the TV), with a planned route if there is one. */
+  | { kind: "point"; x: number; y: number; path?: { x: number; y: number }[] }
   /** Brew or tinker something from ingredients (allowed at any time, costs no action). */
   | { kind: "craft"; recipe: string }
   /** Lure a stray animal to become your companion. */

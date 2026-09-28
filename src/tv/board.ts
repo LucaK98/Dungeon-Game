@@ -200,6 +200,9 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         if (started) play("fight");
         if (scene.sys.isActive()) scene.setCombatLayout(started);
       },
+      point: (id, at, path) => {
+        if (scene.sys.isActive()) scene.showPoint(id, at, path);
+      },
       speech: (id, text) => {
         if (scene.sys.isActive()) scene.showSpeech(id, text);
       },

@@ -4,7 +4,7 @@
  */
 import { longRest, perform, type ActionOutcome, type CombatAction } from "../engine/actions";
 import { inRange, resolveAttack } from "../engine/attack";
-import { addCondition, addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, squaresOf, startCombat } from "../engine/combat";
+import { addCondition, addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, sizeInSquares, squaresOf, startCombat } from "../engine/combat";
 import { advantage, modPart, profPart, savingThrow, skillCheck, skillParts, sumParts } from "../engine/core";
 import { spellAttackParts } from "../engine/spells";
 import { getSpell } from "../engine/data";
@@ -91,6 +91,8 @@ export interface GameEvents {
   turn(name: string, color: string | undefined, free?: boolean, info?: string): void;
   /** A short big note in the middle of the TV ("✨ Stark beschrieben!"). */
   flash(text: string): void;
+  /** A player points at a square on the phone's map (and maybe a planned route). */
+  point(heroId: string, at: GridPos, path: GridPos[]): void;
   /** Exploring in turns: seconds left for the active player (undefined = no clock). */
   clock(seconds: number | undefined): void;
   /** Exploring in turns: a round is over. */
@@ -712,6 +714,7 @@ export class GameController {
 
   /** Actions that arrived while someone else was rolling: handled right after, in order. */
   private deferred: { playerId: PlayerId; action: PlayerAction }[] = [];
+  private lastPoint = new Map<PlayerId, number>();
 
   private flushDeferred(): void {
     while (this.deferred.length && !this.pending) {
@@ -1145,6 +1148,15 @@ export class GameController {
       if (err) this.sendTo(playerId, { type: "action_error", reason: err });
       return;
     }
+    if (action.kind === "point") {
+      // A finger on the phone's map shows on the TV (and a planned route), for everyone to see.
+      const now = Date.now();
+      if (now - (this.lastPoint.get(playerId) ?? 0) < 300) return;
+      this.lastPoint.set(playerId, now);
+      const path = (action.path ?? []).slice(0, 30).filter((p) => Number.isInteger(p.x) && Number.isInteger(p.y));
+      if (Number.isInteger(action.x) && Number.isInteger(action.y)) this.emit("point", hero.id, { x: action.x, y: action.y }, path);
+      return;
+    }
     if (action.kind === "emote") {
       // Only the known reactions, and not more than one per second and a half.
       const now = Date.now();
@@ -1249,6 +1261,18 @@ export class GameController {
       case "end_turn":
         this.endTurn();
         return;
+      case "approach": {
+        // Walk next to the enemy, then strike (one button on the phone).
+        const target = this.battle.creatures[action.targetId];
+        if (!target?.pos || !isActive(target)) {
+          this.sendTo(playerId, { type: "action_error", reason: "Dieses Ziel gibt es nicht mehr." });
+          return;
+        }
+        this.walkTowards(playerId, hero, { pos: target.pos, name: target.name });
+        if (this.active()?.id !== hero.id || this.mode !== "combat") return;
+        this.handle(playerId, { kind: "attack", targetId: target.id, optionId: action.optionId });
+        return;
+      }
       case "move":
         this.move(playerId, hero, action.to);
         return;
@@ -4089,6 +4113,44 @@ export class GameController {
           action: { kind: "attack", targetId: "", optionId: option.id, smiteSlot: 1 },
           targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)}` })),
         });
+      }
+    }
+
+    // No enemy within reach of the melee weapon, but one can be reached this turn: walk there and strike in one go.
+    if (this.mode === "combat" && mine && me.pos && (turn?.movementLeftFt ?? 0) > 0) {
+      const melee = me.attacks
+        .filter((a) => a.kind === "melee" && (wolf ? a.id === "wolf-bite" : a.id !== "wolf-bite" && (a.source !== "unarmed" || pc.classId === "monk")))
+        .sort((a, b) => b.damage.reduce((s2, d) => s2 + averageOf(d.dice), 0) - a.damage.reduce((s2, d) => s2 + averageOf(d.dice), 0))[0];
+      const inReach = melee ? enemies.some((e) => inRange(me, e, melee)) : true;
+      if (melee && !inReach) {
+        const reach = this.reachable(me);
+        const gap = (p: GridPos, e: Creature) => {
+          const n = sizeInSquares(e.size);
+          const dx = Math.max(0, e.pos!.x - p.x, p.x - (e.pos!.x + n - 1));
+          const dy = Math.max(0, e.pos!.y - p.y, p.y - (e.pos!.y + n - 1));
+          return Math.max(dx, dy);
+        };
+        const reachable = enemies.filter((e) => e.pos && reach.some((p) => gap(p, e) <= Math.max(1, Math.floor(melee.reachFt / 5))));
+        if (reachable.length) {
+          const toHit = sumParts(melee.toHit);
+          const dmg = `${melee.damage.map((d) => d.dice.replace("d", "W")).join(" + ")}${sumParts(melee.damageBonus) ? ` + ${sumParts(melee.damageBonus)}` : ""}`;
+          const reason = costReason("action");
+          choices.push({
+            id: `approach:${melee.id}`,
+            group: "attack",
+            label: `🦶⚔️ ${melee.id === "unarmed" ? "Faust" : melee.id === "wolf-bite" ? "Wolfsbiss" : nameOf("weapons", melee.sourceId)}: hin und zuschlagen`,
+            detail: `${toHit >= 0 ? "+" : ""}${toHit} zum Treffen · ${dmg} Schaden · erst hinlaufen, dann Angriff`,
+            glossarKey: `waffe:${melee.sourceId}`,
+            cost: "action",
+            enabled: !reason,
+            ...(reason ? { reason } : {}),
+            recommended: !choices.some((c) => c.group === "attack" && c.enabled),
+            action: { kind: "approach", targetId: "", optionId: melee.id },
+            targets: reachable.map((t) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)} · ${Math.round(hitChance(toHit, armorClass(t)) * 100)} %`, chance: hitChance(toHit, armorClass(t)) })),
+            chance: Math.max(...reachable.map((t) => hitChance(toHit, armorClass(t)))),
+            avg: melee.damage.reduce((sum, d) => sum + averageOf(d.dice), 0) + sumParts(melee.damageBonus),
+          });
+        }
       }
     }
 

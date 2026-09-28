@@ -2,6 +2,7 @@
  * The help system on the phone: "?" button, tip mode, glossary sheet, search,
  * "What can I do now?", tappable terms and one-time hint bubbles.
  */
+import { allowMotion, loadPrefs, savePrefs, type PhonePrefs } from "./prefs";
 import { GLOSSAR, glossarEntry, searchGlossar } from "../data/help/glossar";
 import { h } from "../ui/dom";
 import type { ExplainedLine, PlayerView } from "../shared/view";
@@ -158,6 +159,8 @@ export interface HelpContext {
   setBeginnerMode(on: boolean): void;
   /** "Frag den Spielleiter" (only in a running game). */
   askRules?(question: string): void;
+  /** This phone's settings changed (redraw). */
+  onPrefs?(): void;
 }
 
 /** The game master's answer to a rules question. */
@@ -223,7 +226,28 @@ function openMenu(ctx: HelpContext): void {
   askBtn?.addEventListener("click", () => askSheet((q) => ctx.askRules!(q)));
   const how = h("button", { class: "btn secondary", type: "button", textContent: "📖 Wie spielt man das?" });
   how.addEventListener("click", () => showSheet("Wie spielt man das?", ...HOW_TO_PLAY.map((t) => h("p", { class: "help-short" }, t))));
-  showSheet("Hilfe", tip, what, askBtn, how, h("div", { class: "field" }, search, results), beginner);
+  // This phone: simpler screen, ending the turn by itself, rolling by shaking.
+  const prefs = loadPrefs();
+  const toggle = (key: keyof PhonePrefs, text: string, before?: () => Promise<boolean>) => {
+    const el = h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: prefs[key] }), h("span", {}, text));
+    const box = el.querySelector("input")!;
+    box.addEventListener("change", async () => {
+      if (box.checked && before && !(await before())) box.checked = false;
+      prefs[key] = box.checked;
+      savePrefs(prefs);
+      ctx.onPrefs?.();
+    });
+    return el;
+  };
+  const phone = ctx.onPrefs
+    ? [
+        h("h3", { class: "prefs-title" }, "📱 Dieses Handy"),
+        toggle("simple", "Einfache Ansicht: nur die wichtigsten Aktionen (alles andere hinter „Alle Aktionen“)"),
+        toggle("autoEnd", "Zug nach meiner Aktion automatisch beenden"),
+        toggle("shake", "Würfeln durch Schütteln", allowMotion),
+      ]
+    : [];
+  showSheet("Hilfe", tip, what, askBtn, how, h("div", { class: "field" }, search, results), beginner, ...phone);
   queueMicrotask(() => search.blur());
 }
 

@@ -942,3 +942,14 @@ body.tip-mode::after {
 /* ---------------------------------------------------------------- free text preview */
 .free-preview { margin: 0.35rem 0; padding: 0.45rem 0.7rem; border-radius: 10px; background: #24301f; color: #c8f0b8; font-weight: 700; font-size: 0.95rem; }
 .again-btn { width: 100%; margin-bottom: 0.5rem; text-align: left; }
+
+/* Control helpers: "Hier" card, simple view, urgent colours, phone settings. */
+.context-card { padding: 10px 12px; }
+.context-title { font-weight: 700; margin-bottom: 6px; }
+.context-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.context-btn { flex: 1 1 45%; min-height: 48px; }
+.all-actions { width: 100%; margin-top: 8px; }
+.log-ticker { display: block; width: 100%; text-align: left; margin-top: 10px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgb(255 255 255 / 12%); background: rgb(0 0 0 / 20%); color: inherit; font: inherit; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.choice-btn.urgent-heal { border-color: #3fbf6a; box-shadow: 0 0 0 3px rgb(63 191 106 / 35%); }
+.choice-btn.urgent-safe { border-color: #e8c440; box-shadow: 0 0 0 3px rgb(232 196 64 / 35%); }
+.prefs-title { margin: 14px 0 6px; font-weight: 700; }
