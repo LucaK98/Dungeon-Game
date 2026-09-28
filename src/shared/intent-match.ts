@@ -23,7 +23,7 @@ const RANGED = /\b(schieß|schiess|schoss|pfeil|bogen|armbrust|bolzen|ziele auf|
 const THROW = /\b(wirf|werf|schleuder)/;
 const ATTACK = /\b(greif|angriff|attack|töte|kämpf|erledig|besieg|tritt|trete|treffe|verprügel|zuschlag|biss|beiß|beiss)/;
 const SPELL = /\b(zauber|magie|magisch|spruch|beschwör)/;
-const HEAL = /\b(heil|verarzt|wunde|rette|trank)/;
+const HEAL = /\b(heil|verarzt|wunde|rette|trank|aufhelf|wiederbeleb)|helfe? \w+ auf\b|\b(gib|gebe|reich|flöß)\w* .*trank/;
 const SELF = /\b(mich|mir|selbst)\b/;
 const THING = /\b(tür|tor|fass|fässer|kiste|tisch|truhe|wand|schloss|regal|stuhl|hocker|bank|krug|seil|kronleuchter|hebel|brunnen|altar|sarg)\w*/;
 
@@ -59,6 +59,86 @@ const SYNONYMS: [RegExp, RegExp][] = [
   [/donnerwoge/, /\b(donner|woge|druckwelle)/],
   [/mal des jägers/, /\b(mal |markier)/],
 ];
+
+/**
+ * Things, furniture and abilities: what the verb in the text has to fit ("umwerfen" → "Tisch umwerfen").
+ * [label pattern, verbs in the text]
+ */
+const UTILITY_VERBS: [RegExp, RegExp][] = [
+  [/umwerfen|umkippen|umstoßen/, /\b(umwerf|umkipp|kipp|umstoß|umschmeiß|wirf \w+ um|werfe? \w+ \w* ?um\b|stoß \w+ um)/],
+  [/werfen|schleudern|rollen/, /\b(wirf|werf|schleuder|roll|schmeiß|kick)/],
+  [/zerschlagen|aufbrechen/, /\b(zerschlag|zertrümmer|kaputt|aufbrech|zerbrech|zerdepper|schlag \w+ kaputt)/],
+  [/stöbern|durchsuchen/, /\b(durchsuch|stöber|such|wühl|lies|lese|blätter|schau \w+ nach)/],
+  [/sammeln|abfüllen|aufheben/, /\b(sammel|pflück|nehm|nimm|pack|abfüll|füll|aufheb|heb|einsteck|steck)/],
+  [/essen|probieren|kosten/, /\b(ess|iss|probier|kost|knabber|verspeis|nasch)/],
+  [/anzünden/, /\b(anzünd|zünd|entfach|mach \w+ an)/],
+  [/löschen/, /\b(lösch|ausblas|auspust|mach \w+ aus)/],
+  [/beten/, /\b(bet|gebet)/],
+  [/münze/, /\b(münze|wunsch|wünsch)/],
+  [/öffnen|aufschieben/, /\b(öffn|aufmach|mach \w+ auf|aufschieb|schieb|aufbrech)/],
+  [/ziehen/, /\b(zieh|drück|beweg)/],
+  [/rasten/, /\b(rast|ausruh|wärm|setz)/],
+  [/abstürzen/, /\b(abstürz|runter|schieß|schneid|kapp|lass)/],
+  [/trank|leuchttrank|stärketrank|bärenkraft/, /\b(trink|schluck|nipp|kipp \w+ runter)/],
+  [/stolperdraht/, /\b(spann|stolperdraht|leg|stell)/],
+  [/fackel/, /\b(fackel|licht)/],
+];
+
+/** Class abilities by their everyday words (feature id → words). */
+const FEATURE_WORDS: Record<string, RegExp> = {
+  "second-wind": /\b(durchatm|atme \w* ?durch|verschnauf|luft hol|sammle mich)/,
+  "action-surge": /\b(tatendrang|alles geben|noch einmal zuschlagen|extra aktion)/,
+  "turn-undead": /\b(untote \w* ?vertreib|vertreib\w* \w* ?untote|heilige symbol)/,
+  "wild-shape": /\b(tiergestalt|verwandl\w* mich|werde \w* ?wolf|wolfsgestalt)/,
+  "martial-arts": /\b(kampfkunst|extraschlag)/,
+  "flurry-of-blows": /\b(schlaghagel|hagel von schlägen|trommel)/,
+  "patient-defense": /\b(geduldig\w* abwehr|abwehrhaltung)/,
+  "step-of-the-wind": /\b(schritt des windes)/,
+  dash: /\b(sprint|spurt|renne so schnell|renn los|lauf so schnell)/,
+  disengage: /\b(rückzug|zieh\w* mich zurück|zurückzieh|weiche zurück)/,
+  dodge: /\b(weiche aus|ausweich|duck mich|ducke mich)/,
+  hide: /\b(versteck|verberg|verkriech)/,
+  "stand-up": /\b(steh\w* auf|aufsteh|rappel)/,
+};
+
+const words = (s: string) => s.toLowerCase().replace(/[^a-zäöüß ]/g, " ").split(/\s+/).filter((w) => w.length >= 4);
+
+/** Label nouns in the text ("heiltrank" ~ "trank", "hocker" ~ "hocker"). */
+function nounIn(t: string, label: string): boolean {
+  const tw = words(t);
+  return words(label).some((lw) => tw.some((w) => w === lw || (w.length >= 5 && lw.includes(w)) || (lw.length >= 5 && w.includes(lw))));
+}
+
+/**
+ * Items, furniture and class abilities: "Ich trinke einen Heiltrank", "Ich werfe den Hocker nach dem Goblin",
+ * "Ich kippe den Tisch um", "Ich verstecke mich", "Ich atme durch".
+ */
+export function matchUtility(text: string, choices: ActionChoice[], meId?: string): MatchOutcome {
+  const t = ` ${text.toLowerCase()} `;
+  const scored: { c: ActionChoice; s: number }[] = [];
+  for (const c of choices) {
+    if (c.group === "ability") {
+      const feature = c.action.kind === "feature" ? c.action.feature : "";
+      const re = FEATURE_WORDS[feature];
+      if ((re && re.test(t)) || nounIn(t, c.label.replace(/\(.*?\)/g, ""))) scored.push({ c, s: re?.test(t) ? 12 : 8 });
+      continue;
+    }
+    if (c.group !== "look" && c.group !== "item") continue;
+    const label = c.label.toLowerCase();
+    const verb = UTILITY_VERBS.some(([l, v]) => l.test(label) && v.test(t));
+    const noun = nounIn(t, c.label.replace(/\(.*?\)/g, ""));
+    if (verb && noun) scored.push({ c, s: 11 });
+    else if (noun && c.group === "item" && /trink|nimm|benutz|verwend/.test(t)) scored.push({ c, s: 9 });
+  }
+  if (!scored.length) return undefined;
+  scored.sort((a, b) => b.s - a.s || Number(b.c.enabled) - Number(a.c.enabled));
+  const best = scored.find((x) => x.c.enabled) ?? scored[0]!;
+  if (!best.c.enabled) return { blocked: best.c.reason ?? "Das geht gerade nicht.", choice: best.c };
+  let named = mentionedTargets(t, best.c.targets ?? [], meId);
+  // "Ich trinke den Trank": for yourself.
+  if (!named.length && meId && /\b(trink|schluck|nipp)/.test(t)) named = (best.c.targets ?? []).filter((x) => x.id === meId);
+  return { match: build(best.c, named) };
+}
 
 /** The words of a label that name it ("Kurzbogen", "Feuerpfeil"). */
 function namedIn(t: string, label: string): boolean {

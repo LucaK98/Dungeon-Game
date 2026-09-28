@@ -157,7 +157,7 @@ export function startPlay(root: HTMLElement, route: Extract<Route, { view: "play
       } else if (e.type === "suggestions") {
         controller?.suggestions(e.ideas);
       } else if (e.type === "free_text_options") {
-        controller?.freeTextOptions(e.text, e.options);
+        controller?.freeTextOptions(e.text, e.options, e.note);
       } else if (e.type === "action_error") {
         controller?.error(e.reason);
       } else if (e.type === "join_rejected") {

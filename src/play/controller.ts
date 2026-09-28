@@ -15,6 +15,9 @@ import { EMOTES, type PlayerAction } from "../shared/events";
 import type { Creature } from "../shared/game";
 import { ABILITIES } from "../shared/rules";
 import type { ActionChoice, ActionGroup, CampView, MiniCreature, PlayerView, RollOutcome, RollPrompt } from "../shared/view";
+import { matchFreeText, matchUtility } from "../shared/intent-match";
+import { walkIntent } from "../shared/walk-text";
+import { isTrick } from "../dm/free-actions";
 import { dollCanvas } from "../ui/atlas";
 import { h } from "../ui/dom";
 import { showRollPrompt, type DiceOverlay } from "./dice";
@@ -46,7 +49,7 @@ export interface Controller {
   requestRoll(prompt: RollPrompt): void;
   rollResult(result: RollOutcome): void;
   /** A free action could mean several things: „Meinst du …?“ */
-  freeTextOptions(text: string, options: { label: string; detail: string; action: PlayerAction }[]): void;
+  freeTextOptions(text: string, options: { label: string; detail: string; action: PlayerAction }[], note?: string): void;
   error(reason: string): void;
   /** Ideas from the game master for the free-action sheet. */
   suggestions(ideas: string[]): void;
@@ -105,6 +108,38 @@ function oddsBadge(chance: number): HTMLElement {
   const pct = Math.round(chance * 100);
   const [cls, text] = chance >= 0.65 ? ["good", "🎯 gute Chance"] : chance >= 0.4 ? ["mid", "⚖️ 50 : 50"] : ["low", "😬 schwierig"];
   return h("span", { class: `odds ${cls}`, dataset: { help: "angriffswurf" } }, `${text} (${pct} %)`);
+}
+
+/** What the game will make of a free text (same rules as the TV), in one short line. */
+function previewFreeText(raw: string, v: PlayerView): string {
+  const text = raw.trim();
+  if (text.length < 4) return "";
+  const t = text.toLowerCase();
+  const parts: string[] = [];
+  if (v.companion && !v.companion.dead && (t.includes(v.companion.name.toLowerCase().split(" ")[0]!) || t.includes(v.companion.kind.toLowerCase())) && /\b(fass|greif|hol|beiß|beiss|hack|los|kratz|jag|attack|pack|stürz)/.test(t)) {
+    return `${v.companion.icon} Befehl an ${v.companion.name} (kostet nichts)`;
+  }
+  if (/\b(brau|misch|mix|bastel|koch|knüpf)/.test(t)) {
+    const r = RECIPES.find((x) => t.includes(x.name.toLowerCase()) || t.includes(x.id));
+    if (r) return `${r.icon} ${r.name} brauen`;
+  }
+  const walk = walkIntent(text);
+  if (walk) {
+    parts.push(`🦶 zu „${walk.target}“ gehen`);
+    if (!walk.rest) return parts.join("");
+  }
+  const found = matchUtility(text, v.choices, v.me.id) ?? matchFreeText(text, v.choices, v.me.id, isTrick(text));
+  if (!found) parts.push(v.mode === "combat" ? "✨ Trick – eine Probe entscheidet (kostet deine Aktion)" : "✨ Der Spielleiter entscheidet");
+  else if ("blocked" in found) parts.push(`⛔ ${found.choice.label}: ${found.blocked}`);
+  else if ("ask" in found) parts.push(`🤔 Rückfrage: ${found.ask.map((m) => m.targetNames.join(", ") || m.choice.label).join(" oder ")}`);
+  else {
+    const { choice: c, targetNames } = found.match;
+    const bits = [`${c.label.replace(/^[^\p{L}]+/u, "")}${targetNames.length ? ` → ${targetNames.join(", ")}` : ""}`];
+    if (c.chance !== undefined) bits.push(`${Math.round(c.chance * 100)} %`);
+    if (c.avg) bits.push(`≈ ${Math.round(c.avg)} ${c.avgKind === "heal" ? "Heilung" : "Schaden"}`);
+    parts.push(bits.join(" · "));
+  }
+  return parts.join(" + ");
 }
 
 /** Attacks and spells: coloured chips (damage, chance, range) instead of a sentence. */
@@ -397,13 +432,36 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       placeholder: fighting ? "z. B. Ich werfe dem Räuber Sand in die Augen." : "z. B. Ich biete dem Oger Brot an, damit er uns vorbeilässt.",
     }) as HTMLTextAreaElement;
     const go = h("button", { class: "btn primary big", type: "button", textContent: "Absenden" });
-    go.addEventListener("click", () => {
-      const text = input.value.trim();
+    const submit = (text: string) => {
       if (!text) return;
       closeSheet();
       ideasBox = undefined;
+      try {
+        localStorage.setItem(`couch-dungeon.lastfree.${playerId()}`, text);
+      } catch {
+        // no storage: no "again" button
+      }
       send({ kind: "free_text", text });
-    });
+    };
+    go.addEventListener("click", () => submit(input.value.trim()));
+    // What the game will make of it, while typing ("➜ Rapier auf Goblin 1 · 55 % · ≈ 7 Schaden").
+    const preview = h("p", { class: "free-preview" });
+    const update = () => {
+      const p = view ? previewFreeText(input.value, view) : "";
+      preview.textContent = p ? `➜ ${p}` : "";
+      preview.hidden = !p;
+    };
+    input.addEventListener("input", update);
+    update();
+    // The last free action once more (round 2, 3 … of a fight).
+    let last = "";
+    try {
+      last = localStorage.getItem(`couch-dungeon.lastfree.${playerId()}`) ?? "";
+    } catch {
+      last = "";
+    }
+    const again = last ? h("button", { class: "btn secondary again-btn", type: "button", textContent: `🔁 Nochmal: „${last.length > 40 ? `${last.slice(0, 38)}…` : last}“` }) : null;
+    again?.addEventListener("click", () => submit(last));
     const tools = h("div", { class: "free-tools" });
     // 🎤 Speak instead of type.
     const mic = micButton(input);
@@ -427,7 +485,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         ? "⚔️ Im Kampf kostet das deine Aktion. Gute Tricks: ablenken, umstoßen, Sand werfen, bestechen, betören, einschüchtern, Fässer werfen."
         : "Reden, suchen, verarzten, bestechen, schmeicheln – beschreibe es einfach. Oft entscheidet eine Probe.",
     );
-    showSheet("Freie Aktion", h("p", { class: "lead" }, "Beschreibe mit eigenen Worten, was deine Figur tun will."), cost, input, tools, box, go);
+    showSheet("Freie Aktion", h("p", { class: "lead" }, "Beschreibe mit eigenen Worten, was deine Figur tun will."), ...(again ? [again] : []), cost, input, preview, tools, box, go);
     queueMicrotask(() => input.focus());
   }
 
@@ -1393,7 +1451,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         }),
       );
     },
-    freeTextOptions(text, options) {
+    freeTextOptions(text, options, note) {
       const buttons = options.map((o) => {
         const b = h("button", { class: "choice-btn", type: "button" }, h("span", { class: "choice-label" }, o.label), h("span", { class: "choice-detail" }, o.detail));
         b.addEventListener("click", () => {
@@ -1405,7 +1463,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       });
       const no = h("button", { class: "btn secondary", type: "button", textContent: "✖ Nein, etwas anderes" });
       no.addEventListener("click", () => closeSheet());
-      showSheet("🤔 Meinst du …?", h("p", { class: "muted small" }, `„${text}“`), h("div", { class: "targets" }, ...buttons), no);
+      showSheet(note ? "💡 Geht so nicht – aber:" : "🤔 Meinst du …?", h("p", { class: "muted small" }, `„${text}“`), ...(note ? [h("p", { class: "lead" }, note)] : []), h("div", { class: "targets" }, ...buttons), no);
     },
     rollResult(result) {
       if (dice && result.playerId === playerId()) {

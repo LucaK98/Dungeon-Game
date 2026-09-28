@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchFreeText } from "./intent-match";
+import { matchFreeText, matchUtility } from "./intent-match";
 import type { ActionChoice } from "./view";
 
 const goblins = [
@@ -79,5 +79,34 @@ describe("free text: things and running away stay free actions", () => {
     expect(matchFreeText("Ich werfe das Fass um", all, "me")).toBeUndefined();
     // …but a named enemy is still attacked.
     expect(matchFreeText("Ich trete Goblin 1 gegen das Fass", all, "me")).toBeDefined();
+  });
+});
+
+describe("free text: things, furniture, abilities", () => {
+  const ch = (id: string, group: ActionChoice["group"], label: string, action: ActionChoice["action"], extra: Partial<ActionChoice> = {}): ActionChoice => ({ id, group, label, detail: "", glossarKey: id, cost: "action", enabled: true, action, ...extra });
+  const potion = ch("item:potion", "item", "Heiltrank (2)", { kind: "use_item", itemId: "potion-of-healing" }, { targets: [{ id: "ole", name: "Ole", detail: "TP 2/12" }, { id: "me", name: "Pip (du)", detail: "TP 9/10" }], pick: { min: 1, max: 1, repeat: false } });
+  const stool = ch("throw:o1", "look", "🪑 Hocker werfen", { kind: "interact", objectId: "o1", use: "throw" }, { targets: goblins });
+  const table = ch("flip:o2", "look", "💪 Tisch umwerfen", { kind: "interact", objectId: "o2", use: "flip" });
+  const hide = ch("hide", "ability", "Verstecken (Bonusaktion)", { kind: "feature", feature: "hide", bonus: true });
+  const wind = ch("second-wind", "ability", "Durchatmen", { kind: "feature", feature: "second-wind" });
+  const list = [potion, stool, table, hide, wind, rapier, bow];
+  const m = (text: string) => {
+    const r = matchUtility(text, list, "me");
+    return r && "match" in r ? r.match : undefined;
+  };
+  it("drinking a potion is for yourself, handing it over for the one named", () => {
+    expect(m("Ich trinke schnell einen Heiltrank")!.action).toEqual({ kind: "use_item", itemId: "potion-of-healing", targetId: "me" });
+  });
+  it("furniture: throw the stool at a goblin, flip the table", () => {
+    expect(m("Ich werfe den Hocker nach Goblin 2")!.action).toMatchObject({ kind: "interact", objectId: "o1", use: "throw" });
+    expect(m("Ich kippe den Tisch um")!.choice.id).toBe("flip:o2");
+  });
+  it("class abilities by everyday words", () => {
+    expect(m("Ich verstecke mich hinter der Kiste")!.choice.id).toBe("hide");
+    expect(m("Ich atme kurz durch")!.choice.id).toBe("second-wind");
+  });
+  it("plain attacks are not taken for things", () => {
+    expect(matchUtility("Ich steche Goblin 1 nieder", list, "me")).toBeUndefined();
+    expect(matchUtility("Ich frage den Wirt nach dem Weg", list, "me")).toBeUndefined();
   });
 });

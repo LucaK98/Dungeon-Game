@@ -17,7 +17,7 @@ const HEROES = [
 ];
 
 /** A fight against three goblins, played through the same messages the phones send. */
-function goblinFight(seed: number, talk = false) {
+function goblinFight(seed: number, talk: boolean | "vivid" = false) {
   const rng = seededRng(seed);
   const session = createSession(rng, {
     players: HEROES.map((h, i) => ({ playerId: `p${i}`, profile: { ...h, look: defaultLook(h.classId, h.raceId), color: "#fff" } })),
@@ -70,7 +70,8 @@ function goblinFight(seed: number, talk = false) {
       continue;
     }
     if (attack && talk) {
-      game.handle(pid, { kind: "free_text", text: `Ich greife ${attack.targets![0]!.name} an!` });
+      const who = attack.targets![0]!.name;
+      game.handle(pid, { kind: "free_text", text: talk === "vivid" ? `Ich springe mit Anlauf vor und greife ${who} mit aller Kraft an` : `Ich greife ${who} an!` });
       if (game.viewFor(pid)!.log.some((l) => /„Ich greife Goblin \d an!“ → /.test(l.text))) typed++;
       continue;
     }
@@ -114,6 +115,14 @@ describe("combat (A5)", () => {
     expect(Object.values(session.battle.creatures).filter((c) => c.monsterId === "goblin").every((g) => g.dead)).toBe(true);
     expect(rolls.some((l) => /gegen RK \d+ → /.test(l))).toBe(true);
     expect(typed).toBeGreaterThan(0);
+  });
+
+  it("tells typed attacks in the player's words, a vivid one catches the enemy off guard", () => {
+    const { events, session } = goblinFight(5, "vivid");
+    const said = JSON.stringify(events.filter((e) => e.type === "narration"));
+    expect(said).toMatch(/Genau so macht es|versucht es genau so/);
+    expect(JSON.stringify(events)).toContain("Stark beschrieben");
+    expect(Object.values(session.battle.creatures).filter((c) => c.monsterId === "goblin").every((g) => g.dead)).toBe(true);
   });
 
   it("lets the goblins act on their own", () => {

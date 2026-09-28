@@ -17,6 +17,7 @@ import { itemIcon, itemTitle, levelGains, type Reward } from "../shared/reward";
 import { GOAL_GOLD, goalById, goalReached } from "../shared/goals";
 import { craft, recipeById } from "../shared/crafting";
 import { COMPANIONS, newCompanion, traitOf } from "../shared/companions";
+import { RECIPES } from "../shared/crafting";
 import { makeCompanion, placeStray } from "./companions";
 import { arenaFor, arenaRound, type ArenaState } from "./arena";
 import { besideFree } from "./session";
@@ -37,7 +38,7 @@ import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
 import { glossaryAnswer } from "../dm/rules-help";
 import { isTrick } from "../dm/free-actions";
-import { matchFreeText } from "../shared/intent-match";
+import { matchFreeText, matchUtility, type IntentMatch } from "../shared/intent-match";
 import { nameFits, walkIntent } from "../shared/walk-text";
 import { BULLET_ICON, bulletsFor } from "../shared/bullets";
 import type { AttackOption, Creature, GridPos, TurnState } from "../shared/game";
@@ -60,6 +61,8 @@ export interface StoryChoiceOffer {
   recommended?: boolean;
 }
 
+/** A vivid description of an attack ("Ich springe vom Tisch und ramme ihm das Schwert in die Schulter"). */
+const VIVID = /\b(kopf|schulter|bauch|bein|arm|brust|rücken|herz|auge|nacken|knie|hals|flanke|seite)|spring|wirbel|dreh|duck|roll|anlauf|voller wucht|mit aller kraft|brüll|täusch|ausholen|holt? aus/;
 /** Talking to someone ("Ich frage den Wirt …"). */
 const TALK = /\b(frag|sag|sprech|sprich|red|erzähl|bitt|ruf|grüß|begrüß|unterhalt|plauder|flüster)\w*/;
 /** Dice sums and rule details: on the phones, not in the TV's log column. */
@@ -86,6 +89,8 @@ export interface GameEvents {
   changed(): void;
   roll(outcome: RollOutcome): void;
   turn(name: string, color: string | undefined, free?: boolean, info?: string): void;
+  /** A short big note in the middle of the TV ("✨ Stark beschrieben!"). */
+  flash(text: string): void;
   /** Exploring in turns: seconds left for the active player (undefined = no clock). */
   clock(seconds: number | undefined): void;
   /** Exploring in turns: a round is over. */
@@ -317,6 +322,112 @@ export class GameController {
 
   private heroByRef(ref: string): Creature | undefined {
     return this.heroes().find((h) => h.playerId === ref || h.id === ref);
+  }
+
+  /** The free text behind the attack now running (to tell the hit in the player's words). */
+  private flavor: { heroId: string; text: string; target?: string; targetId?: string; intoFire: boolean } | undefined;
+  /** Heroes who already got the bonus for a vivid description in this fight. */
+  private styleUsed = new Set<string>();
+
+  /**
+   * An attack described in words: a vivid description catches the enemy off guard (once per fight),
+   * "hinter dem Tisch" gives cover when there is something to hide behind, and the hit is told in the player's words.
+   */
+  private flavorFor(hero: Creature, said: string, m: IntentMatch): void {
+    const targetId = m.action.kind === "attack" ? m.action.targetId : m.action.kind === "cast" ? m.action.targetIds[0] : undefined;
+    const target = targetId ? this.battle.creatures[targetId] : undefined;
+    const t = said.toLowerCase();
+    if (this.mode === "combat" && m.choice.group === "attack" && target?.side === "enemy" && !this.styleUsed.has(hero.id) && said.split(/\s+/).length >= 7 && VIVID.test(t)) {
+      this.styleUsed.add(hero.id);
+      addEffect(target, "distracted", 99, target.id);
+      this.addLog([{ text: `✨ Stark beschrieben! ${hero.name} erwischt ${target.name} auf dem falschen Fuß: Vorteil.`, glossarKeys: ["vorteil"] }]);
+      this.emit("flash", "✨ Stark beschrieben!");
+    }
+    // "…und bleibe hinter dem Tisch in Deckung": only with real cover right next to the hero.
+    if (this.mode === "combat" && hero.pos && /deckung|hinter (dem|der|den|die)\b/.test(t)) {
+      const cover = this.map.objects.find((o) => (propDef(o)?.cover ?? 0) > 0 && Math.max(Math.abs(o.x - hero.pos!.x), Math.abs(o.y - hero.pos!.y)) <= 1);
+      if (cover) {
+        addEffect(hero, "cover", 1, hero.id);
+        this.addLog([{ text: `🛡️ ${hero.name} bleibt hinter ${propDef(cover)?.name ?? "der Deckung"}: +2 Rüstungsklasse bis zum nächsten Zug.`, glossarKeys: ["deckung"] }]);
+      }
+    }
+    const intoFire = /\b(ins|in das|in die) (feuer|flammen|glut)/.test(t);
+    this.flavor = { heroId: hero.id, text: said, ...(target ? { target: target.name, targetId: target.id } : {}), intoFire };
+  }
+
+  /** After the attack: tell it in the player's words; "ins Feuer" pushes the enemy into flames next to it. */
+  private tellFlavor(r: RollOutcome): void {
+    const f = this.flavor;
+    if (!f || r.creatureId !== f.heroId || r.success === undefined) return;
+    this.flavor = undefined;
+    const hero = this.battle.creatures[f.heroId];
+    if (!hero) return;
+    const quote = f.text.length > 90 ? `${f.text.slice(0, 88)}…` : f.text;
+    this.narrate([{ text: r.success ? `Genau so macht es ${hero.name}: „${quote}“ – Treffer!` : `${hero.name} versucht es genau so – doch ${f.target ?? "der Gegner"} weicht aus!` }]);
+    const target = f.targetId ? this.battle.creatures[f.targetId] : undefined;
+    if (r.success && f.intoFire && target?.pos && isActive(target)) {
+      const taken = (p: GridPos) => Object.values(this.battle.creatures).some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
+      const fire = [...Array(9).keys()].map((k) => ({ x: target.pos!.x + (k % 3) - 1, y: target.pos!.y + Math.floor(k / 3) - 1 })).find((p) => surfaceKind(this.map, p) === "fire" && !taken(p));
+      if (fire) {
+        target.pos = fire;
+        this.publishWorld(target, "Ins Feuer gestoßen", burnCreature(this.envRng, target));
+      }
+    }
+  }
+
+  /** "Bello, fass!" / "Rabe, hack ihm die Augen aus": points the companion at an enemy. Returns true when it was a command. */
+  private commandCompanion(hero: Creature, said: string): boolean {
+    const pet = this.companionOf(hero);
+    if (!pet?.companion) return false;
+    const t = said.toLowerCase();
+    const kind = COMPANIONS[pet.companion.kind].name.toLowerCase();
+    const called = t.includes(pet.name.toLowerCase().split(" ")[0]!) || new RegExp(`\\b${kind}`).test(t);
+    if (!called || !/\b(fass|greif|hol|beiß|beiss|hack|los|kratz|jag|attack|pack|stürz)/.test(t)) return false;
+    const enemies = Object.values(this.battle.creatures).filter((c) => c.side === "enemy" && isActive(c) && c.pos);
+    const named = enemies.filter((e) => t.includes(e.name.toLowerCase())).concat(enemies.filter((e) => nameFits(t, e.name)));
+    const d = (c: Creature) => (pet.pos && c.pos ? Math.max(Math.abs(c.pos.x - pet.pos.x), Math.abs(c.pos.y - pet.pos.y)) : 99);
+    const target = named[0] ?? [...enemies].sort((a, b) => d(a) - d(b))[0];
+    this.emit("speech", hero.id, said);
+    if (!target) {
+      this.addLog([{ text: `${COMPANIONS[pet.companion.kind].icon} ${pet.name} spitzt die Ohren – aber hier ist kein Gegner.`, glossarKeys: ["begleiter"] }]);
+      this.broadcast();
+      return true;
+    }
+    pet.focusId = target.id;
+    this.addLog([{ text: `${COMPANIONS[pet.companion.kind].icon} ${hero.name}: „${said.slice(0, 60)}“ → ${pet.name} nimmt sich ${target.name} vor.`, glossarKeys: ["begleiter"] }]);
+    this.broadcast();
+    return true;
+  }
+
+  /** "Ich braue einen Heiltrank": undefined = not about brewing, "" = brewed, else why not. */
+  private craftByText(hero: Creature, said: string): string | undefined {
+    const t = said.toLowerCase();
+    if (!/\b(brau|misch|mix|bastel|koch|stell\w* \w+ her|knüpf|füll\w* \w+ ab)/.test(t)) return undefined;
+    const recipe = RECIPES.find((r) => nameFits(t, r.name) || t.includes(r.id));
+    if (!recipe) return undefined;
+    return this.craftFor(hero, recipe.id) ?? "";
+  }
+
+  /** When the wanted button is not possible: up to three things that are (other attacks, walking closer). */
+  private alternativesFor(hero: Creature, wanted: ActionChoice, choices: ActionChoice[]): { label: string; detail: string; action: PlayerAction }[] {
+    const out: { label: string; detail: string; action: PlayerAction }[] = [];
+    const fighting = wanted.group === "attack" || wanted.group === "spell";
+    if (fighting) {
+      const usable = choices.filter((c) => c.enabled && (c.group === "attack" || c.group === "spell") && c.targets?.length && c.avgKind !== "heal").sort((a, b) => (b.avg ?? 0) * (b.chance ?? 0.5) - (a.avg ?? 0) * (a.chance ?? 0.5));
+      for (const c of usable.slice(0, 2)) {
+        const t = [...c.targets!].sort((a, b) => (b.chance ?? 0) - (a.chance ?? 0))[0]!;
+        const a = c.action;
+        out.push({ label: `${c.label} → ${t.name}`, detail: `${c.chance !== undefined ? `${Math.round(c.chance * 100)} % · ` : ""}${c.avg ? `≈ ${Math.round(c.avg)} Schaden` : c.detail}`, action: a.kind === "attack" ? { ...a, targetId: t.id } : a.kind === "cast" ? { ...a, targetIds: [t.id] } : a });
+      }
+      // Too far: walk towards the nearest enemy (and strike next turn).
+      const enemies = this.enemiesVisible().filter(isActive);
+      const turn = this.turnFor(hero);
+      if (/Reichweite|näher/.test(wanted.reason ?? "") && enemies.length && (turn?.movementLeftFt ?? 0) > 0 && hero.pos) {
+        const near = [...enemies].sort((a, b) => distanceFt(hero, a) - distanceFt(hero, b))[0]!;
+        out.push({ label: `🦶 Zu ${near.name} laufen`, detail: "So weit die Bewegung reicht – zuschlagen dann im nächsten Zug", action: { kind: "free_text", text: `Ich gehe zu ${near.name}` } });
+      }
+    }
+    return out.slice(0, 3);
   }
 
   /** Where "Ich gehe zu …" leads: the nearest creature or thing whose name fits (only what the heroes have seen). */
@@ -768,6 +879,7 @@ export class GameController {
     this.mode = "combat";
     this.lanceUsed.clear();
     const ids = [...this.heroes().filter((h) => !h.dead).map((h) => h.id), ...enemies.map((e) => e.id), ...this.alliesInPlay()];
+    this.styleUsed.clear();
     const combat = startCombat(this.rng, this.battle, ids);
     const lines: ExplainedLine[] = [
       { text: "⚔️ Kampf! Alle würfeln Initiative. Wer am höchsten würfelt, ist zuerst dran.", glossarKeys: ["initiative"] },
@@ -1165,9 +1277,27 @@ export class GameController {
             if (this.active()?.id !== hero.id) return;
           }
         }
+        // "Bello, fass den Goblin!": the companion goes for that enemy (a shout costs nothing).
+        if (said && this.commandCompanion(hero, said)) return;
+        // "Ich braue einen Heiltrank": brewing works as always (anytime, no action).
+        const brew = said ? this.craftByText(hero, said) : undefined;
+        if (brew !== undefined) {
+          if (brew) this.sendTo(playerId, { type: "action_error", reason: brew });
+          else this.broadcast();
+          return;
+        }
+        const choices = said ? this.choicesFor(hero, true, false) : [];
+        // Things, furniture and abilities: "Ich trinke einen Heiltrank", "Ich kippe den Tisch um", "Ich verstecke mich".
+        const thing = said ? matchUtility(said, choices, hero.id) : undefined;
         // "Ich schieße mit dem Bogen auf den Goblin": that is simply the bow attack (or the fitting spell).
-        const found = said ? matchFreeText(said, this.choicesFor(hero, true, false), hero.id, isTrick(said)) : undefined;
+        const found = thing ?? (said ? matchFreeText(said, choices, hero.id, isTrick(said)) : undefined);
         if (found && "blocked" in found) {
+          // Not possible – but maybe something else is: offer it right away.
+          const alternatives = this.alternativesFor(hero, found.choice, choices);
+          if (alternatives.length) {
+            this.sendTo(playerId, { type: "free_text_options", text: said, note: `${found.choice.label}: ${found.blocked} Stattdessen:`, options: alternatives });
+            return;
+          }
           this.sendTo(playerId, { type: "action_error", reason: `${found.choice.label}: ${found.blocked}` });
           return;
         }
@@ -1182,6 +1312,7 @@ export class GameController {
         }
         if (found) {
           const { choice, targetNames } = found.match;
+          if (choice.group === "attack" || choice.group === "spell") this.flavorFor(hero, said, found.match);
           this.addLog([{ text: `${hero.name}: „${said.slice(0, 100)}“ → ${choice.label}${targetNames.length ? ` auf ${targetNames.join(", ")}` : ""}`, glossarKeys: [choice.glossarKey] }]);
           if (!spoke) this.emit("speech", hero.id, said);
           this.handle(playerId, found.match.action);
@@ -1317,6 +1448,7 @@ export class GameController {
         return c ? { name: c.name, hp: c.hp, enemy: c.side === "enemy" } : undefined;
       });
     }
+    this.tellFlavor(r);
     this.track(r);
     // TV: who did what, then the coloured points ("⚔️ −7 Schaden an Goblin 1").
     const actor = this.battle.creatures[r.creatureId]?.name;
@@ -3757,6 +3889,7 @@ export class GameController {
     this.mode = "combat";
     this.lanceUsed.clear();
     const ids = [...this.heroes().filter((h) => !h.dead).map((h) => h.id), ...extraIds];
+    this.styleUsed.clear();
     const combat = startCombat(this.rng, this.battle, [...new Set(ids)]);
     const lines: ExplainedLine[] = [
       { text: "⚔️ Kampf! Alle würfeln Initiative. Wer am höchsten würfelt, ist zuerst dran.", glossarKeys: ["initiative"] },

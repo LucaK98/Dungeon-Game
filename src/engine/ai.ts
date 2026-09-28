@@ -33,6 +33,9 @@ function avgDamage(o: AttackOption): number {
 
 function pickTarget(battle: Battle, c: Creature): Creature | undefined {
   const enemies = enemiesOf(battle, c);
+  // A companion goes for the enemy its hero pointed at.
+  const focus = c.focusId ? enemies.find((e) => e.id === c.focusId && isActive(e)) : undefined;
+  if (focus) return focus;
   const standing = enemies.filter(isActive);
   const pool = standing.length ? standing : enemies;
   return pool.sort((a, b) => distanceFt(c, a) - distanceFt(c, b) || a.hp - b.hp)[0];

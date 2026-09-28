@@ -164,6 +164,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       },
       clock: (seconds) => game.events.emit("clock", seconds),
       round: (ended) => game.events.emit("round", ended),
+      flash: (text) => game.events.emit("flash", text),
       scene: (title, goal) => {
         // The first scene starts before the TV's overlay is ready: shown as soon as it is.
         if (uiReady) game.events.emit("scene-card", title, goal);

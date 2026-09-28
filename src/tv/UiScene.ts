@@ -90,6 +90,9 @@ export class UiScene extends Phaser.Scene {
       this.turnInfo.setColor(seconds !== undefined && seconds <= 15 ? "#ff8a7e" : "#e0c68a");
     };
     const onRound = (ended: number) => this.showBanner(`🔔 Runde ${ended} vorbei`);
+    const onFlash = (text: string) => this.showBanner(text);
+    this.game.events.on("flash", onFlash);
+    this.events.once("shutdown", () => this.game.events.off("flash", onFlash));
     // A new scene: title and goal big in the middle for a few seconds.
     const sceneCard = this.add.container(MAP_RIGHT / 2, BOARD_HEIGHT * 0.24).setDepth(45).setAlpha(0);
     const onSceneCard = (title: string, goal: string) => {

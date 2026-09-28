@@ -190,6 +190,8 @@ export interface Creature {
   appearance?: { look: DollLook; color: string };
   /** A tamed animal: whose it is, its name and gift (src/shared/companions.ts). */
   companion?: CompanionInfo & { ownerId: string };
+  /** A companion's target, commanded by its hero ("Bello, fass den Goblin!"). */
+  focusId?: string;
   /** A stray animal on the map that could be tamed. */
   wild?: CompanionKind;
 }

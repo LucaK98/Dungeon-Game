@@ -16,3 +16,9 @@ describe("walking by text", () => {
     expect(nameFits("die truhe", "Tür")).toBe(false);
   });
 });
+
+describe("walking by text: no place, no walk", () => {
+  it("„Ich springe vor und …“ names no place", () => {
+    expect(walkIntent("Ich springe vor und greife an")).toBeUndefined();
+  });
+});

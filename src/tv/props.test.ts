@@ -201,3 +201,33 @@ describe("boss arenas", () => {
     for (const i of warned) expect(session.map.objects.some((o) => o.prop === "rubble" && o.y * session.map.width + o.x === i)).toBe(true);
   });
 });
+
+describe("free text reaches things, brewing and companions", () => {
+  it("„Ich kippe den Tisch um“ flips the table, „Ich braue einen Heiltrank“ brews", () => {
+    const { game, hero, place } = setup();
+    const t = place({ kind: "prop", prop: "table", x: hero.pos!.x + 1, y: hero.pos!.y, frame: "table", blocking: true, uses: 3 });
+    game.handle("p1", { kind: "free_text", text: "Ich kippe den Tisch um" });
+    expect(t.prop).toBe("table-flipped");
+    hero.pc!.inventory.push({ itemId: "heilkraut", qty: 2 });
+    const potions = () => hero.pc!.inventory.find((i) => i.itemId === "potion-of-healing")?.qty ?? 0;
+    const before = potions();
+    game.handle("p1", { kind: "free_text", text: "Ich braue mir einen Heiltrank" });
+    expect(potions()).toBe(before + 1);
+  });
+
+  it("„Bello, fass!“ points the companion at the enemy", () => {
+    const { game, hero } = setup();
+    game.spawnNearParty(["goblin"]);
+    const goblin = Object.values(game.session.battle.creatures).find((c) => c.monsterId === "goblin")!;
+    // A dog that belongs to Brunhild.
+    const dog = Object.values(game.session.battle.creatures).find((c) => c.monsterId === "mastiff") ?? (() => {
+      game.spawnNearParty(["mastiff"]);
+      return Object.values(game.session.battle.creatures).find((c) => c.monsterId === "mastiff")!;
+    })();
+    dog.side = "party";
+    dog.name = "Bello";
+    dog.companion = { kind: "dog", name: "Bello", trait: "treu", ownerId: hero.id } as never;
+    game.handle("p1", { kind: "free_text", text: "Bello, fass den Goblin!" });
+    expect(dog.focusId).toBe(goblin.id);
+  });
+});

@@ -22,7 +22,10 @@ export function walkIntent(text: string): WalkIntent | undefined {
   if (!to) return undefined;
   const [clause, ...more] = to[2]!.split(THEN);
   const rest = more.join(" ").trim();
-  return { target: clause!.replace(/[.!?]+$/, "").trim(), rest };
+  const target = clause!.replace(/[.!?]+$/, "").trim();
+  // "Ich springe vor und …": no place named.
+  if (!target) return undefined;
+  return { target, rest };
 }
 
 /** Does the name fit the words? ("den wirt" ~ "Wirt Bartholomäus", "zum regal" ~ "Bücherregal") */
