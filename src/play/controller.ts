@@ -1,6 +1,8 @@
 /**
  * The phone as game controller: turn status, map, actions, character sheet and inventory.
  */
+import { xpProgress } from "../shared/progression";
+import { pointsDue, pointsSpent } from "../shared/improvements";
 import { averageOf } from "../engine/dice";
 import { getGear } from "../data/gear";
 import type { Recap } from "../shared/recap";
@@ -1474,7 +1476,36 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         ),
       );
     }
-    return [h("section", { class: "card hero-card" }, hero, stats), ...conditions, fold("sheet-all", "📊 Alle Werte", out)];
+    // Experience: only enemies and clues bring EP – the bar shows how far the next level is.
+    const prog = xpProgress(pc.xp ?? 0);
+    const xpBar = h(
+      "div",
+      { class: "xp-line", dataset: { help: "erfahrung" } },
+      h("span", {}, `✨ ${pc.xp ?? 0} EP`),
+      prog.to ? h("div", { class: "xp-bar" }, h("span", { style: `width:${Math.round((((pc.xp ?? 0) - prog.from) / (prog.to - prog.from)) * 100)}%` })) : "",
+      h("span", { class: "muted small" }, prog.to ? `Stufe ${pc.level + 1} bei ${prog.to}` : "höchste Stufe"),
+    );
+    return [h("section", { class: "card hero-card" }, hero, stats, xpBar), ...pointsCard(me), ...conditions, fold("sheet-all", "📊 Alle Werte", out)];
+  }
+
+  /** Attribute points from level-ups: +1 on one attribute each. */
+  function pointsCard(me: Creature): HTMLElement[] {
+    const pc = me.pc!;
+    const left = pointsDue(pc.level, pc.chapters ?? 0) - pointsSpent(pc.improvements);
+    if (left <= 0) return [];
+    return [h("section", { class: "card points-card" }, h("div", { class: "context-title" }, `💪 ${left} Attributspunkt${left > 1 ? "e" : ""} zu verteilen`), pointButtons(me))];
+  }
+
+  function pointButtons(me: Creature): HTMLElement {
+    return h(
+      "div",
+      { class: "point-grid" },
+      ...ABILITIES.map((a) => {
+        const b = h("button", { class: "btn secondary small", type: "button", disabled: me.abilities[a] >= 20 || view?.mode === "combat" }, `${ABILITY_ICON[a]} ${abilityName(a)} ${me.abilities[a]} → ${me.abilities[a] + 1}`);
+        b.addEventListener("click", () => send({ kind: "spend_point", ability: a }));
+        return b;
+      }),
+    );
   }
 
   /** A section that starts folded; stays open across redraws once opened. */
@@ -1962,6 +1993,15 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     }
     const box = rewardBox!;
     const body: (HTMLElement | string)[] = [];
+    if (r.kind === "level" && r.points && view) {
+      // The attribute point right here (or later in the character tab).
+      const me = view.me;
+      queueMicrotask(() => {
+        const card = box.stack.querySelector(".reward-card:last-child");
+        card?.append(h("p", { class: "reward-new" }, "💪 Neuer Attributspunkt – wohin damit?"), pointButtons(me), h("p", { class: "muted small" }, "Oder später im Tab „Figur“."));
+        card?.querySelectorAll(".point-grid button").forEach((b) => b.addEventListener("click", () => card.querySelector(".point-grid")?.remove()));
+      });
+    }
     if (r.kind === "level") {
       body.push(
         h("div", { class: "reward-burst" }, "⬆️"),

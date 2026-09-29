@@ -20,17 +20,34 @@ export const TALENTS: Talent[] = [
   { id: "flink", icon: "🥾", name: "Flink", text: "+2 Felder Bewegung pro Zug" },
 ];
 
-/** Levels at which a hero may improve (one choice each). */
-export const IMPROVEMENT_LEVELS = [4];
+/**
+ * Levels at which a hero picked a big improvement (+2 or a talent) in older versions. Heroes from the
+ * hero book keep theirs; new heroes get one attribute point per level instead ("pt:STR").
+ */
+export const IMPROVEMENT_LEVELS: number[] = [];
+const LEGACY_LEVELS = [4];
 
 export function improvementsDue(level: number): number {
   return IMPROVEMENT_LEVELS.filter((l) => level >= l).length;
+}
+
+/** Attribute points a hero has earned: one per level above 1, plus one per finished chapter. */
+export function pointsDue(level: number, chapters = 0): number {
+  return Math.max(0, level - 1) + Math.max(0, chapters);
+}
+
+/** Points spent so far ("pt:DEX" entries). */
+export function pointsSpent(improvements: readonly string[] | undefined): number {
+  return (improvements ?? []).filter((i) => i.startsWith("pt:")).length;
 }
 
 export type ParsedImprovement = { kind: "asi"; bonus: Partial<Record<Ability, number>> } | { kind: "talent"; talent: Talent };
 
 export function parseImprovement(raw: unknown): ParsedImprovement | undefined {
   if (typeof raw !== "string") return undefined;
+  // One attribute point from a level-up: +1 on one attribute.
+  const pt = /^pt:(STR|DEX|CON|INT|WIS|CHA)$/.exec(raw);
+  if (pt) return { kind: "asi", bonus: { [pt[1] as Ability]: 1 } };
   if (raw.startsWith("talent:")) {
     const talent = TALENTS.find((t) => t.id === raw.slice(7));
     return talent ? { kind: "talent", talent } : undefined;
@@ -51,9 +68,11 @@ export function parseImprovement(raw: unknown): ParsedImprovement | undefined {
 }
 
 /** Valid improvements only, and not more than the level allows. */
-export function sanitizeImprovements(raw: unknown, level: number): string[] {
+export function sanitizeImprovements(raw: unknown, level: number, chapters = 0): string[] {
   const list = (Array.isArray(raw) ? raw : []).filter((x): x is string => !!parseImprovement(x));
-  return list.slice(0, improvementsDue(level));
+  const points = list.filter((x) => x.startsWith("pt:")).slice(0, pointsDue(level, chapters));
+  const legacy = list.filter((x) => !x.startsWith("pt:")).slice(0, LEGACY_LEVELS.filter((l) => level >= l).length);
+  return [...legacy, ...points];
 }
 
 /** "Stärke +2", "Geschick +1, Konstitution +1", "Talent: Zäh". */

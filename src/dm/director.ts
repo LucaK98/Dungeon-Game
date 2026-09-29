@@ -3,6 +3,7 @@
  * The director owns the rules of the story (flags, clues, fights, endings);
  * the DungeonMaster (scripted or AI) tells it and makes the "creative" decisions.
  */
+import { CLUE_XP } from "../shared/progression";
 import { attractedTo, bondOf, canDate, changeBond, changeLove, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, IN_LOVE, loveOf, markDate, meet, mindPrompt, remember, type FlirtOutcome, type NpcMind, type NpcWorld } from "./npc-world";
 import { applyDamage, distanceFt, isActive } from "../engine/combat";
 import { savingThrow, skillParts, sumParts } from "../engine/core";
@@ -428,6 +429,7 @@ export class Director {
     this.state.clues.push(id);
     const clue = this.story.clues.find((c) => c.id === id)!;
     this.game.narrate([{ text: `🔎 Hinweis: ${clue.text}`, tip: { key: "hinweis", text: "Neuer Hinweis! Ihr findet ihn im Tab „Hinweise“ auf dem Handy." } }]);
+    this.game.awardXp(CLUE_XP, "Hinweis gefunden");
     this.updateView();
   }
 
@@ -509,7 +511,8 @@ export class Director {
       }
       const scene = sceneById(this.story, id);
       const actIndex = actOf(this.story, id).index;
-      // Rest at the fire first, then choose the way on the Harz map the next morning.
+      // A chapter is done: an attribute point for everyone. Rest at the fire, then choose the way on the Harz map.
+      if (actIndex > lastAct) this.game.chapterDone();
       if (actIndex > lastAct && this.opts.camp !== false) await this.campfire();
       if (actIndex > lastAct && this.opts.travel !== false) await this.travel(actIndex);
       lastAct = actIndex;
@@ -543,8 +546,8 @@ export class Director {
     const campRng = seededRng((this.opts.now ?? Date.now)() + this.state.sceneIndex * 7919);
     for (const h of heroes) questions[h.id] = pool.splice(campRng.int(0, pool.length - 1), 1)[0] ?? CAMP_QUESTIONS[0]!;
     const shop: CampOffer[] = [
-      { id: "potion", icon: "🧪", name: "Heiltrank", detail: "Heilt 2W4 + 2 Trefferpunkte", price: 25, itemId: "potion-of-healing" },
-      { id: "torch", icon: "🔥", name: "Fackel", detail: "Licht in dunklen Nächten und Höhlen", price: 1, itemId: "torch" },
+      { id: "potion", icon: "🧪", name: "Heiltrank", detail: "Heilt 2W4 + 2 Trefferpunkte", price: 50, itemId: "potion-of-healing" },
+      { id: "torch", icon: "🔥", name: "Fackel", detail: "Licht in dunklen Nächten und Höhlen", price: 2, itemId: "torch" },
     ];
     const taken = new Set<string>();
     for (const h of heroes) {
@@ -552,7 +555,7 @@ export class Director {
       const g = getGear(this.game.randomGear(h, campRng) ?? "");
       if (g && !taken.has(g.id)) {
         taken.add(g.id);
-        shop.push({ id: `gear:${g.id}`, icon: g.icon, name: g.name, detail: g.detail, price: g.price, gearId: g.id });
+        shop.push({ id: `gear:${g.id}`, icon: g.icon, name: g.name, detail: g.detail, price: g.price * 2, gearId: g.id });
       }
     }
     this.game.narrate([{ npc: "Händlerin Grete", text: "Guten Abend, ihr Helden! Heiltränke, Fackeln – und für die Mutigen ein paar besondere Stücke." }]);
@@ -682,9 +685,11 @@ export class Director {
     this.doneSteps.clear();
     this.stepId = undefined;
     const { act } = actOf(this.story, scene.id);
-    if (act.level && this.game.levelUp(act.level)) {
-      this.game.narrate([{ text: `⬆️ Stufenaufstieg! Ihr seid jetzt Stufe ${act.level}: mehr Trefferpunkte und neue Fähigkeiten.`, tip: { key: "stufe", text: "Schaut in den Charakter-Tab: Dort stehen eure neuen Werte." } }]);
-    }
+    // No free levels per chapter: heroes grow only by experience. A chapter made for stronger heroes
+    // has somewhat weaker foes while the group is below that level (hard, but not hopeless).
+    const levels = this.heroes().map((h) => h.pc?.level ?? 1);
+    const partyLevel = levels.length ? Math.floor(levels.reduce((a, b) => a + b, 0) / levels.length) : 1;
+    this.game.levelGap = Math.max(0, (act.level ?? 1) - partyLevel);
     const map = generateWithRetries(this.rng, { path: sceneRooms(scene, this.state.duration) });
     const npcs = (scene.npcs ?? []).map((n) => {
       const npc = this.story.npcs.find((x) => x.id === n.npc)!;

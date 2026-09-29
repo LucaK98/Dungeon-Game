@@ -268,6 +268,8 @@ export interface CharacterOptions {
   skills?: SkillId[];
   /** Level-4 improvements from the hero book ("asi:STR+2", "talent:zaeh"). */
   improvements?: string[];
+  /** Chapters finished in this adventure (each allows one more attribute point). */
+  chapters?: number;
 }
 
 export function createCharacter(opts: CharacterOptions): Creature {
@@ -283,7 +285,7 @@ export function createCharacter(opts: CharacterOptions): Creature {
   const abilities = { ...base };
   for (const a of ABILITIES) abilities[a] += race.abilityBonuses[a] ?? 0;
   // Improvements from level 4 on: attributes (never above 20) or a talent.
-  const improvements = sanitizeImprovements(opts.improvements, level);
+  const improvements = sanitizeImprovements(opts.improvements, level, opts.chapters ?? 0);
   const talents: string[] = [];
   for (const raw of improvements) {
     const imp = parseImprovement(raw)!;

@@ -104,7 +104,7 @@ export const WORLD_EVENTS: WorldEvent[] = [
         check: {
           skill: "perception",
           dc: 12,
-          success: { narration: [{ text: "In einer Mauerritze liegt ein vergessener Beutel. Darin klimpert es!" }], gold: 8, fx: "sparkle" },
+          success: { narration: [{ text: "In einer Mauerritze liegt ein vergessener Beutel. Darin klimpert es!" }], gold: 4, fx: "sparkle" },
           failure: { narration: [{ text: "Ratten! Sie huschen aus dem Loch und beißen zu, bevor sie verschwinden." }], hurt: "1d4" },
         },
       },
@@ -210,7 +210,7 @@ export const WORLD_EVENTS: WorldEvent[] = [
         check: {
           skill: "survival",
           dc: 11,
-          success: { narration: [{ text: "Ein Elsternnest! Darin glitzern gestohlene Münzen." }], gold: 12, fx: "sparkle" },
+          success: { narration: [{ text: "Ein Elsternnest! Darin glitzern gestohlene Münzen." }], gold: 6, fx: "sparkle" },
           failure: { narration: [{ text: "Die Spuren verlieren sich. Nur ein paar Federn bleiben zurück." }] },
         },
       },
@@ -251,7 +251,7 @@ export const WORLD_EVENTS: WorldEvent[] = [
         check: {
           skill: "athletics",
           dc: 10,
-          success: { narration: [{ text: "Ein goldener Ring! Er ist bestimmt 15 Goldstücke wert." }], gold: 15, fx: "splash" },
+          success: { narration: [{ text: "Ein goldener Ring! Er ist bestimmt 7 Goldstücke wert." }], gold: 7, fx: "splash" },
           failure: { narration: [{ text: "Platsch! Ausgerutscht. Nass bis auf die Knochen und kalt." }], hurt: "1d2", fx: "splash" },
         },
       },
@@ -381,7 +381,7 @@ export const WORLD_EVENTS: WorldEvent[] = [
         check: {
           skill: "athletics",
           dc: 13,
-          success: { narration: [{ text: "Erwischt! Der Dieb lässt den Beutel fallen – und in seiner Hast noch ein paar eigene Münzen." }], gold: 4 },
+          success: { narration: [{ text: "Erwischt! Der Dieb lässt den Beutel fallen – und in seiner Hast noch ein paar eigene Münzen." }], gold: 2 },
           failure: { narration: [{ text: "Zu schnell. Der Beutel ist weg." }], gold: -5 },
         },
       },
@@ -406,7 +406,7 @@ export const WORLD_EVENTS: WorldEvent[] = [
         id: "nehmen",
         label: "💰 Die Münzen nehmen",
         detail: "Wer wird es schon merken?",
-        outcome: { narration: [{ text: "Ihr steckt die Münzen ein. Ein kalter Wind fährt durch den Raum … und ein stechender Schmerz durch eure Glieder." }], gold: 6, hurtAll: "1d4" },
+        outcome: { narration: [{ text: "Ihr steckt die Münzen ein. Ein kalter Wind fährt durch den Raum … und ein stechender Schmerz durch eure Glieder." }], gold: 3, hurtAll: "1d4" },
       },
       walkOn("Ihr lasst den Schrein in Frieden."),
     ],

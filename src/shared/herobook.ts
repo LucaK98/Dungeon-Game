@@ -18,8 +18,10 @@ export interface HeroLegacy {
   /** Earned badges (src/shared/achievements.ts) and running totals for them. */
   badges?: string[];
   totals?: HeroTotals;
-  /** Level-4 choices ("asi:STR+2", "talent:zaeh"). */
+  /** Attribute points ("pt:DEX") and older level-4 choices ("asi:STR+2", "talent:zaeh"). */
   improvements?: string[];
+  /** Experience so far (older heroes: the EP of their level). */
+  xp?: number;
   /** The tamed animal that goes along (gone for good if it fell). */
   companion?: CompanionInfo;
 }
@@ -43,12 +45,16 @@ export function sanitizeLegacy(raw: unknown): HeroLegacy | undefined {
   const armor = worn(l.gear?.armor);
   const trinket = worn(l.gear?.trinket);
   const badges = sanitizeBadges(l.badges);
-  const level = num(l.level, 1, 5);
+  // Every adventure starts at level 1 again: levels, EP and attribute points are earned anew.
+  // What stays: gold, equipment, potions, badges, the companion.
+  const level = 1;
+  const xp = 0;
   const improvements = sanitizeImprovements(l.improvements, level);
   const totals = sanitizeTotals(l.totals);
   const companion = sanitizeCompanion(l.companion);
   return {
     level,
+    xp,
     gold: num(l.gold, 0, 999),
     potions: num(l.potions, 0, 5),
     gear: { owned, ...(weapon ? { weapon } : {}), ...(armor ? { armor } : {}), ...(trinket ? { trinket } : {}) },

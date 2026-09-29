@@ -248,29 +248,52 @@ describe("group votes", () => {
 });
 
 describe("hero book levels", () => {
-  it("a hero from the book who wins an adventure goes one level up (to 5 at most)", () => {
+  it("every adventure starts at level 1 – gold and potions stay, the level does not", () => {
     const rng = seededRng(4);
-    const legacy = (level: number) => ({ level, gold: 0, potions: 1, gear: { owned: [] }, stories: ["Alt"] });
+    const legacy = (level: number) => ({ level, gold: 30, potions: 1, gear: { owned: [] }, stories: ["Alt"] });
     const session = createSession(rng, {
-      players: [
-        { playerId: "p1", profile: { name: "Brunhild", classId: "fighter", raceId: "human", look: defaultLook("fighter", "human"), color: "#e6194b", legacy: legacy(3) } },
-        { playerId: "p2", profile: { name: "Mira", classId: "wizard", raceId: "elf", look: defaultLook("wizard", "elf"), color: "#4363d8", legacy: legacy(5) } },
-        { playerId: "p3", profile: { name: "Neu", classId: "rogue", raceId: "human", look: defaultLook("rogue", "human"), color: "#3cb44b" } },
-      ],
+      players: [{ playerId: "p1", profile: { name: "Brunhild", classId: "fighter", raceId: "human", look: defaultLook("fighter", "human"), color: "#e6194b", legacy: legacy(4) } }],
       plan: { path: ["burghof"] },
       noMonsters: true,
     });
+    expect(Object.values(session.battle.creatures).find((c) => c.pc)!.pc!.level).toBe(1);
     const sent: { to: string; event: GameEvent }[] = [];
     const game = new GameController(session, rng, (to, event) => sent.push({ to, event }), () => {}, { monsterDelayMs: 0 });
     game.start();
+    game.awardXp(500, "Test");
+    expect(game.heroOf("p1")!.pc!.level).toBe(3);
     game.saveHeroes("Neu", { won: true, difficulty: "normal" });
-    const level = (pid: string) => {
-      const e = sent.find((s) => s.to === pid && s.event.type === "hero_saved")?.event;
-      return e?.type === "hero_saved" ? e.hero.legacy.level : undefined;
-    };
-    expect(level("p1")).toBe(4);
-    expect(level("p2")).toBe(5);
-    expect(level("p3")).toBe(2);
+    const e = sent.find((s) => s.to === "p1" && s.event.type === "hero_saved")?.event;
+    expect(e?.type === "hero_saved" && e.hero.legacy.level).toBe(1);
+    expect(e?.type === "hero_saved" && e.hero.legacy.gold).toBe(30);
+  });
+});
+
+describe("experience and attribute points", () => {
+  it("gives EP only for defeated enemies (shared) and found clues; a level brings a point to spend", async () => {
+    const { game, session, last } = setup(4);
+    const { createMonster } = await import("../engine/creatures");
+    const ogre = createMonster("ogre", "ogre-1", { name: "Oger" });
+    ogre.side = "enemy";
+    ogre.dead = true;
+    ogre.hp = 0;
+    session.battle.creatures[ogre.id] = ogre;
+    game.broadcast();
+    const hero = game.heroOf("p1")!;
+    // 450 EP for two heroes: 225 each – level 2 (150).
+    expect(hero.pc!.xp).toBe(225);
+    expect(game.heroOf("p1")!.pc!.level).toBe(2);
+    game.broadcast();
+    expect(game.heroOf("p1")!.pc!.xp).toBe(225);
+    const str = game.heroOf("p1")!.abilities.STR;
+    game.handle("p1", { kind: "spend_point", ability: "STR" });
+    expect(game.heroOf("p1")!.abilities.STR).toBe(str + 1);
+    game.handle("p1", { kind: "spend_point", ability: "STR" });
+    expect(last("p1", "action_error")?.type === "action_error" && (last("p1", "action_error") as { reason: string }).reason).toContain("keinen Attributspunkt");
+    // A finished chapter: one more point.
+    game.chapterDone();
+    game.handle("p1", { kind: "spend_point", ability: "DEX" });
+    expect(game.heroOf("p1")!.abilities.DEX).toBe(hero.abilities.DEX + 1);
   });
 });
 

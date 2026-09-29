@@ -39,6 +39,8 @@ export type PlayerAction =
   | { kind: "flirt"; npcId: string }
   /** Give a character something from the bag (what she likes counts double). */
   | { kind: "gift"; npcId: string; itemId: string }
+  /** Spend an attribute point from a level-up (+1, never above 20). */
+  | { kind: "spend_point"; ability: "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA" }
   /** Take back the last move (only while nothing was revealed, rolled or hit). */
   | { kind: "undo_move" }
   /** Points at a square on the map (shown on the TV), with a planned route if there is one. */

@@ -4,10 +4,10 @@ import { pickRoutes } from "./travel";
 
 describe("home village", () => {
   it("builds with the village's gold, once each", () => {
-    const v = sanitizeVillage({ gold: 100, built: ["quatsch"] });
+    const v = sanitizeVillage({ gold: 130, built: ["quatsch"] });
     expect(v.built).toEqual([]);
     expect(build(v, "kraeuterhuette")).toBeUndefined();
-    expect(v.gold).toBe(60);
+    expect(v.gold).toBe(10);
     expect(build(v, "kraeuterhuette")).toBe("Das steht schon.");
     expect(build(v, "tempel")).toContain("fehlen");
     expect(villageIncome(true, 4)).toBeGreaterThan(villageIncome(false, 4));

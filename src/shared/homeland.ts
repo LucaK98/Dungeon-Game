@@ -16,12 +16,12 @@ export interface Building {
 }
 
 export const BUILDINGS: Building[] = [
-  { id: "kraeuterhuette", icon: "🌿", name: "Kräuterhütte", price: 40, text: "Jeder Held bricht mit einem Heiltrank und zwei Heilkräutern mehr auf." },
-  { id: "taverne", icon: "🍺", name: "Taverne „Zum Heimkehrer“", price: 40, text: "Stammtisch-Kasse: Jeder Held startet mit 10 Gold mehr." },
-  { id: "zwinger", icon: "🐕", name: "Hundezwinger", price: 50, text: "Im ersten Raum jedes Abenteuers wartet ein Hund auf einen Menschen. Begleiter sind an jedem neuen Ort wieder gesund." },
-  { id: "schmiede", icon: "⚒️", name: "Schmiede", price: 60, text: "Frisch geschärft: +1 Schaden mit allen Waffen." },
-  { id: "wachturm", icon: "🗼", name: "Wachturm", price: 70, text: "Späher melden alles: An jedem neuen Ort sind alle Räume schon aufgedeckt." },
-  { id: "tempel", icon: "⛪", name: "Tempel", price: 90, text: "Einmal pro Abenteuer steht der erste Held, der zu Boden geht, sofort wieder auf." },
+  { id: "kraeuterhuette", icon: "🌿", name: "Kräuterhütte", price: 120, text: "Jeder Held bricht mit einem Heiltrank und zwei Heilkräutern mehr auf." },
+  { id: "taverne", icon: "🍺", name: "Taverne „Zum Heimkehrer“", price: 120, text: "Stammtisch-Kasse: Jeder Held startet mit 5 Gold mehr." },
+  { id: "zwinger", icon: "🐕", name: "Hundezwinger", price: 150, text: "Im ersten Raum jedes Abenteuers wartet ein Hund auf einen Menschen. Begleiter sind an jedem neuen Ort wieder gesund." },
+  { id: "schmiede", icon: "⚒️", name: "Schmiede", price: 180, text: "Frisch geschärft: +1 Schaden mit allen Waffen." },
+  { id: "wachturm", icon: "🗼", name: "Wachturm", price: 210, text: "Späher melden alles: An jedem neuen Ort sind alle Räume schon aufgedeckt." },
+  { id: "tempel", icon: "⛪", name: "Tempel", price: 270, text: "Einmal pro Abenteuer steht der erste Held, der zu Boden geht, sofort wieder auf." },
 ];
 
 export interface Village {
@@ -35,7 +35,7 @@ export function buildingById(id: string): Building | undefined {
 
 /** Gold the village gets from an adventure: more for a win and for a bigger group. */
 export function villageIncome(won: boolean, heroes: number): number {
-  return won ? 30 + 15 * heroes : 10 + 5 * heroes;
+  return won ? 10 + 5 * heroes : 2 * heroes;
 }
 
 export function build(v: Village, id: string): string | undefined {

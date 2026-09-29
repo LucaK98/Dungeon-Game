@@ -81,8 +81,17 @@ describe("levels 4 and 5", () => {
     expect(skel.dead).toBe(true);
   });
 
-  it("the hero book allows levels up to 5", () => {
-    expect(sanitizeLegacy({ level: 9, gold: 0, potions: 0, gear: { owned: [] }, stories: [] })?.level).toBe(5);
-    expect(sanitizeLegacy({ level: 4, gold: 0, potions: 0, gear: { owned: [] }, stories: [], improvements: ["talent:zaeh"] })?.improvements).toEqual(["talent:zaeh"]);
+  it("the hero book always starts the next adventure at level 1 (attribute points are earned anew)", () => {
+    expect(sanitizeLegacy({ level: 9, gold: 0, potions: 0, gear: { owned: [] }, stories: [] })?.level).toBe(1);
+    expect(sanitizeLegacy({ level: 4, gold: 0, potions: 0, gear: { owned: [] }, stories: [], improvements: ["talent:zaeh", "pt:STR"] })?.improvements).toBeUndefined();
+  });
+
+  it("gives one attribute point per level and per finished chapter (+1, never above 20)", () => {
+    const base = createCharacter({ id: "a", name: "A", classId: "fighter", raceId: "human", level: 2 });
+    const one = createCharacter({ id: "a", name: "A", classId: "fighter", raceId: "human", level: 2, improvements: ["pt:DEX", "pt:DEX"] });
+    // Level 2 without a chapter: only one point counts.
+    expect(one.abilities.DEX).toBe(base.abilities.DEX + 1);
+    const two = createCharacter({ id: "a", name: "A", classId: "fighter", raceId: "human", level: 2, chapters: 1, improvements: ["pt:DEX", "pt:DEX"] });
+    expect(two.abilities.DEX).toBe(base.abilities.DEX + 2);
   });
 });

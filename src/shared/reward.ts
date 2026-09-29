@@ -24,6 +24,8 @@ export type Reward =
       /** New class features and spells (id for the glossary, readable name). */
       features: { key: string; name: string }[];
       spells: { key: string; name: string }[];
+      /** Attribute points waiting to be spent (one per level). */
+      points?: number;
     }
   | { kind: "gear"; heroId: string; name: string; color?: string; icon: string; title: string; detail: string; how: string }
   | { kind: "gold"; heroId: string; name: string; color?: string; amount: number }

@@ -2,6 +2,8 @@
  * The running game on the host: turns, validation of player actions, rolls and the view each phone gets.
  * The TV is authoritative – phones only send wishes (PlayerAction).
  */
+import { levelForXp, monsterXp, shareXp } from "../shared/progression";
+import { pointsDue, pointsSpent } from "../shared/improvements";
 import { longRest, perform, type ActionOutcome, type CombatAction } from "../engine/actions";
 import { attackReasons, inRange, rangeBonuses, resolveAttack, RUN_UP_FT } from "../engine/attack";
 import { addCondition, addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, sizeInSquares, squaresOf, startCombat } from "../engine/combat";
@@ -69,6 +71,9 @@ const TALK = /\b(frag|sag|sprech|sprich|red|erzähl|bitt|ruf|grüß|begrüß|unt
 /** Dice sums and rule details: on the phones, not in the TV's log column. */
 const MATH_LINE = /= -?\d+ gegen (RK|SG)|^🎲|^💥|gewürfelt|Bei einem kritischen Treffer|Rettungswurf-SG|hat jetzt \d+ Trefferpunkte|^[^:]+: 🎲/;
 /** Exploring in turns: a player who does nothing this long is skipped (ms). */
+/** Attribute names for the log. */
+const ABILITY_NAMES = { STR: "Stärke", DEX: "Geschicklichkeit", CON: "Konstitution", INT: "Intelligenz", WIS: "Weisheit", CHA: "Charisma" } as const;
+
 /** No visible clock: only someone who has been gone this long (left the room, phone off) is skipped. */
 const SILENT_TURN_MS = 300_000;
 const LOG_SIZE = 40;
@@ -590,7 +595,7 @@ export class GameController {
           if (this.findsThisMap >= 2) break;
           this.findsThisMap++;
           if (e.item === "gold") {
-            const amount = rollDice(this.rng, parseDice("2d6")).total;
+            const amount = rollDice(this.rng, parseDice("1d6")).total;
             this.addItem(actor, "gold", amount);
             lines.push(`🪙 ${actor.name} findet ${amount} Goldmünzen.`);
           } else if (e.item === "trank") {
@@ -953,8 +958,10 @@ export class GameController {
     this.addLog(lines);
     this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: this.heroes()[0]!.id, title: winner === "party" ? "Sieg!" : "Niederlage", sides: 20, dice: [], kept: 0, lines, success: winner === "party" });
     this.emit("combat", false);
+    this.sweepXp();
     this.training = false;
     this.start();
+    this.applyLevels();
     const waiter = this.fightWaiter;
     this.fightWaiter = undefined;
     waiter?.(winner === "party" ? "party" : "enemy");
@@ -1213,6 +1220,23 @@ export class GameController {
       this.storyChoices = [];
       this.addLog([{ text: `${hero.name} entscheidet: ${offer.label}`, glossarKeys: ["entscheidung"] }]);
       resolve({ id: offer.id, playerId });
+      this.broadcast();
+      return;
+    }
+    if (action.kind === "spend_point") {
+      // One point per level: +1 on an attribute (never above 20). Any time outside a fight.
+      const pc = hero.pc;
+      if (!pc) return;
+      const left = pointsDue(pc.level, pc.chapters ?? 0) - pointsSpent(pc.improvements);
+      const reason = left <= 0 ? "Du hast keinen Attributspunkt übrig." : this.mode === "combat" ? "Das geht nach dem Kampf." : hero.abilities[action.ability] >= 20 ? "Höher als 20 geht es nicht." : undefined;
+      if (reason) {
+        this.sendTo(playerId, { type: "action_error", reason });
+        return;
+      }
+      pc.improvements = [...(pc.improvements ?? []), `pt:${action.ability}`];
+      const next = this.levelHero(hero, pc.level, true, false);
+      next.hp = Math.min(next.maxHp, hero.hp + Math.max(0, next.maxHp - hero.maxHp));
+      this.addLog([{ text: `💪 ${hero.name}: ${ABILITY_NAMES[action.ability]} +1`, glossarKeys: ["attribute"] }]);
       this.broadcast();
       return;
     }
@@ -1813,7 +1837,7 @@ export class GameController {
     for (const o of this.map.objects) {
       if (o.x !== hero.pos!.x || o.y !== hero.pos!.y || o.state === "used") continue;
       if (o.kind === "gold") {
-        const amount = rollDice(this.rng, parseDice("2d10")).total;
+        const amount = rollDice(this.rng, parseDice("1d8")).total;
         this.addItem(hero, "gold", amount);
         o.state = "used";
         lines.push({ text: `💰 ${hero.name} findet ${amount} Goldmünzen.`, glossarKeys: ["gegenstand:gold"] });
@@ -2154,8 +2178,9 @@ export class GameController {
         hero: {
           profile: { name: h.name, classId: h.pc.classId, raceId: h.pc.raceId, look: clean, color: h.appearance.color, ...(h.appearance.gender ? { gender: h.appearance.gender } : {}) },
           legacy: {
-            // Beyond the story's own levels: a won adventure brings a hero from the book one level further (up to 5).
-            level: Math.min(MAX_LEVEL, Math.max(h.pc.level, end.won && this.startLevels.has(h.id) ? this.startLevels.get(h.id)! + 1 : 0)),
+            // Next adventure starts at level 1 again (gold, gear and potions stay).
+            level: 1,
+            xp: 0,
             ...(h.pc.improvements?.length ? { improvements: [...h.pc.improvements] } : {}),
             gold: qty("gold"),
             potions: qty("potion-of-healing"),
@@ -2203,7 +2228,7 @@ export class GameController {
         this.addItem(hero, "potion-of-healing", 1);
         lines.push({ text: `🧰 ${hero.name} öffnet die Truhe und findet einen Heiltrank!`, glossarKeys: ["truhe", "gegenstand:potion-of-healing"] });
       } else {
-        const amount = rollDice(this.rng, parseDice("3d10")).total;
+        const amount = rollDice(this.rng, parseDice("2d6")).total;
         this.addItem(hero, "gold", amount);
         lines.push({ text: `🧰 ${hero.name} öffnet die Truhe: ${amount} Goldmünzen!`, glossarKeys: ["truhe", "gegenstand:gold"] });
       }
@@ -2300,7 +2325,7 @@ export class GameController {
           const r = this.rng.next();
           const lines: ExplainedLine[] = [];
           if (r < 0.4) {
-            const gold = rollDice(this.rng, parseDice("1d6")).total;
+            const gold = rollDice(this.rng, parseDice("1d4")).total;
             this.addItem(hero, "gold", gold);
             lines.push({ text: `🛢️ ${hero.name} kramt im Fass und findet ${gold} Goldmünzen!`, glossarKeys: ["gegenstand:gold"] });
           } else if (r < 0.65) {
@@ -2375,7 +2400,7 @@ export class GameController {
           door.blocking = false;
           lines.push({ text: "🚪 Rumpelnd schwingt eine Tür auf.", glossarKeys: [] });
         } else {
-          const gold = rollDice(this.rng, parseDice("2d8")).total;
+          const gold = rollDice(this.rng, parseDice("1d8")).total;
           this.addItem(hero, "gold", gold);
           lines.push({ text: `🗝️ Eine Klappe springt auf! Dahinter: ${gold} Goldmünzen.`, glossarKeys: ["gegenstand:gold"] });
           fx = "sparkle";
@@ -2396,7 +2421,7 @@ export class GameController {
           if (ok) {
             o.state = "found";
             if (!runes) o.frame = "secret.found";
-            const gold = rollDice(this.rng, parseDice("2d10")).total;
+            const gold = rollDice(this.rng, parseDice("1d10")).total;
             this.addItem(hero, "gold", gold);
             lines.push({ text: runes ? `✨ Die Zeichen leuchten auf – ein Stein gleitet zur Seite. Dahinter: ${gold} Goldmünzen!` : `✨ Die Platte lässt sich anheben. Darunter: ${gold} Goldmünzen!`, glossarKeys: ["gegenstand:gold"] });
             if (this.rng.next() < 0.4) {
@@ -2556,7 +2581,7 @@ export class GameController {
         const r = this.rng.next();
         const lines: ExplainedLine[] = [{ text: `💥 ${hero.name} zerschlägt ${o.prop === "pot" ? "den Tonkrug" : "die Kiste"}. Splitter fliegen!`, glossarKeys: ["zerschlagen"] }];
         if (r < 0.3) {
-          const gold = rollDice(this.rng, parseDice("1d6")).total + 1;
+          const gold = rollDice(this.rng, parseDice("1d4")).total + 1;
           this.addItem(hero, "gold", gold);
           lines.push({ text: `Darin: ${gold} Goldmünzen!`, glossarKeys: ["gegenstand:gold"] });
         } else if (r < 0.45) {
@@ -2586,7 +2611,7 @@ export class GameController {
             } else {
               lines.push({ text: `📚 ${hero.name} liest: „${BOOK_LORE[this.rng.int(0, BOOK_LORE.length - 1)]}“`, glossarKeys: [] });
               if (this.rng.next() < 0.4) {
-                const gold = rollDice(this.rng, parseDice("1d8")).total;
+                const gold = rollDice(this.rng, parseDice("1d4")).total;
                 this.addItem(hero, "gold", gold);
                 lines.push({ text: `Ein Buch ist hohl: ${gold} Goldmünzen!`, glossarKeys: ["gegenstand:gold"] });
               }
@@ -2741,7 +2766,7 @@ export class GameController {
           const gear = r < 0.15 ? this.randomGear(hero) : undefined;
           if (gear) queueMicrotask(() => this.grantGear(hero, gear, "Im Sarg"));
           else if (r < 0.6) {
-            const gold = rollDice(this.rng, parseDice("2d6")).total;
+            const gold = rollDice(this.rng, parseDice("1d6")).total;
             this.addItem(hero, "gold", gold);
             lines.push({ text: `Grabbeigaben: ${gold} Goldmünzen.`, glossarKeys: ["gegenstand:gold"] });
           } else lines.push({ text: "Nur Staub und ein grinsender Schädel. Er grinst zurück. Oder?", glossarKeys: [] });
@@ -2922,7 +2947,7 @@ export class GameController {
       pet.effects = [];
       pet.conditions = [];
       if (info.trait === "maeusejaeger") {
-        const gold = rollDice(this.envRng, parseDice("1d6")).total;
+        const gold = rollDice(this.envRng, parseDice("1d4")).total;
         this.addItem(owner, "gold", gold);
         lines.push({ text: `🐈 ${pet.name} legt ${owner.name} stolz ${gold} Münzen vor die Füße.`, glossarKeys: ["begleiter"] });
       } else if (info.trait === "elster") {
@@ -3431,6 +3456,7 @@ export class GameController {
   }
 
   broadcast(): void {
+    this.sweepXp();
     this.checkGoals();
     if (this.training) for (const h of this.heroes()) if (h.hp === 0 && !h.dead) h.stable = true;
     this.syncWorld();
@@ -4077,6 +4103,11 @@ export class GameController {
         const m = createMonster(g.monster, `m${++this.rollCounter}`, { name: count > 1 ? `${g.name ?? nameOf("monsters", g.monster)} ${i + 1}` : (g.name ?? nameOf("monsters", g.monster)) });
         m.pos = pos;
         if (!training) hardenMonster(m, rules);
+        // The group is below this chapter's level: its foes are a bit weaker (−20 % hit points per level, at most half).
+        if (!training && this.levelGap > 0) {
+          m.maxHp = Math.max(1, Math.round(m.maxHp * Math.max(0.5, 1 - 0.2 * this.levelGap)));
+          m.hp = m.maxHp;
+        }
         this.battle.creatures[m.id] = m;
         spawned.push(m);
         if (g.boss) this.bossIds.add(m.id);
@@ -4200,34 +4231,106 @@ export class GameController {
     let changed = false;
     for (const h of this.heroes()) {
       if (!h.pc || h.pc.level >= level) continue;
-      const next = createCharacter({ id: h.id, name: h.name, classId: h.pc.classId, raceId: h.pc.raceId, level, ...(h.pc.improvements ? { improvements: h.pc.improvements } : {}) });
+      this.levelHero(h, level, false);
+      changed = true;
+    }
+    if (changed) this.broadcast();
+    return changed;
+  }
+
+  // ---------------------------------------------------------------- experience
+
+  /** Enemies whose EP were already handed out. */
+  private xpDone = new Set<string>();
+  /** How many levels the group is below what this chapter was made for (foes are weaker then). */
+  levelGap = 0;
+
+  /** EP for every living hero (the same for all). Levels come right away – or after the fight. */
+  awardXp(each: number, reason: string): void {
+    if (each <= 0) return;
+    const heroes = this.heroes().filter((h) => h.pc && !h.dead);
+    for (const h of heroes) h.pc!.xp = (h.pc!.xp ?? 0) + each;
+    this.addLog([{ text: `✨ +${each} EP für alle – ${reason}`, glossarKeys: ["erfahrung"] }]);
+    if (this.mode !== "combat") this.applyLevels();
+  }
+
+  /** Defeated enemies are worth their rule-book EP, shared equally by the group (not in training fights). */
+  private sweepXp(): void {
+    if (this.training) return;
+    const fallen = Object.values(this.battle.creatures).filter((c) => c.side === "enemy" && c.dead && c.monsterId && !this.xpDone.has(c.id));
+    if (!fallen.length) return;
+    for (const c of fallen) this.xpDone.add(c.id);
+    const total = fallen.reduce((sum, c) => sum + monsterXp(c.monsterId), 0);
+    const heroes = this.heroes().filter((h) => h.pc && !h.dead).length;
+    const names = [...new Set(fallen.map((c) => c.name.replace(/ \d+$/, "")))].join(", ");
+    this.awardXp(shareXp(total, heroes), `${names} besiegt`);
+  }
+
+  /** A chapter is done: every living hero gets one attribute point (spent on the phone). */
+  chapterDone(): void {
+    const heroes = this.heroes().filter((h) => h.pc && !h.dead);
+    for (const h of heroes) {
+      h.pc!.chapters = (h.pc!.chapters ?? 0) + 1;
+      if (h.playerId) this.sendTo(h.playerId, { type: "action_error", reason: "💪 Kapitel geschafft: ein neuer Attributspunkt! (Tab „Figur“)" });
+    }
+    if (heroes.length) this.addLog([{ text: "💪 Kapitel geschafft – jeder Held bekommt einen Attributspunkt.", glossarKeys: ["attribute"] }]);
+    this.broadcast();
+  }
+
+  /** Heroes with enough EP reach the next level (keeping their wounds; one attribute point each). */
+  private applyLevels(): void {
+    let changed = false;
+    for (const h of this.heroes()) {
+      if (!h.pc || h.dead) continue;
+      const target = Math.min(MAX_LEVEL, levelForXp(h.pc.xp ?? 0));
+      if (target <= h.pc.level) continue;
+      this.levelHero(h, target, true);
+      changed = true;
+      this.narrate([{ text: `⬆️ ${h.name} erreicht Stufe ${target}!` }]);
+    }
+    if (changed) this.broadcast();
+  }
+
+  /** Builds the hero anew at this level (with points spent); keeps items, gear, wounds if asked. */
+  private levelHero(h: Creature, level: number, keepHp: boolean, reward = true): Creature {
+    {
+      const pc = h.pc!;
+      const next = createCharacter({ id: h.id, name: h.name, classId: pc.classId, raceId: pc.raceId, level, chapters: pc.chapters ?? 0, ...(pc.improvements ? { improvements: pc.improvements } : {}) });
       next.playerId = h.playerId;
       next.appearance = h.appearance;
       next.pos = h.pos;
       if (h.traits.includes("dorfschmiede")) next.traits.push("dorfschmiede");
       // Keep found items (potions, gold, the lance).
-      for (const item of h.pc.inventory) {
+      for (const item of pc.inventory) {
         const own = next.pc!.inventory.find((i) => i.itemId === item.itemId);
         if (own) own.qty = Math.max(own.qty, item.qty);
         else next.pc!.inventory.push({ ...item });
       }
       // Keep the equipment (worn pieces go back on) and the hero book history.
-      if (h.pc.gear && next.appearance) {
+      if (pc.gear && next.appearance) {
         const look = { ...next.appearance.look } as Record<string, string | undefined>;
-        for (const [layer, v] of Object.entries(h.pc.gear.lookBefore ?? {})) look[layer] = v;
+        for (const [layer, v] of Object.entries(pc.gear.lookBefore ?? {})) look[layer] = v;
         next.appearance = { ...next.appearance, look: look as typeof next.appearance.look };
-        applyGear(next, h.pc.gear);
+        applyGear(next, pc.gear);
       }
-      if (h.pc.stories) next.pc!.stories = [...h.pc.stories];
-      if (h.pc.badges) next.pc!.badges = [...h.pc.badges];
-      if (h.pc.totals) next.pc!.totals = { ...h.pc.totals };
+      if (pc.stories) next.pc!.stories = [...pc.stories];
+      if (pc.badges) next.pc!.badges = [...pc.badges];
+      if (pc.totals) next.pc!.totals = { ...pc.totals };
+      next.pc!.xp = pc.xp ?? 0;
+      if (pc.chapters) next.pc!.chapters = pc.chapters;
+      if (keepHp) {
+        next.hp = Math.min(next.maxHp, h.hp + Math.max(0, next.maxHp - h.maxHp));
+        next.conditions = [...h.conditions];
+        next.effects = [...h.effects];
+      }
       this.battle.creatures[h.id] = next;
-      changed = true;
-      const gained = levelGains(h, next);
-      this.reward(next, { kind: "level", heroId: h.id, name: h.name, ...(h.appearance ? { color: h.appearance.color } : {}), level, ...gained });
+      if (reward) {
+        const gained = levelGains(h, next);
+        const points = pointsDue(level, pc.chapters ?? 0) - pointsSpent(next.pc!.improvements);
+        this.reward(next, { kind: "level", heroId: h.id, name: h.name, ...(h.appearance ? { color: h.appearance.color } : {}), level, ...gained, ...(points > 0 ? { points } : {}) });
+      }
+      return next;
     }
-    if (changed) this.broadcast();
-    return changed;
   }
 
   /** Gives an item to one hero (or all). */

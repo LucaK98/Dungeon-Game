@@ -2,6 +2,7 @@
  * A running game on the TV: the dungeon, all creatures and who plays whom.
  * Pure data + setup; the Phaser scene draws it, the host changes it.
  */
+import { xpForLevel } from "../shared/progression";
 import { applyGear, createCharacter, createMonster } from "../engine/creatures";
 import type { Rng } from "../engine/rng";
 import { DIFFICULTY, type Difficulty } from "../shared/difficulty";
@@ -57,9 +58,10 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
       name: profile.name,
       classId: profile.classId,
       raceId: profile.raceId,
-      level: Math.max(opts.level ?? 1, legacy?.level ?? 1),
-      ...(legacy?.improvements?.length ? { improvements: legacy.improvements } : {}),
+      // Every adventure starts at level 1 (the hero book keeps gold, gear and potions, not the level).
+      level: opts.level ?? 1,
     });
+    if (c.pc) c.pc.xp = xpForLevel(c.pc.level);
     c.playerId = playerId;
     c.appearance = { look: { ...profile.look }, color: profile.color, ...(profile.gender ? { gender: profile.gender } : {}) };
     // Healing potions by difficulty (a hero from the hero book keeps the ones they saved up).
@@ -82,7 +84,7 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
         add("potion-of-healing", 1);
         add("heilkraut", 2);
       }
-      if (village.includes("taverne")) add("gold", 10);
+      if (village.includes("taverne")) add("gold", 5);
       if (village.includes("schmiede")) c.traits.push("dorfschmiede");
     }
     // A hero from the hero book brings gold and equipment along.

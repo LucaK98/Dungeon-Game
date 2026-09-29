@@ -3572,5 +3572,23 @@
       "reichweite",
       "anlauf"
     ]
+  },
+  "erfahrung": {
+    "titel": "Erfahrung (EP)",
+    "kurz": "Punkte für besiegte Gegner und gefundene Hinweise. Genug EP = nächste Stufe.",
+    "lang": "Erfahrung gibt es nur für echte Taten: Besiegt die Gruppe Gegner, bekommt jeder Held gleich viel (die EP der Gegner werden geteilt). Findet ihr einen Hinweis, bekommt jeder 25 EP. Würfeln, Reden oder Laufen bringt nichts. Stufe 2 gibt es ab 300 EP, Stufe 3 ab 900, Stufe 4 ab 2700, Stufe 5 ab 6500 – das dauert mehrere Abenteuer. Jede neue Stufe bringt mehr Trefferpunkte, neue Fähigkeiten und einen Attributspunkt (+1 auf ein Attribut, höchstens 20).",
+    "beispiel": "Vier Helden besiegen einen Oger (450 EP): Jeder bekommt 113 EP.",
+    "siehe_auch": [
+      "stufe"
+    ]
+  },
+  "attribute": {
+    "titel": "Attribute",
+    "kurz": "Stärke, Geschicklichkeit, Konstitution, Intelligenz, Weisheit, Charisma.",
+    "lang": "Die sechs Attribute beschreiben, was dein Held gut kann. Aus ihnen kommen die Boni auf Würfe. Mit jeder neuen Stufe darfst du einen Attributspunkt verteilen (+1, höchstens 20).",
+    "beispiel": "Stärke 16 gibt +3 auf Nahkampfangriffe.",
+    "siehe_auch": [
+      "erfahrung"
+    ]
   }
 }

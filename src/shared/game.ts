@@ -46,7 +46,11 @@ export interface PcInfo {
   inventory: { itemId: string; qty: number }[];
   /** Adventures this hero already survived (hero book). */
   stories?: string[];
-  /** Level-4 improvements (hero book) and the talents among them. */
+  /** Experience in this adventure: from defeated enemies (shared equally) and found clues. */
+  xp?: number;
+  /** Chapters finished in this adventure (one attribute point each). */
+  chapters?: number;
+  /** Attribute points ("pt:DEX") and older level-4 choices (hero book), and the talents among them. */
   improvements?: string[];
   talents?: string[];
   /** Badges and running totals from the hero book. */
