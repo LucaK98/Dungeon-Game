@@ -2,6 +2,7 @@
  * TV screens before the lobby: title, "How to play" (5 slides), story and length.
  * Big text for the sofa; works with mouse, touch and keyboard (arrow keys + Enter).
  */
+import { loadNpcWorld } from "./npc-store";
 import { newRandomStory } from "../dm/stories/random";
 import { DIFFICULTIES, DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import { musicEnabled, setMusicEnabled } from "../ui/music";
@@ -298,6 +299,16 @@ export function cloudLoadScreen(root: HTMLElement, load: (code: string) => Promi
 const KIND_ICON: Record<string, string> = { sieg: "🏆", friedlich: "🕊️", bittersuess: "🥀", scheitern: "💫" };
 
 /** The home village (build with the village's gold) and the saga of past adventures. */
+/** Married couples: the partners live in the home village. */
+function familySection(): HTMLElement[] {
+  const minds = Object.values(loadNpcWorld().npcs).filter((m) => m.spouse || m.engaged);
+  if (!minds.length) return [];
+  return [
+    h("h2", {}, "💞 Familien im Dorf"),
+    h("div", { class: "saga" }, ...minds.map((m) => h("p", { class: "saga-entry" }, m.spouse ? "💍 " : "💌 ", h("strong", {}, m.name), m.spouse ? ` – verheiratet mit ${m.spouse}` : ` – verlobt mit ${m.engaged}, die Hochzeit steht bevor`))),
+  ];
+}
+
 export function villageScreen(root: HTMLElement): Promise<void> {
   return new Promise((resolve) => {
     const s = screen(root);
@@ -330,6 +341,7 @@ export function villageScreen(root: HTMLElement): Promise<void> {
           h("h1", {}, "🏘️ Euer Heimatdorf"),
           h("p", { class: "slide-text" }, `Dorfkasse: 💰 ${v.gold} Gold. Nach jedem Abenteuer bringt ihr Gold nach Hause (mehr, wenn ihr gewinnt). Gebäude helfen euch in allen künftigen Abenteuern.`),
           h("div", { class: "buildings" }, ...cards),
+          ...familySection(),
           h("h2", {}, "📜 Eure Heldensaga"),
           entries.length
             ? h(

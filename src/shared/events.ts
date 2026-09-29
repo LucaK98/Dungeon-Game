@@ -37,6 +37,8 @@ export type PlayerAction =
   | { kind: "go_use"; objectId: string }
   /** Flirt with a character (a Charisma check – if she is into you at all). */
   | { kind: "flirt"; npcId: string }
+  /** Propose with an engagement ring (she must be very much in love). */
+  | { kind: "propose"; npcId: string }
   /** Give a character something from the bag (what she likes counts double). */
   | { kind: "gift"; npcId: string; itemId: string }
   /** Spend an attribute point from a level-up (+1, never above 20). */

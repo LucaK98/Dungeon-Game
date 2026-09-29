@@ -42,6 +42,10 @@ export interface NpcMind {
   love?: Record<string, number>;
   /** Heroes she had a rendezvous with, per adventure ("hero|adventure"). */
   dates?: string[];
+  /** Said yes to this hero's proposal (the wedding is at home, after the adventure). */
+  engaged?: string;
+  /** Married to this hero; lives in the home village. */
+  spouse?: string;
   /** Adventures she appeared in (to tell "we have met before"). */
   adventures: string[];
   firstMet: number;
@@ -354,4 +358,43 @@ export function canDate(mind: NpcMind, hero: string, adventure: string): boolean
 export function markDate(mind: NpcMind, hero: string, adventure: string): void {
   (mind.dates ??= []).push(`${hero}|${adventure}`);
   if (mind.dates.length > 30) mind.dates.splice(0, mind.dates.length - 30);
+}
+
+// ---------------------------------------------------------------- marriage
+
+/** From here on she would say yes to a ring. */
+export const PROPOSE_LOVE = 8;
+export const PROPOSE_BOND = 3;
+
+/** The character this hero is married to (or engaged with), if any. */
+export function partnerOf(world: NpcWorld, hero: string): { mind: NpcMind; married: boolean } | undefined {
+  for (const mind of Object.values(world.npcs)) {
+    if (mind.spouse === hero) return { mind, married: true };
+    if (mind.engaged === hero) return { mind, married: false };
+  }
+  return undefined;
+}
+
+export type ProposalAnswer = "yes" | "too_soon" | "not_interested" | "taken" | "already_bound";
+
+/** Would she say yes? Love and friendship must be high; nobody marries twice. */
+export function proposalAnswer(world: NpcWorld, mind: NpcMind, hero: string, heroGender: Gender): ProposalAnswer {
+  if (partnerOf(world, hero) && partnerOf(world, hero)!.mind !== mind) return "already_bound";
+  if ((mind.spouse && mind.spouse !== hero) || (mind.engaged && mind.engaged !== hero)) return "taken";
+  if (!attractedTo(mind, heroGender)) return "not_interested";
+  if (loveOf(mind, hero) < PROPOSE_LOVE || bondOf(mind, hero) < PROPOSE_BOND) return "too_soon";
+  return "yes";
+}
+
+/** Back home: every engaged couple whose hero is still alive gets married. */
+export function holdWeddings(world: NpcWorld, alive: string[]): { hero: string; name: string }[] {
+  const out: { hero: string; name: string }[] = [];
+  for (const mind of Object.values(world.npcs)) {
+    if (!mind.engaged || !alive.includes(mind.engaged)) continue;
+    mind.spouse = mind.engaged;
+    delete mind.engaged;
+    remember(mind, `Ich habe ${mind.spouse} geheiratet – der schönste Tag meines Lebens.`);
+    out.push({ hero: mind.spouse, name: mind.name });
+  }
+  return out;
 }

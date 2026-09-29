@@ -444,3 +444,19 @@ describe("characters remember the heroes", () => {
     expect(mind.adventures.length).toBe(2);
   }, 60_000);
 });
+
+describe("a wedding at home", () => {
+  it("marries an engaged couple after the adventure; next time the hero is blessed by the thought of home", async () => {
+    const world = emptyWorld();
+    const giver = STORY.npcs[0]!;
+    const hero = HEROES[0]!.name;
+    world.npcs[giver.name.toLowerCase()] = { name: giver.name, monster: giver.monster, persona: { gender: "female", traits: ["herzlich", "mutig", "ehrlich bis zur Grobheit"], speech: "spricht warm", wish: "x", fear: "y", secret: "z", likes: "Blumen", dislikes: "Lügner", romance: { open: true, likes: ["female", "male"] }, voiceStyle: "warm" }, facts: [], bond: { [hero]: 5 }, love: { [hero]: 9 }, engaged: hero, adventures: [], firstMet: 0, lastSeen: 0 };
+    const first = await playStory({ seed: 3, duration: "kurz", npcs: world });
+    const heroAlive = !first.game.heroes().find((h) => h.name === hero)?.dead;
+    expect(heroAlive, "the bride should survive this seed").toBe(true);
+    expect(world.npcs[giver.name.toLowerCase()]!.spouse).toBe(hero);
+    expect(first.narration.some((l) => l.includes(`${hero} und ${giver.name} heiraten`))).toBe(true);
+    const second = await playStory({ seed: 4, duration: "kurz", npcs: world });
+    expect(second.narration.some((l) => l.includes(`${hero} denkt an ${giver.name}`))).toBe(true);
+  }, 60_000);
+});

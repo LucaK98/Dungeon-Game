@@ -4,7 +4,7 @@
  * the DungeonMaster (scripted or AI) tells it and makes the "creative" decisions.
  */
 import { CLUE_XP } from "../shared/progression";
-import { attractedTo, bondOf, canDate, changeBond, changeLove, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, IN_LOVE, loveOf, markDate, meet, mindPrompt, remember, type FlirtOutcome, type NpcMind, type NpcWorld } from "./npc-world";
+import { holdWeddings, partnerOf, proposalAnswer, attractedTo, bondOf, canDate, changeBond, changeLove, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, IN_LOVE, loveOf, markDate, meet, mindPrompt, remember, type FlirtOutcome, type NpcMind, type NpcWorld } from "./npc-world";
 import { applyDamage, distanceFt, isActive } from "../engine/combat";
 import { savingThrow, skillParts, sumParts } from "../engine/core";
 import { parseDice, rollDice } from "../engine/dice";
@@ -175,6 +175,7 @@ export class Director {
     game.onRoundEnd = () => this.world?.roundEnded();
     game.onFlirt = (playerId, hero, name) => void this.flirt(playerId, hero, name);
     game.onGift = (_playerId, hero, name, itemId, itemName) => this.gift(hero, name, itemId, itemName);
+    game.onPropose = (playerId, hero, name) => this.propose(playerId, hero, name);
     if (opts.world) {
       this.world = new World({
         game,
@@ -380,6 +381,48 @@ export class Director {
     w.save();
   }
 
+  /** 💍 A proposal: she says yes only if she is very much in love and likes the hero; the wedding is at home. */
+  private propose(playerId: PlayerId, hero: Creature, name: string): boolean {
+    const w = this.opts.npcs;
+    const mind = this.minds.get(name);
+    if (!w || !mind) {
+      this.game.tellPlayer(playerId, `${name} hat gerade keinen Kopf dafür.`);
+      return false;
+    }
+    const answer = proposalAnswer(w.world, mind, hero.name, this.heroGender(hero));
+    if (answer === "already_bound") {
+      this.game.tellPlayer(playerId, `Du hast dein Herz schon an ${partnerOf(w.world, hero.name)!.mind.name} verschenkt.`);
+      return false;
+    }
+    const lines: Record<Exclude<typeof answer, "already_bound">, string> = {
+      yes: `Ja! Ja, ich will, ${hero.name}!`,
+      too_soon: `Oh, ${hero.name} … das geht mir zu schnell. Gib uns noch etwas Zeit.`,
+      not_interested: `Du bist ein wunderbarer Mensch, ${hero.name} – aber so empfinde ich nicht für dich.`,
+      taken: `Ach, ${hero.name} … mein Herz gehört schon jemand anderem.`,
+    };
+    this.game.narrate([{ text: `💍 ${hero.name} kniet vor ${name} nieder und hält einen Ring hoch …` }, { npc: name, text: lines[answer] }]);
+    if (answer === "yes") {
+      mind.engaged = hero.name;
+      changeLove(mind, hero.name, 1);
+      remember(mind, `${hero.name} hat mir einen Antrag gemacht – und ich habe Ja gesagt!`);
+      this.game.narrate([{ text: `🔔 ${hero.name} und ${name} sind verlobt! Die Hochzeit wird im Heimatdorf gefeiert, wenn ihr heimkehrt.` }]);
+    } else if (answer === "too_soon") remember(mind, `${hero.name} hat mir einen Antrag gemacht – viel zu früh.`);
+    w.save();
+    return answer === "yes";
+  }
+
+  /** At the start: married heroes think of their partner – a blessing in the first fight ("Rückhalt"). */
+  private familyStrength(): void {
+    const w = this.opts.npcs;
+    if (!w || this.state.sceneIndex > 0) return;
+    for (const hero of this.heroes()) {
+      const p = partnerOf(w.world, hero.name);
+      if (!p?.married) continue;
+      this.game.grantBoon(hero.id, "bless");
+      this.game.narrate([{ text: `💍 ${hero.name} denkt an ${p.mind.name} daheim – das gibt Kraft: Im ersten Kampf liegt ein Segen auf ${hero.name}.` }]);
+    }
+  }
+
   /** 🌙 At the campfire (or at the end): a couple in love meets – once per adventure, then fade out. */
   private rendezvous(): void {
     const w = this.opts.npcs;
@@ -501,6 +544,7 @@ export class Director {
         ...(saga.nemesis ? [{ text: `🗡️ Gerüchte gehen um: ${saga.nemesis.name} hat „${saga.nemesis.from}“ nicht vergessen …` }] : []),
       ]);
     }
+    this.familyStrength();
     // A new chapter begins with a rest at the campfire (not when a saved game just continues).
     let lastAct = this.state.sceneIndex < this.state.plan.length ? actOf(this.story, this.state.plan[this.state.sceneIndex]!).index : 0;
     while (this.state.sceneIndex < this.state.plan.length) {
@@ -548,6 +592,7 @@ export class Director {
     const shop: CampOffer[] = [
       { id: "potion", icon: "🧪", name: "Heiltrank", detail: "Heilt 2W4 + 2 Trefferpunkte", price: 50, itemId: "potion-of-healing" },
       { id: "torch", icon: "🔥", name: "Fackel", detail: "Licht in dunklen Nächten und Höhlen", price: 2, itemId: "torch" },
+      { id: "ring", icon: "💍", name: "Verlobungsring", detail: "Für einen Antrag – wenn jemand sehr verliebt ist", price: 60, itemId: "verlobungsring" },
     ];
     const taken = new Set<string>();
     for (const h of heroes) {
@@ -1170,6 +1215,17 @@ export class Director {
     this.game.sendRecap(result.recap);
     // No campfire in short adventures: a couple in love still gets their evening.
     this.rendezvous();
+    // Home again: the engaged get married – the whole village celebrates.
+    if (this.opts.npcs) {
+      const weddings = holdWeddings(this.opts.npcs.world, this.heroes().filter((h) => !h.dead).map((h) => h.name));
+      for (const wed of weddings) {
+        this.game.narrate([
+          { text: `🔔 Zurück im Heimatdorf läuten die Glocken: ${wed.hero} und ${wed.name} heiraten! Das ganze Dorf tanzt bis tief in die Nacht.` },
+          { npc: wed.name, text: `Jetzt bin ich zu Hause, ${wed.hero}. Bei dir.` },
+        ]);
+      }
+      if (weddings.length) this.opts.npcs.save();
+    }
     // Everyone met remembers how it ended – and likes the heroes a bit more if they helped.
     const w = this.opts.npcs;
     if (w && this.metMinds.size) {

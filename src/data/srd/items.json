@@ -67,5 +67,9 @@
   {
     "id": "stolperdraht",
     "kind": "gear"
+  },
+  {
+    "id": "verlobungsring",
+    "kind": "gear"
   }
 ]

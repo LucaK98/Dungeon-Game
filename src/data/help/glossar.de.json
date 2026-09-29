@@ -3590,5 +3590,21 @@
     "siehe_auch": [
       "erfahrung"
     ]
+  },
+  "gegenstand:verlobungsring": {
+    "titel": "Verlobungsring",
+    "kurz": "Damit macht man jemandem einen Antrag.",
+    "lang": "Die Händlerin am Lagerfeuer verkauft Verlobungsringe. Ist eine Figur sehr verliebt in deinen Helden (❤❤❤❤ und mehr) und mag sie ihn auch sonst, kannst du ihr mit dem Ring einen Antrag machen. Der Ring bleibt im Heldenbuch, bis du ihn verschenkst.",
+    "siehe_auch": [
+      "hochzeit"
+    ]
+  },
+  "hochzeit": {
+    "titel": "Hochzeit",
+    "kurz": "Ein Antrag mit Ring – und im Heimatdorf wird gefeiert.",
+    "lang": "Sagt eine Figur Ja, feiert ihr die Hochzeit, wenn ihr aus dem Abenteuer heimkehrt. Danach wohnt sie im Heimatdorf. Rückhalt: Zu Beginn jedes Abenteuers denkt dein Held an sie – im ersten Kampf liegt ein Segen auf ihm. Jeder Held kann nur einmal verheiratet sein.",
+    "siehe_auch": [
+      "gegenstand:verlobungsring"
+    ]
   }
 }

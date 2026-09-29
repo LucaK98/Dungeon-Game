@@ -75,6 +75,7 @@ const ITEM_ICONS: Record<string, string> = {
   pilz: "🍄",
   leuchtpilz: "✨",
   knochen: "🦴",
+  verlobungsring: "💍",
   spinnenseide: "🕸️",
   oelflasche: "🫙",
   brandflasche: "🔥",

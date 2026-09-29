@@ -391,5 +391,16 @@ describe("flirting and gifts", () => {
     game.handle("p1", { kind: "gift", npcId: "npc-rosa", itemId: "dragon-egg" });
     expect(last("p1", "action_error")).toBeDefined();
     expect(seen).toHaveLength(2);
+    // A proposal needs a ring; the ring is given away only if she says yes.
+    game.handle("p1", { kind: "propose", npcId: "npc-rosa" });
+    expect((last("p1", "action_error") as { reason: string }).reason).toContain("Ring");
+    hero.pc!.inventory.push({ itemId: "verlobungsring", qty: 1 });
+    let answer = false;
+    game.onPropose = () => answer;
+    game.handle("p1", { kind: "propose", npcId: "npc-rosa" });
+    expect(hero.pc!.inventory.some((i) => i.itemId === "verlobungsring")).toBe(true);
+    answer = true;
+    game.handle("p1", { kind: "propose", npcId: "npc-rosa" });
+    expect(hero.pc!.inventory.some((i) => i.itemId === "verlobungsring")).toBe(false);
   });
 });

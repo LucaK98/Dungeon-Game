@@ -956,7 +956,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       "div",
       { class: "person-info" },
       h("p", { class: "lead" }, `${hearts} ${c.mood ?? "kennt dich noch nicht"}${c.bond !== undefined ? ` (${bond >= 0 ? "+" : ""}${bond})` : ""}`),
-      c.love ? h("p", { class: "love-line" }, `🌹 ${c.loveLabel} ${"❤".repeat(Math.max(1, Math.round(c.love / 2)))}${"♡".repeat(5 - Math.max(1, Math.round(c.love / 2)))}`) : "",
+      c.tie ? h("p", { class: "love-line" }, c.tie === "spouse" ? "💍 Dein Ehepartner" : "💍 Mit dir verlobt – Hochzeit, wenn ihr heimkehrt") : "",
+      c.love && !c.tie ? h("p", { class: "love-line" }, `🌹 ${c.loveLabel} ${"❤".repeat(Math.max(1, Math.round(c.love / 2)))}${"♡".repeat(5 - Math.max(1, Math.round(c.love / 2)))}`) : "",
       c.memory ? h("p", { class: "muted" }, `💭 Erinnert sich: ${c.memory}`) : "",
     );
   }
@@ -986,7 +987,16 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       });
       showSheet(`🎁 Was schenkst du ${person.name}?`, h("p", { class: "muted small" }, "Etwas, das sie oder er mag, freut doppelt – vielleicht hat sie/er es mal erwähnt."), h("div", { class: "targets" }, ...buttons));
     });
-    return h("div", { class: "row social-row" }, flirt, gift);
+    // Very much in love, a ring in the bag, no partner yet: a proposal.
+    const ring = (v.me.pc?.inventory ?? []).some((i) => i.itemId === "verlobungsring" && i.qty > 0);
+    const canPropose = (person.love ?? 0) >= 8 && !person.tie && !v.family;
+    const propose = canPropose ? h("button", { class: "btn primary", type: "button", textContent: ring ? "💍 Antrag machen" : "💍 Antrag (Ring fehlt)" }) : null;
+    propose?.addEventListener("click", () => {
+      closeSheet();
+      if (!ring) showToast("Ohne Ring? Die Händlerin am Lagerfeuer hat welche.");
+      else send({ kind: "propose", npcId: person.id });
+    });
+    return h("div", { class: "row social-row" }, flirt, gift, ...(propose ? [propose] : []));
   }
 
   /** A tap on the map: act on what stands there, or plan a walk (a second tap walks). */
@@ -1485,7 +1495,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       prog.to ? h("div", { class: "xp-bar" }, h("span", { style: `width:${Math.round((((pc.xp ?? 0) - prog.from) / (prog.to - prog.from)) * 100)}%` })) : "",
       h("span", { class: "muted small" }, prog.to ? `Stufe ${pc.level + 1} bei ${prog.to}` : "höchste Stufe"),
     );
-    return [h("section", { class: "card hero-card" }, hero, stats, xpBar), ...pointsCard(me), ...conditions, fold("sheet-all", "📊 Alle Werte", out)];
+    const fam = view?.family;
+    const family = fam ? h("p", { class: "love-line", dataset: { help: "hochzeit" } }, fam.spouse ? `💍 Verheiratet mit ${fam.spouse} (wohnt im Heimatdorf)` : `💍 Verlobt mit ${fam.engaged} – Hochzeit nach dem Abenteuer`) : "";
+    return [h("section", { class: "card hero-card" }, hero, stats, xpBar, family), ...pointsCard(me), ...conditions, fold("sheet-all", "📊 Alle Werte", out)];
   }
 
   /** Attribute points from level-ups: +1 on one attribute each. */

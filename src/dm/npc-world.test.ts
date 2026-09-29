@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attractedTo, bondLabel, bondOf, canDate, changeBond, changeLove, emptyWorld, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, loveLabel, loveOf, markDate, meet, mindPrompt, personaFor, remember, MAX_FACTS } from "./npc-world";
+import { holdWeddings, partnerOf, proposalAnswer, PROPOSE_BOND, PROPOSE_LOVE, attractedTo, bondLabel, bondOf, canDate, changeBond, changeLove, emptyWorld, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, loveLabel, loveOf, markDate, meet, mindPrompt, personaFor, remember, MAX_FACTS } from "./npc-world";
 
 describe("npc world", () => {
   it("gives every character one personality for good (same name, same person)", () => {
@@ -113,5 +113,41 @@ describe("romance with characters", () => {
     mind.persona.likes = "Gold";
     expect(giftValue(mind, "gold", "10 Goldmünzen")).toEqual({ liked: true, bond: 3 });
     expect(giftValue(mind, "torch", "Fackel")).toEqual({ liked: false, bond: 1 });
+  });
+});
+
+describe("proposals and weddings", () => {
+  const couple = () => {
+    const world = emptyWorld();
+    const { mind } = meet(world, "Wirtin Rosa", "commoner", "a", 0);
+    mind.persona.romance = { open: true, likes: ["male"] };
+    return { world, mind };
+  };
+
+  it("says yes only when very much in love and fond of the hero; nobody marries twice", () => {
+    const { world, mind } = couple();
+    expect(proposalAnswer(world, mind, "Pip", "male")).toBe("too_soon");
+    changeLove(mind, "Pip", PROPOSE_LOVE);
+    changeBond(mind, "Pip", PROPOSE_BOND);
+    expect(proposalAnswer(world, mind, "Pip", "female")).toBe("not_interested");
+    expect(proposalAnswer(world, mind, "Pip", "male")).toBe("yes");
+    mind.engaged = "Pip";
+    expect(proposalAnswer(world, mind, "Ole", "male")).toBe("taken");
+    // Pip is bound: another proposal elsewhere is not possible.
+    const other = meet(world, "Müllerin Gerda", "commoner", "a", 0).mind;
+    other.persona.romance = { open: true, likes: ["male"] };
+    expect(proposalAnswer(world, other, "Pip", "male")).toBe("already_bound");
+  });
+
+  it("marries the engaged at home – if the hero came back alive", () => {
+    const { world, mind } = couple();
+    mind.engaged = "Pip";
+    expect(holdWeddings(world, ["Brunhild"])).toEqual([]);
+    expect(mind.engaged).toBe("Pip");
+    expect(holdWeddings(world, ["Pip"])).toEqual([{ hero: "Pip", name: "Wirtin Rosa" }]);
+    expect(mind.spouse).toBe("Pip");
+    expect(mind.engaged).toBeUndefined();
+    expect(partnerOf(world, "Pip")).toEqual({ mind, married: true });
+    expect(mind.facts[mind.facts.length - 1]).toContain("geheiratet");
   });
 });

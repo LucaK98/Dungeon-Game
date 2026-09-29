@@ -12,6 +12,8 @@ export interface HeroLegacy {
   level: number;
   gold: number;
   potions: number;
+  /** Engagement rings kept for a proposal. */
+  rings?: number;
   gear: { owned: string[]; weapon?: string; armor?: string; trinket?: string };
   /** Adventures survived (titles). */
   stories: string[];
@@ -57,6 +59,7 @@ export function sanitizeLegacy(raw: unknown): HeroLegacy | undefined {
     xp,
     gold: num(l.gold, 0, 999),
     potions: num(l.potions, 0, 5),
+    ...(num(l.rings, 0, 3) ? { rings: num(l.rings, 0, 3) } : {}),
     gear: { owned, ...(weapon ? { weapon } : {}), ...(armor ? { armor } : {}), ...(trinket ? { trinket } : {}) },
     stories: (Array.isArray(l.stories) ? l.stories : []).filter((s): s is string => typeof s === "string").map((s) => s.slice(0, 60)).slice(-10),
     ...(badges.length ? { badges } : {}),

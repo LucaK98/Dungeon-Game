@@ -214,8 +214,12 @@ export class GameController {
   /** Flirting and gifts: the director decides with the character's memory (src/dm/npc-world.ts). */
   onFlirt: ((playerId: PlayerId, hero: Creature, npcName: string) => void) | undefined;
   onGift: ((playerId: PlayerId, hero: Creature, npcName: string, itemId: string, itemName: string) => void) | undefined;
+  /** A proposal with a ring: true if she said yes (then the ring is given away). */
+  onPropose: ((playerId: PlayerId, hero: Creature, npcName: string) => boolean) | undefined;
+  /** Whom a hero is married to / engaged with (the phone shows it). */
+  familyOf: ((hero: string) => { spouse?: string; engaged?: string } | undefined) | undefined;
   /** What a character feels about a hero and remembers last (the phone shows it on her card). */
-  npcNote: ((name: string, hero: string) => { bond: number; mood: string; memory?: string; love?: number; loveLabel?: string; open?: boolean } | undefined) | undefined;
+  npcNote: ((name: string, hero: string) => { bond: number; mood: string; memory?: string; love?: number; loveLabel?: string; tie?: "spouse" | "engaged" } | undefined) | undefined;
 
   /** A short note for one player's phone. */
   tellPlayer(playerId: PlayerId, reason: string): void {
@@ -1328,6 +1332,7 @@ export class GameController {
         this.move(playerId, hero, action.to);
         return;
       case "flirt":
+      case "propose":
       case "gift": {
         // Only with people, only outside a fight; a step closer first if needed.
         const npc = this.battle.creatures[action.npcId];
@@ -1356,6 +1361,21 @@ export class GameController {
           const name = action.itemId === "gold" ? "10 Goldmünzen" : itemTitle(action.itemId);
           this.emit("speech", hero.id, `🎁 ${name}`);
           this.onGift?.(playerId, hero, npc.name, action.itemId, name);
+          this.broadcast();
+          return;
+        }
+        if (action.kind === "propose") {
+          const inv = hero.pc?.inventory ?? [];
+          const ring = inv.find((i) => i.itemId === "verlobungsring" && i.qty > 0);
+          if (!ring) {
+            this.sendTo(playerId, { type: "action_error", reason: "Ohne Ring? Die Händlerin am Lagerfeuer hat welche." });
+            return;
+          }
+          this.emit("speech", hero.id, "💍");
+          if (this.onPropose?.(playerId, hero, npc.name)) {
+            ring.qty -= 1;
+            if (ring.qty <= 0) inv.splice(inv.indexOf(ring), 1);
+          }
           this.broadcast();
           return;
         }
@@ -2184,6 +2204,7 @@ export class GameController {
             ...(h.pc.improvements?.length ? { improvements: [...h.pc.improvements] } : {}),
             gold: qty("gold"),
             potions: qty("potion-of-healing"),
+            ...(qty("verlobungsring") ? { rings: qty("verlobungsring") } : {}),
             gear: { owned: [...gear.owned], ...(gear.weapon ? { weapon: gear.weapon } : {}), ...(gear.armor ? { armor: gear.armor } : {}), ...(gear.trinket ? { trinket: gear.trinket } : {}) },
             stories: [...(h.pc.stories ?? []), storyTitle],
             badges: [...h.pc.badges],
@@ -3527,6 +3548,8 @@ export class GameController {
     const goal = this.goalView(me);
     if (goal) view.goal = goal;
     if (this.blowAsk?.heroId === me.id) view.finalBlow = { boss: this.blowAsk.boss };
+    const family = this.familyOf?.(me.name);
+    if (family && (family.spouse || family.engaged)) view.family = family;
     if (this.storyView) view.story = { ...this.storyView, narration: this.narrationLog.slice(-4), choices: this.storyChoiceView(playerId), ...(this.votes ? { vote: { cast: this.votes.size, total: this.voters().length } } : {}) };
     return view;
   }
@@ -3642,9 +3665,9 @@ export class GameController {
     return { x0, y0, w, h, frames, overlays, ground, marks, objects, creatures, reachable: mine && !this.pending ? this.reachable(me).filter(inWindow) : [], ...(light ? { light } : {}) };
   }
 
-  private noteFor(name: string, hero: string): { bond?: number; mood?: string; memory?: string; love?: number; loveLabel?: string } {
+  private noteFor(name: string, hero: string): { bond?: number; mood?: string; memory?: string; love?: number; loveLabel?: string; tie?: "spouse" | "engaged" } {
     const n = this.npcNote?.(name, hero);
-    return n ? { bond: n.bond, mood: n.mood, ...(n.memory ? { memory: n.memory } : {}), ...(n.love ? { love: n.love, loveLabel: n.loveLabel ?? "" } : {}) } : {};
+    return n ? { bond: n.bond, mood: n.mood, ...(n.memory ? { memory: n.memory } : {}), ...(n.love ? { love: n.love, loveLabel: n.loveLabel ?? "" } : {}), ...(n.tie ? { tie: n.tie } : {}) } : {};
   }
 
   /** Squares reachable with the movement left (8 directions, around creatures and obstacles). */

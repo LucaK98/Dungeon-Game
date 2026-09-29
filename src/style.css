@@ -1047,3 +1047,4 @@ details.fold > .card { background: #00000022; }
 .xp-bar span { display: block; height: 100%; background: linear-gradient(90deg, #b58cff, #ffd75e); }
 .point-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: 100%; }
 .points-card { border: 2px solid var(--accent); }
+.social-row { flex-wrap: wrap; } .social-row .btn.primary { flex: 1 1 100%; }

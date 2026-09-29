@@ -37,6 +37,8 @@ export interface MiniCreature {
   /** Romance with this hero: 0 … 10 and in a word ("verliebt"). */
   love?: number;
   loveLabel?: string;
+  /** Married to / engaged with this hero. */
+  tie?: "spouse" | "engaged";
 }
 
 export interface MiniMap {
@@ -155,6 +157,8 @@ export interface PlayerView {
   pendingRoll?: RollPrompt;
   beginnerMode: boolean;
   story?: StoryView;
+  /** Married to / engaged with a character (from the characters' memory). */
+  family?: { spouse?: string; engaged?: string };
   /** The other heroes (to hand things over). */
   party?: { id: string; name: string; color?: string }[];
   /** Rest at the campfire between chapters: tell something, shop, then go on. */

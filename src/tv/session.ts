@@ -87,7 +87,8 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
       if (village.includes("taverne")) add("gold", 5);
       if (village.includes("schmiede")) c.traits.push("dorfschmiede");
     }
-    // A hero from the hero book brings gold and equipment along.
+    // A hero from the hero book brings gold and equipment along (and a ring kept for a proposal).
+    if (legacy?.rings && c.pc) c.pc.inventory.push({ itemId: "verlobungsring", qty: legacy.rings });
     if (legacy && c.pc) {
       if (legacy.gold) {
         const gold = c.pc.inventory.find((it) => it.itemId === "gold");
