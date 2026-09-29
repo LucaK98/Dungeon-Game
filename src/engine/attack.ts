@@ -125,6 +125,22 @@ function label(id: string): string {
   return { blinded: "blind", paralyzed: "gelähmt", restrained: "festgesetzt", stunned: "betäubt", unconscious: "bewusstlos" }[id] ?? id;
 }
 
+/** Minimum run-up (this turn) for the melee bonus, and the middle distance for ranged weapons. */
+export const RUN_UP_FT = 20;
+export const CLOSE_SHOT_FT = { min: 10, max: 30 };
+
+/** Damage bonuses from distance (heroes' weapons only): "Anlauf" and "Nahschuss", +2 each. */
+export function rangeBonuses(battle: Battle, attacker: Creature, target: Creature, option: AttackOption, movedFt?: number): BreakdownPart[] {
+  if (!attacker.pc || (option.source !== "weapon" && option.source !== "unarmed")) return [];
+  const dist = distanceFt(attacker, target);
+  const ranged = option.kind === "ranged" || (option.thrown === true && dist > option.reachFt);
+  const turn = battle.combat?.turn;
+  const moved = movedFt ?? (turn?.creatureId === attacker.id ? (turn.movedFt ?? 0) : 0);
+  if (!ranged && moved >= RUN_UP_FT) return [{ label: "Anlauf", value: 2, glossarKey: "anlauf" }];
+  if (ranged && dist >= CLOSE_SHOT_FT.min && dist <= CLOSE_SHOT_FT.max) return [{ label: "Nahschuss", value: 2, glossarKey: "nahschuss" }];
+  return [];
+}
+
 export function inRange(attacker: Creature, target: Creature, option: AttackOption): boolean {
   const dist = distanceFt(attacker, target);
   if (dist <= option.reachFt) return true;
@@ -208,6 +224,8 @@ export function resolveAttack(
   const bonus = [...option.damageBonus];
   // The home village's smithy sharpens every hero's weapons.
   if (attacker.traits.includes("dorfschmiede") && option.source === "weapon") bonus.push({ label: "Dorfschmiede", value: 1, glossarKey: "heimatdorf" });
+  // Range matters for heroes: a run-up makes melee hits harder, ranged weapons hit hardest at middle distance.
+  for (const b of rangeBonuses(battle, attacker, target, option)) bonus.push(b);
   if (sneakAttackAllowed(battle, attacker, target, option, roll.mode)) {
     // 1d6 at level 1, one more every two levels (2d6 at 3, 3d6 at 5).
     const dice = Math.ceil(attacker.pc!.level / 2);

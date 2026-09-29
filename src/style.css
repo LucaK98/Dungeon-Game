@@ -984,3 +984,45 @@ body.tip-mode::after {
 .ctl-status .turn-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ctl-status .turn-line .lamps { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
 .st-line-btn { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid rgb(255 255 255 / 12%); background: rgb(0 0 0 / 22%); color: inherit; font: inherit; font-weight: 700; text-align: left; }
+
+/* ---- Tidy phone: one bar on top, slim map, tiles. */
+.ctl-head .ctl-status, .ctl-head .ctl-status.mine, .ctl-head .ctl-status.waiting { position: static; margin: 2px 0 0; padding: 2px 8px; border-radius: 10px; border-width: 0 0 0 4px; border-style: solid; font-size: 0.85rem; box-shadow: none; }
+.ctl-head .ctl-status .turn-line { gap: 4px 6px; }
+.ctl-head .ctl-status .turn-line > strong { font-size: 0.9rem; width: auto; }
+.ctl-head .ctl-status .lamps { margin-left: 0; gap: 4px; }
+.ctl-head .ctl-status .lamp { padding: 1px 6px; font-size: 0.78rem; }
+.ctl-head .ctl-who span { color: inherit; font-size: inherit; }
+.ctl-head .ctl-who .lamp-label { color: inherit; }
+.bottom-bar .emote-btn { position: static; flex: 0 0 52px; width: 52px; height: 52px; font-size: 1.4rem; border-radius: 14px; box-shadow: none; }
+.map-wrap { position: relative; }
+.map-fold { position: absolute; top: 6px; left: 6px; width: 34px; height: 34px; border-radius: 10px; border: 1px solid #ffffff33; background: #000000a0; color: #fff; font-size: 1.1rem; cursor: pointer; }
+.map-show { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 8px 4px; border: 0; background: none; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.map-card.folded { padding: 4px 10px; }
+.map-card.compact .minimap { width: auto; max-width: 100%; max-height: 36vh; display: block; margin: 0 auto; }
+.group-body.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.group-body.tiles[hidden] { display: none; }
+.tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 64px; padding: 8px 10px; border-radius: 12px; border: 2px solid #3b322b; background: #1d1814; color: var(--text); font: inherit; text-align: left; cursor: pointer; -webkit-touch-callout: none; user-select: none; }
+.tile.recommended { border-color: var(--accent); }
+.tile.queueable { border-style: dashed; opacity: 0.9; }
+.tile.urgent-heal { border-color: #3fbf6a; box-shadow: 0 0 0 3px rgb(63 191 106 / 35%); }
+.tile.urgent-safe { border-color: #e8c440; box-shadow: 0 0 0 3px rgb(232 196 64 / 35%); }
+.tile-label { font-weight: 800; font-size: 0.95rem; line-height: 1.15; }
+.tile-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.tile-chips .chip { font-size: 0.72rem; padding: 1px 6px; }
+.chip.edge.good { background: #1f3a24; color: #9be3a8; }
+.chip.edge.bad { background: #43241c; color: #ffb49a; }
+.chip.odds-good { color: #9be3a8; } .chip.odds-mid { color: #f0d27a; } .chip.odds-low { color: #ffb49a; }
+.tile-cost { font-size: 0.7rem; color: var(--muted); font-weight: 700; }
+.tile-cost.free { color: #9be3a8; }
+.ctl-head { flex-wrap: wrap; row-gap: 4px; padding-bottom: 6px; }
+.ctl-head .ctl-figure { width: 40px; height: 40px; }
+.ctl-head .ctl-status, .ctl-head .ctl-status.mine, .ctl-head .ctl-status.waiting { flex-basis: 100%; order: 10; margin: 0; }
+.ctl-head .ctl-status .turn-line { flex-wrap: nowrap; }
+.ctl-head .ctl-status .lamps { flex-wrap: nowrap; margin-left: auto; }
+.suggest-line { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; border: 2px solid var(--accent); background: #2a2010; }
+.suggest-text { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 0.9rem; }
+.suggest-text .muted { font-size: 0.78rem; }
+.map-card.compact .minimap { max-height: 30vh; }
+.context-card { padding: 8px 10px; gap: 6px; }
+.context-title { margin-bottom: 0; font-size: 0.9rem; }
+.context-btn { min-height: 40px; padding: 6px 8px; font-size: 0.88rem; }

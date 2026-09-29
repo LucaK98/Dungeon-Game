@@ -23,7 +23,7 @@ import { dollCanvas } from "../ui/atlas";
 import { h } from "../ui/dom";
 import { showRollPrompt, type DiceOverlay } from "./dice";
 import { closeSheet, explainedLine, helpButton, maybeHint, openHelp, showRulesAnswer, showSheet } from "./help";
-import { minimapLegend, minimapView, onHold, planRoute, provokedBy } from "./minimap";
+import { minimapView, onHold, planRoute, provokedBy } from "./minimap";
 import type { GridPos } from "../shared/game";
 import { canCraft, RECIPES } from "../shared/crafting";
 import { itemIcon } from "../shared/reward";
@@ -182,7 +182,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   let waitingPrompt: RollPrompt | undefined;
   let wasMine = false;
   const closedGroups = new Set<ActionGroup>();
-  let lockedOpen = false;
+  /** Groups that start closed and were opened ("Mehr …"). */
+  const openedGroups = new Set<ActionGroup>();
   /** Simple view: everything else is shown after "Alle Aktionen". */
   let showAll = false;
   let favourites: Record<string, number> = (() => {
@@ -259,7 +260,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     });
     emoteRow.append(b);
   }
-  root.append(header, status, hintSlot, body, bottomBar, tabs, toast, emoteRow, emoteBtn);
+  root.append(header, hintSlot, body, bottomBar, tabs, toast, emoteRow);
 
   const help = helpButton({
     view: () => view,
@@ -284,12 +285,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     header.style.setProperty("--player", color);
     header.replaceChildren(
       me.appearance ? dollCanvas(me.appearance.look, 2, "ctl-figure") : h("span", {}),
-      h(
-        "div",
-        { class: "ctl-who" },
-        h("strong", {}, me.name),
-        h("span", { dataset: { help: `klasse:${me.pc?.classId}` } }, `${nameOf("classes", me.pc?.classId ?? "")} · Stufe ${me.pc?.level ?? 1}`),
-      ),
+      // Name and whose turn it is, in one line under it (header and status are one bar).
+      h("div", { class: "ctl-who" }, h("strong", {}, me.name)),
       h(
         "div",
         { class: "ctl-hp", dataset: { help: "trefferpunkte" } },
@@ -298,21 +295,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       ),
       h("div", { class: "ctl-ac", dataset: { help: "ruestungsklasse" } }, `🛡️ ${armorClass(me)}`),
       help,
-    );
-  }
-
-  function renderOrder(v: PlayerView): HTMLElement | null {
-    if (v.mode !== "combat" || !v.order.length) return null;
-    return h(
-      "div",
-      { class: "order", dataset: { help: "initiative" } },
-      ...v.order.map((o) =>
-        h(
-          "span",
-          { class: `order-entry${o.active ? " active" : ""}${o.enemy ? " enemy" : ""}${o.health <= 0 ? " down" : ""}`, style: o.color ? `--player:${o.color}` : "" },
-          o.name,
-        ),
-      ),
+      status,
     );
   }
 
@@ -327,7 +310,6 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       status.className = `ctl-status waiting${v.turn.nextUp ? " next-up" : ""}`;
       status.replaceChildren(
         h("div", { class: "turn-line" }, h("span", {}, "⏳ "), h("strong", {}, v.turn.activeName), h("span", {}, " ist dran"), v.turn.nextUp ? h("span", { class: "turn-next" }, "· du bist gleich dran") : ""),
-        renderOrder(v) ?? "",
       );
       return;
     }
@@ -357,7 +339,6 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
           v.mode === "combat" && v.turn.bonusAction ? lamp("✨", "Bonus", true, "bonusaktion") : "",
         ),
       ),
-      renderOrder(v) ?? "",
     );
     turnEnds = v.turn.secondsLeft !== undefined ? Date.now() + v.turn.secondsLeft * 1000 : undefined;
     tickTimer();
@@ -621,6 +602,27 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     return b;
   }
 
+  /** A small tile: name, one line of chips (damage/effect, what the situation does), cost. Long press explains. */
+  function tileButton(c: ActionChoice): HTMLElement {
+    const q = !c.enabled && canQueue(c);
+    const chips: HTMLElement[] = [];
+    const avg = c.avg !== undefined ? Math.round(c.avg) : undefined;
+    if (avg && c.avgKind === "heal") chips.push(h("span", { class: "chip heal" }, `💚 ≈${avg}`));
+    else if (avg) chips.push(h("span", { class: "chip dmg" }, `⚔️ ≈${avg}`));
+    if (c.chance !== undefined) chips.push(h("span", { class: `chip odds-${c.chance >= 0.65 ? "good" : c.chance >= 0.4 ? "mid" : "low"}` }, `🎯 ${Math.round(c.chance * 100)} %`));
+    if (c.edge) chips.push(h("span", { class: `chip edge ${c.edge.tone}` }, c.edge.text));
+    const b = h(
+      "button",
+      { class: `tile${q ? " queueable" : ""}${c.recommended ? " recommended" : ""}${urgency(c)}`, type: "button", dataset: { help: c.glossarKey } },
+      h("span", { class: "tile-label" }, c.label),
+      chips.length ? h("span", { class: "tile-chips" }, ...chips) : "",
+      q ? h("span", { class: "queue-hint" }, queued?.choiceId === c.id ? "📌 vorgemerkt" : "📌 vormerken") : c.cost === "bonus" ? h("span", { class: "tile-cost" }, "Bonus") : c.cost === "free" ? h("span", { class: "tile-cost free" }, "gratis") : "",
+    );
+    b.addEventListener("click", () => choose(c));
+    onHold(b, () => explainChoice(c));
+    return b;
+  }
+
   /** Long press on a button: what it does, what it costs, why it does not work right now. */
   function explainChoice(c: ActionChoice): void {
     const more = c.glossarKey ? h("button", { class: "btn secondary", type: "button", textContent: "📖 Mehr dazu" }) : null;
@@ -677,8 +679,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     const out: HTMLElement[] = [];
     // One line on the action screen: what to do now. Everything else (story so far, tasks) one tap away.
     const open = st.tasks?.find((t) => !t.done)?.text ?? st.goal;
-    const line = h("button", { class: "st-line-btn", type: "button" }, h("span", {}, `🎯 ${open}`), h("span", { class: "muted" }, "📖"));
-    line.addEventListener("click", () => showSheet(`📖 ${st.scene}`, storyCard(v)));
+    const clues = st.clues.length;
+    const line = h("button", { class: "st-line-btn", type: "button" }, h("span", {}, `🎯 ${open}`), h("span", { class: "muted" }, `📖${clues ? ` 🔎${clues}` : ""}`));
+    line.addEventListener("click", () => showSheet(`📖 ${st.scene}`, storyCard(v), ...renderCluesTab(v)));
     out.push(line);
     return [...out, ...storyChoices(v)];
   }
@@ -894,14 +897,11 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     if (!v.beginnerMode || !v.turn.mine || v.story?.choices.length) return null;
     const c = favouriteChoice(v) ?? v.choices.find((x) => x.recommended && x.enabled);
     if (!c) return null;
-    const go = h("button", { class: "btn primary", type: "button", textContent: "Mach ich!" });
+    // One slim line: the idea and a button.
+    const go = h("button", { class: "btn primary small", type: "button", textContent: "Mach ich!" });
     go.addEventListener("click", () => choose(c));
-    return h(
-      "section",
-      { class: "card suggest-card", dataset: { help: c.glossarKey } },
-      h("div", { class: "suggest-head" }, h("span", { class: "suggest-icon" }, "💡"), h("div", {}, h("strong", {}, `Vorschlag: ${c.label}`), ...choiceBody(c))),
-      go,
-    );
+    const bits = [c.avg ? `≈${Math.round(c.avg)}${c.avgKind === "heal" ? " Heilung" : " Schaden"}` : "", c.chance !== undefined ? `${Math.round(c.chance * 100)} %` : "", c.edge?.text ?? ""].filter(Boolean).join(" · ");
+    return h("section", { class: "suggest-line", dataset: { help: c.glossarKey } }, h("span", { class: "suggest-text" }, h("strong", {}, `💡 ${c.label}`), bits ? h("span", { class: "muted" }, bits) : ""), go);
   }
 
   /** What can be done with the thing on a square (enemy, ally, furniture, animal, oil …). */
@@ -1020,6 +1020,23 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     render();
   }
 
+  let mapHidden = (() => {
+    try {
+      return localStorage.getItem("couch-dungeon.map-hidden") === "1";
+    } catch {
+      return false;
+    }
+  })();
+  function setMapHidden(on: boolean): void {
+    mapHidden = on;
+    try {
+      localStorage.setItem("couch-dungeon.map-hidden", on ? "1" : "0");
+    } catch {
+      // ignore
+    }
+    render();
+  }
+
   function undoButton(): HTMLElement {
     const b = h("button", { class: "btn secondary small undo-btn", type: "button", textContent: "↩️ Zurück (Schritt zurücknehmen)" });
     b.addEventListener("click", () => {
@@ -1056,15 +1073,20 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         h("div", { class: "row" }, go, cancel),
       );
     }
-    const hintText = v.turn.mine && v.minimap.reachable.length ? "Tippe ein Feld zum Laufen – oder einen Gegner/Gegenstand" : "Tippe auf Gegner oder Gegenstände";
+    // The map folds away (a slim bar stays); in a fight it is a bit smaller so the actions fit.
+    const fold = h("button", { class: "map-fold", type: "button", textContent: "▾", title: "Karte einklappen" });
+    fold.addEventListener("click", () => setMapHidden(true));
+    if (mapHidden) {
+      const show = h("button", { class: "map-show", type: "button" }, h("span", {}, `🗺️ ${v.roomName}`), h("span", { class: "muted" }, "Karte zeigen ▸"));
+      show.addEventListener("click", () => setMapHidden(false));
+      return h("section", { class: "card map-card folded" }, show, info ?? "", v.turn.canUndo ? undoButton() : "");
+    }
     return h(
       "section",
-      { class: "card map-card" },
-      h("div", { class: "card-title" }, h("span", {}, `📍 ${v.roomName}`), h("span", { class: "muted small" }, hintText)),
-      h("div", { class: "map-wrap" }, map, full),
+      { class: `card map-card${v.mode === "combat" ? " compact" : ""}` },
+      h("div", { class: "map-wrap" }, map, full, fold),
       info ?? "",
       v.turn.canUndo ? undoButton() : "",
-      minimapLegend(v.minimap),
     );
   }
 
@@ -1179,31 +1201,25 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       });
       actions.push(less);
     }
-    // Only what works right now; the rest waits behind "Gerade nicht möglich".
-    const groups: ActionGroup[] = ["attack", "spell", "item", "ability", "look"];
-    const locked: ActionChoice[] = [];
+    // Only what works right now (or can be queued), as small tiles. What does not work is left out –
+    // a long press on anything explains it. Exploring: no attacks; in a fight, looking around waits under "Mehr".
+    const groups: ActionGroup[] = v.mode === "combat" ? ["attack", "spell", "item", "ability", "look"] : ["spell", "item", "ability", "look"];
     for (const g of groups) {
       const all = v.choices.filter((c) => c.group === g);
       // Waiting for the turn: attacks & co. can be queued, so they stay in their group.
       const list = all.filter((c) => c.enabled || canQueue(c));
-      locked.push(...all.filter((c) => !c.enabled && !canQueue(c)));
       if (!list.length) continue;
-      const open = !closedGroups.has(g);
-      const head = h("button", { class: "group-head", type: "button" }, h("span", {}, GROUP_TITLES[g]), h("span", { class: "muted" }, `${list.length} ${open ? "▲" : "▼"}`));
-      const content = h("div", { class: "group-body", hidden: !open }, ...list.map(choiceButton));
+      const more = v.mode === "combat" && g === "look";
+      const open = more ? openedGroups.has(g) : !closedGroups.has(g);
+      const head = h("button", { class: "group-head", type: "button" }, h("span", {}, more ? "➕ Mehr …" : GROUP_TITLES[g]), h("span", { class: "muted" }, `${list.length} ${open ? "▲" : "▼"}`));
+      const content = h("div", { class: "group-body tiles", hidden: !open }, ...list.map(tileButton));
       head.addEventListener("click", () => {
         content.hidden = !content.hidden;
-        if (content.hidden) closedGroups.add(g);
+        if (more) {
+          if (content.hidden) openedGroups.delete(g);
+          else openedGroups.add(g);
+        } else if (content.hidden) closedGroups.add(g);
         else closedGroups.delete(g);
-      });
-      actions.push(h("section", { class: "group" }, head, content));
-    }
-    if (locked.length) {
-      const head = h("button", { class: "group-head locked", type: "button" }, h("span", {}, "🔒 Gerade nicht möglich"), h("span", { class: "muted" }, `${locked.length} ${lockedOpen ? "▲" : "▼"}`));
-      const content = h("div", { class: "group-body", hidden: !lockedOpen }, ...locked.map(choiceButton));
-      head.addEventListener("click", () => {
-        lockedOpen = !lockedOpen;
-        content.hidden = !lockedOpen;
       });
       actions.push(h("section", { class: "group" }, head, content));
     }
@@ -1255,9 +1271,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       });
     const free = v.choices.find((c) => c.id === "free");
     const end = v.choices.find((c) => c.id === "end");
-    const items: HTMLElement[] = [...quick];
+    const items: HTMLElement[] = [emoteBtn, ...quick];
     if (free) {
-      const b = h("button", { class: "bar-btn", type: "button", textContent: "✍️ Idee", dataset: { help: "freie_aktion" }, disabled: !free.enabled });
+      const b = h("button", { class: "bar-btn", type: "button", textContent: "✍️ Freie Aktion", dataset: { help: "freie_aktion" }, disabled: !free.enabled });
       b.addEventListener("click", () => choose(free));
       items.push(b);
     }
@@ -1267,8 +1283,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       items.push(b);
     }
     bottomBar.replaceChildren(...items);
-    bottomBar.hidden = !items.length;
-    root.classList.toggle("with-bar", items.length > 0);
+    bottomBar.hidden = items.length <= 1;
+    root.classList.toggle("with-bar", items.length > 1);
   }
 
   // ---------------------------------------------------------------- character tab
@@ -1554,7 +1570,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       });
       return b;
     };
-    tabs.replaceChildren(mk("action", "⚔️ Aktion"), mk("sheet", "📋 Figur"), mk("inventory", "🎒 Taschen"), mk("clues", `🔎 Hinweise${view?.story?.clues.length ? ` (${view.story.clues.length})` : ""}`));
+    tabs.replaceChildren(mk("action", "⚔️ Aktion"), mk("sheet", "📋 Figur"), mk("inventory", "🎒 Taschen"));
   }
 
   let lastChoiceKey = "";
@@ -1568,7 +1584,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     renderStatus(view);
     renderTabs();
     const scroll = window.scrollY;
-    const content = tab === "action" ? renderActionTab(view) : tab === "sheet" ? [...companionCard(view), ...renderSheetTab(me)] : tab === "inventory" ? renderInventoryTab(me, view) : renderCluesTab(view);
+    if (tab === "clues") tab = "action";
+    const content = tab === "action" ? renderActionTab(view) : tab === "sheet" ? [...companionCard(view), ...renderSheetTab(me)] : renderInventoryTab(me, view);
     // The same element again (campfire card): leave it in place, so typing is not interrupted.
     const same = content.length === body.childNodes.length && content.every((el, i) => body.childNodes[i] === el);
     if (!same) body.replaceChildren(...content);

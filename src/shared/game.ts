@@ -290,6 +290,8 @@ export interface TurnState {
   attacksLeft: number;
   /** Took the Attack action this turn (monk bonus strikes need it). */
   attacked?: boolean;
+  /** Feet walked this turn (a run-up makes melee hits harder). */
+  movedFt?: number;
 }
 
 export interface InitiativeEntry {

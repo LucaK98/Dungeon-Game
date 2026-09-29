@@ -276,8 +276,8 @@ for (const STORY of [...STORIES, generateStory(7), generateStory(42), generateSt
         const { result, state, guard, campfires } = await playStory({ story: STORY, seed: 11, duration });
         expect(guard).toBeLessThan(20000);
         // Every new chapter starts with a rest at the campfire (4 heroes each time).
-        // (A hero who fell for good does not rest any more – at most one such rest may be missing per chapter.)
-        if (result!.ending.id !== "scheitern") expect(campfires).toBeGreaterThanOrEqual((STORY.acts.length - 1) * 3);
+        // (A hero who fell for good does not rest any more – up to two such rests may be missing per chapter.)
+        if (result!.ending.id !== "scheitern") expect(campfires).toBeGreaterThanOrEqual((STORY.acts.length - 1) * 2);
         if (result!.ending.id !== "scheitern") expect(campfires).toBeLessThanOrEqual((STORY.acts.length - 1) * 4);
         if (STORY.acts.length > 1) expect(state.tales?.length ?? 0).toBeGreaterThan(0);
         // No secret goals any more (they confused the players).

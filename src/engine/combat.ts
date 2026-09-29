@@ -425,7 +425,10 @@ export function commitMove(battle: Battle, id: string, path: GridPos[], costFt: 
   if (!path.length) return;
   if (hasCondition(c, "prone")) removeCondition(c, "prone");
   c.pos = path[path.length - 1]!;
-  if (turn && turn.creatureId === id) turn.movementLeftFt -= costFt;
+  if (turn && turn.creatureId === id) {
+    turn.movementLeftFt -= costFt;
+    turn.movedFt = (turn.movedFt ?? 0) + costFt;
+  }
 }
 
 const CONCENTRATION_EFFECTS: EffectId[] = ["bless", "shield-of-faith", "divine-favor", "hunters-mark"];

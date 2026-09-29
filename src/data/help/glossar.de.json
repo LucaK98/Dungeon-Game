@@ -3550,5 +3550,27 @@
       "wetter",
       "begleiter"
     ]
+  },
+  "anlauf": {
+    "titel": "Anlauf",
+    "kurz": "Nahkampf nach mindestens 4 Feldern Laufen in diesem Zug: +2 Schaden.",
+    "lang": "Wer mit Schwung in den Gegner rennt, trifft härter. Bist du in diesem Zug mindestens 4 Felder (20 Fuß) gelaufen und greifst dann im Nahkampf an, macht der Treffer 2 Schaden mehr. Gut zusammen mit „hin und zuschlagen“.",
+    "beispiel": "Brunhild läuft 5 Felder auf den Goblin zu und schlägt zu: 1W8+3 +2 Anlauf.",
+    "siehe_auch": [
+      "nahkampf",
+      "bewegung",
+      "nahschuss"
+    ]
+  },
+  "nahschuss": {
+    "titel": "Nahschuss",
+    "kurz": "Fernwaffe auf 2 bis 6 Felder Entfernung: +2 Schaden.",
+    "lang": "Auf mittlere Entfernung zielt es sich am besten: Steht das Ziel 2 bis 6 Felder (10 bis 30 Fuß) entfernt, macht ein Treffer mit Bogen, Armbrust oder Wurfwaffe 2 Schaden mehr. Direkt neben einem Gegner schießt du mit Nachteil, ganz weit weg ebenfalls.",
+    "beispiel": "Pip wirft den Dolch auf den Goblin 4 Felder entfernt: 1W4+3 +2 Nahschuss.",
+    "siehe_auch": [
+      "fernkampf",
+      "reichweite",
+      "anlauf"
+    ]
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveAttack, rollDamage } from "./attack";
+import { rangeBonuses, resolveAttack, rollDamage } from "./attack";
 import { createMonster, pregenCharacter } from "./creatures";
 import { scriptedRng } from "./rng";
 import { battleOf } from "./testing";
@@ -66,7 +66,24 @@ describe("attacks", () => {
     const battle = battleOf([rogue, 0, 0], [ogre, 5, 0], [fighter, 6, 0]);
     const bow = rogue.attacks.find((a) => a.id === "shortbow")!;
     const r = resolveAttack(scriptedRng([15, 4, 6]), battle, rogue, ogre, bow);
-    expect(r.damage!.lines.map((l) => l.raw)).toEqual([4 + 3, 6]);
+    // 5 squares away: the middle distance ("Nahschuss") adds 2.
+    expect(r.damage!.lines.map((l) => l.raw)).toEqual([4 + 3 + 2, 6]);
+  });
+
+  it("rewards a run-up in melee and the middle distance for ranged weapons (heroes only)", () => {
+    const fighter = pregenCharacter("fighter");
+    const ogre = createMonster("ogre", "o");
+    const near = battleOf([fighter, 0, 0], [ogre, 1, 0]);
+    const sword = fighter.attacks.find((a) => a.kind === "melee" && a.source === "weapon")!;
+    expect(rangeBonuses(near, fighter, ogre, sword, 0)).toEqual([]);
+    expect(rangeBonuses(near, fighter, ogre, sword, 20).map((b) => b.label)).toEqual(["Anlauf"]);
+    const rogue = pregenCharacter("rogue");
+    const bow = rogue.attacks.find((a) => a.id === "shortbow")!;
+    expect(rangeBonuses(battleOf([rogue, 0, 0], [ogre, 1, 0]), rogue, ogre, bow).map((b) => b.label)).toEqual([]);
+    expect(rangeBonuses(battleOf([rogue, 0, 0], [ogre, 4, 0]), rogue, ogre, bow).map((b) => b.label)).toEqual(["Nahschuss"]);
+    expect(rangeBonuses(battleOf([rogue, 0, 0], [ogre, 12, 0]), rogue, ogre, bow)).toEqual([]);
+    // Monsters keep their normal damage.
+    expect(rangeBonuses(near, ogre, fighter, ogre.attacks[0]!, 30)).toEqual([]);
   });
 
   it("halves damage on resistance and ignores immune damage", () => {

@@ -85,6 +85,8 @@ export interface ActionChoice {
   pick?: { min: number; max: number; repeat: boolean };
   /** Group vote: who picked this so far, and whether it is my vote. */
   votes?: { names: string[]; mine: boolean };
+  /** What the situation does to it right now ("💨 Anlauf +2", "⚠️ Nachteil: Gegner neben dir"). */
+  edge?: { text: string; tone: "good" | "bad" };
 }
 
 export interface TurnInfo {

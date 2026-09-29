@@ -3,7 +3,7 @@
  * The TV is authoritative – phones only send wishes (PlayerAction).
  */
 import { longRest, perform, type ActionOutcome, type CombatAction } from "../engine/actions";
-import { inRange, resolveAttack } from "../engine/attack";
+import { attackReasons, inRange, rangeBonuses, resolveAttack, RUN_UP_FT } from "../engine/attack";
 import { addCondition, addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, sizeInSquares, squaresOf, startCombat } from "../engine/combat";
 import { advantage, modPart, profPart, savingThrow, skillCheck, skillParts, sumParts } from "../engine/core";
 import { spellAttackParts } from "../engine/spells";
@@ -42,6 +42,7 @@ import { matchFreeText, matchUtility, type IntentMatch } from "../shared/intent-
 import { nameFits, walkIntent } from "../shared/walk-text";
 import { BULLET_ICON, bulletsFor } from "../shared/bullets";
 import type { AttackOption, Creature, GridPos, TurnState } from "../shared/game";
+import type { BreakdownPart } from "../shared/types";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
 import { rollNeed, type ActionChoice, type ActionFx, type CampView, type MiniMap, type OrderEntry, type PlayerView, type RollOutcome, type RollPrompt, type StoryView } from "../shared/view";
@@ -4184,6 +4185,17 @@ export class GameController {
 
   // ---------------------------------------------------------------- choices
 
+  /** How an attack on this target looks right now: chance (with advantage/disadvantage), distance bonus, the reason. */
+  private attackOdds(me: Creature, t: Creature, option: AttackOption, toHit: number, movedFt?: number): { t: Creature; chance: number; mode: "advantage" | "disadvantage" | "normal"; bonus?: BreakdownPart; why?: string } {
+    const reasons = attackReasons(this.battle, me, t, option);
+    const adv = reasons.find((r) => r.effect === "advantage");
+    const dis = reasons.find((r) => r.effect === "disadvantage");
+    const mode = adv && !dis ? "advantage" : dis && !adv ? "disadvantage" : "normal";
+    const bonus = rangeBonuses(this.battle, me, t, option, movedFt)[0];
+    const why = mode === "disadvantage" ? `⚠️ ${dis!.text}` : mode === "advantage" ? `✨ ${adv!.text}` : undefined;
+    return { t, chance: withMode(hitChance(toHit, armorClass(t)), mode), mode, ...(bonus ? { bonus } : {}), ...(why ? { why } : {}) };
+  }
+
   private choicesFor(me: Creature, mine: boolean, beginnerMode: boolean): ActionChoice[] {
     const pc = me.pc!;
     const turn = this.turnFor(me);
@@ -4205,6 +4217,16 @@ export class GameController {
       const toHit = sumParts(option.toHit);
       const dmg = `${option.damage.map((d) => d.dice.replace("d", "W")).join(" + ")}${sumParts(option.damageBonus) ? ` + ${sumParts(option.damageBonus)}` : ""}`;
       const reason = costReason("action") ?? (targets.length ? undefined : enemies.length ? "Kein Gegner in Reichweite. Geh näher heran." : "Hier ist kein Gegner.");
+      // Per target: advantage/disadvantage and the distance bonus, so each weapon shows where it is good.
+      const odds = targets.map((t) => this.attackOdds(me, t, option, toHit));
+      const best = [...odds].sort((a, b) => b.chance * (1 + (b.bonus?.value ?? 0) / 8) - a.chance * (1 + (a.bonus?.value ?? 0) / 8))[0];
+      const edge: ActionChoice["edge"] | undefined = best?.bonus
+        ? { text: `${best.bonus.label === "Anlauf" ? "💨" : "🎯"} ${best.bonus.label} +${best.bonus.value}`, tone: "good" }
+        : best?.mode === "disadvantage"
+          ? { text: `⚠️ Nachteil: ${best.why?.replace(/^⚠️ /, "")}`, tone: "bad" }
+          : best?.mode === "advantage"
+            ? { text: `✨ Vorteil: ${best.why?.replace(/^✨ /, "")}`, tone: "good" }
+            : undefined;
       choices.push({
         id: `attack:${option.id}`,
         group: "attack",
@@ -4215,9 +4237,10 @@ export class GameController {
         enabled: !reason,
         ...(reason ? { reason } : {}),
         action: { kind: "attack", targetId: "", optionId: option.id },
-        targets: targets.map((t) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)} · ${Math.round(distanceFt(me, t) / 5)} Felder · ${Math.round(hitChance(toHit, armorClass(t)) * 100)} %`, chance: hitChance(toHit, armorClass(t)) })),
-        ...(targets.length ? { chance: Math.max(...targets.map((t) => hitChance(toHit, armorClass(t)))) } : {}),
-        avg: option.damage.reduce((sum, d) => sum + averageOf(d.dice), 0) + sumParts(option.damageBonus),
+        targets: odds.map(({ t, chance, bonus, why }) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)} · ${Math.round(distanceFt(me, t) / 5)} Felder · ${Math.round(chance * 100)} %${bonus ? ` · +${bonus.value} ${bonus.label}` : ""}${why ? ` · ${why}` : ""}`, chance })),
+        ...(odds.length ? { chance: best!.chance } : {}),
+        avg: option.damage.reduce((sum, d) => sum + averageOf(d.dice), 0) + sumParts(option.damageBonus) + (best?.bonus?.value ?? 0),
+        ...(edge ? { edge } : {}),
       });
       if (pc.features.includes("stunning-strike") && option.kind === "melee" && kiLeft > 0) {
         choices.push({
@@ -4279,6 +4302,8 @@ export class GameController {
             ...(reason ? { reason } : {}),
             recommended: !choices.some((c) => c.group === "attack" && c.enabled),
             action: { kind: "approach", targetId: "", optionId: melee.id },
+            // A long enough run-up hits harder.
+            ...(reachable.some((e) => (gap(me.pos!, e) - 1) * 5 + (turn?.movedFt ?? 0) >= RUN_UP_FT) ? { edge: { text: "💨 mit Anlauf +2", tone: "good" as const } } : {}),
             targets: reachable.map((t) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)} · ${Math.round(hitChance(toHit, armorClass(t)) * 100)} %`, chance: hitChance(toHit, armorClass(t)) })),
             chance: Math.max(...reachable.map((t) => hitChance(toHit, armorClass(t)))),
             avg: melee.damage.reduce((sum, d) => sum + averageOf(d.dice), 0) + sumParts(melee.damageBonus),
@@ -4550,6 +4575,11 @@ function spellDice(d: { byCharLevel?: Record<string, string>; bySlot?: Record<st
 }
 
 /** Chance that a d20 + bonus reaches the armour class (a 1 always misses, a 20 always hits). */
+/** Chance with advantage (two dice, the better) or disadvantage (the worse). */
+function withMode(p: number, mode: "advantage" | "disadvantage" | "normal"): number {
+  return mode === "advantage" ? 1 - (1 - p) * (1 - p) : mode === "disadvantage" ? p * p : p;
+}
+
 function hitChance(bonus: number, ac: number): number {
   return Math.min(0.95, Math.max(0.05, (21 - (ac - bonus)) / 20));
 }
