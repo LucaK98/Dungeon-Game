@@ -280,8 +280,8 @@ for (const STORY of [...STORIES, generateStory(7), generateStory(42), generateSt
         if (result!.ending.id !== "scheitern") expect(campfires).toBeGreaterThanOrEqual((STORY.acts.length - 1) * 3);
         if (result!.ending.id !== "scheitern") expect(campfires).toBeLessThanOrEqual((STORY.acts.length - 1) * 4);
         if (STORY.acts.length > 1) expect(state.tales?.length ?? 0).toBeGreaterThan(0);
-        // Secret goals: one per hero, revealed at the end.
-        expect(result!.recap.goals?.length).toBe(4);
+        // No secret goals any more (they confused the players).
+        expect(result!.recap.goals ?? []).toHaveLength(0);
         expect(result, `ended (${state.sceneIndex}/${state.plan.length})`).toBeDefined();
         // Either all scenes were played, or the final fight was lost ("second chance" ending).
         if (result!.ending.id === "scheitern") expect(state.sceneIndex).toBe(state.plan.length - 1);

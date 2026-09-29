@@ -28,7 +28,6 @@ import { buildHighlights, type Recap } from "../shared/recap";
 import type { Difficulty } from "../shared/difficulty";
 import { getGear } from "../data/gear";
 import { seededRng } from "../engine/rng";
-import { assignGoals } from "../shared/goals";
 import type { CampOffer } from "../tv/game";
 
 export interface StoryState {
@@ -330,13 +329,7 @@ export class Director {
 
   async run(): Promise<StoryResult | undefined> {
     this.game.narrate(this.state.sceneIndex === 0 ? this.story.intro : [{ text: "Ihr setzt euer Abenteuer fort …" }]);
-    // Secret goals: handed out once, kept in the save.
-    if (!this.state.goals) {
-      const goalRng = seededRng((this.opts.now ?? Date.now)() + 4711);
-      this.state.goals = assignGoals(this.heroes().filter((h) => h.playerId).map((h) => ({ id: h.id, classId: h.pc?.classId ?? "" })), (n) => goalRng.int(0, Math.max(0, n - 1)));
-      this.game.narrate([{ text: "🤫 Jeder von euch hat auf dem Handy ein geheimes Ziel. Verratet es niemandem – am Ende wird aufgedeckt!", tip: { key: "geheimes_ziel", text: "Dein Ziel steht im Tab „Hinweise“. Schaffst du es, gibt es Bonus-Gold." } }]);
-    }
-    this.game.setGoals(this.state.goals);
+    // Secret goals are no longer handed out (they confused more than they helped).
     // The saga: what happened last time, and who might turn up again.
     const saga = this.opts.saga;
     if (saga?.recap && this.state.sceneIndex === 0) {

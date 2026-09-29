@@ -68,7 +68,8 @@ const TALK = /\b(frag|sag|sprech|sprich|red|erzähl|bitt|ruf|grüß|begrüß|unt
 /** Dice sums and rule details: on the phones, not in the TV's log column. */
 const MATH_LINE = /= -?\d+ gegen (RK|SG)|^🎲|^💥|gewürfelt|Bei einem kritischen Treffer|Rettungswurf-SG|hat jetzt \d+ Trefferpunkte|^[^:]+: 🎲/;
 /** Exploring in turns: a player who does nothing this long is skipped (ms). */
-const SILENT_TURN_MS = 90_000;
+/** No visible clock: only someone who has been gone this long (left the room, phone off) is skipped. */
+const SILENT_TURN_MS = 300_000;
 const LOG_SIZE = 40;
 const MINIMAP_W = 13;
 const MINIMAP_H = 11;
@@ -3430,7 +3431,6 @@ export class GameController {
         actions: mine ? (turn?.actions ?? 0) + (turn?.attacksLeft ?? 0) : 0,
         bonusAction: mine ? (turn?.bonusAction ?? false) : false,
         speedFt: me.speedFt,
-        ...(mine && this.secondsLeft() !== undefined ? { secondsLeft: this.secondsLeft()! } : {}),
         ...(!mine && !free && this.nextUp()?.id === me.id ? { nextUp: true } : {}),
         ...(mine && this.undo?.heroId === me.id ? { canUndo: true } : {}),
       },
@@ -3942,7 +3942,6 @@ export class GameController {
         this.endTurn();
         return;
       }
-      this.emit("clock", this.pending ? undefined : left);
       return;
     }
     if (roundEnd || this.tickSurfaces()) this.broadcast();

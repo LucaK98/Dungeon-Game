@@ -192,7 +192,6 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       return {};
     }
   })();
-  let storyOpen = false;
   let pulseTurn = false;
   /** Exploring in turns: when this player's turn is skipped (local clock), and whether we warned already. */
   let turnEnds: number | undefined;
@@ -327,10 +326,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     if (!v.turn.mine) {
       status.className = `ctl-status waiting${v.turn.nextUp ? " next-up" : ""}`;
       status.replaceChildren(
-        h("div", { class: "turn-line" }, h("span", {}, "⏳ "), h("strong", {}, v.turn.activeName), h("span", {}, " ist dran")),
-        v.turn.nextUp
-          ? h("p", { class: "turn-sub next" }, "⏭️ Du bist als Nächstes dran – überleg dir schon mal, was du tust!")
-          : h("p", { class: "turn-sub" }, "Du kannst derweil brauen, in die Taschen schauen oder Hinweise lesen."),
+        h("div", { class: "turn-line" }, h("span", {}, "⏳ "), h("strong", {}, v.turn.activeName), h("span", {}, " ist dran"), v.turn.nextUp ? h("span", { class: "turn-next" }, "· du bist gleich dran") : ""),
         renderOrder(v) ?? "",
       );
       return;
@@ -345,19 +341,21 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       );
       return;
     }
-    // Your turn in two steps: ① walk, ② do something. What is done gets a tick.
-    const step = (n: string, label: string, sub: string, done: boolean, key: string) =>
-      h("div", { class: `step${done ? " done" : ""}`, dataset: { help: key } }, h("span", { class: "step-n" }, done ? "✔" : n), h("div", { class: "step-text" }, h("strong", {}, label), h("span", { class: "step-sub" }, sub)));
+    // Your turn in one line: what is still left (lit) – walking, the action, the bonus action.
     const moved = fields === 0;
     const acted = v.turn.actions <= 0;
     status.replaceChildren(
-      h("div", { class: "turn-line" }, h("strong", {}, "🎯 Du bist dran!"), v.turn.secondsLeft !== undefined ? h("span", { class: "turn-timer" }) : "", lamp("❤️", `${v.me.hp}/${v.me.maxHp}`, v.me.hp > 0, "trefferpunkte")),
       h(
         "div",
-        { class: "steps" },
-        step("①", "🦶 Bewegen", moved ? "erledigt" : `noch ${fields} ${fields === 1 ? "Feld" : "Felder"} – tippe auf die Karte`, moved, "bewegung"),
-        step("②", "⚔️ Aktion", acted ? "erledigt" : v.mode === "combat" ? "angreifen, zaubern, helfen …" : "reden, untersuchen, benutzen …", acted, "aktion"),
-        v.mode === "combat" && v.turn.bonusAction ? lamp("✨", "Bonus", true, "bonusaktion") : "",
+        { class: "turn-line" },
+        h("strong", {}, "🎯 Du bist dran"),
+        h(
+          "span",
+          { class: "lamps" },
+          lamp("🦶", moved ? "gelaufen" : `${fields} ${fields === 1 ? "Feld" : "Felder"}`, !moved, "bewegung"),
+          lamp("⚔️", acted ? "Aktion ✓" : "Aktion", !acted, "aktion"),
+          v.mode === "combat" && v.turn.bonusAction ? lamp("✨", "Bonus", true, "bonusaktion") : "",
+        ),
       ),
       renderOrder(v) ?? "",
     );
@@ -677,15 +675,19 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     const st = v.story;
     if (!st) return [];
     const out: HTMLElement[] = [];
-    // Short by default: the newest line; the rest behind "Ganze Geschichte".
-    const last = st.narration.slice(storyOpen ? -4 : -1);
-    const more = h("button", { class: "linklike", type: "button", textContent: storyOpen ? "▲ Weniger" : "📖 Ganze Geschichte" });
-    more.addEventListener("click", () => {
-      storyOpen = !storyOpen;
-      render();
-    });
-    out.push(
-      h(
+    // One line on the action screen: what to do now. Everything else (story so far, tasks) one tap away.
+    const open = st.tasks?.find((t) => !t.done)?.text ?? st.goal;
+    const line = h("button", { class: "st-line-btn", type: "button" }, h("span", {}, `🎯 ${open}`), h("span", { class: "muted" }, "📖"));
+    line.addEventListener("click", () => showSheet(`📖 ${st.scene}`, storyCard(v)));
+    out.push(line);
+    return [...out, ...storyChoices(v)];
+  }
+
+  /** The story so far: chapter, scene, tasks and the last lines (in a sheet). */
+  function storyCard(v: PlayerView): HTMLElement {
+    const st = v.story!;
+    const last = st.narration.slice(-4);
+    return h(
         "section",
         { class: "card st-card" },
         h("div", { class: "st-chapter" }, st.chapter),
@@ -707,9 +709,12 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
             l.tip && v.beginnerMode ? h("span", { class: "st-tip", dataset: { help: l.tip.key } }, `💡 ${l.tip.text}`) : "",
           ),
         ),
-        st.narration.length > 1 ? more : "",
-      ),
     );
+  }
+
+  function storyChoices(v: PlayerView): HTMLElement[] {
+    const st = v.story!;
+    const out: HTMLElement[] = [];
     if (st.choices.length) {
       out.push(
         h(
@@ -1140,9 +1145,10 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     const top: HTMLElement[] = [];
     const planned = queuedCard(v);
     if (planned) top.push(planned);
-    const here = contextCard(v);
+    // One helper card at a time: queued move, else what is right here, else (in a fight) a suggestion.
+    const here = planned ? null : contextCard(v);
     if (here) top.push(here);
-    const suggestion = suggestionCard(v);
+    const suggestion = planned || here || v.mode !== "combat" ? null : suggestionCard(v);
     if (suggestion) top.push(suggestion);
     top.push(...renderStory(v));
     const actions: HTMLElement[] = [];

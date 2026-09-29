@@ -7,7 +7,7 @@ import { GameHost } from "./host";
 import { renderLobby } from "./lobby-view";
 import { isSaveGame, readSave } from "./save";
 import { cloudLoad, formatCode, newCloudId } from "../net/cloud-save";
-import { setSpeechEnabled, speechEnabled, warmUpVoices } from "./speech";
+import { prefetchSpeech, setSpeechEnabled, speechEnabled, warmUpVoices } from "./speech";
 import { setMood, unlockMusicOnGesture } from "../ui/music";
 import { settingsScreen } from "./settings";
 import { cloudLoadScreen, villageScreen, howToPlay, pickDifficulty, pickDuration, pickStory, titleScreen } from "./start-screens";
@@ -42,6 +42,8 @@ export function startTv(root: HTMLElement, route: Extract<Route, { view: "tv" }>
   const lobby = (story: Story, duration: Duration, difficulty: Difficulty) => {
     clear();
     host!.setStory({ id: story.id, title: story.title, duration, difficulty });
+    // The storyteller fetches the first lines while people join: the game starts with a voice right away.
+    for (const line of story.intro.slice(0, 3)) prefetchSpeech(line.text, line.npc);
     stopView = renderLobby(root, host!, () => {
       host!.startGame();
       play(story, duration, undefined, undefined, difficulty);

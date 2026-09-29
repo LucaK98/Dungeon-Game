@@ -24,6 +24,7 @@ import { THEMES } from "../map/modules";
 import { cellIndex } from "../shared/map";
 import { play, setAmbience, unlockSoundOnGesture } from "../ui/sound";
 import { setMood } from "../ui/music";
+import { settingsScreen } from "./settings";
 
 /** Sounds for a roll on the TV: dice first, then what happened. */
 /** How long the die tumbles on the TV before it lands (ms). */
@@ -360,8 +361,34 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   // A phone that (re)connects gets its view again.
   const offLobby = host.onChange(() => controller?.broadcast());
 
+  // Settings during the game: a small ⚙️ in the corner (or Escape / S on the keyboard).
+  let settingsOpen = false;
+  const openSettings = () => {
+    if (settingsOpen) return;
+    settingsOpen = true;
+    const layer = document.createElement("div");
+    layer.className = "ingame-settings";
+    document.body.append(layer);
+    void settingsScreen(layer).then(() => {
+      layer.remove();
+      settingsOpen = false;
+    });
+  };
+  const gear = document.createElement("button");
+  gear.type = "button";
+  gear.className = "ingame-gear";
+  gear.title = "Einstellungen";
+  gear.textContent = "⚙️";
+  gear.addEventListener("click", openSettings);
+  container.append(gear);
+
   // Keyboard helpers on the TV (demo mode): R = new random dungeon, F = demo fight.
   const onKey = (e: KeyboardEvent) => {
+    const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+    if (!typing && !settingsOpen && (e.key === "Escape" || e.key === "s" || e.key === "S")) {
+      openSettings();
+      return;
+    }
     if (!opts.demo) return;
     if (e.key === "f" || e.key === "F") controller?.spawnNearParty(["goblin", "goblin", "goblin"]);
     // E = explore everything (to look at the whole map).
@@ -387,6 +414,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     closeEnd?.();
     controller?.destroy();
     window.removeEventListener("keydown", onKey);
+    document.querySelector(".ingame-settings")?.remove();
     game.destroy(true);
     container.remove();
   };

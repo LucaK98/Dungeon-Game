@@ -302,7 +302,7 @@ export function generateStory(seed: number): Story {
     description: `${quest.ask(vn).replace(/!$/, ".")} Ein zufällig zusammengesetztes Abenteuer – jedes Mal anders.`,
     recommended: false,
     cover: [`monster.${villain.boss}`, `monster.${minion.monster}`, "chest.closed"],
-    intro: [T("🎲 Ein Zufallsabenteuer! Der Spielleiter hat die Würfel für die Geschichte selbst geworfen."), T(`Ihr kommt nach ${home.town}. Schon am Ortseingang hört ihr ${von(vn)} …`)],
+    intro: [T(`🎲 Ihr kommt nach ${home.town}. Schon am Ortseingang hört ihr ${von(vn)} …`)],
     truths,
     clues,
     npcs,

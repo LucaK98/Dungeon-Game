@@ -388,8 +388,7 @@ export class UiScene extends Phaser.Scene {
       // Reading time follows the speech tempo setting.
       const minTime = new Promise<void>((r) => this.time.delayedCall(((1800 + full.length * 45) * pace) / speechRate(), () => r()));
       // Fetch the next line's voice while this one is spoken.
-      const upcoming = this.queue[0];
-      if (upcoming) prefetchSpeech(upcoming.text, upcoming.npc);
+      for (const upcoming of this.queue.slice(0, 2)) prefetchSpeech(upcoming.text, upcoming.npc);
       const voice = speak(line.text, line.npc);
       void Promise.all([minTime, voice]).then(finish);
     });

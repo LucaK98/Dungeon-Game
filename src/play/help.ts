@@ -360,10 +360,15 @@ function seenHints(playerId: string): Set<string> {
 }
 
 /** Shows a hint once per player (beginner mode only). */
+const HINT_GAP_MS = 120_000;
+let lastHintAt = 0;
+
 export function maybeHint(playerId: string, id: HintId, beginner: boolean, host: HTMLElement): void {
   if (!beginner) return;
   const seen = seenHints(playerId);
-  if (seen.has(id) || host.querySelector(".hint")) return;
+  // Calm: at most one tip every two minutes, and it goes away by itself.
+  if (seen.has(id) || document.querySelector(".hint") || Date.now() - lastHintAt < HINT_GAP_MS) return;
+  lastHintAt = Date.now();
   seen.add(id);
   try {
     localStorage.setItem(`couch-dungeon.hints.${playerId}`, JSON.stringify([...seen]));
@@ -381,4 +386,5 @@ export function maybeHint(playerId: string, id: HintId, beginner: boolean, host:
     openHelp(hint.key, true);
   });
   host.prepend(bubble);
+  setTimeout(() => bubble.remove(), 15_000);
 }
