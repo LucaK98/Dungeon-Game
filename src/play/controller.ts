@@ -650,6 +650,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     if (who) {
       parts.push(h("p", { class: "lead" }, h("strong", {}, who.me ? `${who.name} (du)` : who.name), who.enemy ? " – Gegner" : who.color ? " – aus eurer Gruppe" : " – kein Gegner"));
       if (who.enemy) parts.push(enemyCard(who));
+      else if (!who.color && !who.me) parts.push(personInfo(who));
       else parts.push(h("p", { class: "muted" }, `❤️ ${Math.round(who.health * 100)} %${who.down ? " · bewusstlos!" : ""}`));
     }
     for (const o of mm.objects.filter((o) => o.x === p.x && o.y === p.y)) {
@@ -940,6 +941,22 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     );
   }
 
+  function me(v: PlayerView): MiniCreature | undefined {
+    return v.minimap.creatures.find((c) => c.me);
+  }
+
+  /** A character's card: how she feels about you and what she remembers. */
+  function personInfo(c: MiniCreature): HTMLElement {
+    const bond = c.bond ?? 0;
+    const hearts = bond >= 8 ? "💖" : bond >= 5 ? "💗" : bond >= 2 ? "💚" : bond <= -6 ? "💢" : bond <= -2 ? "😒" : "🤝";
+    return h(
+      "div",
+      { class: "person-info" },
+      h("p", { class: "lead" }, `${hearts} ${c.mood ?? "kennt dich noch nicht"}${c.bond !== undefined ? ` (${bond >= 0 ? "+" : ""}${bond})` : ""}`),
+      c.memory ? h("p", { class: "muted" }, `💭 Erinnert sich: ${c.memory}`) : "",
+    );
+  }
+
   /** A tap on the map: act on what stands there, or plan a walk (a second tap walks). */
   function tapMap(p: GridPos): void {
     const v = view;
@@ -980,10 +997,15 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     }
     // Something further away: walk there and use it / talk.
     const thing = v.turn.mine ? v.minimap.objects.find((o) => o.x === p.x && o.y === p.y && o.use) : undefined;
-    const person = v.turn.mine ? v.minimap.creatures.find((c) => c.x === p.x && c.y === p.y && !c.me && !c.enemy && !c.color && !c.down) : undefined;
+    const person = v.minimap.creatures.find((c) => c.x === p.x && c.y === p.y && !c.me && !c.enemy && !c.color && !c.down);
+    if (person && !v.turn.mine) {
+      showSheet(`👤 ${person.name}`, personInfo(person), h("p", { class: "muted small" }, "Reden kannst du, wenn du dran bist."));
+      return;
+    }
     if (thing || person) {
       send({ kind: "point", x: p.x, y: p.y });
-      const go = h("button", { class: "btn primary", type: "button", textContent: thing ? `🦶 Hingehen: ${thing.use}` : `🦶💬 Hingehen und mit ${person!.name} reden` });
+      const near = person && me(v) ? Math.max(Math.abs(person.x - me(v)!.x), Math.abs(person.y - me(v)!.y)) <= 1 : false;
+      const go = h("button", { class: "btn primary", type: "button", textContent: thing ? `🦶 Hingehen: ${thing.use}` : near ? `💬 Mit ${person!.name} reden` : `🦶💬 Hingehen und mit ${person!.name} reden` });
       go.addEventListener("click", () => {
         closeSheet();
         if (thing) send({ kind: "go_use", objectId: thing.id });
@@ -995,7 +1017,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         closeSheet();
         planWalk(v, p);
       });
-      showSheet(`🎯 ${thing?.name ?? person!.name}`, h("p", { class: "muted small" }, "Du läufst so weit, wie deine Bewegung reicht – und legst los, sobald du daneben stehst."), go, walk);
+      showSheet(`${person && !thing ? "👤" : "🎯"} ${thing?.name ?? person!.name}`, person && !thing ? personInfo(person) : "", near ? "" : h("p", { class: "muted small" }, "Du läufst so weit, wie deine Bewegung reicht – und legst los, sobald du daneben stehst."), go, walk);
       return;
     }
     planWalk(v, p);

@@ -3,6 +3,7 @@
  * The director owns the rules of the story (flags, clues, fights, endings);
  * the DungeonMaster (scripted or AI) tells it and makes the "creative" decisions.
  */
+import { bondOf, changeBond, greetingFor, meet, mindPrompt, remember, type NpcMind, type NpcWorld } from "./npc-world";
 import { applyDamage, distanceFt, isActive } from "../engine/combat";
 import { savingThrow, skillParts, sumParts } from "../engine/core";
 import { parseDice, rollDice } from "../engine/dice";
@@ -58,6 +59,8 @@ export interface StoryState {
   finalBlow?: { heroId: string; name: string; boss: string; text: string; narration: string };
   /** How tough the world is (older saves: normal). */
   difficulty?: Difficulty;
+  /** This adventure, for the characters' memory ("we have met before"). */
+  adventureId?: string;
 }
 
 export interface StoryResult {
@@ -94,6 +97,8 @@ export interface DirectorOptions {
   saga?: SagaCarry;
   /** At the end of a scene the group votes when to move on (default on). */
   leaveVote?: boolean;
+  /** The memory of the world: every character one person for good (stored on the TV). */
+  npcs?: { world: NpcWorld; save: () => void; onMeet?: (mind: NpcMind) => void };
 }
 
 /** Questions at the campfire: small, personal, easy to answer for beginners. */
@@ -144,6 +149,10 @@ export class Director {
   private actingRoom: { name: string; objects: string[] } | undefined;
   finished = false;
   private world: World | undefined;
+  /** Characters of the current scene (name → mind) and everyone met in this adventure. */
+  private minds = new Map<string, NpcMind>();
+  private metMinds = new Map<string, NpcMind>();
+  private greeted = new Set<string>();
 
   constructor(
     readonly story: Story,
@@ -221,6 +230,7 @@ export class Director {
       gold: this.game.partyGold(),
       chronicle: [...(this.state.chronicle ?? [])],
       attitudes: { ...(this.state.attitudes ?? {}) },
+      ...(this.minds.size ? { minds: [...this.minds.values()].map((m) => mindPrompt(m, heroes.map((h) => h.name))) } : {}),
       tales: [...(this.state.tales ?? [])],
       ...(this.actingRoom ? { room: this.actingRoom } : {}),
     };
@@ -248,8 +258,69 @@ export class Director {
       atts[npc] = Math.max(-3, Math.min(3, (atts[npc] ?? 0) + change));
       const name = this.story.npcs.find((n) => n.id === npc)?.name ?? npc;
       if (change) this.game.narrate([{ text: change > 0 ? `💚 ${name} mag euch jetzt mehr.` : `💢 ${name} traut euch weniger.` }]);
+      // Feelings last beyond this adventure: towards the hero who acted (or the whole group).
+      const mind = this.minds.get(name) ?? this.metMinds.get(name);
+      const actor = "heroName" in trigger ? trigger.heroName : undefined;
+      if (mind && change) for (const h of actor ? [actor] : this.heroes().map((x) => x.name)) changeBond(mind, h, change * 2);
     }
+    this.keepInMind(trigger, response);
     return response;
+  }
+
+  /** What the characters keep from an answer: the AI's own note, or at least what a hero said to them. */
+  private keepInMind(trigger: DmTrigger, response: DmResponse): void {
+    const w = this.opts.npcs;
+    if (!w || !this.minds.size) return;
+    let changed = false;
+    const said = response.npc_say ? this.minds.get(response.npc_say.name) : undefined;
+    if (response.npc_memory) {
+      const mind = this.minds.get(response.npc_memory.name);
+      if (mind) {
+        remember(mind, response.npc_memory.fact);
+        changed = true;
+      }
+    } else if (said && trigger.kind === "free_text") {
+      remember(said, `${trigger.heroName} sagte zu mir: „${trigger.text.slice(0, 80)}“`);
+      changed = true;
+    }
+    if (said && "heroName" in trigger && !(trigger.heroName in said.bond)) {
+      said.bond[trigger.heroName] = 0;
+      changed = true;
+    }
+    if (changed) w.save();
+  }
+
+  /** The scene's characters: known ones come back with their memory, new ones get a personality. */
+  private meetCharacters(npcs: { id: string; name: string; monster: string }[]): void {
+    const w = this.opts.npcs;
+    this.minds.clear();
+    if (!w) return;
+    this.state.adventureId ??= `${this.story.id}-${this.startedAt}`;
+    for (const n of npcs) {
+      const { mind, returning } = meet(w.world, n.name, n.monster, this.state.adventureId, this.now());
+      this.minds.set(n.name, mind);
+      this.metMinds.set(n.name, mind);
+      w.onMeet?.(mind);
+      // What she feels about the group carries over: friends make things easier from the start.
+      const bonds = this.heroes().map((h) => bondOf(mind, h.name));
+      const atts = (this.state.attitudes ??= {});
+      if (returning && atts[n.id] === undefined && bonds.some((b) => b !== 0)) {
+        atts[n.id] = Math.max(-3, Math.min(3, Math.round(bonds.reduce((a, b) => a + b, 0) / bonds.length / 3)));
+      }
+    }
+    w.save();
+  }
+
+  /** Characters who know the group from before say so (once per adventure). */
+  private greetReturning(): void {
+    const heroes = this.heroes().map((h) => h.name);
+    const lines: Narration[] = [];
+    for (const [name, mind] of this.minds) {
+      if (this.greeted.has(name) || !mind.facts.length || mind.adventures.length < 2) continue;
+      this.greeted.add(name);
+      lines.push({ text: `💭 ${name} erkennt euch wieder.` }, { npc: name, text: greetingFor(mind, heroes) });
+    }
+    if (lines.length) this.game.narrate(lines);
   }
 
   /** A hero found something in a bookshelf: one clue the group does not have yet (never a false lead). */
@@ -537,6 +608,7 @@ export class Director {
       const name = scene.roomNames?.[room.moduleId];
       if (name) room.name = name;
     }
+    this.meetCharacters(npcs);
     this.game.loadMap(map, npcs);
     this.sceneItemUses = this.game.itemUses;
     this.world?.newScene(this.state.sceneIndex === 0);
@@ -544,6 +616,7 @@ export class Director {
     this.lowestHpRatio = 1;
     this.updateView();
     await this.askDm({ kind: "scene_start" });
+    this.greetReturning();
 
     let index = 0;
     let viaGoto = false;
@@ -999,6 +1072,17 @@ export class Director {
     const badges = this.game.saveHeroes(this.story.title, { won: ending.kind !== "scheitern", difficulty: this.state.difficulty ?? "normal", ...(this.state.finalBlow ? { finalBlowHeroId: this.state.finalBlow.heroId } : {}) });
     if (badges.length) result.recap.badges = badges;
     this.game.sendRecap(result.recap);
+    // Everyone met remembers how it ended – and likes the heroes a bit more if they helped.
+    const w = this.opts.npcs;
+    if (w && this.metMinds.size) {
+      const names = this.heroes().map((h) => h.name);
+      const won = ending.kind !== "scheitern";
+      for (const mind of this.metMinds.values()) {
+        remember(mind, `${names.join(", ")}: „${this.story.title}“ – ${won ? "sie haben es geschafft" : "sie sind gescheitert"} (${ending.title}).`);
+        if (won) for (const h of names) changeBond(mind, h, 1);
+      }
+      w.save();
+    }
     this.opts.onEnd?.(result);
     return result;
   }

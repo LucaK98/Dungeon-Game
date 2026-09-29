@@ -25,6 +25,9 @@ import { cellIndex } from "../shared/map";
 import { play, setAmbience, unlockSoundOnGesture } from "../ui/sound";
 import { setMood } from "../ui/music";
 import { settingsScreen } from "./settings";
+import { loadNpcWorld, saveNpcWorld } from "./npc-store";
+import { bondLabel, bondOf, findMind } from "../dm/npc-world";
+import { castCharacter } from "./voice/cast";
 
 /** Sounds for a roll on the TV: dice first, then what happened. */
 /** How long the die tumbles on the TV before it lands (ms). */
@@ -285,7 +288,20 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       // Also after the UI scene restarts (new map).
       game.events.on("ui-ready", showAi);
       if (uiReady) showAi();
+      // The characters' memory: the same people with the same voice and feelings in every adventure.
+      const npcWorld = loadNpcWorld();
+      c.npcNote = (name, hero) => {
+        const mind = findMind(npcWorld, name);
+        if (!mind) return undefined;
+        const bond = bondOf(mind, hero);
+        return { bond, mood: bondLabel(bond), ...(mind.facts.length ? { memory: mind.facts[mind.facts.length - 1]! } : {}) };
+      };
       const director = new Director(story, state, c, dm, rng, {
+        npcs: {
+          world: npcWorld,
+          save: () => saveNpcWorld(npcWorld),
+          onMeet: (mind) => castCharacter(mind.name, mind.persona.gender, `${mind.persona.voiceStyle}, ${mind.persona.speech}`),
+        },
         duration,
         world: true,
         saga: carry,

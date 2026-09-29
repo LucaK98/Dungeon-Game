@@ -49,6 +49,14 @@ describe("Gemini provider", () => {
 });
 
 describe("checking AI answers", () => {
+  it("keeps what a character remembers, with the character who spoke", () => {
+    const free = { kind: "free_text" as const, text: "Ich schenke der Wirtin eine Blume", playerId: "p1", heroName: "Pip" };
+    const out = coerceAiAnswer({ narration: "Sie lächelt.", npc_name: "Wirtin Rosa", npc_text: "Oh, wie lieb!", npc_memory: "Pip hat mir eine Blume geschenkt." }, STORY, ctx(), free, { narration: "", next: "await_action" });
+    expect(out.npc_memory).toEqual({ name: "Wirtin Rosa", fact: "Pip hat mir eine Blume geschenkt." });
+    const none = coerceAiAnswer({ narration: "Nichts.", npc_memory: "ohne Sprecherin" }, STORY, ctx(), free, { narration: "", next: "await_action" });
+    expect(none.npc_memory).toBeUndefined();
+  });
+
   it("maps a roll request and drops clues that are not allowed", () => {
     const out = coerceAiAnswer({ narration: "Du tastest die Wand ab.", roll_skill: "investigation", roll_dc: 13, reveal_clue: "wahrheit_verraten" }, STORY, ctx(), free, { narration: "", next: "await_action" });
     expect(out.request_roll).toMatchObject({ playerId: "p1", skill: "investigation", dc: 13, ability: "INT" });

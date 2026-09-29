@@ -1,3 +1,4 @@
+import { emptyWorld, findMind, type NpcWorld } from "./npc-world";
 import { describe, expect, it } from "vitest";
 import { generateStory } from "./stories/random";
 import { seededRng, type Rng } from "../engine/rng";
@@ -50,7 +51,7 @@ function walkDistances(map: DungeonMap, goals: { x: number; y: number }[]): Map<
 }
 
 /** Plays the story with simple bots that use the same messages as the phones. */
-async function playStory(opts: { heroes?: { name: string; classId: string; raceId: string }[]; story?: Story; seed: number; duration: "kurz" | "mittel" | "lang"; truth?: string; players?: number; slow?: boolean; dm?: DungeonMaster; freeText?: boolean; linger?: boolean }) {
+async function playStory(opts: { heroes?: { name: string; classId: string; raceId: string }[]; story?: Story; seed: number; duration: "kurz" | "mittel" | "lang"; truth?: string; players?: number; slow?: boolean; dm?: DungeonMaster; freeText?: boolean; linger?: boolean; npcs?: NpcWorld }) {
   let clock = 0;
   const rng: Rng = seededRng(opts.seed);
   const botRng = seededRng(opts.seed + 1000);
@@ -69,7 +70,7 @@ async function playStory(opts: { heroes?: { name: string; classId: string; raceI
   const narration: string[] = [];
   game.on({ narration: (lines) => narration.push(...lines.map((l) => l.text)) });
   let result: StoryResult | undefined;
-  const director = new Director(story, state, game, opts.dm ?? new ScriptedDM(story), rng, { duration: opts.duration, camp: !process.env.NOCAMP, travel: !process.env.NOTRAVEL, ...(opts.slow ? { now: () => clock } : {}), onEnd: (r) => (result = r) });
+  const director = new Director(story, state, game, opts.dm ?? new ScriptedDM(story), rng, { duration: opts.duration, camp: !process.env.NOCAMP, travel: !process.env.NOTRAVEL, ...(opts.slow ? { now: () => clock } : {}), ...(opts.npcs ? { npcs: { world: opts.npcs, save: () => {} } } : {}), onEnd: (r) => (result = r) });
   const run = director.run();
   let guard = 0;
   let campfires = 0;
@@ -426,3 +427,20 @@ if (process.env.STRESS) {
     }
   });
 }
+
+describe("characters remember the heroes", () => {
+  it("knows the group in the next adventure and greets them", async () => {
+    const world = emptyWorld();
+    const first = await playStory({ seed: 3, duration: "kurz", npcs: world });
+    expect(first.result).toBeDefined();
+    const giver = STORY.npcs[0]!;
+    const mind = findMind(world, giver.name)!;
+    expect(mind).toBeDefined();
+    expect(mind.persona.traits).toHaveLength(3);
+    // The end of the adventure is in her memory.
+    expect(mind.facts.some((f) => f.includes(STORY.title))).toBe(true);
+    const second = await playStory({ seed: 4, duration: "kurz", npcs: world });
+    expect(second.narration.some((l) => l.includes(`${giver.name} erkennt euch wieder`))).toBe(true);
+    expect(mind.adventures.length).toBe(2);
+  }, 60_000);
+});

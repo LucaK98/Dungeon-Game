@@ -46,6 +46,8 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
   const npcName = str(o.npc_name, 40);
   const npcText = str(o.npc_text, 400);
   if (npcName && npcText) out.npc_say = { name: npcName, text: npcText.replace(/^[„"“]+|[“"”]+$/g, "") };
+  const memory = str(o.npc_memory, 160);
+  if (npcName && memory) out.npc_memory = { name: npcName, fact: memory };
 
   const scene = sceneById(story, ctx.sceneId);
   if (trigger.kind === "free_text") {

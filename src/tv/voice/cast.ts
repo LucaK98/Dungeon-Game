@@ -29,8 +29,21 @@ const MONSTER_WORDS = /\b(oger|drache|troll|goblin|kobold|wolf|werwolf|bestie|un
 const GHOST_WORDS = /\b(geist|gespenst|spuk|schatten|wilde[nr]? jagd|toter|untote[rn]?)\b/i;
 
 /** Guesses what kind of voice fits a speaker name. */
+/** Characters with a personality (src/dm/npc-world.ts): their sex and way of speaking, known by name. */
+const CAST = new Map<string, { gender: "female" | "male"; style: string }>();
+
+export function castCharacter(name: string, gender: "female" | "male", style: string): void {
+  CAST.set(name.trim().toLowerCase(), { gender, style });
+}
+
+export function castStyle(name: string | undefined): string | undefined {
+  return name ? CAST.get(name.trim().toLowerCase())?.style : undefined;
+}
+
 export function kindOf(name: string | undefined): Kind {
   if (!name) return "narrator";
+  const cast = CAST.get(name.trim().toLowerCase());
+  if (cast) return cast.gender;
   if (GHOST_WORDS.test(name)) return "ghost";
   if (MONSTER_WORDS.test(name)) return "monster";
   if (CHILD_WORDS.test(name)) return "child";

@@ -32,6 +32,7 @@ So erzählst du:
 - Proben und Erfolgsgrade: Tricks brauchen eine Probe (nur „helfen“ und „deckung“ gehen ohne). Ist die Probe gelungen, wähle 1 Effekt, bei großem Erfolg (5 über dem SG) bis zu 2. Knapp verfehlt (1–2 darunter) heißt „Ja, aber“: 1 Effekt, doch der Held zahlt einen kleinen Preis (das Programm zieht ihm ein paar Trefferpunkte ab) – erzähle beides. Klar verfehlt: Es geht etwas schief! Wähle dann genau 1 Rückschlag aus der Liste (Blöße, hinfallen, Patzer, wütender Gegner, verletzt, Gold verloren) und erzähle ihn lebendig. Freie Aktionen haben IMMER Folgen – gute oder schlechte.
 - Anführer und Endgegner lassen sich nicht bestechen, betören, umstoßen oder verjagen – ablenken und die Umgebung wirken aber.
 - Nebenfiguren merken sich, wie man sie behandelt: Mit npc_attitude (−2 bis +2) veränderst du ihre Haltung. Freundliche Figuren machen spätere Proben in ihrer Szene leichter, feindliche schwerer.
+- Jede Figur unter FIGUREN hat einen eigenen Charakter, eine eigene Sprechweise und ein Gedächtnis. Spiele sie genau so: Sie reagiert nach ihrem Wesen, erinnert sich an frühere Begegnungen und spricht Helden darauf an. Was sie sich von diesem Moment merkt, schreibst du in npc_memory (ein kurzer Satz aus ihrer Sicht, z. B. „Pip hat mir Blumen gebracht.“). Flirts beantwortet sie passend zu ihrer Romantik-Angabe – wer nicht interessiert ist, lehnt freundlich ab. Alles bleibt jugendfrei.
 - Greife die CHRONIK auf: Erinnere an frühere Taten der Helden, wenn es passt.
 - LAGERFEUER: Was die Helden am Feuer über sich erzählt haben, ist wertvoll. Lass es ab und zu in die Geschichte einfließen (eine Figur aus der Heimat, eine Angst, ein Wunsch), ohne die Regeln zu ändern.
 - Nutze die UMGEBUNG: Baue Gegenstände aus dem Raum in deine Beschreibungen und Vorschläge ein.
@@ -126,6 +127,7 @@ export function buildPrompt(story: Story, ctx: DmContext, trigger: DmTrigger, sc
     `GOLD DER GRUPPE: ${ctx.gold ?? 0} (Bestechung kostet ${BRIBE_PER_ENEMY} Gold pro Gegner)`,
     ctx.chronicle?.length ? `CHRONIK (frühere Taten): ${ctx.chronicle.join(" | ")}` : "",
     ctx.tales?.length ? `LAGERFEUER (die Helden über sich): ${ctx.tales.join(" | ")}` : "",
+    ctx.minds?.length ? `FIGUREN (Charakter, Gefühle, Gedächtnis):\n${ctx.minds.map((m) => `- ${m}`).join("\n")}` : "",
     Object.keys(ctx.attitudes ?? {}).length
       ? `HALTUNG DER FIGUREN: ${Object.entries(ctx.attitudes!).map(([id, v]) => `${story.npcs.find((n) => n.id === id)?.name ?? id} ${v > 0 ? "+" : ""}${v}`).join(", ")}`
       : "",
@@ -151,6 +153,7 @@ export function responseSchema(story: Story, ctx: DmContext, trigger: DmTrigger)
     npc_name: S("Name der sprechenden Nichtspielerfigur, sonst leer"),
     npc_text: S("Was sie sagt, sonst leer"),
   };
+  if (ctx.minds?.length) properties.npc_memory = S("Was sich die sprechende Figur merkt (ein kurzer Satz aus ihrer Sicht), sonst leer");
   if (trigger.kind === "free_text") {
     properties.roll_skill = S("Fertigkeit für eine Probe oder none", { enum: ["none", ...SKILL_IDS] });
     properties.roll_dc = { type: "INTEGER", description: "Schwierigkeit 8–18, 0 wenn keine Probe" };

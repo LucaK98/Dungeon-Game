@@ -30,6 +30,10 @@ export interface MiniCreature {
   hp?: number;
   maxHp?: number;
   danger?: "leicht" | "gefährlich" | "sehr gefährlich";
+  /** Characters: how they feel about this hero (−10 … +10, in a word) and what they remember last. */
+  bond?: number;
+  mood?: string;
+  memory?: string;
 }
 
 export interface MiniMap {

@@ -39,6 +39,8 @@ export interface DmContext {
   tales?: string[];
   /** Attitude of story characters towards the group, −3 (hostile) … +3 (friendly). */
   attitudes?: Record<string, number>;
+  /** The characters here: personality, feelings towards the heroes and what they remember (src/dm/npc-world.ts). */
+  minds?: string[];
   eventsUsed: string[];
 }
 
@@ -77,6 +79,8 @@ export interface DmResponse {
   reveal_clue?: string;
   reveal_twist?: boolean;
   npc_attitude?: { npc: string; change: number };
+  /** What the speaking character keeps in mind from this moment (one short sentence, her view). */
+  npc_memory?: { name: string; fact: string };
   trigger_event?: string;
   choose_ending?: string | null;
   set_flags?: string[];

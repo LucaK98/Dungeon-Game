@@ -4,7 +4,7 @@
  * (sent only to Google, in the header `x-goog-api-key`). Returns raw audio (16-bit PCM, 24 kHz, mono).
  * Lines are cached, so a repeated line costs nothing, and the next lines can be fetched while one plays.
  */
-import { hash, kindOf, type Kind } from "./cast";
+import { castStyle, hash, kindOf, type Kind } from "./cast";
 
 const GEMINI = "https://generativelanguage.googleapis.com/v1beta";
 export const TTS_MODEL = "gemini-2.5-flash-preview-tts";
@@ -33,7 +33,10 @@ const STYLE: Record<Kind, string> = {
 export function geminiVoiceFor(name?: string): { voice: string; style: string } {
   const kind = kindOf(name);
   const list = VOICES[kind];
-  return { voice: list[(name ? hash(name) : 0) % list.length]!, style: STYLE[kind] };
+  // Characters with a personality speak in their own way ("rau und tief; redet in Sprichwörtern").
+  const own = castStyle(name);
+  const style = own ? `${STYLE[kind].replace(/ Lies nur den Text vor\.$/, "")} So klingt die Figur: ${own}. Lies nur den Text vor.` : STYLE[kind];
+  return { voice: list[(name ? hash(name) : 0) % list.length]!, style };
 }
 
 export class TtsError extends Error {

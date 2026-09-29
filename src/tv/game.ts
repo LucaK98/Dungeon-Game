@@ -206,6 +206,8 @@ export class GameController {
   /** How tough the world is (the dice stay honest). */
   difficulty: Difficulty = "normal";
   onFreeText: ((playerId: PlayerId, hero: Creature, text: string) => void) | undefined;
+  /** What a character feels about a hero and remembers last (the phone shows it on her card). */
+  npcNote: ((name: string, hero: string) => { bond: number; mood: string; memory?: string } | undefined) | undefined;
   /** Asks the game master for free-action ideas (set by the Director). */
   onSuggest: ((playerId: PlayerId, hero: Creature) => Promise<string[]>) | undefined;
   private lastSuggest = new Map<PlayerId, number>();
@@ -3565,8 +3567,14 @@ export class GameController {
         health: c.maxHp ? c.hp / c.maxHp : 0,
         down: c.hp === 0,
         ...(c.side === "enemy" ? { ac: armorClass(c), hp: c.hp, maxHp: c.maxHp, danger: dangerFor(me, c) } : {}),
+        ...(c.side === "neutral" && !c.appearance ? this.noteFor(c.name, me.name) : {}),
       }));
     return { x0, y0, w, h, frames, overlays, ground, marks, objects, creatures, reachable: mine && !this.pending ? this.reachable(me).filter(inWindow) : [], ...(light ? { light } : {}) };
+  }
+
+  private noteFor(name: string, hero: string): { bond?: number; mood?: string; memory?: string } {
+    const n = this.npcNote?.(name, hero);
+    return n ? { bond: n.bond, mood: n.mood, ...(n.memory ? { memory: n.memory } : {}) } : {};
   }
 
   /** Squares reachable with the movement left (8 directions, around creatures and obstacles). */
