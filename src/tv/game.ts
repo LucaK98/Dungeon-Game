@@ -3372,7 +3372,7 @@ export class GameController {
       traps.forEach((t) => (t.state = "found"));
       // Secrets become easy to spot (and can be examined up close).
       secrets.forEach((s) => (s.state = "closed"));
-      if (secrets.length) lines.push({ text: `🔍 ${hero.name} bemerkt etwas Merkwürdiges ${secrets[0]!.variant === "runes" ? "an der Wand" : "am Boden"}. Schaut es euch aus der Nähe an!`, glossarKeys: ["geheimnis"] });
+      if (secrets.length) lines.push({ text: `🔍 ${hero.name} bemerkt etwas Merkwürdiges ${secrets[0]!.variant === "runes" ? "an der Wand" : "am Boden"}.`, glossarKeys: ["geheimnis"] });
       lines.push({
         text: traps.length
           ? `👀 ${hero.name} entdeckt ${traps.length === 1 ? "eine versteckte Falle" : `${traps.length} versteckte Fallen`} im Boden!`

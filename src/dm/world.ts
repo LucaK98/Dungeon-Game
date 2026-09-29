@@ -39,7 +39,8 @@ const CLOCK: Record<Duration, number> = { kurz: 4, mittel: 6, lang: 8 };
 const CLOCK_ROUNDS: Record<Duration, number> = { kurz: 8, mittel: 12, lang: 16 };
 const EVENT_GAP_ROUNDS: [number, number] = [3, 5];
 /** After this long without any action the game master speaks up (seconds). */
-const QUIET_S = 75;
+/** Seconds of silence before the world stirs (a sound, a murmur – never the solution). */
+const QUIET_S = 180;
 /** A decision on the phones stays open this long (seconds). */
 const CHOICE_S = 60;
 

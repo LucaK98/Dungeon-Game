@@ -91,16 +91,10 @@ export class ScriptedDM implements DungeonMaster {
         const known = scriptedFreeText(ctx, trigger);
         if (known) return known;
         if (ctx.combat?.enemies.length) {
-          return respond([
-            { text: `${trigger.heroName} versucht: „${trigger.text.slice(0, 80)}“ – doch mitten im Kampf bewirkt das nichts.` },
-            { text: "Probiert Tricks wie Sand werfen, umstoßen, bestechen, betören oder einschüchtern – oder tippt auf „💡 Ideen“." },
-          ]);
+          return respond([{ text: `${trigger.heroName} versucht: „${trigger.text.slice(0, 80)}“ – doch mitten im Kampf bewirkt das nichts.` }]);
         }
         // Without an AI the narrator can only acknowledge the idea and point at the buttons.
-        return respond([
-          { text: `${trigger.heroName} versucht es: „${trigger.text.slice(0, 80)}“ – doch nichts Besonderes geschieht.` },
-          { text: "Vielleicht hilft eine der Möglichkeiten auf dem Handy weiter." },
-        ]);
+        return respond([{ text: `${trigger.heroName} versucht es: „${trigger.text.slice(0, 80)}“ – doch nichts Besonderes geschieht.` }]);
       }
 
       case "roll_result": {
@@ -128,10 +122,9 @@ export class ScriptedDM implements DungeonMaster {
         const atmo = IDLE_LINES[Math.floor(ctx.minutesPlayed * 7) % IDLE_LINES.length]!;
         const step = scene.steps.find((s) => s.id === ctx.stepId);
         const npc = step?.kind === "reach" && step.target && step.target !== "exit" ? this.story.npcs.find((n) => n.id === step.target) : undefined;
-        return respond([
-          { text: atmo },
-          npc ? { text: `${npc.name} wartet schon auf euch.` } : { text: `Euer Ziel: ${scene.ziel}` },
-        ].map((l, i) => (i === 1 ? { ...l, tip: { key: "freie_aktion", text: "Keine Idee? Tippt auf dem Handy auf „💡 Ideen“ – oder lauft einfach los." } } : l)));
+        // Only atmosphere: the group finds out for themselves what to do (the goal stays on the phone).
+        void npc;
+        return respond([{ text: atmo }]);
       }
 
       case "scene_end": {

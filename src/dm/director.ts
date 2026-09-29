@@ -31,6 +31,9 @@ import { getGear } from "../data/gear";
 import { seededRng } from "../engine/rng";
 import type { CampOffer } from "../tv/game";
 
+/** Lines that only tell the group what to do ("Geht zur Wirtin.") are not read out: they find out themselves. */
+const DIRECTION = /^(geht (zu|zum|zur|ganz|nach)|lauft (bis|zu|zum|zur)|schaut euch eure hinweise|sucht (den|die|das)\b)/i;
+
 export interface StoryState {
   storyId: string;
   duration: Duration;
@@ -248,7 +251,7 @@ export class Director {
     }
     const { response } = validateResponse(raw, { story: this.story, scene: this.scene, truth: this.state.truth, eventsUsed: this.state.eventsUsed });
     // Free text from the game master is kept short (read aloud in full; long texts lose the table).
-    const lines: Narration[] = response.script ?? (response.narration ? [{ text: shorten(response.narration, trigger.kind === "scene_start" || trigger.kind === "final_blow" || trigger.kind === "campfire" ? 3 : 2) }] : []);
+    const lines: Narration[] = (response.script ?? (response.narration ? [{ text: shorten(response.narration, 2) }] : [])).filter((l) => l.npc || !DIRECTION.test(l.text));
     if (response.npc_say) lines.push({ npc: response.npc_say.name, text: response.npc_say.text });
     this.game.narrate(lines);
     if (response.reveal_twist) this.state.twistRevealed = true;
