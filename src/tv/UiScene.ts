@@ -22,6 +22,7 @@ export class UiScene extends Phaser.Scene {
   private logLines: ExplainedLine[] = [];
   private notes: { tasks: { text: string; done: boolean }[]; more: number; clues: string[] } = { tasks: [], more: 0, clues: [] };
   private notesKey = "";
+  private sceneCardAt = 0;
   private goal!: Phaser.GameObjects.Text;
   /** "Runde 3 · danach: Brunhild, Ole" above the name. */
   private turnInfo!: Phaser.GameObjects.Text;
@@ -71,7 +72,11 @@ export class UiScene extends Phaser.Scene {
     this.narrationBox = this.add.container(0, 0).setAlpha(0);
     this.aiBadge = this.add.text(MAP_RIGHT - 24, BOARD_HEIGHT - 20, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setOrigin(1, 1);
 
-    const onRoom = (name: string) => this.showBanner(name);
+    // The scene card already names the place: no second title right after it.
+    const onRoom = (name: string) => {
+      if (Date.now() - this.sceneCardAt < 6000) return;
+      this.showBanner(name);
+    };
     const onTurn = (name: string, color?: string, free?: boolean, info?: string) => this.showTurn(name, color, free, info);
     const onRoll = (r: RollOutcome, tumble = 0) => this.rollIn(r, tumble);
     const onAsked = (prompt: RollPrompt, name: string, color?: string) => this.showAsk(prompt, name, color);
@@ -96,6 +101,8 @@ export class UiScene extends Phaser.Scene {
     // A new scene: title and goal big in the middle for a few seconds.
     const sceneCard = this.add.container(MAP_RIGHT / 2, BOARD_HEIGHT * 0.24).setDepth(45).setAlpha(0);
     const onSceneCard = (title: string, goal: string) => {
+      this.sceneCardAt = Date.now();
+      this.banner.setAlpha(0);
       this.tweens.killTweensOf(sceneCard);
       sceneCard.removeAll(true);
       const t = this.add.text(0, -30, title, crisp({ fontFamily: FONT, fontSize: "64px", fontStyle: "bold", color: "#ffd75e", stroke: "#000", strokeThickness: 10, align: "center", wordWrap: { width: 1100 } })).setOrigin(0.5, 1);
@@ -587,18 +594,19 @@ export class UiScene extends Phaser.Scene {
     let ny = top + 18;
     const n = this.notes;
     if (n.tasks.length) {
-      box.add(this.add.text(x + 22, ny, "🎯 Aufgaben", crisp({ fontFamily: FONT, fontSize: "26px", color: "#e0a526", fontStyle: "bold" })));
-      ny += 38;
-      for (const t of n.tasks) {
-        const line = this.add.text(x + 26, ny, `${t.done ? "✅" : "⬜"} ${t.text}`, crisp({ fontFamily: FONT, fontSize: "22px", color: t.done ? "#8fbf8f" : "#ffe08a", fontStyle: t.done ? "normal" : "bold", wordWrap: { width: width - 50 } }));
-        box.add(line);
-        ny += line.height + 6;
+      // One line: the task that is open now (and how many are done).
+      const open = n.tasks.find((t) => !t.done);
+      const done = n.tasks.filter((t) => t.done).length;
+      const text = open ? `🎯 ${open.text}` : "🎯 Alles erledigt!";
+      const line = this.add.text(x + 22, ny, text, crisp({ fontFamily: FONT, fontSize: "24px", color: "#ffe08a", fontStyle: "bold", wordWrap: { width: width - 44 }, maxLines: 2 }));
+      box.add(line);
+      ny += line.height + 4;
+      const total = n.tasks.length + n.more;
+      if (total > 1) {
+        box.add(this.add.text(x + 22, ny, `${done} von ${total} erledigt`, crisp({ fontFamily: FONT, fontSize: "18px", color: "#8f8574" })));
+        ny += 26;
       }
-      if (n.more) {
-        box.add(this.add.text(x + 26, ny, `… und ${n.more} weitere`, crisp({ fontFamily: FONT, fontSize: "20px", color: "#8f8574" })));
-        ny += 30;
-      }
-      ny += 8;
+      ny += 10;
     }
     if (n.clues.length) {
       box.add(this.add.text(x + 22, ny, `🧩 Hinweise (${n.clues.length})`, crisp({ fontFamily: FONT, fontSize: "26px", color: "#e0a526", fontStyle: "bold" })));
@@ -618,7 +626,8 @@ export class UiScene extends Phaser.Scene {
     const fresh = Math.min(added, texts.length);
     let y = bottom - 18;
     const limit = ny + 52;
-    for (let i = texts.length - 1; i >= 0; i--) {
+    // Only the newest five: older ones are gone, the rest fade with age.
+    for (let i = texts.length - 1; i >= Math.max(0, texts.length - 5); i--) {
       const text = texts[i]!;
       const age = texts.length - 1 - i;
       const t = this.add.text(x + 30, 0, text, crisp({ fontFamily: FONT, fontSize: "22px", color: logColor(text), wordWrap: { width: width - 48 }, lineSpacing: 4 }));
@@ -627,7 +636,7 @@ export class UiScene extends Phaser.Scene {
         break;
       }
       y -= t.height;
-      t.setY(y).setAlpha(age === 0 ? 1 : Math.max(0.45, 0.92 - age * 0.06));
+      t.setY(y).setAlpha(age === 0 ? 1 : Math.max(0.35, 0.9 - age * 0.14));
       const mark = this.add.graphics();
       mark.fillStyle(age < fresh ? 0xe0a526 : 0x3b322b, 1).fillRoundedRect(x + 14, y + 3, 5, Math.max(18, t.height - 6), 2);
       box.add([mark, t]);

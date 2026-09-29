@@ -1,6 +1,7 @@
 /**
  * The phone as game controller: turn status, map, actions, character sheet and inventory.
  */
+import { averageOf } from "../engine/dice";
 import { getGear } from "../data/gear";
 import type { Recap } from "../shared/recap";
 import type { Reward } from "../shared/reward";
@@ -336,7 +337,6 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
           { class: "lamps" },
           lamp("🦶", moved ? "gelaufen" : `${fields} ${fields === 1 ? "Feld" : "Felder"}`, !moved, "bewegung"),
           lamp("⚔️", acted ? "Aktion ✓" : "Aktion", !acted, "aktion"),
-          v.mode === "combat" && v.turn.bonusAction ? lamp("✨", "Bonus", true, "bonusaktion") : "",
         ),
       ),
     );
@@ -614,9 +614,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     const b = h(
       "button",
       { class: `tile${q ? " queueable" : ""}${c.recommended ? " recommended" : ""}${urgency(c)}`, type: "button", dataset: { help: c.glossarKey } },
-      h("span", { class: "tile-label" }, c.label),
+      h("span", { class: "tile-label" }, c.label.replace(/ \(Bonusaktion\)/, "")),
       chips.length ? h("span", { class: "tile-chips" }, ...chips) : "",
-      q ? h("span", { class: "queue-hint" }, queued?.choiceId === c.id ? "📌 vorgemerkt" : "📌 vormerken") : c.cost === "bonus" ? h("span", { class: "tile-cost" }, "Bonus") : c.cost === "free" ? h("span", { class: "tile-cost free" }, "gratis") : "",
+      q ? h("span", { class: "queue-hint" }, queued?.choiceId === c.id ? "📌 vorgemerkt" : "📌 vormerken") : c.cost === "bonus" ? h("span", { class: "tile-cost extra", dataset: { help: "bonusaktion" } }, "+ extra") : c.cost === "free" ? h("span", { class: "tile-cost free" }, "gratis") : "",
     );
     b.addEventListener("click", () => choose(c));
     onHold(b, () => explainChoice(c));
@@ -1201,6 +1201,22 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       });
       actions.push(less);
     }
+    // The action is used up: only what is still in it (walking, extras, free things) and ending the turn.
+    if (v.turn.mine && !v.turn.free && v.turn.actions <= 0 && !v.story?.choices.length) {
+      const left = v.choices.filter((c) => c.enabled && c.cost !== "action" && ["attack", "spell", "item", "ability", "look"].includes(c.group));
+      const fields = Math.floor(v.turn.movementLeftFt / 5);
+      actions.push(
+        h(
+          "section",
+          { class: "card rest-card" },
+          h("div", { class: "context-title" }, "✔️ Aktion erledigt – noch drin:"),
+          fields > 0 ? h("p", { class: "muted" }, `🦶 Noch ${fields} ${fields === 1 ? "Feld" : "Felder"} laufen – tippe auf die Karte`) : "",
+          left.length ? h("div", { class: "group-body tiles" }, ...left.map(tileButton)) : "",
+          h("p", { class: "muted small" }, "Fertig? Unten auf „✅ Zug beenden“."),
+        ),
+      );
+      return [h("div", { class: "action-grid" }, h("div", { class: "col-top" }, ...top), h("div", { class: "col-map" }, mapCard(v)), h("div", { class: "col-actions" }, ...actions))];
+    }
     // Only what works right now (or can be queued), as small tiles. What does not work is left out –
     // a long press on anything explains it. Exploring: no attacks; in a fight, looking around waits under "Mehr".
     const groups: ActionGroup[] = v.mode === "combat" ? ["attack", "spell", "item", "ability", "look"] : ["spell", "item", "ability", "look"];
@@ -1327,13 +1343,15 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         h("div", { class: "hero-hp", dataset: { help: "trefferpunkte" } }, h("span", { style: `width:${hpPct}%` }), h("em", {}, `❤️ ${me.hp} / ${me.maxHp}`)),
       ),
     );
+    // The best attack in one line: to hit and damage.
+    const bestAttack = [...me.attacks].filter((a) => a.id !== "wolf-bite").sort((a, b) => b.damage.reduce((x, d) => x + averageOf(d.dice), 0) - a.damage.reduce((x, d) => x + averageOf(d.dice), 0))[0];
+    const attackText = bestAttack ? `${signed(sumParts(bestAttack.toHit))} · ${bestAttack.damage.map((d) => d.dice.replace("d", "W")).join("+")}${sumParts(bestAttack.damageBonus) ? signed(sumParts(bestAttack.damageBonus)) : ""}` : "–";
     const stats = h(
       "div",
       { class: "stats" },
       stat("🛡️", "Rüstungsklasse", String(armorClass(me)), "ruestungsklasse"),
+      stat("⚔️", bestAttack ? (bestAttack.source === "weapon" ? nameOf("weapons", bestAttack.sourceId) : "Angriff") : "Angriff", attackText, "angriffswurf"),
       stat("👣", "Bewegung", `${me.speedFt / 5} Felder`, "bewegung"),
-      stat("🎯", "Übungsbonus", signed(me.proficiencyBonus), "uebungsbonus"),
-      stat("⚡", "Initiative", signed(abilityMod(me.abilities.DEX)), "initiative"),
     );
     const row = (label: string, value: number, prof: boolean, help: string, icon?: string) =>
       h(
@@ -1353,8 +1371,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       .map((f) => h("button", { class: "chip", type: "button", textContent: nameOf("features", f), dataset: { help: `merkmal:${f}` }, onclick: () => openHelp(`merkmal:${f}`) }));
     const traits = pc.raceId ? SRD.races.find((r) => r.id === pc.raceId)!.traits.map((t) => h("button", { class: "chip", type: "button", textContent: nameOf("raceTraits", t), dataset: { help: `volksmerkmal:${t}` }, onclick: () => openHelp(`volksmerkmal:${t}`) })) : [];
     const out: HTMLElement[] = [
-      h("section", { class: "card hero-card" }, hero, stats),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Attribute"), abilities, h("p", { class: "muted small" }, "Groß: was auf deine Würfe kommt. ⭐ = deine Stärken.")),
+      h("section", { class: "card" }, h("div", { class: "stats" }, stat("🎯", "Übungsbonus", signed(me.proficiencyBonus), "uebungsbonus"), stat("⚡", "Initiative", signed(abilityMod(me.abilities.DEX)), "initiative"))),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Rettungswürfe"), h("p", { class: "muted small" }, "★ = geübt, da bist du besonders gut"), saves),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Fertigkeiten"), h("p", { class: "muted small" }, "★ = geübt · Symbol = welches Attribut zählt"), skills),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "Fähigkeiten"), h("div", { class: "chips" }, ...features, ...traits)),
@@ -1385,8 +1403,10 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         ),
       );
     }
+    // On top: the hero, the essentials and what is wrong right now. Everything else behind "Alle Werte".
+    const conditions: HTMLElement[] = [];
     if (me.conditions.length || me.effects.length) {
-      out.push(
+      conditions.push(
         h(
           "section",
           { class: "card" },
@@ -1400,7 +1420,16 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         ),
       );
     }
-    return out;
+    return [h("section", { class: "card hero-card" }, hero, stats), ...conditions, fold("sheet-all", "📊 Alle Werte", out)];
+  }
+
+  /** A section that starts folded; stays open across redraws once opened. */
+  const openFolds = new Set<string>();
+  function fold(key: string, title: string, content: (HTMLElement | string)[], note?: string): HTMLElement {
+    const d = h("details", { class: "fold" }, h("summary", {}, h("span", {}, title), note ? h("span", { class: "muted small" }, note) : ""), ...content) as HTMLDetailsElement;
+    d.open = openFolds.has(key);
+    d.addEventListener("toggle", () => (d.open ? openFolds.add(key) : openFolds.delete(key)));
+    return d;
   }
 
   // ---------------------------------------------------------------- inventory tab
@@ -1545,17 +1574,23 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       if (giveList) row.append(giveList);
       return row;
     });
+    // Gold and potions first (what you use); equipment and brewing fold away until needed.
     return [
-      h(
-        "section",
-        { class: "card" },
-        h("div", { class: "card-title", dataset: { help: "ausruestung" } }, "✨ Ausrüstung"),
-        h("div", { class: "list" }, ...(gearRows.length ? gearRows : [h("p", { class: "muted" }, "Noch nichts Besonderes. Truhen, besiegte Anführer und fahrende Händler haben manchmal magische Waffen, Rüstungen und Schmuck.")])),
-      ),
-      h("section", { class: "card" }, h("div", { class: "card-title" }, "Waffen"), h("div", { class: "list" }, ...weapons)),
-      h("section", { class: "card" }, h("div", { class: "card-title" }, "Rüstung"), h("div", { class: "list" }, ...(armor.length ? armor : [h("p", { class: "muted" }, "Keine Rüstung")]))),
       h("section", { class: "card" }, h("div", { class: "card-title" }, "🎒 Gegenstände", h("span", { class: "muted small" }, "Antippen für mehr")), h("div", { class: "item-grid" }, ...items)),
-      craftingCard(pc.inventory),
+      fold(
+        "bag-gear",
+        "⚔️ Ausrüstung",
+        [
+          h("div", { class: "card-title", dataset: { help: "ausruestung" } }, "✨ Besonderes"),
+          h("div", { class: "list" }, ...(gearRows.length ? gearRows : [h("p", { class: "muted" }, "Noch nichts Besonderes. Truhen, besiegte Anführer und fahrende Händler haben manchmal magische Waffen, Rüstungen und Schmuck.")])),
+          h("div", { class: "card-title" }, "Waffen"),
+          h("div", { class: "list" }, ...weapons),
+          h("div", { class: "card-title" }, "Rüstung"),
+          h("div", { class: "list" }, ...(armor.length ? armor : [h("p", { class: "muted" }, "Keine Rüstung")])),
+        ],
+        gearRows.length ? `${gearRows.length} Besonderes` : undefined,
+      ),
+      fold("bag-craft", "⚗️ Brauen & Basteln", [craftingCard(pc.inventory)]),
     ];
   }
 
