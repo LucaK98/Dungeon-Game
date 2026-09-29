@@ -12,6 +12,8 @@ export interface AiSettings {
   models: Record<ProviderId, string>;
   /** Used when the main model hits its limit (Gemini: Flash-Lite). */
   fallbackModels: Record<ProviderId, string>;
+  /** A Gemini key of this TV that steps in when the server's free quota is used up (stored only here). */
+  backupKey?: string;
 }
 
 const KEY = "couch-dungeon.ai";
@@ -43,6 +45,7 @@ export function loadAiSettings(): AiSettings {
       keys: s.keys ?? {},
       models: { ...DEFAULT_SETTINGS.models, ...s.models },
       fallbackModels: { ...DEFAULT_SETTINGS.fallbackModels, ...s.fallbackModels },
+      ...(s.backupKey?.trim() ? { backupKey: s.backupKey.trim() } : {}),
     };
   } catch {
     return structuredClone(DEFAULT_SETTINGS);
@@ -61,7 +64,14 @@ export function saveAiSettings(s: AiSettings): void {
 export function providersFrom(s: AiSettings, room = ""): LlmProvider[] | undefined {
   if (s.provider === "off") return undefined;
   // The server holds the key itself and does the fallback model.
-  if (s.provider === "server") return [new ServerProvider(DM_FUNCTION_URL, SUPABASE_ANON_JWT, room)];
+  if (s.provider === "server") {
+    // When the server's quota is used up, this TV's backup key takes over (main model, then Flash-Lite).
+    const backup = s.backupKey?.trim();
+    return [
+      new ServerProvider(DM_FUNCTION_URL, SUPABASE_ANON_JWT, room),
+      ...(backup ? [new GeminiProvider(backup, s.models.gemini), new GeminiProvider(backup, s.fallbackModels.gemini)] : []),
+    ];
+  }
   const key = s.keys[s.provider]?.trim();
   if (!key) return undefined;
   const make = (model: string) => (s.provider === "gemini" ? new GeminiProvider(key, model) : new GroqProvider(key, model));

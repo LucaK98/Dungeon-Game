@@ -70,7 +70,9 @@ export function voiceEngine(): VoiceEngine {
 
 /** The Gemini key typed in on this TV (for the storyteller voice). */
 export function geminiKey(): string | undefined {
-  return loadAiSettings().keys.gemini?.trim() || undefined;
+  // The storyteller voice also works with the backup key (server mode).
+  const s = loadAiSettings();
+  return s.keys.gemini?.trim() || s.backupKey?.trim() || undefined;
 }
 
 export function setVoiceEngine(engine: VoiceEngine): void {

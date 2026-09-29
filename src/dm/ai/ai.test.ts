@@ -95,6 +95,25 @@ describe("AiDM", () => {
     expect(calls).toEqual(["flash", "lite"]);
   });
 
+  it("lets this TV's backup key step in when the server is used up or has no key", async () => {
+    const calls: string[] = [];
+    const server = (kind: LlmError["kind"]): LlmProvider => ({ id: "server", model: "server", complete: async () => (calls.push("server"), Promise.reject(new LlmError(kind, kind))) });
+    expect((await new AiDM(STORY, [server("limit"), ok("backup", calls)]).respond(ctx(), scripted)).narration).toBe("backup");
+    calls.length = 0;
+    const dm = new AiDM(STORY, [server("auth"), ok("backup", calls)]);
+    expect((await dm.respond(ctx(), scripted)).narration).toBe("backup");
+    // The refused server is not asked again in this game.
+    await dm.respond(ctx(), free);
+    expect(calls).toEqual(["server", "backup", "backup"]);
+  });
+
+  it("builds the server chain with the backup key only when one is set", async () => {
+    const { providersFrom, DEFAULT_SETTINGS } = await import("./settings");
+    expect(providersFrom({ ...DEFAULT_SETTINGS, provider: "server" }, "R")!.map((p) => p.id)).toEqual(["server"]);
+    const chain = providersFrom({ ...DEFAULT_SETTINGS, provider: "server", backupKey: "AQ.test" }, "R");
+    expect(chain!.map((p) => p.id)).toEqual(["server", "gemini", "gemini"]);
+  });
+
   it("falls back to the script, pauses and does not hammer the API during the pause", async () => {
     const calls: string[] = [];
     let now = 0;

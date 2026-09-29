@@ -147,8 +147,9 @@ export class AiDM implements DungeonMaster {
           this.opts.onExchange?.({ provider: provider.id, model: provider.model, prompt: req.prompt, error: `${e.kind}: ${e.message}`, ms: this.now() - started });
           if (e.kind === "bad_json" && attempt === 0) continue;
           if (e.kind === "auth") {
-            // A wrong key will not get better: stay with the script for this game.
-            this.providers = [];
+            // A wrong key will not get better: drop it for this game (a backup key may still take over).
+            this.providers = this.providers.filter((p) => p.id !== provider.id);
+            if (this.providers.length) break;
             this.opts.onStatus?.({ kind: "pause", reason: e.message });
             return scripted;
           }

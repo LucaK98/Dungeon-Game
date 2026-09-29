@@ -72,10 +72,13 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
 
     // The key field shows the key of the chosen provider (the server needs none).
     const current = (): Exclude<ProviderId, "server"> | undefined => (s.provider === "off" || s.provider === "server" ? undefined : s.provider);
+    const backupInput = h("input", { class: "settings-input", type: "password", autocomplete: "off", spellcheck: false, placeholder: "optional: eigener Gemini-Schlüssel", value: s.backupKey ?? "" }) as HTMLInputElement;
     const serverPart = h(
       "div",
       { class: "settings-ai" },
       h("div", { class: "tv-row" }, h("button", { class: "tv-btn", type: "button", textContent: "🔌 Server testen", onclick: () => void testServer() })),
+      h("label", {}, "Ausweich-Schlüssel (springt ein, wenn das Server-Kontingent aufgebraucht ist)", backupInput),
+      h("p", { class: "settings-warn" }, "🔒 Bleibt nur auf diesem Gerät gespeichert und wird nie an die Handys geschickt."),
       h("p", { class: "settings-warn" }, "Einmalig einrichten: Im Supabase-Dashboard unter Edge Functions → Secrets den Eintrag GEMINI_API_KEY mit eurem Gemini-Schlüssel anlegen."),
     );
     const testServer = async () => {
@@ -103,6 +106,9 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
       }
     };
     const pull = () => {
+      const backup = backupInput.value.trim();
+      if (backup) s.backupKey = backup;
+      else delete s.backupKey;
       const p = current();
       if (!p) return;
       const key = keyInput.value.trim();
