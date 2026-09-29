@@ -17,15 +17,18 @@ const ENGINE_KEY = "couch-dungeon.voice-engine";
 
 export type VoiceEngine = "storyteller" | "natural" | "browser";
 
-const RATE_KEY = "couch-dungeon.speech-rate";
+/** New key: the default got faster, earlier choices start again from the new default. */
+const RATE_KEY = "couch-dungeon.speech-rate2";
+/** Standard tempo (1 = how the voices speak by themselves, which felt too slow). */
+export const DEFAULT_SPEECH_RATE = 1.2;
 
-/** How fast the voices speak (setting): 0.8 slow … 1.3 fast, 1 = normal. */
+/** How fast the voices speak (setting): 1 slow … 1.6 very fast. */
 export function speechRate(): number {
   try {
     const v = Number(localStorage.getItem(RATE_KEY));
-    return v >= 0.6 && v <= 1.6 ? v : 1;
+    return v >= 0.6 && v <= 1.8 ? v : DEFAULT_SPEECH_RATE;
   } catch {
-    return 1;
+    return DEFAULT_SPEECH_RATE;
   }
 }
 

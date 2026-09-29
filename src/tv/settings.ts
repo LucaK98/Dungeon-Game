@@ -22,10 +22,10 @@ const GRAPHICS: { id: GraphicsMode; label: string }[] = [
 ];
 
 const RATES: { rate: number; label: string }[] = [
-  { rate: 0.8, label: "🐢 Langsam" },
-  { rate: 1, label: "Normal" },
-  { rate: 1.15, label: "Zügig" },
-  { rate: 1.3, label: "🐇 Schnell" },
+  { rate: 1, label: "🐢 Langsam" },
+  { rate: 1.2, label: "Normal" },
+  { rate: 1.35, label: "Zügig" },
+  { rate: 1.5, label: "🐇 Schnell" },
 ];
 
 const LOOKS: { id: LookMode; label: string }[] = [
