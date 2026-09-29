@@ -2535,8 +2535,8 @@
   },
   "falle": {
     "titel": "Falle",
-    "kurz": "Eine versteckte Gefahr, z. B. eine Druckplatte, die Pfeile auslöst.",
-    "lang": "Manche Räume haben versteckte Fallen. Wer darauf tritt, muss einen Rettungswurf auf Geschicklichkeit machen, sonst nimmt er Schaden. Mit Umsehen (Wahrnehmung) kannst du Fallen vorher entdecken, dann siehst du sie auf der Karte und kannst drumherum laufen.",
+    "kurz": "Eine versteckte Gefahr – oder ein gemeiner Streich.",
+    "lang": "Manche Räume haben versteckte Fallen: Pfeile, Fallgruben, Netze, Bienenhonig – aber auch Mehlsäcke, Wassereimer, Kitzelfedern oder eine verrostete Falle, die Münzen spuckt. Wer darauf tritt, macht einen Rettungswurf (meist Geschicklichkeit). Mit Umsehen (Wahrnehmung) findest du Fallen vorher, dann siehst du sie auf der Karte und kannst drumherum laufen. Und Vorsicht bei Truhen: Manche haben Zähne.",
     "siehe_auch": [
       "umsehen",
       "rettungswurf"

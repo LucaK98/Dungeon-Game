@@ -83,6 +83,17 @@ const LOOK_DC = 12;
 /** A vote ends this long after the first vote, even if not everyone voted (seconds). */
 const VOTE_S = 40;
 const TRAP_DC = 12;
+/** Hidden floor traps: some hurt, some are just embarrassing – one even pays. */
+const TRAPS: { id: string; save: "DEX" | "CON" | "WIS"; intro: string; dodge: string; hit: string; dice?: string; type?: "piercing" | "bludgeoning" | "poison"; prone?: boolean; gold?: string; fx?: "puff" | "shake" | "sparkle" | "splash" }[] = [
+  { id: "pfeile", save: "DEX", intro: "💥 Klick! {hero} tritt auf eine versteckte Platte. Pfeile schießen aus der Wand!", dodge: "{hero} springt rechtzeitig zur Seite.", hit: "Ein Pfeil trifft {hero}.", dice: "1d6" },
+  { id: "grube", save: "DEX", intro: "🕳️ Der Boden unter {hero} gibt nach – eine Fallgrube!", dodge: "{hero} hält sich mit einer Hand am Rand fest und zieht sich hoch.", hit: "{hero} plumpst hinein und krabbelt fluchend wieder heraus.", dice: "1d6", type: "bludgeoning", prone: true, fx: "shake" },
+  { id: "mehl", save: "DEX", intro: "🌫️ Ein Seil spannt sich, oben kippt ein Sack …", dodge: "{hero} macht einen Satz nach vorn. Hinter {hero} staubt es gewaltig.", hit: "Mehl! {hero} ist von Kopf bis Fuß weiß und sieht aus wie ein Gespenst. Hatschi!" },
+  { id: "eimer", save: "DEX", intro: "🪣 Über der Tür wackelt ein Eimer – der älteste Streich der Welt!", dodge: "{hero} fängt den Eimer elegant auf. Applaus!", hit: "Platsch! Eiskaltes Spülwasser über {hero}. Es riecht nach Kohl.", fx: "splash" },
+  { id: "netz", save: "DEX", intro: "🕸️ Ein Netz saust von der Decke!", dodge: "{hero} rollt sich unter dem Netz weg.", hit: "{hero} zappelt kopfüber im Netz und braucht eine Weile, um sich herauszuschneiden.", dice: "1d2", type: "bludgeoning", prone: true },
+  { id: "kitzel", save: "CON", intro: "🪶 Aus dem Boden schnellen Federn – eine Kitzelfalle!", dodge: "{hero} verzieht keine Miene. Eiserne Selbstbeherrschung.", hit: "{hero} kichert, gackert, prustet und kann sich kaum halten. Irgendwo in der Ferne lacht jemand mit." },
+  { id: "honig", save: "DEX", intro: "🍯 Klebrig! {hero} steht in einer Honigpfütze – und es summt verdächtig.", dodge: "{hero} ist schneller weg als die Bienen.", hit: "Bienen! Sie stechen {hero}, bis {hero} den Honig los ist.", dice: "1d4", type: "poison" },
+  { id: "muenzen", save: "WIS", intro: "🎰 Ratter, ratter … die Falle ist verrostet und spuckt statt Pfeilen etwas anderes aus.", dodge: "{hero} traut dem Klingeln nicht und tritt zurück. Das Geld verschwindet klimpernd in der Wand.", hit: "Münzen! Die alte Falle war mit Kleingeld gespannt.", gold: "1d6", fx: "sparkle" },
+];
 
 interface PendingRoll {
   prompt: RollPrompt;
@@ -1846,17 +1857,29 @@ export class GameController {
     const trap = this.map.objects.find((o) => o.kind === "trap" && o.x === hero.pos!.x && o.y === hero.pos!.y);
     if (!trap) return [];
     trap.state = "used";
-    const save = savingThrow(this.rng, hero, "DEX", this.sg(TRAP_DC));
-    const lines: ExplainedLine[] = [{ text: `💥 Klick! ${hero.name} tritt auf eine versteckte Falle. Pfeile schießen aus der Wand!`, glossarKeys: ["falle"] }];
+    const kind = TRAPS.find((t) => t.id === trap.variant) ?? TRAPS[this.envRng.int(0, TRAPS.length - 1)]!;
+    const say = (text: string) => text.replaceAll("{hero}", hero.name);
+    const save = savingThrow(this.rng, hero, kind.save, this.sg(TRAP_DC));
+    const lines: ExplainedLine[] = [{ text: say(kind.intro), glossarKeys: ["falle"] }];
     lines.push(...explainCheck(this.battle, hero.id, save));
     if (save.success) {
-      lines.push({ text: `${hero.name} springt rechtzeitig zur Seite.`, glossarKeys: ["rettungswurf"] });
+      lines.push({ text: say(kind.dodge), glossarKeys: ["rettungswurf"] });
       return lines;
     }
-    const d = rollDice(this.rng, parseDice("1d6"));
-    const damage = { lines: [{ type: "piercing" as const, dice: d.dice, parts: d.dice.map((v) => ({ label: "W6", value: v, glossarKey: "w6" })), raw: d.total, final: d.total }], total: d.total, crit: false };
-    lines.push(...explainDamage(damage));
-    lines.push(...explainHp(this.battle, applyDamage(this.rng, hero, d.total)));
+    lines.push({ text: say(kind.hit), glossarKeys: ["falle"] });
+    if (kind.gold) {
+      const gold = rollDice(this.envRng, parseDice(kind.gold)).total;
+      this.addItem(hero, "gold", gold);
+      lines.push({ text: `💰 ${hero.name} sammelt ${gold} Münzen ein.`, glossarKeys: ["gegenstand:gold"] });
+    }
+    if (kind.prone && this.mode === "combat" && addCondition(hero, { id: "prone" })) lines.push({ text: `🤕 ${hero.name} liegt am Boden.`, glossarKeys: ["zustand:prone"] });
+    if (kind.dice) {
+      const d = rollDice(this.rng, parseDice(kind.dice));
+      const damage = { lines: [{ type: kind.type ?? ("piercing" as const), dice: d.dice, parts: d.dice.map((v) => ({ label: "W6", value: v, glossarKey: "w6" })), raw: d.total, final: d.total }], total: d.total, crit: false };
+      lines.push(...explainDamage(damage));
+      lines.push(...explainHp(this.battle, applyDamage(this.rng, hero, d.total)));
+    }
+    if (hero.pos) this.emit("fx", kind.fx ?? "puff", hero.pos);
     return lines;
   }
 
@@ -2249,8 +2272,24 @@ export class GameController {
       o.state = "open";
       o.frame = "chest.open";
       const r = this.rng.next();
+      const twist = this.envRng.next();
       const gearId = r < 0.3 ? this.randomGear(hero) : undefined;
-      if (gearId) {
+      if (twist < 0.08) {
+        // Surprise: this chest has teeth. It bites, hops off – and leaves what it swallowed.
+        const d = this.hurtNoKnockout(hero, "1d6");
+        const amount = rollDice(this.rng, parseDice("3d6")).total;
+        this.addItem(hero, "gold", amount);
+        lines.push(
+          { text: `😱 Die Truhe hat Zähne! Sie schnappt nach ${hero.name} (${d} Schaden), hüpft zweimal quer durch den Raum …`, glossarKeys: ["truhe"] },
+          { text: `… und spuckt beleidigt aus, was sie verschluckt hatte: ${amount} Goldmünzen.`, glossarKeys: ["gegenstand:gold"] },
+        );
+        this.emit("fx", "shake", { x: o.x, y: o.y });
+      } else if (twist < 0.14) {
+        const joke = ["einen einzelnen, sehr alten Socken", "einen Zettel: „Hier war Kobold Knorz. Ätsch!“", "eine Katze, die empört hinausspaziert", "ein Liebesgedicht an eine gewisse „Brunhilde vom Brocken“"][this.envRng.int(0, 3)]!;
+        const amount = rollDice(this.rng, parseDice("1d4")).total;
+        this.addItem(hero, "gold", amount);
+        lines.push({ text: `🧰 ${hero.name} öffnet die Truhe – und findet ${joke}. Darunter: ${amount} Goldmünzen.`, glossarKeys: ["truhe", "gegenstand:gold"] });
+      } else if (gearId) {
         lines.push({ text: `🧰 ${hero.name} öffnet die Truhe …`, glossarKeys: ["truhe"] });
         this.grantGear(hero, gearId, "In der Truhe");
       } else if (r < 0.65) {

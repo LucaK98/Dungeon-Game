@@ -411,6 +411,230 @@ export const WORLD_EVENTS: WorldEvent[] = [
       walkOn("Ihr lasst den Schrein in Frieden."),
     ],
   },
+
+  // ---------------------------------------------------------------- twists: nothing is what it seems
+  {
+    id: "hilflose_oma",
+    title: "Eine hilflose Oma",
+    where: (p) => !UNDERGROUND.includes(p.theme) && p.gold >= 3,
+    visitor: { monster: "commoner", name: "Oma Hilde" },
+    intro: [{ npc: "Oma Hilde", text: "Ach, ihr lieben Helden! Mein Rücken … könnt ihr mir über den Weg helfen? Ganz dicht ran, ich höre so schlecht." }],
+    choices: [
+      {
+        id: "durchschauen",
+        label: "🧐 Genauer hinsehen",
+        detail: "Motiv erkennen SG 13",
+        check: {
+          skill: "insight",
+          dc: 13,
+          success: { narration: [{ text: "Unter dem Kopftuch lugt ein grüner, spitzer Ohrenzipfel hervor. Das ist keine Oma – das ist ein Goblin mit Wollschal!" }, { npc: "Oma Hilde", text: "Mist! Erwischt!" }, { text: "Der „Oma“ fällt beim Wegrennen ein Beutel aus der Schürze." }], gold: 5 },
+          failure: { narration: [{ text: "Ihr helft der Oma rührend über den Weg. Sie tätschelt euch die Wangen – und die Geldbeutel." }, { text: "Erst später merkt ihr: Es fehlen Münzen. Und die Oma hatte ziemlich grüne Hände." }], gold: -3 },
+        },
+      },
+      {
+        id: "helfen",
+        label: "🤝 Einfach helfen",
+        detail: "Ist doch nur eine Oma …",
+        outcome: { narration: [{ text: "Die Oma kichert auffällig tief. Kaum seid ihr über den Weg, reißt sie sich das Kopftuch herunter: ein Goblin! Und zwei Freunde springen aus dem Gebüsch." }], fight: [{ monster: "goblin", count: 2, name: "Verkleideter Goblin" }] },
+      },
+      walkOn("„Unhöfliche Jugend!“, schimpft die Oma. Ihre Stimme klingt plötzlich sehr nach Goblin."),
+    ],
+  },
+  {
+    id: "froschkoenig",
+    title: "Ein sprechender Frosch",
+    where: (p) => p.water || GREEN.includes(p.theme),
+    intro: [{ text: "Auf einem Stein sitzt ein Frosch mit einer winzigen Krone." }, { text: "„Küss mich“, quakt er. „Ich bin ein verwunschener Prinz!“" }],
+    choices: [
+      {
+        id: "kuessen",
+        label: "💋 Küssen",
+        detail: "Glück? Charisma-Wurf (Überzeugen) SG 14",
+        check: {
+          skill: "persuasion",
+          dc: 14,
+          success: { narration: [{ text: "PUFF! Rauch, Glitzer – und da steht … ein zweiter, größerer Frosch." }, { text: "„Oh“, quakt er. „Falscher Zauber. Aber danke!“ Er schenkt euch zum Dank seine Krone. Echtes Gold!" }], gold: 6, fx: "sparkle" },
+          failure: { narration: [{ text: "Schmatz. Nichts passiert. Nur eine grüne Zunge schnalzt quer über euer Gesicht." }, { text: "Der Frosch hüpft lachend davon. „Reingelegt! Das sagen wir allen!“" }] },
+        },
+      },
+      walkOn("„Banausen!“, quakt der Frosch euch hinterher."),
+    ],
+  },
+  {
+    id: "schatzkarte",
+    title: "Eine Schatzkarte",
+    where: (p) => !PEOPLE.includes(p.theme),
+    intro: [{ text: "Unter einem Stein klemmt ein vergilbtes Pergament: eine Schatzkarte! Das X ist ganz in der Nähe." }],
+    choices: [
+      {
+        id: "graben",
+        label: "⛏️ Beim X graben",
+        detail: "Nachforschungen SG 12",
+        check: {
+          skill: "investigation",
+          dc: 12,
+          success: { narration: [{ text: "Tock! Eine kleine Kiste. Darin: Gold – und ein Zettel: „Wer das findet, hat meine Karte geklaut. Gruß, Räuber Hotzenplotz.“" }], gold: 7, fx: "sparkle" },
+          failure: { narration: [{ text: "Ihr grabt ein riesiges Loch. Darin: ein Zettel. „Reingelegt! Hier ist nichts. Gruß, die Kobolde.“" }, { text: "Beim Rausklettern verstaucht sich jemand den Knöchel." }], hurt: "1d3" },
+        },
+      },
+      walkOn("Ihr steckt die Karte ein. Vermutlich eh eine Fälschung."),
+    ],
+  },
+  {
+    id: "falscher_alarm",
+    title: "Stampfende Schritte",
+    where: (p) => GREEN.includes(p.theme) || p.theme === "village" || p.theme === "peak",
+    intro: [{ text: "Der Boden bebt. Etwas Großes kommt näher, viele Beine, lautes Schnauben – ein Angriff?!" }],
+    choices: [
+      {
+        id: "stellen",
+        label: "⚔️ Kampfbereit machen",
+        detail: "Einschüchtern SG 10",
+        check: {
+          skill: "intimidation",
+          dc: 10,
+          success: { narration: [{ text: "Aus dem Nebel trabt … eine Herde Schafe. Euer Kampfschrei lässt sie sofort umdrehen." }, { text: "Der Schäfer, der hinterherhechelt, drückt euch dankbar ein paar Münzen in die Hand: „Die wären sonst ins Moor gerannt!“" }], gold: 3 },
+          failure: { narration: [{ text: "Aus dem Nebel trabt … eine Herde Schafe. Sie rennt euch einfach über den Haufen." }, { text: "Mäh." }], hurtAll: "1d2" },
+        },
+      },
+      {
+        id: "verstecken",
+        label: "🌳 Verstecken",
+        detail: "Sicher ist sicher.",
+        outcome: { narration: [{ text: "Hinter dem Busch hervor seht ihr: Schafe. Nur Schafe. Eines bleibt stehen, schaut euch direkt an und frisst dann gemütlich euer Versteck auf." }] },
+      },
+    ],
+  },
+  {
+    id: "wirtshausgeist",
+    title: "Ein Geist mit einem Witz",
+    where: (p) => p.night || p.theme === "tavern" || p.theme === "crypt" || p.theme === "castle",
+    visitor: { monster: "ghost", name: "Geist Kunibert" },
+    intro: [{ text: "Die Kerzen flackern. Eine durchsichtige Gestalt schwebt aus der Wand. Alle erstarren." }, { npc: "Geist Kunibert", text: "Buuuh! … Nein, wartet, bleibt! Ich will nur meinen Witz erzählen. Seit dreihundert Jahren hört ihn keiner zu Ende." }],
+    choices: [
+      {
+        id: "zuhoeren",
+        label: "👂 Zuhören und lachen",
+        detail: "Täuschen SG 11 (so tun, als wäre er lustig)",
+        check: {
+          skill: "deception",
+          dc: 11,
+          success: { narration: [{ npc: "Geist Kunibert", text: "… und da sagt der Ritter: „Das war nicht mein Pferd, das war meine Schwiegermutter!“" }, { text: "Ihr lacht schallend. Kunibert strahlt, wird ganz hell – und löst sich glücklich auf. Wo er schwebte, liegt ein Heiltrank." }], item: "potion-of-healing", fx: "sparkle" },
+          failure: { narration: [{ text: "Euer Lachen klingt so falsch, dass Kunibert beleidigt heult. Eiskalter Wind fährt euch in die Knochen." }], hurtAll: "1d3" },
+        },
+      },
+      walkOn("„Keiner will ihn hören!“, jammert Kunibert und verschwindet in der Wand. Irgendwo hört ihr ihn den Witz sich selbst erzählen."),
+    ],
+  },
+  {
+    id: "kobold_zoll",
+    title: "Kobold-Zollstation",
+    where: (p) => UNDERGROUND.includes(p.theme) || p.theme === "forest",
+    visitor: { monster: "kobold", name: "Zöllner Knorz" },
+    intro: [{ text: "Quer über dem Weg: ein wackeliger Schlagbaum aus Ästen. Daneben ein Kobold mit viel zu großem Hut." }, { npc: "Zöllner Knorz", text: "Halt! Kobold-Zoll! Zwei Münzen pro Nase. Oder ein Kompliment für meinen Hut." }],
+    choices: [
+      { id: "zahlen", label: "🪙 Zahlen (2 Gold)", detail: "Der Weg ist frei.", cost: 2, outcome: { narration: [{ npc: "Zöllner Knorz", text: "Sehr gut! Gute Reise! Achtung, da vorn ist eine Falle. War ein Witz. Oder?" }] } },
+      {
+        id: "kompliment",
+        label: "🎩 Den Hut loben",
+        detail: "Überzeugen SG 12",
+        check: {
+          skill: "persuasion",
+          dc: 12,
+          success: { narration: [{ npc: "Zöllner Knorz", text: "Wirklich?! Das hat noch nie jemand gesagt!" }, { text: "Gerührt öffnet er den Schlagbaum – und schenkt euch seine ganze Zollkasse." }], gold: 4 },
+          failure: { narration: [{ npc: "Zöllner Knorz", text: "Ihr macht euch lustig! ALARM!" }, { text: "Aus allen Ritzen kommen Kobolde." }], fight: [{ monster: "kobold", count: 2, name: "Zoll-Kobold" }] },
+        },
+      },
+    ],
+  },
+  {
+    id: "zauberspiegel",
+    title: "Ein Spiegel, der antwortet",
+    where: (p) => INDOOR.includes(p.theme),
+    intro: [{ text: "An der Wand hängt ein verstaubter Spiegel. Als ihr hineinseht, räuspert er sich." }, { text: "„Spieglein, Spieglein … ach, fragt einfach. Ich sage immer die Wahrheit. Leider.“" }],
+    choices: [
+      {
+        id: "fragen",
+        label: "🪞 „Wer ist der Schönste hier?“",
+        detail: "Weisheit (Motiv erkennen) SG 12 – verkraftet ihr die Antwort?",
+        check: {
+          skill: "insight",
+          dc: 12,
+          success: { narration: [{ text: "„Ehrlich? Die Spinne da oben in der Ecke.“ Ihr lacht – und der Spiegel verrät zur Belohnung, wo hinter ihm ein Beutel klemmt." }], gold: 4 },
+          failure: { narration: [{ text: "Der Spiegel zählt ausführlich alle Nasenhaare, Warzen und Frisurfehler auf. Es dauert lange. Sehr lange." }, { text: "Gekränkt, aber unverletzt, zieht ihr weiter." }] },
+        },
+      },
+      walkOn("„Feiglinge!“, ruft der Spiegel. „Ihr habt übrigens Spinat zwischen den Zähnen.“"),
+    ],
+  },
+  {
+    id: "gefesselter_ritter",
+    title: "Ein gefesselter Ritter",
+    where: (p) => !PEOPLE.includes(p.theme) && !UNDERGROUND.includes(p.theme),
+    visitor: { monster: "bandit", name: "„Ritter“ Kasimir" },
+    intro: [{ text: "An einen Baum gebunden: ein Mann in rostiger Rüstung." }, { npc: "„Ritter“ Kasimir", text: "Helft mir! Räuber haben mich überfallen! Bindet mich los, ich belohne euch fürstlich!" }],
+    choices: [
+      {
+        id: "pruefen",
+        label: "🔍 Erst mal Fragen stellen",
+        detail: "Motiv erkennen SG 13",
+        check: {
+          skill: "insight",
+          dc: 13,
+          success: { narration: [{ text: "Seine „Rüstung“ ist aus bemalten Topfdeckeln – und der Knoten sitzt vorne. Er hat sich selbst gefesselt! Eine Räuberfalle." }, { text: "Ihr lasst ihn hängen. Seine Kumpane im Gebüsch schleichen enttäuscht davon und lassen ihren Proviantsack zurück." }], item: "potion-of-healing" },
+          failure: { narration: [{ text: "Kaum ist er los, pfeift er schrill. „Danke, Trottel!“ Räuber springen aus dem Gebüsch!" }], fight: [{ monster: "bandit", count: 2, name: "Räuber" }] },
+        },
+      },
+      {
+        id: "losbinden",
+        label: "✂️ Sofort losbinden",
+        detail: "Ein Held zögert nicht!",
+        outcome: { narration: [{ text: "Kaum ist er los, pfeift er schrill. „Danke, Trottel!“ Räuber springen aus dem Gebüsch!" }], fight: [{ monster: "bandit", count: 2, name: "Räuber" }] },
+      },
+      walkOn("„Hey! Ihr könnt mich doch nicht … na gut, dann binde ich mich eben selbst los.“ Was er erstaunlich schnell schafft."),
+    ],
+  },
+  {
+    id: "drache_im_stall",
+    title: "Der furchtbare Drache",
+    where: (p) => p.theme === "village" || p.theme === "meadow" || p.theme === "town",
+    visitor: { monster: "commoner", name: "Bauer Egon" },
+    intro: [{ npc: "Bauer Egon", text: "Helden! Endlich! In meinem Stall haust ein DRACHE! Er faucht, er spuckt Feuer … na ja, fast!" }],
+    choices: [
+      {
+        id: "stall",
+        label: "🗡️ In den Stall",
+        detail: "Mit Tieren umgehen SG 11",
+        check: {
+          skill: "animal-handling",
+          dc: 11,
+          success: { narration: [{ text: "Im Stroh sitzt … eine Eidechse. Eine sehr wütende, sehr kleine Eidechse, die faucht wie ein Teekessel." }, { text: "Ihr tragt sie behutsam in den Wald. Bauer Egon zahlt trotzdem, als hättet ihr einen Drachen erschlagen." }], gold: 5 },
+          failure: { narration: [{ text: "Im Stroh sitzt eine winzige Eidechse. Sie beißt euch in den Finger, entwischt und verschwindet im Heu." }, { npc: "Bauer Egon", text: "Ich hab’s euch gesagt! Ein Ungeheuer!" }], hurt: "1d2" },
+        },
+      },
+      walkOn("„Keiner glaubt mir!“, ruft Bauer Egon. Aus dem Stall kommt ein Fauchen – wie ein sehr kleiner Teekessel."),
+    ],
+  },
+  {
+    id: "zwilling",
+    title: "Ein bekanntes Gesicht",
+    where: (p) => PEOPLE.includes(p.theme),
+    intro: [{ text: "Jemand aus eurer Gruppe wird von einer Fremden stürmisch umarmt. „Da bist du ja endlich! Du schuldest mir noch drei Goldstücke!“" }, { text: "Sie hält euch offenbar für jemand anderen. Oder …?" }],
+    choices: [
+      {
+        id: "mitspielen",
+        label: "🎭 Mitspielen",
+        detail: "Täuschen SG 13",
+        check: {
+          skill: "deception",
+          dc: 13,
+          success: { narration: [{ text: "„Drei? Es waren doch dreißig, die DU MIR schuldest!“ Verwirrt zahlt sie euch ein paar Münzen und entschuldigt sich." }], gold: 4 },
+          failure: { narration: [{ text: "Sie kneift die Augen zusammen: „Moment … du bist gar nicht Hans!“ Eine Ohrfeige, dann ist sie weg. Die Wange brennt." }], hurt: "1d2" },
+        },
+      },
+      walkOn("Ihr klärt das Missverständnis. Sie wird rot und verschwindet in der Menge. Irgendwo da draußen läuft euer Doppelgänger herum …"),
+    ],
+  },
 ];
 
 /** Picks the next event for this place (weighted, no repeats until all were used). */

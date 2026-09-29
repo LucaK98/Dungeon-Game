@@ -437,3 +437,17 @@ describe("family", () => {
     expect(v?.type === "state_update" && v.state.family?.spouse).toBe("Wirtin Rosa");
   });
 });
+
+describe("traps", () => {
+  it("every kind of trap springs without error; some hurt, some only embarrass", () => {
+    for (const variant of ["pfeile", "grube", "mehl", "eimer", "netz", "kitzel", "honig", "muenzen"]) {
+      const { game, session } = setup(4, { free: true });
+      const hero = game.heroOf("p1")!;
+      session.map.objects.push({ id: `t-${variant}`, kind: "trap", variant, x: hero.pos!.x, y: hero.pos!.y, frame: "trap.plate", blocking: false, state: "hidden" });
+      const lines = (game as unknown as { triggerTrap(h: typeof hero): { text: string }[] }).triggerTrap(hero);
+      expect(lines.length, variant).toBeGreaterThan(1);
+      expect(lines.map((l) => l.text).join(" ")).not.toContain("{hero}");
+      expect(session.map.objects.find((o) => o.id === `t-${variant}`)!.state).toBe("used");
+    }
+  });
+});
