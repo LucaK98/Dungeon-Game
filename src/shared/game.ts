@@ -194,6 +194,8 @@ export interface Creature {
   appearance?: { look: DollLook; color: string; /** For romance: whom a character can fall for. */ gender?: "female" | "male" };
   /** A tamed animal: whose it is, its name and gift (src/shared/companions.ts). */
   companion?: CompanionInfo & { ownerId: string };
+  /** A hero's teenage child along as squire (fights beside them, goes home when wounded). */
+  squire?: { ownerId: string };
   /** A companion's target, commanded by its hero ("Bello, fass den Goblin!"). */
   focusId?: string;
   /** A stray animal on the map that could be tamed. */

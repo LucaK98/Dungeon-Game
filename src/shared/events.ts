@@ -41,6 +41,8 @@ export type PlayerAction =
   | { kind: "propose"; npcId: string }
   /** Give a character something from the bag (what she likes counts double). */
   | { kind: "gift"; npcId: string; itemId: string }
+  /** Family at home: wish for a child, name a child (once), take a teenager along as squire. */
+  | { kind: "family"; act: "wish" | "no_wish" | "name" | "squire" | "no_squire"; index?: number; name?: string }
   /** Spend an attribute point from a level-up (+1, never above 20). */
   | { kind: "spend_point"; ability: "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA" }
   /** Take back the last move (only while nothing was revealed, rolled or hit). */

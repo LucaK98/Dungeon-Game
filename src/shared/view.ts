@@ -158,7 +158,7 @@ export interface PlayerView {
   beginnerMode: boolean;
   story?: StoryView;
   /** Married to / engaged with a character (from the characters' memory). */
-  family?: { spouse?: string; engaged?: string };
+  family?: FamilyView;
   /** The other heroes (to hand things over). */
   party?: { id: string; name: string; color?: string }[];
   /** Rest at the campfire between chapters: tell something, shop, then go on. */
@@ -272,4 +272,14 @@ export interface ActionFx {
   spellId?: string;
   crit?: boolean;
   miss?: boolean;
+}
+
+/** A hero's family in the home village (src/dm/npc-world.ts). */
+export interface FamilyView {
+  spouse?: string;
+  engaged?: string;
+  wish?: boolean;
+  canWish?: boolean;
+  expecting?: boolean;
+  children?: { name: string; stage: string; named: boolean; squire: boolean; canSquire: boolean; traits: string[] }[];
 }

@@ -9,6 +9,7 @@
  *
  * Pure data and rules: stored on the TV (src/tv/npc-store.ts), read by the director and the AI DM.
  */
+import type { FamilyView } from "../shared/view";
 
 export type Gender = "female" | "male";
 
@@ -46,6 +47,14 @@ export interface NpcMind {
   engaged?: string;
   /** Married to this hero; lives in the home village. */
   spouse?: string;
+  /** The couple wishes for a child (said on the phone; it happens at home, after the adventure). */
+  childWish?: string;
+  /** Expecting a child with this hero since the world clock `since`; `announced` once told. */
+  expecting?: { hero: string; since: number; announced?: boolean };
+  /** Children with a hero; they live in the home village. */
+  children?: NpcChild[];
+  /** Her hero did not come home: she mourns. */
+  widowOf?: string;
   /** Adventures she appeared in (to tell "we have met before"). */
   adventures: string[];
   firstMet: number;
@@ -55,6 +64,25 @@ export interface NpcMind {
 export interface NpcWorld {
   version: 1;
   npcs: Record<string, NpcMind>;
+  /** Adventures played to the end on this TV (children grow with it). */
+  clock?: number;
+}
+
+export interface NpcChild {
+  name: string;
+  gender: Gender;
+  /** The hero parent. */
+  hero: string;
+  /** World clock at birth. */
+  born: number;
+  /** One from each parent's side. */
+  traits: string[];
+  /** The hero parent gave the name on the phone (once). */
+  named?: boolean;
+  /** How often the hero parent came by (before an adventure). */
+  visits: number;
+  /** Goes along as squire (teenagers only). */
+  squire?: boolean;
 }
 
 export const MAX_FACTS = 10;
@@ -235,6 +263,9 @@ export function mindPrompt(mind: NpcMind, heroes: string[]): string {
     `Geheimnis (nur andeuten): ${p.secret}. Romantik: ${romanceText(p)}.`,
     `Gefühle zu den Helden: ${bonds}.`,
     heroes.some((h) => loveOf(mind, h) > 0) ? `Romantik: ${heroes.filter((h) => loveOf(mind, h) > 0).map((h) => `${h} ${loveLabel(loveOf(mind, h))} (${loveOf(mind, h)}/10)`).join(", ")}.` : "",
+    mind.spouse ? `Verheiratet mit ${mind.spouse}.` : mind.widowOf ? `Trauert um ${mind.widowOf}.` : "",
+    mind.expecting ? `Erwartet ein Kind von ${mind.expecting.hero}.` : "",
+    mind.children?.length ? `Kinder: ${mind.children.map((c) => `${c.name} (mit ${c.hero}, ${c.traits.join(" und ")})`).join(", ")}.` : "",
     mind.facts.length ? `Erinnert sich: ${mind.facts.slice(-6).join(" | ")}` : "Kennt die Helden noch nicht.",
   ]
     .filter(Boolean)
@@ -397,4 +428,178 @@ export function holdWeddings(world: NpcWorld, alive: string[]): { hero: string; 
     out.push({ hero: mind.spouse, name: mind.name });
   }
   return out;
+}
+
+// ---------------------------------------------------------------- family and children
+
+/** Adventures until a baby is a child, and a child a teenager (who may go along as squire). */
+export const CHILD_AT = 3;
+export const TEEN_AT = 6;
+/** Adventures from the night in question to the birth. */
+export const BIRTH_AFTER = 2;
+export const MAX_CHILDREN = 4;
+
+export type ChildStage = "baby" | "kind" | "jugend";
+
+export function stageOf(child: NpcChild, clock: number): ChildStage {
+  const age = clock - child.born;
+  return age < CHILD_AT ? "baby" : age < TEEN_AT ? "kind" : "jugend";
+}
+
+export const STAGE_LABEL: Record<ChildStage, string> = { baby: "Baby", kind: "Kind", jugend: "Jugendlich" };
+
+const GIRLS = ["Liese", "Grete", "Frieda", "Anni", "Mathilde", "Klara", "Ida", "Hanne", "Rosalie", "Emma", "Marie", "Lotte"];
+const BOYS = ["Hannes", "Fritz", "Jakob", "Karl", "Paul", "Emil", "Konrad", "Otto", "Anton", "Ludwig", "Moritz", "Theo"];
+
+/** The hero parent's children (with the other parent). */
+export function childrenOf(world: NpcWorld, hero: string): { mind: NpcMind; child: NpcChild }[] {
+  return Object.values(world.npcs).flatMap((mind) => (mind.children ?? []).filter((c) => c.hero === hero).map((child) => ({ mind, child })));
+}
+
+/** Only a married couple can wish for a child, and not while one is on the way. */
+export function setChildWish(world: NpcWorld, hero: string, on: boolean): boolean {
+  const p = partnerOf(world, hero);
+  if (!p?.married || p.mind.expecting || (p.mind.children?.length ?? 0) >= MAX_CHILDREN) return false;
+  if (on) p.mind.childWish = hero;
+  else delete p.mind.childWish;
+  return true;
+}
+
+/** The hero parent names a child – once, and only a proper name. */
+export function nameChild(world: NpcWorld, hero: string, index: number, name: string): boolean {
+  const entry = childrenOf(world, hero)[index];
+  const clean = name.replace(/[<>{}]/g, "").replace(/\s+/g, " ").trim().slice(0, 20);
+  if (!entry || entry.child.named || clean.length < 2) return false;
+  entry.child.name = clean;
+  entry.child.named = true;
+  return true;
+}
+
+/** A teenager may go along as squire (one per hero). */
+export function setSquire(world: NpcWorld, hero: string, index: number, on: boolean): boolean {
+  const list = childrenOf(world, hero);
+  const entry = list[index];
+  if (!entry || (on && stageOf(entry.child, world.clock ?? 0) !== "jugend")) return false;
+  for (const e of list) delete e.child.squire;
+  if (on) entry.child.squire = true;
+  return true;
+}
+
+/** The squire who goes along with this hero, if any. */
+export function squireOf(world: NpcWorld, hero: string): NpcChild | undefined {
+  return childrenOf(world, hero).find((e) => e.child.squire && stageOf(e.child, world.clock ?? 0) === "jugend")?.child;
+}
+
+export type FamilyEvent =
+  | { kind: "mourn"; hero: string; name: string }
+  | { kind: "night"; hero: string; name: string }
+  | { kind: "birth"; hero: string; name: string; child: NpcChild }
+  | { kind: "grown"; hero: string; name: string; child: NpcChild; stage: ChildStage };
+
+/**
+ * Home again, after the weddings: time passes. Those whose hero fell mourn (the children stay);
+ * babies are born, children grow; a couple with a wish spends the night together (the curtain falls).
+ */
+export function familyAfterAdventure(world: NpcWorld, alive: string[], fallen: string[], seed = 0): FamilyEvent[] {
+  const out: FamilyEvent[] = [];
+  world.clock = (world.clock ?? 0) + 1;
+  const clock = world.clock;
+  for (const mind of Object.values(world.npcs)) {
+    if (mind.spouse && fallen.includes(mind.spouse)) {
+      const hero = mind.spouse;
+      mind.widowOf = hero;
+      delete mind.spouse;
+      delete mind.childWish;
+      remember(mind, `${hero} ist nicht heimgekehrt. Ich halte das Haus warm – für die Kinder und für die Erinnerung.`);
+      out.push({ kind: "mourn", hero, name: mind.name });
+    } else if (mind.engaged && fallen.includes(mind.engaged)) {
+      const hero = mind.engaged;
+      mind.widowOf = hero;
+      delete mind.engaged;
+      remember(mind, `${hero} wollte mich heiraten – und ist nicht heimgekehrt.`);
+      out.push({ kind: "mourn", hero, name: mind.name });
+    }
+    for (const child of mind.children ?? []) {
+      const before = stageOf(child, clock - 1);
+      const now = stageOf(child, clock);
+      if (now !== before) out.push({ kind: "grown", hero: child.hero, name: mind.name, child, stage: now });
+    }
+    if (mind.expecting && clock - mind.expecting.since >= BIRTH_AFTER) {
+      const hero = mind.expecting.hero;
+      const n = (mind.children?.length ?? 0) + hash(npcKey(mind.name), 200 + clock + seed);
+      const gender: Gender = n % 2 ? "female" : "male";
+      const pool = gender === "female" ? GIRLS : BOYS;
+      const taken = new Set((mind.children ?? []).map((c) => c.name));
+      const free = pool.map((_, i) => pool[(n + i) % pool.length]!).filter((x) => !taken.has(x));
+      const name = free[0] ?? `${pool[n % pool.length]} ${taken.size + 1}`;
+      const extra = TRAITS.filter((t) => !mind.persona.traits.includes(t));
+      const child: NpcChild = { name, gender, hero, born: clock, traits: [mind.persona.traits[n % mind.persona.traits.length]!, extra[n % extra.length]!], visits: 0 };
+      (mind.children ??= []).push(child);
+      delete mind.expecting;
+      remember(mind, `Unser Kind ist da: ${name}. ${alive.includes(hero) ? `${hero} hat es als Erste${gender === "male" ? "n" : ""} gehalten.` : `Ich wünschte, ${hero} könnte es sehen.`}`);
+      out.push({ kind: "birth", hero, name: mind.name, child });
+    }
+    if (mind.childWish && mind.spouse === mind.childWish && alive.includes(mind.spouse) && !mind.expecting) {
+      mind.expecting = { hero: mind.spouse, since: clock };
+      delete mind.childWish;
+      out.push({ kind: "night", hero: mind.spouse, name: mind.name });
+    }
+  }
+  return out;
+}
+
+/**
+ * Before an adventure: the family sees their hero off. Good news is told once; children remember
+ * how often their parent came by.
+ */
+export function familyFarewell(world: NpcWorld, heroes: string[]): { npc?: string; text: string }[] {
+  const lines: { npc?: string; text: string }[] = [];
+  const clock = world.clock ?? 0;
+  for (const mind of Object.values(world.npcs)) {
+    const e = mind.expecting;
+    if (e && !e.announced && heroes.includes(e.hero)) {
+      e.announced = true;
+      remember(mind, `Ich habe ${e.hero} gesagt, dass wir ein Kind erwarten.`);
+      lines.push({ text: `🍼 ${mind.name} nimmt ${e.hero} beiseite und strahlt:` }, { npc: mind.name, text: `${e.hero}, wir bekommen ein Kind! Pass da draußen gut auf dich auf.` });
+    }
+    for (const child of mind.children ?? []) {
+      if (!heroes.includes(child.hero)) continue;
+      child.visits += 1;
+      const stage = stageOf(child, clock);
+      const text =
+        stage === "baby"
+          ? `👶 ${child.name} gluckst in den Armen von ${mind.name}, als ${child.hero} sich verabschiedet.`
+          : stage === "kind"
+            ? child.visits > 3
+              ? `🧒 ${child.name} (${child.traits[1]}): „Schon wieder weg? Bring mir diesmal was mit!“`
+              : `🧒 ${child.name} (${child.traits[1]}) hängt an ${child.hero}s Bein: „Kommst du bald wieder?“`
+            : child.squire
+              ? `🗡️ ${child.name} hat schon gepackt: „Heute bin ich dein Knappe!“`
+              : `🧑 ${child.name} (${child.traits[0]}): „Ich zähle mit – das ist dein ${child.visits}. Abenteuer, seit ich denken kann.“`;
+      lines.push({ text });
+    }
+  }
+  return lines;
+}
+
+export function familyView(world: NpcWorld, hero: string): FamilyView | undefined {
+  const p = partnerOf(world, hero);
+  const kids = childrenOf(world, hero);
+  if (!p && !kids.length) return undefined;
+  const clock = world.clock ?? 0;
+  const v: FamilyView = {};
+  if (p) {
+    if (p.married) v.spouse = p.mind.name;
+    else v.engaged = p.mind.name;
+    if (p.married && p.mind.childWish === hero) v.wish = true;
+    if (p.married && !p.mind.expecting && (p.mind.children?.length ?? 0) < MAX_CHILDREN) v.canWish = true;
+    if (p.mind.expecting?.hero === hero && p.mind.expecting.announced) v.expecting = true;
+  }
+  if (kids.length) {
+    v.children = kids.map(({ child }) => {
+      const stage = stageOf(child, clock);
+      return { name: child.name, stage: STAGE_LABEL[stage], named: !!child.named, squire: !!child.squire && stage === "jugend", canSquire: stage === "jugend", traits: [...child.traits] };
+    });
+  }
+  return v;
 }

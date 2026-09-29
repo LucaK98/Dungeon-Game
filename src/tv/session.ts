@@ -41,6 +41,8 @@ export interface SessionOptions {
   difficulty?: Difficulty;
   /** Buildings of the home village (src/shared/homeland.ts). */
   village?: string[];
+  /** Teenage children who go along as squires, by hero name (src/dm/npc-world.ts). */
+  squires?: Record<string, { name: string }>;
 }
 
 export function createSession(rng: Rng, opts: SessionOptions): GameSession {
@@ -108,6 +110,14 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
       const pet = makeCompanion(legacy.companion, c, `pet-${c.id}`);
       pet.pos = besideFree(map, battle, c.pos);
       battle.creatures[pet.id] = pet;
+    }
+    // A teenage son or daughter comes along as squire.
+    const squire = opts.squires?.[c.name];
+    if (squire && c.pos) {
+      const kid = createMonster("scout", `squire-${c.id}`, { name: squire.name, side: "party" });
+      kid.squire = { ownerId: c.id };
+      kid.pos = besideFree(map, battle, c.pos);
+      battle.creatures[kid.id] = kid;
     }
   });
 

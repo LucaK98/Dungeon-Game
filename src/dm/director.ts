@@ -4,7 +4,7 @@
  * the DungeonMaster (scripted or AI) tells it and makes the "creative" decisions.
  */
 import { CLUE_XP } from "../shared/progression";
-import { holdWeddings, partnerOf, proposalAnswer, attractedTo, bondOf, canDate, changeBond, changeLove, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, IN_LOVE, loveOf, markDate, meet, mindPrompt, remember, type FlirtOutcome, type NpcMind, type NpcWorld } from "./npc-world";
+import { familyAfterAdventure, familyFarewell, STAGE_LABEL, holdWeddings, partnerOf, proposalAnswer, attractedTo, bondOf, canDate, changeBond, changeLove, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, IN_LOVE, loveOf, markDate, meet, mindPrompt, remember, type FlirtOutcome, type NpcMind, type NpcWorld } from "./npc-world";
 import { applyDamage, distanceFt, isActive } from "../engine/combat";
 import { savingThrow, skillParts, sumParts } from "../engine/core";
 import { parseDice, rollDice } from "../engine/dice";
@@ -445,6 +445,37 @@ export class Director {
     }
   }
 
+  /** Before the first scene: the families see their heroes off (once per adventure). */
+  private seenOff = false;
+  private seeOff(): void {
+    const w = this.opts.npcs;
+    if (!w || this.seenOff) return;
+    this.seenOff = true;
+    const lines = familyFarewell(w.world, this.heroes().map((h) => h.name));
+    if (!lines.length) return;
+    this.game.narrate(lines.slice(0, 6));
+    w.save();
+  }
+
+  /** Home again: mourning, births, children growing up – and a night with the curtain drawn. */
+  private familyAtHome(): void {
+    const w = this.opts.npcs!;
+    const heroes = this.heroes();
+    for (const s of this.game.squireReport()) {
+      const parent = Object.values(w.world.npcs).find((m) => m.children?.some((c) => c.name === s.child && c.hero === s.hero));
+      if (parent) remember(parent, s.hurt ? `${s.child} kam verwundet heim – aber stolz, mit ${s.hero} gekämpft zu haben.` : `${s.child} war als Knappe bei ${s.hero} – und erzählt allen davon.`);
+    }
+    const events = familyAfterAdventure(w.world, heroes.filter((h) => !h.dead).map((h) => h.name), heroes.filter((h) => h.dead).map((h) => h.name));
+    const lines: Narration[] = [];
+    for (const e of events) {
+      if (e.kind === "mourn") lines.push({ text: `🕯️ Im Heimatdorf wartet ${e.name} vergeblich auf ${e.hero}. Die Kinder bleiben – und die Erinnerung.` }, { npc: e.name, text: `Ich zünde jeden Abend eine Kerze an, ${e.hero}.` });
+      else if (e.kind === "night") lines.push({ text: `🌙 ${e.hero} und ${e.name} haben sich lange nicht gesehen. Die Tür schließt sich, das Licht geht aus – und der Vorhang fällt.` });
+      else if (e.kind === "birth") lines.push({ text: `👶 Ein Kind ist geboren! ${e.name} und ${e.hero} haben ${e.child.gender === "female" ? "eine Tochter" : "einen Sohn"}: ${e.child.name}. (Den Namen kann ${e.hero} einmal auf dem Handy ändern.)` });
+      else lines.push({ text: e.stage === "jugend" ? `🧑 ${e.child.name} ist jetzt ${STAGE_LABEL[e.stage].toLowerCase()} – und darf als Knappe mit ${e.hero} ziehen, wenn ${e.hero} es erlaubt.` : `🧒 ${e.child.name} ist kein Baby mehr – und läuft schon überall herum.` });
+    }
+    if (lines.length) this.game.narrate(lines);
+  }
+
   /** Characters who know the group from before say so (once per adventure). */
   private greetReturning(): void {
     const heroes = this.heroes().map((h) => h.name);
@@ -758,6 +789,7 @@ export class Director {
     this.updateView();
     await this.askDm({ kind: "scene_start" });
     this.greetReturning();
+    if (this.state.sceneIndex === 0) this.seeOff();
 
     let index = 0;
     let viaGoto = false;
@@ -1224,7 +1256,8 @@ export class Director {
           { npc: wed.name, text: `Jetzt bin ich zu Hause, ${wed.hero}. Bei dir.` },
         ]);
       }
-      if (weddings.length) this.opts.npcs.save();
+      this.familyAtHome();
+      this.opts.npcs.save();
     }
     // Everyone met remembers how it ended – and likes the heroes a bit more if they helped.
     const w = this.opts.npcs;

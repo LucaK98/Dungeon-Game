@@ -3,6 +3,7 @@
  * Big text for the sofa; works with mouse, touch and keyboard (arrow keys + Enter).
  */
 import { loadNpcWorld } from "./npc-store";
+import { STAGE_LABEL, stageOf } from "../dm/npc-world";
 import { newRandomStory } from "../dm/stories/random";
 import { DIFFICULTIES, DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import { musicEnabled, setMusicEnabled } from "../ui/music";
@@ -301,12 +302,16 @@ const KIND_ICON: Record<string, string> = { sieg: "🏆", friedlich: "🕊️", 
 /** The home village (build with the village's gold) and the saga of past adventures. */
 /** Married couples: the partners live in the home village. */
 function familySection(): HTMLElement[] {
-  const minds = Object.values(loadNpcWorld().npcs).filter((m) => m.spouse || m.engaged);
+  const world = loadNpcWorld();
+  const minds = Object.values(world.npcs).filter((m) => m.spouse || m.engaged || m.widowOf || m.children?.length);
   if (!minds.length) return [];
-  return [
-    h("h2", {}, "💞 Familien im Dorf"),
-    h("div", { class: "saga" }, ...minds.map((m) => h("p", { class: "saga-entry" }, m.spouse ? "💍 " : "💌 ", h("strong", {}, m.name), m.spouse ? ` – verheiratet mit ${m.spouse}` : ` – verlobt mit ${m.engaged}, die Hochzeit steht bevor`))),
-  ];
+  const clock = world.clock ?? 0;
+  const line = (m: (typeof minds)[number]) => {
+    const tie = m.spouse ? `💍 verheiratet mit ${m.spouse}` : m.engaged ? `💌 verlobt mit ${m.engaged}, die Hochzeit steht bevor` : m.widowOf ? `🕯️ trauert um ${m.widowOf}` : "";
+    const kids = (m.children ?? []).map((c) => `${c.name} (${STAGE_LABEL[stageOf(c, clock)]}${c.squire && stageOf(c, clock) === "jugend" ? ", Knappe" : ""})`);
+    return h("p", { class: "saga-entry" }, h("strong", {}, m.name), ` – ${[tie, m.expecting?.announced ? "🍼 erwartet ein Kind" : "", kids.length ? `👨‍👩‍👧 Kinder: ${kids.join(", ")}` : ""].filter(Boolean).join(" · ")}`);
+  };
+  return [h("h2", {}, "💞 Familien im Dorf"), h("div", { class: "saga" }, ...minds.map(line))];
 }
 
 export function villageScreen(root: HTMLElement): Promise<void> {

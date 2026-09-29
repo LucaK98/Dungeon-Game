@@ -3604,7 +3604,16 @@
     "kurz": "Ein Antrag mit Ring – und im Heimatdorf wird gefeiert.",
     "lang": "Sagt eine Figur Ja, feiert ihr die Hochzeit, wenn ihr aus dem Abenteuer heimkehrt. Danach wohnt sie im Heimatdorf. Rückhalt: Zu Beginn jedes Abenteuers denkt dein Held an sie – im ersten Kampf liegt ein Segen auf ihm. Jeder Held kann nur einmal verheiratet sein.",
     "siehe_auch": [
-      "gegenstand:verlobungsring"
+      "gegenstand:verlobungsring",
+      "familie"
+    ]
+  },
+  "familie": {
+    "titel": "Familie und Kinder",
+    "kurz": "Verheiratete können sich ein Kind wünschen – es wächst im Heimatdorf auf.",
+    "lang": "Auf dem Handy (Figur-Tab) könnt ihr euch als Ehepaar ein Kind wünschen. Nach dem Abenteuer, zu Hause, verbringt ihr eine Nacht zusammen (der Vorhang fällt). Im nächsten Abenteuer erfahrt ihr die gute Nachricht, zwei Abenteuer später kommt das Kind zur Welt – du darfst ihm einmal einen Namen geben. Es wächst mit jedem Abenteuer: nach 3 ist es ein Kind, nach 6 jugendlich. Jugendliche können als Knappe mitkommen und an deiner Seite kämpfen; wird ein Knappe verwundet, bringt man ihn nach Hause. Die Kinder merken sich, wie oft du vorbeigekommen bist. Stirbt dein Held, trauert der Partner – die Kinder bleiben.",
+    "siehe_auch": [
+      "hochzeit"
     ]
   }
 }

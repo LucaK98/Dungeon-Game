@@ -47,7 +47,7 @@ import type { AttackOption, Creature, GridPos, TurnState } from "../shared/game"
 import type { BreakdownPart } from "../shared/types";
 import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
-import { rollNeed, type ActionChoice, type ActionFx, type CampView, type MiniMap, type OrderEntry, type PlayerView, type RollOutcome, type RollPrompt, type StoryView } from "../shared/view";
+import { rollNeed, type ActionChoice, type ActionFx, type CampView, type FamilyView, type MiniMap, type OrderEntry, type PlayerView, type RollOutcome, type RollPrompt, type StoryView } from "../shared/view";
 import type { MonsterGroup, Narration } from "../shared/story";
 import type { CheckResult } from "../shared/game";
 import type { SkillId } from "../shared/rules";
@@ -217,7 +217,9 @@ export class GameController {
   /** A proposal with a ring: true if she said yes (then the ring is given away). */
   onPropose: ((playerId: PlayerId, hero: Creature, npcName: string) => boolean) | undefined;
   /** Whom a hero is married to / engaged with (the phone shows it). */
-  familyOf: ((hero: string) => { spouse?: string; engaged?: string } | undefined) | undefined;
+  familyOf: ((hero: string) => FamilyView | undefined) | undefined;
+  /** Family wishes from the phone: returns an error text, or undefined when it worked. */
+  onFamily: ((hero: Creature, act: Extract<PlayerAction, { kind: "family" }>) => string | undefined) | undefined;
   /** What a character feels about a hero and remembers last (the phone shows it on her card). */
   npcNote: ((name: string, hero: string) => { bond: number; mood: string; memory?: string; love?: number; loveLabel?: string; tie?: "spouse" | "engaged" } | undefined) | undefined;
 
@@ -1224,6 +1226,12 @@ export class GameController {
       this.storyChoices = [];
       this.addLog([{ text: `${hero.name} entscheidet: ${offer.label}`, glossarKeys: ["entscheidung"] }]);
       resolve({ id: offer.id, playerId });
+      this.broadcast();
+      return;
+    }
+    if (action.kind === "family") {
+      const reason = this.onFamily ? this.onFamily(hero, action) : "Hier gibt es keine Familie.";
+      if (reason) this.sendTo(playerId, { type: "action_error", reason });
       this.broadcast();
       return;
     }
@@ -2960,6 +2968,13 @@ export class GameController {
   /** New map: companions walk in beside their heroes, show their gifts, and strays may be around. */
   private arriveWithCompanions(): void {
     const lines: ExplainedLine[] = [];
+    for (const kid of Object.values(this.battle.creatures)) {
+      const owner = kid.squire ? this.battle.creatures[kid.squire.ownerId] : undefined;
+      if (!owner?.pos || kid.dead) continue;
+      kid.pos = besideFree(this.map, this.battle, owner.pos);
+      kid.effects = [];
+      kid.conditions = [];
+    }
     for (const pet of Object.values(this.battle.creatures)) {
       const info = pet.companion;
       const owner = info ? this.battle.creatures[info.ownerId] : undefined;
@@ -3012,10 +3027,24 @@ export class GameController {
 
   /** In exploration companions trot after their hero. */
   private companionsFollow(hero: Creature): void {
-    const pet = this.companionOf(hero);
-    if (!pet?.pos || !hero.pos || !isActive(pet)) return;
-    if (Math.max(Math.abs(pet.pos.x - hero.pos.x), Math.abs(pet.pos.y - hero.pos.y)) <= 1) return;
-    pet.pos = besideFree(this.map, this.battle, hero.pos);
+    for (const pet of [this.companionOf(hero), this.squireOf(hero)]) {
+      if (!pet?.pos || !hero.pos || !isActive(pet)) continue;
+      if (Math.max(Math.abs(pet.pos.x - hero.pos.x), Math.abs(pet.pos.y - hero.pos.y)) <= 1) continue;
+      pet.pos = besideFree(this.map, this.battle, hero.pos);
+    }
+  }
+
+  /** A hero's teenage child along as squire. */
+  squireOf(hero: Creature): Creature | undefined {
+    return Object.values(this.battle.creatures).find((c) => c.squire?.ownerId === hero.id && !c.dead);
+  }
+
+  /** The squires of this adventure and whether they had to go home wounded (for the family's memory). */
+  squireReport(): { hero: string; child: string; hurt: boolean }[] {
+    return Object.values(this.battle.creatures).flatMap((c) => {
+      const owner = c.squire ? this.battle.creatures[c.squire.ownerId] : undefined;
+      return owner ? [{ hero: owner.name, child: c.name, hurt: c.dead }] : [];
+    });
   }
 
   /** Taming a stray: the lure is used up (a dog eats the bone either way), Animal Handling decides. */
@@ -3076,6 +3105,15 @@ export class GameController {
 
   /** A fallen companion is mourned once (and gone for good). */
   private mournCompanions(): void {
+    for (const kid of Object.values(this.battle.creatures)) {
+      if (!kid.squire || !kid.dead || this.mourned.has(kid.id)) continue;
+      this.mourned.add(kid.id);
+      const owner = this.battle.creatures[kid.squire.ownerId];
+      // Children never die here: a wounded squire is carried home and gets well again.
+      const lines: ExplainedLine[] = [{ text: `🩹 ${kid.name} ist verwundet – ein Bauer bringt ${kid.name} nach Hause${owner ? ` zu ${owner.name}s Familie` : ""}. Es wird wieder gesund.`, glossarKeys: ["familie"] }];
+      this.addLog(lines);
+      this.emit("lines", lines);
+    }
     for (const pet of Object.values(this.battle.creatures)) {
       if (!pet.companion || !pet.dead || this.mourned.has(pet.id)) continue;
       this.mourned.add(pet.id);
@@ -3549,7 +3587,7 @@ export class GameController {
     if (goal) view.goal = goal;
     if (this.blowAsk?.heroId === me.id) view.finalBlow = { boss: this.blowAsk.boss };
     const family = this.familyOf?.(me.name);
-    if (family && (family.spouse || family.engaged)) view.family = family;
+    if (family) view.family = family;
     if (this.storyView) view.story = { ...this.storyView, narration: this.narrationLog.slice(-4), choices: this.storyChoiceView(playerId), ...(this.votes ? { vote: { cast: this.votes.size, total: this.voters().length } } : {}) };
     return view;
   }
@@ -4190,7 +4228,7 @@ export class GameController {
     this.patrolDir.clear();
     this.staged = undefined;
     // Monsters stay behind – tamed companions come along (the fallen ones don't).
-    for (const c of Object.values(this.battle.creatures)) if (c.kind === "monster" && (!c.companion || c.dead)) delete this.battle.creatures[c.id];
+    for (const c of Object.values(this.battle.creatures)) if (c.kind === "monster" && !c.squire && (!c.companion || c.dead)) delete this.battle.creatures[c.id];
     const start = map.rooms[0]!;
     const exit = moduleExits(getModule(start.moduleId))[0]?.cells[0] ?? { x: 1, y: 1 };
     const heroSpots = partyStartSpots(map, this.heroes().length, { x: start.x + exit.x, y: start.y + exit.y });

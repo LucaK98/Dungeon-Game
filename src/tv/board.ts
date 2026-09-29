@@ -26,7 +26,7 @@ import { play, setAmbience, unlockSoundOnGesture } from "../ui/sound";
 import { setMood } from "../ui/music";
 import { settingsScreen } from "./settings";
 import { loadNpcWorld, saveNpcWorld } from "./npc-store";
-import { bondLabel, bondOf, findMind, loveLabel, loveOf, partnerOf } from "../dm/npc-world";
+import { bondLabel, bondOf, familyView, findMind, loveLabel, loveOf, nameChild, setChildWish, setSquire, squireOf } from "../dm/npc-world";
 import { castCharacter } from "./voice/cast";
 
 /** Sounds for a roll on the TV: dice first, then what happened. */
@@ -78,7 +78,10 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   const newSession = (): GameSession => {
     if (opts.story) {
       const first = sceneById(opts.story.story, (opts.resume?.state ?? newStoryState(opts.story.story, rng, opts.story.duration)).plan[0]!);
-      const session = createSession(rng, { players: players(), plan: { path: sceneRooms(first, opts.story.duration) }, noMonsters: true, difficulty, village: village.built });
+      // Teenage children who were asked along come as squires.
+      const kin = loadNpcWorld();
+      const squires = Object.fromEntries(players().flatMap((p) => ((kid) => (kid ? [[p.profile.name, { name: kid.name }]] : []))(squireOf(kin, p.profile.name))));
+      const session = createSession(rng, { players: players(), plan: { path: sceneRooms(first, opts.story.duration) }, noMonsters: true, difficulty, village: village.built, squires });
       if (opts.resume) {
         for (const h of opts.resume.heroes) session.battle.creatures[h.id] = structuredClone(h);
       }
@@ -298,9 +301,19 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         const tie = mind.spouse === hero ? "spouse" : mind.engaged === hero ? "engaged" : undefined;
         return { bond, mood: bondLabel(bond), ...(mind.facts.length ? { memory: mind.facts[mind.facts.length - 1]! } : {}), ...(love ? { love, loveLabel: loveLabel(love) } : {}), ...(tie ? { tie } : {}) };
       };
-      c.familyOf = (hero) => {
-        const p = partnerOf(npcWorld, hero);
-        return p ? (p.married ? { spouse: p.mind.name } : { engaged: p.mind.name }) : undefined;
+      c.familyOf = (hero) => familyView(npcWorld, hero);
+      c.onFamily = (hero, a) => {
+        const ok =
+          a.act === "wish" || a.act === "no_wish"
+            ? setChildWish(npcWorld, hero.name, a.act === "wish")
+            : a.act === "name"
+              ? nameChild(npcWorld, hero.name, a.index ?? -1, a.name ?? "")
+              : setSquire(npcWorld, hero.name, a.index ?? -1, a.act === "squire");
+        if (!ok) return a.act === "name" ? "Dieser Name geht nicht (mindestens 2 Buchstaben, nur einmal)." : a.act === "squire" ? "Nur Jugendliche können als Knappe mit." : "Das geht gerade nicht.";
+        saveNpcWorld(npcWorld);
+        if (a.act === "wish") c.tellPlayer(hero.playerId!, "💞 Nach dem Abenteuer, zu Hause …");
+        if (a.act === "squire") c.tellPlayer(hero.playerId!, "🗡️ Kommt beim nächsten Abenteuer als Knappe mit.");
+        return undefined;
       };
       const director = new Director(story, state, c, dm, rng, {
         npcs: {

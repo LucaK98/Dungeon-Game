@@ -404,3 +404,36 @@ describe("flirting and gifts", () => {
     expect(hero.pc!.inventory.some((i) => i.itemId === "verlobungsring")).toBe(false);
   });
 });
+
+describe("family", () => {
+  it("brings a teenage child along as squire who follows the hero and joins the party", () => {
+    const rng = seededRng(4);
+    const session = createSession(rng, {
+      players: [{ playerId: "p1", profile: { name: "Brunhild", classId: "fighter", raceId: "human", look: defaultLook("fighter", "human"), color: "#e6194b" } }],
+      plan: { path: ["burghof", "gang_gerade", "wachstube"] },
+      squires: { Brunhild: { name: "Liese" } },
+    });
+    const game = new GameController(session, rng, () => {}, () => {}, { turnBasedExplore: false });
+    game.start();
+    const hero = game.heroOf("p1")!;
+    const kid = game.squireOf(hero)!;
+    expect(kid.name).toBe("Liese");
+    expect(kid.side).toBe("party");
+    expect(game.companionOf(hero)).toBeUndefined();
+    expect(game.squireReport()).toEqual([{ hero: "Brunhild", child: "Liese", hurt: false }]);
+  });
+
+  it("passes family wishes from the phone to the family hook", () => {
+    const { game, last } = setup(4, { free: true });
+    const asked: string[] = [];
+    game.onFamily = (_hero, a) => (asked.push(a.act), a.act === "name" ? "nope" : undefined);
+    game.familyOf = () => ({ spouse: "Wirtin Rosa", canWish: true });
+    game.handle("p1", { kind: "family", act: "wish" });
+    game.handle("p1", { kind: "family", act: "name", index: 0, name: "X" });
+    expect(asked).toEqual(["wish", "name"]);
+    const err = last("p1", "action_error");
+    expect(err?.type === "action_error" && err.reason).toBe("nope");
+    const v = last("p1", "state_update");
+    expect(v?.type === "state_update" && v.state.family?.spouse).toBe("Wirtin Rosa");
+  });
+});

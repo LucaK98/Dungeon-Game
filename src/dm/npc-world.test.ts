@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { holdWeddings, partnerOf, proposalAnswer, PROPOSE_BOND, PROPOSE_LOVE, attractedTo, bondLabel, bondOf, canDate, changeBond, changeLove, emptyWorld, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, loveLabel, loveOf, markDate, meet, mindPrompt, personaFor, remember, MAX_FACTS } from "./npc-world";
+import { BIRTH_AFTER, childrenOf, familyAfterAdventure, familyFarewell, familyView, nameChild, setChildWish, setSquire, squireOf, stageOf, TEEN_AT, holdWeddings, partnerOf, proposalAnswer, PROPOSE_BOND, PROPOSE_LOVE, attractedTo, bondLabel, bondOf, canDate, changeBond, changeLove, emptyWorld, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, loveLabel, loveOf, markDate, meet, mindPrompt, personaFor, remember, MAX_FACTS } from "./npc-world";
 
 describe("npc world", () => {
   it("gives every character one personality for good (same name, same person)", () => {
@@ -149,5 +149,74 @@ describe("proposals and weddings", () => {
     expect(mind.engaged).toBeUndefined();
     expect(partnerOf(world, "Pip")).toEqual({ mind, married: true });
     expect(mind.facts[mind.facts.length - 1]).toContain("geheiratet");
+  });
+});
+
+describe("family and children", () => {
+  const married = () => {
+    const world = emptyWorld();
+    const { mind } = meet(world, "Wirtin Rosa", "commoner", "a", 0);
+    mind.persona.romance = { open: true, likes: ["male"] };
+    mind.spouse = "Pip";
+    return { world, mind };
+  };
+
+  it("only married couples wish for a child; the night is at home, the news next time, the birth two adventures later", () => {
+    const { world, mind } = married();
+    expect(setChildWish(world, "Ole", true)).toBe(false);
+    expect(setChildWish(world, "Pip", true)).toBe(true);
+    expect(familyView(world, "Pip")).toMatchObject({ spouse: "Wirtin Rosa", wish: true });
+    // The hero fell? No night.
+    expect(familyAfterAdventure(structuredClone(world), [], ["Pip"]).map((e) => e.kind)).toEqual(["mourn"]);
+    expect(familyAfterAdventure(world, ["Pip"], []).map((e) => e.kind)).toEqual(["night"]);
+    expect(mind.expecting).toBeTruthy();
+    expect(familyView(world, "Pip")!.expecting).toBeUndefined();
+    const hello = familyFarewell(world, ["Pip"]);
+    expect(hello.map((l) => l.text).join(" ")).toContain("Kind");
+    expect(familyView(world, "Pip")!.expecting).toBe(true);
+    expect(familyFarewell(world, ["Pip"])).toEqual([]);
+    for (let i = 1; i < BIRTH_AFTER; i++) expect(familyAfterAdventure(world, ["Pip"], [])).toEqual([]);
+    const born = familyAfterAdventure(world, ["Pip"], []);
+    expect(born.map((e) => e.kind)).toEqual(["birth"]);
+    const kid = mind.children![0]!;
+    expect(kid.hero).toBe("Pip");
+    expect(kid.traits).toHaveLength(2);
+    expect(mind.persona.traits).toContain(kid.traits[0]);
+    expect(stageOf(kid, world.clock!)).toBe("baby");
+  });
+
+  it("lets the hero name a child once, and a teenager go along as squire", () => {
+    const { world, mind } = married();
+    world.clock = 10;
+    mind.children = [{ name: "Liese", gender: "female", hero: "Pip", born: 9, traits: ["stolz", "mutig"], visits: 0 }];
+    expect(nameChild(world, "Pip", 0, "<b>")).toBe(false);
+    expect(nameChild(world, "Pip", 0, "Brunhilde")).toBe(true);
+    expect(nameChild(world, "Pip", 0, "Anders")).toBe(false);
+    expect(childrenOf(world, "Pip")[0]!.child.name).toBe("Brunhilde");
+    expect(setSquire(world, "Pip", 0, true)).toBe(false);
+    mind.children[0]!.born = 10 - TEEN_AT;
+    expect(setSquire(world, "Pip", 0, true)).toBe(true);
+    expect(squireOf(world, "Pip")?.name).toBe("Brunhilde");
+    expect(familyView(world, "Pip")!.children![0]).toMatchObject({ stage: "Jugendlich", squire: true, named: true });
+  });
+
+  it("children remember visits and grow; a fallen hero is mourned, the children stay", () => {
+    const { world, mind } = married();
+    world.clock = 0;
+    mind.children = [{ name: "Fritz", gender: "male", hero: "Pip", born: 0, traits: ["stolz", "mutig"], visits: 0 }];
+    familyFarewell(world, ["Pip"]);
+    familyFarewell(world, ["Pip", "Ole"]);
+    expect(mind.children[0]!.visits).toBe(2);
+    familyFarewell(world, ["Ole"]);
+    expect(mind.children[0]!.visits).toBe(2);
+    const grown = [1, 2, 3].flatMap(() => familyAfterAdventure(world, ["Pip"], []));
+    expect(grown).toEqual([expect.objectContaining({ kind: "grown", stage: "kind" })]);
+    familyAfterAdventure(world, [], ["Pip"]);
+    expect(mind.spouse).toBeUndefined();
+    expect(mind.widowOf).toBe("Pip");
+    expect(mind.children).toHaveLength(1);
+    expect(mind.facts.join(" ")).toContain("nicht heimgekehrt");
+    // Mourning, she may love again one day.
+    expect(proposalAnswer(world, mind, "Ole", "male")).toBe("too_soon");
   });
 });

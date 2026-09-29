@@ -17,7 +17,7 @@ import { armorClass } from "../engine/combat";
 import { EMOTES, type PlayerAction } from "../shared/events";
 import type { Creature } from "../shared/game";
 import { ABILITIES } from "../shared/rules";
-import type { ActionChoice, ActionGroup, CampView, MiniCreature, PlayerView, RollOutcome, RollPrompt } from "../shared/view";
+import type { ActionChoice, ActionGroup, CampView, FamilyView, MiniCreature, PlayerView, RollOutcome, RollPrompt } from "../shared/view";
 import { matchFreeText, matchUtility } from "../shared/intent-match";
 import { walkIntent } from "../shared/walk-text";
 import { isTrick } from "../dm/free-actions";
@@ -989,7 +989,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     });
     // Very much in love, a ring in the bag, no partner yet: a proposal.
     const ring = (v.me.pc?.inventory ?? []).some((i) => i.itemId === "verlobungsring" && i.qty > 0);
-    const canPropose = (person.love ?? 0) >= 8 && !person.tie && !v.family;
+    const canPropose = (person.love ?? 0) >= 8 && !person.tie && !v.family?.spouse && !v.family?.engaged;
     const propose = canPropose ? h("button", { class: "btn primary", type: "button", textContent: ring ? "💍 Antrag machen" : "💍 Antrag (Ring fehlt)" }) : null;
     propose?.addEventListener("click", () => {
       closeSheet();
@@ -1496,8 +1496,38 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       h("span", { class: "muted small" }, prog.to ? `Stufe ${pc.level + 1} bei ${prog.to}` : "höchste Stufe"),
     );
     const fam = view?.family;
-    const family = fam ? h("p", { class: "love-line", dataset: { help: "hochzeit" } }, fam.spouse ? `💍 Verheiratet mit ${fam.spouse} (wohnt im Heimatdorf)` : `💍 Verlobt mit ${fam.engaged} – Hochzeit nach dem Abenteuer`) : "";
+    const family = fam ? familyCard(fam) : "";
     return [h("section", { class: "card hero-card" }, hero, stats, xpBar, family), ...pointsCard(me), ...conditions, fold("sheet-all", "📊 Alle Werte", out)];
+  }
+
+  /** Partner and children in the home village: a child wish, names, a squire. */
+  function familyCard(fam: FamilyView): HTMLElement {
+    const btn = (label: string, action: PlayerAction, primary = false) => {
+      const b = h("button", { class: `btn ${primary ? "" : "secondary "}small`, type: "button" }, label);
+      b.addEventListener("click", () => send(action));
+      return b;
+    };
+    const rows: (HTMLElement | string)[] = [];
+    if (fam.spouse) rows.push(h("p", { class: "love-line", dataset: { help: "hochzeit" } }, `💍 Verheiratet mit ${fam.spouse} (wohnt im Heimatdorf)`));
+    else if (fam.engaged) rows.push(h("p", { class: "love-line", dataset: { help: "hochzeit" } }, `💍 Verlobt mit ${fam.engaged} – Hochzeit nach dem Abenteuer`));
+    if (fam.expecting) rows.push(h("p", { class: "love-line", dataset: { help: "familie" } }, `🍼 ${fam.spouse ?? "Ihr"} erwartet ein Kind von dir.`));
+    else if (fam.wish) rows.push(h("div", { class: "love-line", dataset: { help: "familie" } }, "💞 Ihr wünscht euch ein Kind – nach dem Abenteuer, zu Hause. ", btn("Doch nicht", { kind: "family", act: "no_wish" })));
+    else if (fam.canWish) rows.push(btn("💞 Kinderwunsch", { kind: "family", act: "wish" }, true));
+    (fam.children ?? []).forEach((kid, index) => {
+      const icon = kid.stage === "Baby" ? "👶" : kid.stage === "Kind" ? "🧒" : "🧑";
+      const row = h("div", { class: "love-line", dataset: { help: "familie" } }, `${icon} ${kid.name} – ${kid.stage} (${kid.traits.join(", ")}) `);
+      if (!kid.named) {
+        const b = h("button", { class: "btn secondary small", type: "button" }, "✏️ Namen geben");
+        b.addEventListener("click", () => {
+          const name = window.prompt(`Wie soll ${kid.name} heißen? (Geht nur einmal.)`, kid.name);
+          if (name && name.trim() !== kid.name) send({ kind: "family", act: "name", index, name });
+        });
+        row.append(b);
+      }
+      if (kid.canSquire) row.append(kid.squire ? btn("🗡️ Knappe ✓ (zu Hause lassen)", { kind: "family", act: "no_squire", index }) : btn("🗡️ Als Knappe mitnehmen", { kind: "family", act: "squire", index }));
+      rows.push(row);
+    });
+    return h("div", { class: "family-card" }, ...rows);
   }
 
   /** Attribute points from level-ups: +1 on one attribute each. */
