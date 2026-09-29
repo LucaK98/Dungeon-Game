@@ -3,7 +3,7 @@
  * The director owns the rules of the story (flags, clues, fights, endings);
  * the DungeonMaster (scripted or AI) tells it and makes the "creative" decisions.
  */
-import { bondOf, changeBond, greetingFor, meet, mindPrompt, remember, type NpcMind, type NpcWorld } from "./npc-world";
+import { attractedTo, bondOf, canDate, changeBond, changeLove, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, IN_LOVE, loveOf, markDate, meet, mindPrompt, remember, type FlirtOutcome, type NpcMind, type NpcWorld } from "./npc-world";
 import { applyDamage, distanceFt, isActive } from "../engine/combat";
 import { savingThrow, skillParts, sumParts } from "../engine/core";
 import { parseDice, rollDice } from "../engine/dice";
@@ -169,6 +169,8 @@ export class Director {
     game.onSuggest = (playerId, hero) => this.suggest(playerId, hero);
     game.onAskRules = (playerId, hero, question) => this.askRules(playerId, hero, question);
     game.onRoundEnd = () => this.world?.roundEnded();
+    game.onFlirt = (playerId, hero, name) => void this.flirt(playerId, hero, name);
+    game.onGift = (_playerId, hero, name, itemId, itemName) => this.gift(hero, name, itemId, itemName);
     if (opts.world) {
       this.world = new World({
         game,
@@ -309,6 +311,91 @@ export class Director {
       }
     }
     w.save();
+  }
+
+  /** Flirted this scene (hero|character): she needs a moment before the next try. */
+  private flirted = new Set<string>();
+
+  private heroGender(hero: Creature): "female" | "male" {
+    return hero.appearance?.gender ?? genderOf(hero.name);
+  }
+
+  /** 🌹 A flirt: a Charisma check (if she can fall for this hero at all), then her answer in her own way. */
+  private async flirt(playerId: PlayerId, hero: Creature, name: string): Promise<void> {
+    const w = this.opts.npcs;
+    const mind = this.minds.get(name);
+    if (!w || !mind || this.finished) {
+      this.game.tellPlayer(playerId, `${name} hat gerade keinen Kopf dafür.`);
+      return;
+    }
+    const lock = `${hero.name}|${name}|${this.scene.id}`;
+    if (this.flirted.has(lock)) {
+      this.game.tellPlayer(playerId, `Gib ${name} etwas Zeit – später wieder.`);
+      return;
+    }
+    this.flirted.add(lock);
+    const before = loveOf(mind, hero.name);
+    let roll: { total: number; dc: number } | undefined;
+    if (attractedTo(mind, this.heroGender(hero))) {
+      const r = await this.game.check(hero, "persuasion", flirtDc(mind, hero.name), `🌹 Flirten mit ${name}`);
+      roll = { total: r.total, dc: r.dc };
+    }
+    const res = flirtResult(mind, this.heroGender(hero), roll);
+    if (res.love) changeLove(mind, hero.name, res.love);
+    if (res.bond) changeBond(mind, hero.name, res.bond);
+    const facts: Record<FlirtOutcome, string> = {
+      not_interested: `${hero.name} hat mit mir geflirtet – aber daraus wird nichts.`,
+      great: `${hero.name} hat mit mir geflirtet, und mein Herz hat gepocht.`,
+      yes: `${hero.name} hat mit mir geflirtet, und es hat mir gefallen.`,
+      no: `${hero.name} hat mit mir geflirtet, aber ich war nicht in Stimmung.`,
+      too_much: `${hero.name} war mir gegenüber zu aufdringlich.`,
+    };
+    remember(mind, facts[res.outcome]);
+    // Her answer: in her own words by the AI, or from her lines.
+    const answer = await this.askDm({ kind: "npc_moment", playerId, heroName: hero.name, npc: name, what: "flirt", outcome: res.outcome });
+    if (!answer.npc_say) this.game.narrate([{ npc: name, text: flirtLine(mind, hero.name, res.outcome, this.flirted.size) }]);
+    const after = loveOf(mind, hero.name);
+    if (before < IN_LOVE && after >= IN_LOVE) this.game.narrate([{ text: `💘 ${name} hat sich in ${hero.name} verguckt!` }]);
+    else if (res.love) this.game.narrate([{ text: `🌹 ${name} und ${hero.name}: ${"❤".repeat(Math.max(1, Math.round(after / 2)))}` }]);
+    w.save();
+  }
+
+  /** 🎁 A gift: what she likes counts triple; for someone in love it warms the heart too. */
+  private gift(hero: Creature, name: string, itemId: string, itemName: string): void {
+    const w = this.opts.npcs;
+    const mind = this.minds.get(name);
+    if (!w || !mind) return;
+    const v = giftValue(mind, itemId, itemName);
+    changeBond(mind, hero.name, v.bond);
+    if (attractedTo(mind, this.heroGender(hero)) && (v.liked || loveOf(mind, hero.name) > 0)) changeLove(mind, hero.name, v.liked ? 2 : 1);
+    remember(mind, `${hero.name} hat mir ${itemName} geschenkt${v.liked ? " – genau, was ich mag!" : "."}`);
+    this.game.narrate([
+      { npc: name, text: v.liked ? `Oh, ${itemName}! Woher wusstest du, dass ich das so mag, ${hero.name}?` : `Danke, ${hero.name}. Das ist lieb von dir.` },
+      { text: v.liked ? `💚💚 ${name} freut sich riesig.` : `💚 ${name} freut sich.` },
+    ]);
+    w.save();
+  }
+
+  /** 🌙 At the campfire (or at the end): a couple in love meets – once per adventure, then fade out. */
+  private rendezvous(): void {
+    const w = this.opts.npcs;
+    const adventure = this.state.adventureId;
+    if (!w || !adventure) return;
+    for (const hero of this.heroes().filter((h) => !h.dead)) {
+      const mind = [...this.metMinds.values()].find((m) => canDate(m, hero.name, adventure));
+      if (!mind) continue;
+      markDate(mind, hero.name, adventure);
+      changeLove(mind, hero.name, 1);
+      remember(mind, `Ich hatte ein heimliches Treffen mit ${hero.name}.`);
+      this.game.grantBoon(hero.id, "luck");
+      this.game.narrate([
+        { text: `🌙 Am Abend schleicht sich ${hero.name} davon – ${mind.name} wartet schon am alten Brunnen. Was die beiden sich erzählen, bleibt ihr Geheimnis …` },
+        { npc: mind.name, text: `Ich habe mich auf dich gefreut, ${hero.name}.` },
+        { text: `✨ ${hero.name} ist beflügelt: Der erste Angriff im nächsten Kampf hat Vorteil.` },
+      ]);
+      w.save();
+      return;
+    }
   }
 
   /** Characters who know the group from before say so (once per adventure). */
@@ -476,6 +563,7 @@ export class Director {
     const tales = await done;
     this.state.tales = [...(this.state.tales ?? []), ...tales.map((t) => `${t.name} (${t.question}): „${t.text}“`)].slice(-12);
     if (tales.length) await this.askDm({ kind: "campfire", tales: tales.map((t) => ({ heroName: t.name, question: t.question, text: t.text })) });
+    this.rendezvous();
     this.game.narrate([{ text: "🌅 Der Morgen graut. Weiter geht's!" }]);
   }
 
@@ -1072,6 +1160,8 @@ export class Director {
     const badges = this.game.saveHeroes(this.story.title, { won: ending.kind !== "scheitern", difficulty: this.state.difficulty ?? "normal", ...(this.state.finalBlow ? { finalBlowHeroId: this.state.finalBlow.heroId } : {}) });
     if (badges.length) result.recap.badges = badges;
     this.game.sendRecap(result.recap);
+    // No campfire in short adventures: a couple in love still gets their evening.
+    this.rendezvous();
     // Everyone met remembers how it ended – and likes the heroes a bit more if they helped.
     const w = this.opts.npcs;
     if (w && this.metMinds.size) {

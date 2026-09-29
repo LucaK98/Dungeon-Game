@@ -33,5 +33,6 @@ export function sanitizeProfile(p: Partial<CharacterProfile> | null | undefined,
   const free = PLAYER_COLORS.map((c) => c.id).filter((c) => !takenColors.includes(c));
   const color = p.color && free.includes(p.color) ? p.color : (free[0] ?? PLAYER_COLORS[0]!.id);
   const legacy = sanitizeLegacy(p.legacy);
-  return { name, classId, raceId, look: sanitizeLook(p.look, raceId), color, ...(legacy ? { legacy } : {}) };
+  const gender = p.gender === "female" || p.gender === "male" ? p.gender : undefined;
+  return { name, classId, raceId, look: sanitizeLook(p.look, raceId), color, ...(gender ? { gender } : {}), ...(legacy ? { legacy } : {}) };
 }

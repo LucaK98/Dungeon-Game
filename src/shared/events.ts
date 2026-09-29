@@ -35,6 +35,10 @@ export type PlayerAction =
   | { kind: "approach"; targetId: string; optionId: string }
   /** Walk to an object and use it (chest, lever, table …) as soon as it is next to you. */
   | { kind: "go_use"; objectId: string }
+  /** Flirt with a character (a Charisma check – if she is into you at all). */
+  | { kind: "flirt"; npcId: string }
+  /** Give a character something from the bag (what she likes counts double). */
+  | { kind: "gift"; npcId: string; itemId: string }
   /** Take back the last move (only while nothing was revealed, rolled or hit). */
   | { kind: "undo_move" }
   /** Points at a square on the map (shown on the TV), with a planned route if there is one. */

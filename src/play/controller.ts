@@ -27,7 +27,7 @@ import { closeSheet, explainedLine, helpButton, maybeHint, openHelp, showRulesAn
 import { minimapView, onHold, planRoute, provokedBy } from "./minimap";
 import type { GridPos } from "../shared/game";
 import { canCraft, RECIPES } from "../shared/crafting";
-import { itemIcon } from "../shared/reward";
+import { itemIcon, itemTitle } from "../shared/reward";
 import { ABILITY_GLOSSAR } from "../engine/core";
 
 const ABILITY_ICON: Record<string, string> = { STR: "💪", DEX: "🤸", CON: "🫀", INT: "🧠", WIS: "🦉", CHA: "🗣️" };
@@ -881,7 +881,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     const me = v.minimap.creatures.find((c) => c.me);
     const person = me ? v.minimap.creatures.find((c) => !c.me && !c.enemy && !c.color && !c.down && Math.max(Math.abs(c.x - me.x), Math.abs(c.y - me.y)) <= 1) : undefined;
     if (!things.length && !person) return null;
-    const buttons = things.map((c) => {
+    const buttons: HTMLElement[] = things.map((c) => {
       const b = h("button", { class: "btn context-btn", type: "button", textContent: c.label });
       b.addEventListener("click", () => choose(c));
       return b;
@@ -890,6 +890,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       const b = h("button", { class: "btn context-btn", type: "button", textContent: `💬 Mit ${person.name} reden` });
       b.addEventListener("click", () => freeText(`Ich spreche mit ${person.name}: `));
       buttons.push(b);
+      if (v.mode !== "combat") buttons.push(socialButtons(v, person));
     }
     return h("section", { class: "card context-card" }, h("div", { class: "context-title" }, "📍 Hier"), h("div", { class: "context-row" }, ...buttons));
   }
@@ -953,8 +954,37 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       "div",
       { class: "person-info" },
       h("p", { class: "lead" }, `${hearts} ${c.mood ?? "kennt dich noch nicht"}${c.bond !== undefined ? ` (${bond >= 0 ? "+" : ""}${bond})` : ""}`),
+      c.love ? h("p", { class: "love-line" }, `🌹 ${c.loveLabel} ${"❤".repeat(Math.max(1, Math.round(c.love / 2)))}${"♡".repeat(5 - Math.max(1, Math.round(c.love / 2)))}`) : "",
       c.memory ? h("p", { class: "muted" }, `💭 Erinnert sich: ${c.memory}`) : "",
     );
+  }
+
+  /** 🌹 Flirten and 🎁 Geschenk for a character (a step closer first if needed). */
+  function socialButtons(v: PlayerView, person: MiniCreature): HTMLElement {
+    const flirt = h("button", { class: "btn secondary", type: "button", textContent: "🌹 Flirten" });
+    flirt.addEventListener("click", () => {
+      closeSheet();
+      send({ kind: "flirt", npcId: person.id });
+    });
+    const gift = h("button", { class: "btn secondary", type: "button", textContent: "🎁 Geschenk" });
+    gift.addEventListener("click", () => {
+      closeSheet();
+      const items = (v.me.pc?.inventory ?? []).filter((i) => (i.itemId === "gold" ? i.qty >= 10 : i.qty > 0));
+      if (!items.length) {
+        showToast("Du hast nichts zum Verschenken dabei.");
+        return;
+      }
+      const buttons = items.map((i) => {
+        const b = h("button", { class: "target", type: "button" }, h("strong", {}, `${itemIcon(i.itemId)} ${i.itemId === "gold" ? "10 Goldmünzen" : itemTitle(i.itemId)}`), h("span", {}, i.itemId === "gold" ? `du hast ${i.qty}` : `${i.qty}×`));
+        b.addEventListener("click", () => {
+          closeSheet();
+          send({ kind: "gift", npcId: person.id, itemId: i.itemId });
+        });
+        return b;
+      });
+      showSheet(`🎁 Was schenkst du ${person.name}?`, h("p", { class: "muted small" }, "Etwas, das sie oder er mag, freut doppelt – vielleicht hat sie/er es mal erwähnt."), h("div", { class: "targets" }, ...buttons));
+    });
+    return h("div", { class: "row social-row" }, flirt, gift);
   }
 
   /** A tap on the map: act on what stands there, or plan a walk (a second tap walks). */
@@ -1017,7 +1047,9 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         closeSheet();
         planWalk(v, p);
       });
-      showSheet(`${person && !thing ? "👤" : "🎯"} ${thing?.name ?? person!.name}`, person && !thing ? personInfo(person) : "", near ? "" : h("p", { class: "muted small" }, "Du läufst so weit, wie deine Bewegung reicht – und legst los, sobald du daneben stehst."), go, walk);
+      // With people (not in a fight): flirt and give something.
+      const social = person && !thing && v.mode !== "combat" ? socialButtons(v, person) : null;
+      showSheet(`${person && !thing ? "👤" : "🎯"} ${thing?.name ?? person!.name}`, person && !thing ? personInfo(person) : "", near ? "" : h("p", { class: "muted small" }, "Du läufst so weit, wie deine Bewegung reicht – und legst los, sobald du daneben stehst."), go, social, walk);
       return;
     }
     planWalk(v, p);

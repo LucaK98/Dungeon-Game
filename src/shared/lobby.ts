@@ -11,6 +11,8 @@ export interface CharacterProfile {
   raceId: string;
   look: DollLook;
   color: string;
+  /** Woman or man (characters fall for heroes of the sex they like). */
+  gender?: "female" | "male";
   /** A hero from the hero book: level, gold and equipment from earlier adventures. */
   legacy?: import("./herobook").HeroLegacy;
 }

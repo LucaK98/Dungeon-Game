@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bondLabel, bondOf, changeBond, emptyWorld, genderOf, greetingFor, meet, mindPrompt, personaFor, remember, MAX_FACTS } from "./npc-world";
+import { attractedTo, bondLabel, bondOf, canDate, changeBond, changeLove, emptyWorld, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, loveLabel, loveOf, markDate, meet, mindPrompt, personaFor, remember, MAX_FACTS } from "./npc-world";
 
 describe("npc world", () => {
   it("gives every character one personality for good (same name, same person)", () => {
@@ -62,5 +62,56 @@ describe("npc world", () => {
     expect(mind.facts[mind.facts.length - 1]).toBe("Ereignis 14");
     remember(mind, "Ereignis 14");
     expect(mind.facts.filter((f) => f === "Ereignis 14")).toHaveLength(1);
+  });
+});
+
+describe("romance with characters", () => {
+  const withRomance = (open: boolean, likes: ("female" | "male")[]) => {
+    const { mind } = meet(emptyWorld(), "Wirtin Rosa", "commoner", "a", 0);
+    mind.persona.romance = { open, likes };
+    return mind;
+  };
+
+  it("only works with characters who are into this hero", () => {
+    expect(attractedTo(withRomance(true, ["male"]), "male")).toBe(true);
+    expect(attractedTo(withRomance(true, ["male"]), "female")).toBe(false);
+    expect(attractedTo(withRomance(false, []), "male")).toBe(false);
+    // Not interested: no roll, no love – a friendly no.
+    expect(flirtResult(withRomance(true, ["female"]), "male", { total: 30, dc: 10 })).toEqual({ outcome: "not_interested", love: 0, bond: 0 });
+  });
+
+  it("turns a good flirt into love, a clumsy one into a frown", () => {
+    const mind = withRomance(true, ["male"]);
+    expect(flirtResult(mind, "male", { total: 20, dc: 14 }).outcome).toBe("great");
+    expect(flirtResult(mind, "male", { total: 14, dc: 14 })).toMatchObject({ outcome: "yes", love: 2 });
+    expect(flirtResult(mind, "male", { total: 11, dc: 14 }).outcome).toBe("no");
+    expect(flirtResult(mind, "male", { total: 5, dc: 14 })).toMatchObject({ outcome: "too_much", bond: -1 });
+    // Friends are easier to win over.
+    const dc = flirtDc(mind, "Pip");
+    changeBond(mind, "Pip", 8);
+    expect(flirtDc(mind, "Pip")).toBeLessThan(dc);
+    expect(flirtLine(mind, "Pip", "great")).not.toContain("{hero}");
+  });
+
+  it("counts love from 0 to 10; in love from 5, one rendezvous per adventure", () => {
+    const mind = withRomance(true, ["female"]);
+    expect(loveLabel(0)).toBe("");
+    changeLove(mind, "Brunhild", 4);
+    expect(canDate(mind, "Brunhild", "a1")).toBe(false);
+    changeLove(mind, "Brunhild", 20);
+    expect(loveOf(mind, "Brunhild")).toBe(10);
+    expect(loveLabel(10)).toBe("sehr verliebt");
+    expect(canDate(mind, "Brunhild", "a1")).toBe(true);
+    markDate(mind, "Brunhild", "a1");
+    expect(canDate(mind, "Brunhild", "a1")).toBe(false);
+    expect(canDate(mind, "Brunhild", "a2")).toBe(true);
+    expect(mindPrompt(mind, ["Brunhild"])).toContain("Romantik: Brunhild sehr verliebt (10/10)");
+  });
+
+  it("values gifts she likes three times as much", () => {
+    const mind = withRomance(true, ["male"]);
+    mind.persona.likes = "Gold";
+    expect(giftValue(mind, "gold", "10 Goldmünzen")).toEqual({ liked: true, bond: 3 });
+    expect(giftValue(mind, "torch", "Fackel")).toEqual({ liked: false, bond: 1 });
   });
 });

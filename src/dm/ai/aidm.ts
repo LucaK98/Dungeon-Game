@@ -31,7 +31,7 @@ export interface AiDmOptions {
 }
 
 /** Which moments go to the AI. Everything else is told by the script (saves free-tier calls). */
-const AI_TRIGGERS: DmTrigger["kind"][] = ["scene_start", "free_text", "roll_result", "story_end", "suggest", "rules_question", "idle", "campfire", "final_blow"];
+const AI_TRIGGERS: DmTrigger["kind"][] = ["scene_start", "free_text", "roll_result", "story_end", "suggest", "rules_question", "idle", "campfire", "final_blow", "npc_moment"];
 
 const str = (v: unknown, max: number): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
 

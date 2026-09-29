@@ -26,7 +26,7 @@ import { play, setAmbience, unlockSoundOnGesture } from "../ui/sound";
 import { setMood } from "../ui/music";
 import { settingsScreen } from "./settings";
 import { loadNpcWorld, saveNpcWorld } from "./npc-store";
-import { bondLabel, bondOf, findMind } from "../dm/npc-world";
+import { bondLabel, bondOf, findMind, loveLabel, loveOf } from "../dm/npc-world";
 import { castCharacter } from "./voice/cast";
 
 /** Sounds for a roll on the TV: dice first, then what happened. */
@@ -294,7 +294,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         const mind = findMind(npcWorld, name);
         if (!mind) return undefined;
         const bond = bondOf(mind, hero);
-        return { bond, mood: bondLabel(bond), ...(mind.facts.length ? { memory: mind.facts[mind.facts.length - 1]! } : {}) };
+        const love = loveOf(mind, hero);
+        return { bond, mood: bondLabel(bond), ...(mind.facts.length ? { memory: mind.facts[mind.facts.length - 1]! } : {}), ...(love ? { love, loveLabel: loveLabel(love) } : {}) };
       };
       const director = new Director(story, state, c, dm, rng, {
         npcs: {

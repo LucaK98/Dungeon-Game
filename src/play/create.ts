@@ -2,6 +2,7 @@
  * Character creation on the phone: name → class → people → figure → colour → ready.
  * Every change is sent to the TV right away so the figure appears there live.
  */
+import { genderOf } from "../dm/npc-world";
 import { loadBook, removeFromBook, saveToBook, type HeroLegacy } from "../shared/herobook";
 import { chooseImprovement, describeImprovement, needsImprovement } from "./improve";
 import { badgeById } from "../shared/achievements";
@@ -25,6 +26,7 @@ export interface Draft {
   look: DollLook;
   color: string;
   ready: boolean;
+  gender?: "female" | "male";
   /** Picked from the hero book: level, gold and equipment come along. */
   legacy?: HeroLegacy;
 }
@@ -67,12 +69,13 @@ export function newDraft(): Draft {
 }
 
 export function draftFromProfile(p: CharacterProfile, ready: boolean): Draft {
-  return { step: ready ? 5 : 3, name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, ready, ...(p.legacy ? { legacy: p.legacy } : {}) };
+  return { step: ready ? 5 : 3, name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, ready, ...(p.gender ? { gender: p.gender } : {}), ...(p.legacy ? { legacy: p.legacy } : {}) };
 }
 
 export function profileOf(d: Draft): CharacterProfile | null {
   if (!cleanName(d.name) || !d.classId || !d.raceId) return null;
-  return { name: cleanName(d.name), classId: d.classId, raceId: d.raceId, look: withAutoParts(d.look), color: d.color, ...(d.legacy ? { legacy: d.legacy } : {}) };
+  const gender = d.gender ?? genderOf(cleanName(d.name));
+  return { name: cleanName(d.name), classId: d.classId, raceId: d.raceId, look: withAutoParts(d.look), color: d.color, gender, ...(d.legacy ? { legacy: d.legacy } : {}) };
 }
 
 function cycle<T>(list: T[], current: T, dir: 1 | -1): T {
@@ -122,11 +125,28 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
       draft = { ...draft, name: input.value };
       saveDraft(draft);
       (next.querySelector(".primary") as HTMLButtonElement).disabled = !cleanName(input.value);
+      // Not chosen yet: the guess follows the name as it is typed.
+      if (!draft.gender) {
+        const g = genderOf(cleanName(input.value) || "");
+        sexRow.querySelectorAll<HTMLButtonElement>(".sex-btn").forEach((b) => {
+          const on = b.dataset.sex === g;
+          b.classList.toggle("primary", on);
+          b.classList.toggle("secondary", !on);
+        });
+      }
     });
     input.addEventListener("change", () => commit({ name: input.value }, false));
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && cleanName(input.value)) commit({ name: input.value, step: 1 });
     });
+    // Woman or man (a guess from the name until chosen): matters for romance with the characters.
+    const guess = draft.gender ?? genderOf(cleanName(draft.name) || "");
+    const sex = (g: "female" | "male", label: string) => {
+      const b = h("button", { class: `btn ${guess === g ? "primary" : "secondary"} small sex-btn`, type: "button", textContent: label, dataset: { sex: g } });
+      b.addEventListener("click", () => commit({ name: input.value, gender: g }));
+      return b;
+    };
+    const sexRow = h("div", { class: "sex-row" }, h("span", { class: "muted small" }, "Deine Figur ist"), sex("female", "♀ eine Frau"), sex("male", "♂ ein Mann"));
     const dice = h("button", { class: "btn secondary", type: "button", textContent: "🎲 Vorschlag" });
     dice.addEventListener("click", () => commit({ name: NAME_IDEAS[Math.floor(Math.random() * NAME_IDEAS.length)]! }));
     const book = loadBook();
@@ -156,7 +176,7 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
               ),
             );
             b.addEventListener("click", () => {
-              const play = (legacy: typeof l) => commit({ name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, legacy, step: 4 });
+              const play = (legacy: typeof l) => commit({ name: p.name, classId: p.classId, raceId: p.raceId, look: p.look, color: p.color, ...(p.gender ? { gender: p.gender } : {}), legacy, step: 4 });
               // Level 4 without a chosen improvement: choose first.
               if (!needsImprovement(saved)) return play(l);
               void chooseImprovement(saved).then((imp) => {
@@ -190,7 +210,7 @@ export function createCharacterView(initial: Draft, send: (d: Draft) => void): C
         )
       : null;
     if (!book.length) queueMicrotask(() => input.focus());
-    return [header("Wie heißt deine Figur?", "Deine Figur ist der Held, den du im Spiel steuerst."), h("div", { class: "field" }, input, dice), next, ...(bookSection ? [bookSection] : [])];
+    return [header("Wie heißt deine Figur?", "Deine Figur ist der Held, den du im Spiel steuerst."), h("div", { class: "field" }, input, dice), sexRow, next, ...(bookSection ? [bookSection] : [])];
   }
 
   function stepClass(): HTMLElement[] {

@@ -94,6 +94,16 @@ Erzähle diesen Moment in 2–3 packenden, bildhaften Sätzen nach – so, wie $
       return `Die Helden rasten am Lagerfeuer und erzählen sich etwas über sich:
 ${t.tales.map((x) => `- ${x.heroName} (gefragt: „${x.question}“): „${x.text}“`).join("\n")}
 Erzähle in 2–3 warmen, bildhaften Sätzen den Abend am Feuer und greife dabei mindestens eine Erzählung liebevoll auf. Merke dir die Erzählungen: Baue sie später in die Geschichte ein (ein Wiedersehen, eine Angst, die wahr wird, ein Wunsch, der sich erfüllt). Keine Monster, keine Probe.`;
+    case "npc_moment": {
+      const how: Record<string, string> = {
+        not_interested: "sie/er ist daran nicht interessiert (Romantik passt nicht) und lehnt freundlich, aber klar ab",
+        great: "es gefällt ihr/ihm richtig gut – sie/er ist ganz hingerissen",
+        yes: "es gefällt ihr/ihm, sie/er geht darauf ein",
+        no: "heute klappt es nicht, sie/er bleibt freundlich-distanziert",
+        too_much: "das war zu aufdringlich, sie/er ist verstimmt",
+      };
+      return `${t.heroName} flirtet mit ${t.npc}. Das Ergebnis steht schon fest: ${how[t.outcome] ?? t.outcome}. Antworte als ${t.npc} (npc_name, npc_text) genau nach ihrem/seinem Charakter und ihrer/seiner Sprechweise, jugendfrei, 1–2 Sätze; narration: ein kurzer Satz, was man sieht. Merke das in npc_memory.`;
+    }
     case "story_end":
       return "Das Abenteuer ist zu Ende. Wähle das passende Ende (ending) und erzähle einen kurzen Ausklang, der auf das zurückblickt, was die Helden erlebt haben.";
     default:

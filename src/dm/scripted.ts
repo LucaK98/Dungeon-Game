@@ -165,6 +165,10 @@ export class ScriptedDM implements DungeonMaster {
         const ending = pickEnding(this.story, ctx.truth, ctx.flags);
         return respond(ending.text, { choose_ending: ending.id, next: "end_scene" });
       }
+
+      case "npc_moment":
+        // The director has her own words ready (src/dm/npc-world.ts).
+        return respond([]);
     }
   }
 }

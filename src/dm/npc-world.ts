@@ -38,6 +38,10 @@ export interface NpcMind {
   facts: string[];
   /** Feelings towards each hero (by hero name): −10 … +10. */
   bond: Record<string, number>;
+  /** Romance with a hero (by name): 0 … 10 – separate from friendship. */
+  love?: Record<string, number>;
+  /** Heroes she had a rendezvous with, per adventure ("hero|adventure"). */
+  dates?: string[];
   /** Adventures she appeared in (to tell "we have met before"). */
   adventures: string[];
   firstMet: number;
@@ -73,7 +77,7 @@ function pickFrom<T>(list: readonly T[], key: string, salt: number): T {
 }
 
 const FEMALE_WORDS = /(^|\s)(frau|magd|hexe|muhme|vettel|mutter|oma|tante|königin|prinzessin|witwe|nonne|äbtissin|schwester|dame|jungfer)(\s|$)/i;
-const FEMALE_NAMES = /(^|\s)(gerda|irmgard|grete|walpurga|hildegard|adelheid|agnes|berta|elsa|frieda|gisela|hedwig|ilse|kunigunde|lieselotte|margarete|mechthild|ottilie|rosa|trude|ursula|wilma|anna|klara|lene|marthe|rike)\b/i;
+const FEMALE_NAMES = /(^|\s)(gerda|irmgard|grete|walpurga|walburga|hildegard|adelheid|agnes|berta|elsa|frieda|gisela|hedwig|ilse|kunigunde|lieselotte|margarete|mechthild|ottilie|rosa|rosalind|trude|ursula|wilma|anna|klara|lene|marthe|rike|brunhild|ragnhild|kriemhild|dietlinde|sieglinde|ortrun|fenja|mira|lina|greta|emma|lotte)\b/i;
 
 /** Female by title ("Müllerin", "Gräfin", "Frau …") or first name; otherwise male. */
 export function genderOf(name: string): Gender {
@@ -226,8 +230,11 @@ export function mindPrompt(mind: NpcMind, heroes: string[]): string {
     `Wünscht sich: ${p.wish}. Fürchtet: ${p.fear}. Mag: ${p.likes}. Mag nicht: ${p.dislikes}.`,
     `Geheimnis (nur andeuten): ${p.secret}. Romantik: ${romanceText(p)}.`,
     `Gefühle zu den Helden: ${bonds}.`,
+    heroes.some((h) => loveOf(mind, h) > 0) ? `Romantik: ${heroes.filter((h) => loveOf(mind, h) > 0).map((h) => `${h} ${loveLabel(loveOf(mind, h))} (${loveOf(mind, h)}/10)`).join(", ")}.` : "",
     mind.facts.length ? `Erinnert sich: ${mind.facts.slice(-6).join(" | ")}` : "Kennt die Helden noch nicht.",
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /** The first words when she sees heroes again she already knows (no AI needed). */
@@ -238,4 +245,113 @@ export function greetingFor(mind: NpcMind, heroes: string[]): string {
   const last = mind.facts[mind.facts.length - 1];
   const hello = b >= 5 ? `${who}! Wie schön, dich wiederzusehen!` : b >= 2 ? `Ah, ${who}! Ihr seid zurück.` : b <= -2 ? `Ihr schon wieder${who ? `, ${who}` : ""} …` : "Euch kenne ich doch!";
   return last ? `${hello} Ich weiß noch genau: ${last}` : hello;
+}
+
+// ---------------------------------------------------------------- romance
+
+export const LOVE_MAX = 10;
+/** From here on she is in love (a rendezvous can happen). */
+export const IN_LOVE = 5;
+
+export function loveOf(mind: NpcMind, hero: string): number {
+  return mind.love?.[hero] ?? 0;
+}
+
+export function changeLove(mind: NpcMind, hero: string, delta: number): number {
+  const next = Math.max(0, Math.min(LOVE_MAX, loveOf(mind, hero) + delta));
+  (mind.love ??= {})[hero] = next;
+  return next;
+}
+
+export function loveLabel(love: number): string {
+  if (love <= 0) return "";
+  if (love < 3) return "ein Funke";
+  if (love < IN_LOVE) return "geschmeichelt";
+  if (love < 8) return "verliebt";
+  return "sehr verliebt";
+}
+
+/** Can she fall for this hero at all? (Some people are not into romance, and each has a preference.) */
+export function attractedTo(mind: NpcMind, heroGender: Gender): boolean {
+  return mind.persona.romance.open && mind.persona.romance.likes.includes(heroGender);
+}
+
+/** How hard a flirt is: easier with a friend, harder with someone who distrusts you. */
+export function flirtDc(mind: NpcMind, hero: string): number {
+  const bond = bondOf(mind, hero);
+  const love = loveOf(mind, hero);
+  const shy = mind.persona.traits.some((t) => ["schüchtern", "misstrauisch", "stolz", "fromm"].includes(t)) ? 1 : 0;
+  return Math.max(8, Math.min(18, 14 - Math.floor(bond / 2) - Math.floor(love / 3) + shy));
+}
+
+export type FlirtOutcome = "not_interested" | "great" | "yes" | "no" | "too_much";
+
+/** What a flirt does: the outcome, and how love and friendship change. */
+export function flirtResult(mind: NpcMind, heroGender: Gender, roll: { total: number; dc: number } | undefined): { outcome: FlirtOutcome; love: number; bond: number } {
+  if (!attractedTo(mind, heroGender) || !roll) return { outcome: "not_interested", love: 0, bond: 0 };
+  const margin = roll.total - roll.dc;
+  if (margin >= 5) return { outcome: "great", love: 3, bond: 1 };
+  if (margin >= 0) return { outcome: "yes", love: 2, bond: 1 };
+  if (margin >= -5) return { outcome: "no", love: 0, bond: 0 };
+  return { outcome: "too_much", love: 0, bond: -1 };
+}
+
+const LINES: Record<FlirtOutcome, string[]> = {
+  not_interested: [
+    "Du bist wirklich nett, {hero} – aber da muss ich dich enttäuschen. Freunde?",
+    "Ach, {hero}. Das ehrt mich, aber mein Herz schlägt für andere.",
+    "Schmeichler! Aber nein, daraus wird nichts. Trotzdem danke.",
+  ],
+  great: [
+    "Oh … {hero}, du bringst mich ja ganz durcheinander.",
+    "So hat schon lange niemand mehr mit mir geredet. Bleib doch noch ein bisschen.",
+    "Du hast Mut, {hero}. Und Charme. Das gefällt mir sehr.",
+  ],
+  yes: [
+    "Hm, du bist ja ein ganz Netter. Erzähl mir mehr von dir.",
+    "Ich werde ja ganz rot … hör auf damit! Oder – nein, hör nicht auf.",
+    "Vielleicht zeigst du mir irgendwann mal, wie mutig du wirklich bist.",
+  ],
+  no: [
+    "Heute nicht, {hero}. Aber netter Versuch.",
+    "Hm. Versuch es vielleicht mit etwas weniger Getöse.",
+    "Ich kenne dich doch kaum. Mal sehen.",
+  ],
+  too_much: [
+    "Also wirklich! Was fällt dir ein, {hero}?",
+    "Das war jetzt ein bisschen zu viel des Guten.",
+    "Geh mir aus der Sonne, du Aufschneider.",
+  ],
+};
+
+/** Her answer in her own words (without the AI), different for different people. */
+export function flirtLine(mind: NpcMind, hero: string, outcome: FlirtOutcome, salt = 0): string {
+  const list = LINES[outcome];
+  return list[hash(`${npcKey(mind.name)}|${hero}`, salt) % list.length]!.replace("{hero}", hero);
+}
+
+/** Gifts: something she likes counts double. "Blumen" are herbs, "Gold" is gold, and so on. */
+const LIKE_ITEMS: Record<string, RegExp> = {
+  Blumen: /kraut|blume|blüte|herb/i,
+  "gutes Essen": /brot|ration|pilz|käse|wurst|essen|mushroom|food/i,
+  Gold: /^gold$/i,
+  Geschenke: /./,
+  Tiere: /fell|feder|horn/i,
+  "Musik und Lieder": /flöte|laute|horn/i,
+};
+
+export function giftValue(mind: NpcMind, itemId: string, itemName: string): { liked: boolean; bond: number } {
+  const re = LIKE_ITEMS[mind.persona.likes];
+  const liked = !!re && (re.test(itemId) || re.test(itemName));
+  return { liked, bond: liked ? 3 : 1 };
+}
+
+/** One rendezvous per couple and adventure. */
+export function canDate(mind: NpcMind, hero: string, adventure: string): boolean {
+  return loveOf(mind, hero) >= IN_LOVE && !(mind.dates ?? []).includes(`${hero}|${adventure}`);
+}
+
+export function markDate(mind: NpcMind, hero: string, adventure: string): void {
+  (mind.dates ??= []).push(`${hero}|${adventure}`);
+  if (mind.dates.length > 30) mind.dates.splice(0, mind.dates.length - 30);
 }

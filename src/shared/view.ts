@@ -34,6 +34,9 @@ export interface MiniCreature {
   bond?: number;
   mood?: string;
   memory?: string;
+  /** Romance with this hero: 0 … 10 and in a word ("verliebt"). */
+  love?: number;
+  loveLabel?: string;
 }
 
 export interface MiniMap {

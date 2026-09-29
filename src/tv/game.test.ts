@@ -344,3 +344,29 @@ describe("easier controls", () => {
     expect(d(thing!)).toBeLessThan(before);
   });
 });
+
+describe("flirting and gifts", () => {
+  it("passes a flirt and a gift for a character next to the hero on (the gift leaves the bag)", async () => {
+    const { game, session, last } = setup(4);
+    const hero = game.heroOf("p1")!;
+    const { createMonster } = await import("../engine/creatures");
+    const rosa = createMonster("commoner", "npc-rosa", { name: "Wirtin Rosa" });
+    rosa.side = "neutral";
+    const spot = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }].map((d) => ({ x: hero.pos!.x + d.x, y: hero.pos!.y + d.y })).find((p) => !Object.values(session.battle.creatures).some((c) => c.pos?.x === p.x && c.pos?.y === p.y))!;
+    rosa.pos = spot;
+    session.battle.creatures[rosa.id] = rosa;
+    const seen: string[] = [];
+    game.onFlirt = (_p, h, name) => seen.push(`flirt ${h.name} ${name}`);
+    game.onGift = (_p, h, name, itemId) => seen.push(`gift ${h.name} ${name} ${itemId}`);
+    game.handle("p1", { kind: "flirt", npcId: "npc-rosa" });
+    const potions = () => hero.pc!.inventory.find((i) => i.itemId === "potion-of-healing")?.qty ?? 0;
+    const before = potions();
+    game.handle("p1", { kind: "gift", npcId: "npc-rosa", itemId: "potion-of-healing" });
+    expect(seen).toEqual(["flirt Brunhild Wirtin Rosa", "gift Brunhild Wirtin Rosa potion-of-healing"]);
+    expect(potions()).toBe(before - 1);
+    // Nothing to give: a note, nothing happens.
+    game.handle("p1", { kind: "gift", npcId: "npc-rosa", itemId: "dragon-egg" });
+    expect(last("p1", "action_error")).toBeDefined();
+    expect(seen).toHaveLength(2);
+  });
+});

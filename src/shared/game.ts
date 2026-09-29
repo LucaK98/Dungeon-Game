@@ -187,7 +187,7 @@ export interface Creature {
   pos?: GridPos;
   /** Heroes: which phone controls them and how they look. */
   playerId?: PlayerId;
-  appearance?: { look: DollLook; color: string };
+  appearance?: { look: DollLook; color: string; /** For romance: whom a character can fall for. */ gender?: "female" | "male" };
   /** A tamed animal: whose it is, its name and gift (src/shared/companions.ts). */
   companion?: CompanionInfo & { ownerId: string };
   /** A companion's target, commanded by its hero ("Bello, fass den Goblin!"). */

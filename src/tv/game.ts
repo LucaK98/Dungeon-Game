@@ -206,8 +206,16 @@ export class GameController {
   /** How tough the world is (the dice stay honest). */
   difficulty: Difficulty = "normal";
   onFreeText: ((playerId: PlayerId, hero: Creature, text: string) => void) | undefined;
+  /** Flirting and gifts: the director decides with the character's memory (src/dm/npc-world.ts). */
+  onFlirt: ((playerId: PlayerId, hero: Creature, npcName: string) => void) | undefined;
+  onGift: ((playerId: PlayerId, hero: Creature, npcName: string, itemId: string, itemName: string) => void) | undefined;
   /** What a character feels about a hero and remembers last (the phone shows it on her card). */
-  npcNote: ((name: string, hero: string) => { bond: number; mood: string; memory?: string } | undefined) | undefined;
+  npcNote: ((name: string, hero: string) => { bond: number; mood: string; memory?: string; love?: number; loveLabel?: string; open?: boolean } | undefined) | undefined;
+
+  /** A short note for one player's phone. */
+  tellPlayer(playerId: PlayerId, reason: string): void {
+    this.sendTo(playerId, { type: "action_error", reason });
+  }
   /** Asks the game master for free-action ideas (set by the Director). */
   onSuggest: ((playerId: PlayerId, hero: Creature) => Promise<string[]>) | undefined;
   private lastSuggest = new Map<PlayerId, number>();
@@ -1295,6 +1303,42 @@ export class GameController {
       case "move":
         this.move(playerId, hero, action.to);
         return;
+      case "flirt":
+      case "gift": {
+        // Only with people, only outside a fight; a step closer first if needed.
+        const npc = this.battle.creatures[action.npcId];
+        if (!npc || npc.side !== "neutral" || npc.dead || !npc.pos || !hero.pos || npc.appearance) {
+          this.sendTo(playerId, { type: "action_error", reason: "Diese Person ist nicht hier." });
+          return;
+        }
+        if (this.mode === "combat") {
+          this.sendTo(playerId, { type: "action_error", reason: "Mitten im Kampf? Das hat Zeit bis später!" });
+          return;
+        }
+        if (Math.max(Math.abs(npc.pos.x - hero.pos.x), Math.abs(npc.pos.y - hero.pos.y)) > 1) {
+          this.walkTowards(playerId, hero, { pos: npc.pos, name: npc.name });
+          if (!hero.pos || Math.max(Math.abs(npc.pos.x - hero.pos.x), Math.abs(npc.pos.y - hero.pos.y)) > 1 || this.active()?.id !== hero.id) return;
+        }
+        if (action.kind === "gift") {
+          const inv = hero.pc?.inventory ?? [];
+          const entry = inv.find((i) => i.itemId === action.itemId);
+          const amount = action.itemId === "gold" ? 10 : 1;
+          if (!entry || entry.qty < amount) {
+            this.sendTo(playerId, { type: "action_error", reason: "Das hast du nicht dabei." });
+            return;
+          }
+          entry.qty -= amount;
+          if (entry.qty <= 0) inv.splice(inv.indexOf(entry), 1);
+          const name = action.itemId === "gold" ? "10 Goldmünzen" : itemTitle(action.itemId);
+          this.emit("speech", hero.id, `🎁 ${name}`);
+          this.onGift?.(playerId, hero, npc.name, action.itemId, name);
+          this.broadcast();
+          return;
+        }
+        this.emit("speech", hero.id, "🌹");
+        this.onFlirt?.(playerId, hero, npc.name);
+        return;
+      }
       case "go_use": {
         // Walk to the object, then use it right away if it is within reach.
         const o = this.map.objects.find((x) => x.id === action.objectId);
@@ -2108,7 +2152,7 @@ export class GameController {
       this.sendTo(h.playerId, {
         type: "hero_saved",
         hero: {
-          profile: { name: h.name, classId: h.pc.classId, raceId: h.pc.raceId, look: clean, color: h.appearance.color },
+          profile: { name: h.name, classId: h.pc.classId, raceId: h.pc.raceId, look: clean, color: h.appearance.color, ...(h.appearance.gender ? { gender: h.appearance.gender } : {}) },
           legacy: {
             // Beyond the story's own levels: a won adventure brings a hero from the book one level further (up to 5).
             level: Math.min(MAX_LEVEL, Math.max(h.pc.level, end.won && this.startLevels.has(h.id) ? this.startLevels.get(h.id)! + 1 : 0)),
@@ -3572,9 +3616,9 @@ export class GameController {
     return { x0, y0, w, h, frames, overlays, ground, marks, objects, creatures, reachable: mine && !this.pending ? this.reachable(me).filter(inWindow) : [], ...(light ? { light } : {}) };
   }
 
-  private noteFor(name: string, hero: string): { bond?: number; mood?: string; memory?: string } {
+  private noteFor(name: string, hero: string): { bond?: number; mood?: string; memory?: string; love?: number; loveLabel?: string } {
     const n = this.npcNote?.(name, hero);
-    return n ? { bond: n.bond, mood: n.mood, ...(n.memory ? { memory: n.memory } : {}) } : {};
+    return n ? { bond: n.bond, mood: n.mood, ...(n.memory ? { memory: n.memory } : {}), ...(n.love ? { love: n.love, loveLabel: n.loveLabel ?? "" } : {}) } : {};
   }
 
   /** Squares reachable with the movement left (8 directions, around creatures and obstacles). */

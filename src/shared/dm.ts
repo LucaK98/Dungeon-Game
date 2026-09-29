@@ -63,7 +63,9 @@ export type DmTrigger =
   | { kind: "final_blow"; heroName: string; bossName: string; text: string }
   /** The heroes rested at the campfire and told each other something about themselves. */
   | { kind: "campfire"; tales: { heroName: string; question: string; text: string }[] }
-  | { kind: "story_end" };
+  | { kind: "story_end" }
+  /** A moment with one character (a flirt, a gift): she answers in her own way. The rules decided the outcome. */
+  | { kind: "npc_moment"; playerId: PlayerId; heroName: string; npc: string; what: "flirt"; outcome: string };
 
 export type DmNext = "await_roll" | "await_action" | "start_combat" | "end_scene";
 

@@ -61,7 +61,7 @@ export function createSession(rng: Rng, opts: SessionOptions): GameSession {
       ...(legacy?.improvements?.length ? { improvements: legacy.improvements } : {}),
     });
     c.playerId = playerId;
-    c.appearance = { look: { ...profile.look }, color: profile.color };
+    c.appearance = { look: { ...profile.look }, color: profile.color, ...(profile.gender ? { gender: profile.gender } : {}) };
     // Healing potions by difficulty (a hero from the hero book keeps the ones they saved up).
     if (c.pc) {
       const want = Math.max(DIFFICULTY[opts.difficulty ?? "normal"].potions, legacy?.potions ?? 0);
