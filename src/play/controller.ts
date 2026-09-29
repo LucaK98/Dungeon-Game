@@ -374,7 +374,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     if ("vibrate" in navigator) navigator.vibrate(12);
     remember(c);
     if (c.action.kind === "free_text") return freeText();
-    if (c.action.kind === "cast" && view) maybeHint(playerId(), "first_spell", view.beginnerMode, hintSlot);
+    if (c.action.kind === "cast" && view) maybeHint(playerId(), "first_spell", loadPrefs().tips, hintSlot);
     if (c.targets && !(c.action.kind === "cast" && c.action.targetIds.length)) return pickTargets(c);
     send(c.action);
   }
@@ -706,7 +706,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
             { class: l.npc ? "st-line npc" : "st-line" },
             l.npc ? h("strong", {}, `${l.npc}: `) : "",
             l.text,
-            l.tip && v.beginnerMode ? h("span", { class: "st-tip", dataset: { help: l.tip.key } }, `💡 ${l.tip.text}`) : "",
+            l.tip && loadPrefs().tips ? h("span", { class: "st-tip", dataset: { help: l.tip.key } }, `💡 ${l.tip.text}`) : "",
           ),
         ),
     );
@@ -1583,17 +1583,17 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     renderBottomBar(view);
     bigMapDraw?.();
     const pid = playerId();
-    if (view.mode === "combat") maybeHint(pid, "first_fight", view.beginnerMode, hintSlot);
-    if (view.turn.mine) maybeHint(pid, "first_turn", view.beginnerMode, hintSlot);
-    if (view.minimap.creatures.some((c) => c.enemy)) maybeHint(pid, "first_enemy", view.beginnerMode, hintSlot);
+    if (view.mode === "combat") maybeHint(pid, "first_fight", loadPrefs().tips, hintSlot);
+    if (view.turn.mine) maybeHint(pid, "first_turn", loadPrefs().tips, hintSlot);
+    if (view.minimap.creatures.some((c) => c.enemy)) maybeHint(pid, "first_enemy", loadPrefs().tips, hintSlot);
     const mm = view.minimap;
     const marks = mm.marks ?? "";
-    if (marks.includes("f")) maybeHint(pid, "first_fire", view.beginnerMode, hintSlot);
-    if (view.mode === "combat" && marks.includes("c")) maybeHint(pid, "first_cover", view.beginnerMode, hintSlot);
-    if (view.turn.mine && mm.reachable.some((p) => "di".includes(marks[(p.y - mm.y0) * mm.w + (p.x - mm.x0)] ?? "."))) maybeHint(pid, "first_rough", view.beginnerMode, hintSlot);
-    if (view.choices.some((c) => c.action.kind === "interact" && "use" in c.action && c.action.use && c.enabled)) maybeHint(pid, "first_prop", view.beginnerMode, hintSlot);
-    if (me.hp === 0) maybeHint(pid, "first_down", view.beginnerMode, hintSlot);
-    else if (me.hp < me.maxHp) maybeHint(pid, "first_damage", view.beginnerMode, hintSlot);
+    if (marks.includes("f")) maybeHint(pid, "first_fire", loadPrefs().tips, hintSlot);
+    if (view.mode === "combat" && marks.includes("c")) maybeHint(pid, "first_cover", loadPrefs().tips, hintSlot);
+    if (view.turn.mine && mm.reachable.some((p) => "di".includes(marks[(p.y - mm.y0) * mm.w + (p.x - mm.x0)] ?? "."))) maybeHint(pid, "first_rough", loadPrefs().tips, hintSlot);
+    if (view.choices.some((c) => c.action.kind === "interact" && "use" in c.action && c.action.use && c.enabled)) maybeHint(pid, "first_prop", loadPrefs().tips, hintSlot);
+    if (me.hp === 0) maybeHint(pid, "first_down", loadPrefs().tips, hintSlot);
+    else if (me.hp < me.maxHp) maybeHint(pid, "first_damage", loadPrefs().tips, hintSlot);
   }
 
   let goalShown = false;
@@ -1673,7 +1673,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         dice?.close();
         diceFor = prompt.id;
         dice = showRollPrompt(prompt, () => send({ kind: "roll", rollId: prompt.id }));
-        if (view) maybeHint(playerId(), "first_roll", view.beginnerMode, document.querySelector(".dice-panel") ?? body);
+        if (view) maybeHint(playerId(), "first_roll", loadPrefs().tips, document.querySelector(".dice-panel") ?? body);
       };
       waitingPrompt = prompt;
       // Let the player see the result of the previous roll first.

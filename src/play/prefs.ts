@@ -11,6 +11,8 @@ export interface PhonePrefs {
   shake: boolean;
   /** The roll result closes by itself after a few seconds. */
   autoClose: boolean;
+  /** Beginner tips (small bubbles explaining things the first time). Off unless switched on. */
+  tips: boolean;
 }
 
 const KEY = "couch-dungeon.phone-prefs";
@@ -18,9 +20,9 @@ const KEY = "couch-dungeon.phone-prefs";
 export function loadPrefs(): PhonePrefs {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<PhonePrefs>;
-    return { simple: !!raw.simple, autoEnd: !!raw.autoEnd, shake: raw.shake !== false, autoClose: raw.autoClose !== false };
+    return { simple: !!raw.simple, autoEnd: !!raw.autoEnd, shake: raw.shake !== false, autoClose: raw.autoClose !== false, tips: !!raw.tips };
   } catch {
-    return { simple: false, autoEnd: false, shake: true, autoClose: true };
+    return { simple: false, autoEnd: false, shake: true, autoClose: true, tips: false };
   }
 }
 

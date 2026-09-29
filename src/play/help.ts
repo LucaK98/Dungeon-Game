@@ -220,7 +220,7 @@ function openMenu(ctx: HelpContext): void {
     if (search.value.trim() && !results.childElementCount) results.append(h("p", { class: "lead" }, "Nichts gefunden. Versuch ein anderes Wort."));
   });
   const view = ctx.view();
-  const beginner = h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: view?.beginnerMode ?? true }), h("span", {}, "Anfängermodus: Tipps und Empfehlungen zeigen"));
+  const beginner = h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: view?.beginnerMode ?? true }), h("span", {}, "Vorschläge zeigen (im Kampf: welcher Angriff gerade gut passt)"));
   beginner.querySelector("input")!.addEventListener("change", (e) => ctx.setBeginnerMode((e.target as HTMLInputElement).checked));
   const askBtn = ctx.askRules ? h("button", { class: "btn secondary", type: "button", textContent: "🧙 Frag den Spielleiter" }) : null;
   askBtn?.addEventListener("click", () => askSheet((q) => ctx.askRules!(q)));
@@ -242,6 +242,7 @@ function openMenu(ctx: HelpContext): void {
   const phone = ctx.onPrefs
     ? [
         h("h3", { class: "prefs-title" }, "📱 Dieses Handy"),
+        toggle("tips", "💡 Tipps für Anfänger (kurze Erklärungen, wenn etwas zum ersten Mal vorkommt)"),
         toggle("simple", "Einfache Ansicht: nur die wichtigsten Aktionen (alles andere hinter „Alle Aktionen“)"),
         toggle("autoEnd", "Zug nach meiner Aktion automatisch beenden"),
         toggle("shake", "Würfeln durch Schütteln", allowMotion),
