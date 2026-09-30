@@ -4,7 +4,7 @@ import type { Story } from "../../shared/story";
 import storyJson from "../stories/drachenfels.json";
 import { AiDM, coerceAiAnswer } from "./aidm";
 import { allowedClues } from "./prompt";
-import { GeminiProvider, LlmError, type LlmProvider } from "./provider";
+import { GeminiProvider, LlmError, thinkingFor, type LlmProvider } from "./provider";
 import { sceneById } from "../planner";
 
 const STORY = storyJson as unknown as Story;
@@ -39,6 +39,28 @@ describe("Gemini provider", () => {
     expect(url).not.toContain("AQ.");
     expect(url).toContain("/models/gemini-flash-latest:generateContent");
     expect(body!.generationConfig.responseMimeType).toBe("application/json");
+  });
+
+  it("asks for little thinking, fitting to the model", () => {
+    expect(thinkingFor("gemini-flash-latest")).toEqual({ thinkingLevel: "low" });
+    expect(thinkingFor("gemini-3.1-flash-lite-preview")).toEqual({ thinkingLevel: "low" });
+    expect(thinkingFor("gemini-2.5-flash")).toEqual({ thinkingBudget: 0 });
+    expect(thinkingFor("gemini-2.5-pro")).toEqual({ thinkingBudget: 128 });
+    expect(thinkingFor("gemini-2.0-flash")).toBeUndefined();
+  });
+
+  it("sends the thinking setting, and without it if the model does not know it", async () => {
+    const bodies: { generationConfig: { thinkingConfig?: unknown } }[] = [];
+    const fakeFetch = (async (_u: string, init: RequestInit) => {
+      const b = JSON.parse(init.body as string);
+      bodies.push(b);
+      if (b.generationConfig.thinkingConfig) return new Response('{"error":{"message":"Thinking level is not supported for this model."}}', { status: 400 });
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"narration":"Hallo"}' }] } }] }), { status: 200 });
+    }) as typeof fetch;
+    const out = await new GeminiProvider("k", "gemini-flash-latest", fakeFetch).complete({ system: "s", prompt: "p", schema: {} });
+    expect(out).toEqual({ narration: "Hallo" });
+    expect(bodies[0]!.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "low" });
+    expect(bodies[1]!.generationConfig.thinkingConfig).toBeUndefined();
   });
 
   it("reports the rate limit as a limit error", async () => {

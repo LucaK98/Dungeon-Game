@@ -45,18 +45,47 @@ function reply(body: unknown, status: number, headers: Record<string, string>): 
   return new Response(JSON.stringify(body), { status, headers: { ...headers, "Content-Type": "application/json" } });
 }
 
+/**
+ * Little thinking: newer Gemini models think before answering, which costs like answer tokens
+ * and makes the game master slower – for telling a story it hardly helps. Gemini 3 and the
+ * "-latest" aliases take a level, 2.5 Flash/Flash-Lite a budget (0 = off; Pro needs at least 128),
+ * older models none. A model that does not understand it gets the request again without it.
+ */
+function thinkingFor(model: string): Record<string, unknown> | undefined {
+  const m = model.toLowerCase();
+  if (/gemini-(1\.|2\.0)/.test(m)) return undefined;
+  if (/gemini-2\.5-pro/.test(m)) return { thinkingBudget: 128 };
+  if (/gemini-2\.5/.test(m)) return { thinkingBudget: 0 };
+  if (/gemini/.test(m)) return { thinkingLevel: "low" };
+  return undefined;
+}
+
 async function gemini(key: string, model: string, body: { system: string; prompt: string; schema: unknown; maxTokens: number }) {
-  const res = await fetch(`${GEMINI}/models/${encodeURIComponent(model)}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: body.system }] },
-      contents: [{ role: "user", parts: [{ text: body.prompt }] }],
-      generationConfig: { responseMimeType: "application/json", responseSchema: body.schema, temperature: 0.9, maxOutputTokens: body.maxTokens },
-    }),
-    signal: AbortSignal.timeout(20_000),
-  });
-  const text = await res.text();
+  const thinking = thinkingFor(model);
+  const send = (withThinking: boolean) =>
+    fetch(`${GEMINI}/models/${encodeURIComponent(model)}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: body.system }] },
+        contents: [{ role: "user", parts: [{ text: body.prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: body.schema,
+          temperature: 0.9,
+          maxOutputTokens: body.maxTokens,
+          ...(withThinking && thinking ? { thinkingConfig: thinking } : {}),
+        },
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+  let res = await send(true);
+  let text = await res.text();
+  // The model does not know this thinking setting: once more without it.
+  if (res.status === 400 && thinking && /think/i.test(text)) {
+    res = await send(false);
+    text = await res.text();
+  }
   if (!res.ok) return { status: res.status, error: text.slice(0, 300) };
   const data = JSON.parse(text) as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
   const out = (data.candidates?.[0]?.content?.parts ?? []).filter((p) => !p.thought && typeof p.text === "string").map((p) => p.text).join("");

@@ -85,7 +85,8 @@ export class GeminiProvider implements LlmProvider {
 
   async complete(req: LlmRequest): Promise<unknown> {
     const model = this.model.replace(/^models\//, "");
-    const body = {
+    const thinking = thinkingFor(model);
+    const body = (withThinking: boolean) => ({
       systemInstruction: { parts: [{ text: req.system }] },
       contents: [{ role: "user", parts: [{ text: req.prompt }] }],
       generationConfig: {
@@ -93,16 +94,24 @@ export class GeminiProvider implements LlmProvider {
         responseSchema: req.schema,
         temperature: 0.9,
         maxOutputTokens: req.maxTokens ?? 2048,
+        ...(withThinking && thinking ? { thinkingConfig: thinking } : {}),
       },
-    };
+    });
     return withTimeout(this.timeoutMs, async (signal) => {
-      const res = await this.fetchFn(`${GEMINI}/models/${encodeURIComponent(model)}:generateContent`, {
-        method: "POST",
-        headers: this.headers(),
-        body: JSON.stringify(body),
-        signal,
-      });
-      const text = await res.text();
+      const send = (withThinking: boolean) =>
+        this.fetchFn(`${GEMINI}/models/${encodeURIComponent(model)}:generateContent`, {
+          method: "POST",
+          headers: this.headers(),
+          body: JSON.stringify(body(withThinking)),
+          signal,
+        });
+      let res = await send(true);
+      let text = await res.text();
+      // The model does not know this thinking setting: once more without it.
+      if (res.status === 400 && thinking && /think/i.test(text)) {
+        res = await send(false);
+        text = await res.text();
+      }
       if (!res.ok) throw httpError(res.status, text);
       const data = JSON.parse(text) as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
       const parts = data.candidates?.[0]?.content?.parts ?? [];
@@ -130,6 +139,21 @@ export class GeminiProvider implements LlmProvider {
  * The AI on the server (Supabase Edge Function "dm", see supabase/functions/dm). The Gemini key
  * lives there as a secret; the TV only sends the prompt. The function also does the Flash-Lite fallback.
  */
+/**
+ * Little thinking: newer Gemini models think before answering, which costs like answer tokens
+ * and makes the game master slower – for telling a story it hardly helps. Gemini 3 and the
+ * "-latest" aliases take a level, 2.5 Flash/Flash-Lite a budget (0 = off; Pro needs at least 128),
+ * older models none. A model that does not understand it gets the request again without it.
+ */
+export function thinkingFor(model: string): Record<string, unknown> | undefined {
+  const m = model.toLowerCase();
+  if (/gemini-(1\.|2\.0)/.test(m)) return undefined;
+  if (/gemini-2\.5-pro/.test(m)) return { thinkingBudget: 128 };
+  if (/gemini-2\.5/.test(m)) return { thinkingBudget: 0 };
+  if (/gemini/.test(m)) return { thinkingLevel: "low" };
+  return undefined;
+}
+
 export class ServerProvider implements LlmProvider {
   readonly id = "server" as const;
   readonly model = "server";
