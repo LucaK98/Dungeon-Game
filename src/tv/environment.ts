@@ -54,6 +54,16 @@ function igniteCell(map: DungeonMap, p: GridPos, lines: ExplainedLine[], turns =
   map.surface[i] = { kind: "fire", turns: thing.prop === "web" ? 1 : thing.prop === "hay" ? turns + 1 : turns };
   lines.push({ text: `🔥 ${def ? PROPS[thing.prop!].name : "Das Fass"} fängt Feuer!`, glossarKeys: ["feuer"] });
   burnUp(map, thing);
+  // Chain reaction: a burning barrel bursts and splashes burning oil around.
+  if (thing.kind === "barrel") {
+    for (const q of around(p)) {
+      if (!inBounds(map, q.x, q.y) || (q.x === p.x && q.y === p.y) || map.cells[cellIndex(map, q.x, q.y)] !== "floor") continue;
+      const k = cellIndex(map, q.x, q.y);
+      if (map.surface[k]?.kind === "puddle") continue;
+      map.surface[k] = { kind: "fire", turns: 2 };
+    }
+    lines.push({ text: "💥 Das Fass platzt – brennendes Öl spritzt nach allen Seiten!", glossarKeys: ["feuer"] });
+  }
   return true;
 }
 

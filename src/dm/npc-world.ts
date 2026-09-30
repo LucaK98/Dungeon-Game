@@ -67,6 +67,8 @@ export interface NpcMind {
 export interface NpcWorld {
   version: 1;
   npcs: Record<string, NpcMind>;
+  /** What people tell each other (newest last): deeds of the heroes and what they said. */
+  rumors?: { text: string; from: string }[];
   /** Adventures played to the end on this TV (children grow with it). */
   clock?: number;
 }
@@ -613,4 +615,30 @@ export function familyView(world: NpcWorld, hero: string): FamilyView | undefine
     });
   }
   return v;
+}
+
+// ---------------------------------------------------------------- rumours
+
+export const MAX_RUMORS = 12;
+
+/** Something people will talk about (from: who saw or heard it first). */
+export function spreadRumor(world: NpcWorld, text: string, from: string): void {
+  const list = (world.rumors ??= []);
+  if (list.some((r) => r.text === text)) return;
+  list.push({ text: text.slice(0, 140), from });
+  if (list.length > MAX_RUMORS) list.splice(0, list.length - MAX_RUMORS);
+}
+
+/** A character picks up what others tell (at most `max` new things, never her own). */
+export function hearRumors(world: NpcWorld, mind: NpcMind, max = 1): string[] {
+  const heard: string[] = [];
+  for (const r of [...(world.rumors ?? [])].reverse()) {
+    if (heard.length >= max) break;
+    if (r.from === mind.name) continue;
+    const fact = `Man erzählt sich: ${r.text}`;
+    if (mind.facts.includes(fact)) continue;
+    remember(mind, fact);
+    heard.push(r.text);
+  }
+  return heard;
 }

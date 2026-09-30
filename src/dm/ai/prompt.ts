@@ -90,7 +90,7 @@ function triggerText(t: DmTrigger): string {
 PASSENDE REGELN AUS DEM GLOSSAR: ${t.glossary.map((g) => `${g.title}: ${g.text}`).join(" || ") || "keine gefunden"}
 Antworte in answer kurz (2–4 Sätze), freundlich und für Einsteiger verständlich, nur mit Regeln aus dem Glossar oder aus dem Spielstand. Erfinde keine Regeln. Sag konkret, was der Held jetzt tun kann. narration darf leer bleiben.`;
     case "suggest":
-      return `${t.heroName} fragt: „Was könnte ich jetzt tun?“ Schlage 3 kurze, kreative Ideen für freie Aktionen vor (Ich-Form, je höchstens 8 Wörter), die zur Lage, zur Umgebung und zu den Figuren passen. narration darf leer bleiben.`;
+      return `${t.heroName} fragt: „Was könnte ich jetzt tun?“ Schlage 3 kurze, kreative Ideen für freie Aktionen vor (Ich-Form, je höchstens 8 Wörter, vorne ein passendes Emoji), die zur Lage passen und die DINGE und LEUTE aus der Umgebung nutzen (Fass rollen, auf den Tisch klettern, Kerzen umwerfen, die Wirtin nach dem Weg fragen …). narration darf leer bleiben.`;
     case "idle":
       return `Seit ${t.seconds} Sekunden hat niemand etwas getan. Erzähle in 1 Satz etwas Kleines, das neugierig macht: ein Geräusch, eine Bewegung, ein Geruch – oder eine Figur murmelt etwas (npc_say, passend zu ihrem Charakter). Wiederhole NICHT das Ziel und verrate keine Lösung. Keine Monster, keine Effekte, keine Probe.`;
     case "final_blow":
@@ -176,6 +176,7 @@ export function responseSchema(story: Story, ctx: DmContext, trigger: DmTrigger)
   if (trigger.kind === "free_text") {
     properties.roll_skill = S("Fertigkeit für eine Probe oder none", { enum: ["none", ...SKILL_IDS] });
     properties.roll_dc = { type: "INTEGER", description: "Schwierigkeit 8–18, 0 wenn keine Probe" };
+    properties.rueckfrage = S("Nur wenn die Idee wirklich unklar ist (z. B. „Ich mache was“): eine kurze Rückfrage an den Spieler, sonst leer");
     properties.plan = S("Bei einer Probe: was bei Erfolg passiert, in höchstens 8 Wörtern (z. B. „Das Fass rollt auf die Goblins“)");
   }
   if (trigger.kind === "free_text" || trigger.kind === "roll_result") {

@@ -237,10 +237,29 @@ export class GameController {
   onPropose: ((playerId: PlayerId, hero: Creature, npcName: string) => boolean) | undefined;
   /** Whom a hero is married to / engaged with (the phone shows it). */
   familyOf: ((hero: string) => FamilyView | undefined) | undefined;
+  /** A hero did something people remember ("Feuer gelegt"): the characters of the scene keep it in mind. */
+  onDeed: ((hero: string, deed: string) => void) | undefined;
   /** Family wishes from the phone: returns an error text, or undefined when it worked. */
   onFamily: ((hero: Creature, act: Extract<PlayerAction, { kind: "family" }>) => string | undefined) | undefined;
   /** What a character feels about a hero and remembers last (the phone shows it on her card). */
   npcNote: ((name: string, hero: string) => { bond: number; mood: string; memory?: string; love?: number; loveLabel?: string; tie?: "spouse" | "engaged" } | undefined) | undefined;
+
+  /** Brilliant ideas this map (EP for at most two). */
+  private ideasRewarded = 0;
+
+  /** A free action worked brilliantly: it counts for the look back, and the first two per map give EP. */
+  creativeIdea(hero: Creature): void {
+    const stats = this.statsOf(hero.id);
+    stats.greatIdeas = (stats.greatIdeas ?? 0) + 1;
+    if (this.ideasRewarded >= 2) return;
+    this.ideasRewarded++;
+    this.awardXp(10, `💡 geniale Idee von ${hero.name}`);
+  }
+
+  /** Two heroes act together: the one who acts gets advantage on the next roll. */
+  teamUp(hero: Creature, friend: Creature): void {
+    addEffect(hero, "helped", 99, friend.id);
+  }
 
   /** A free action was taken back before the throw: its action is free again. */
   refundFreeAction(hero: Creature): void {
@@ -728,9 +747,30 @@ export class GameController {
         case "pass_item":
         case "feed_potion":
         case "improvised":
-        case "set_trap": {
+        case "set_trap":
+        case "wall_break":
+        case "collapse":
+        case "leap":
+        case "pounce":
+        case "noise":
+        case "errand":
+        case "disguise":
+        case "interrogate":
+        case "feud":
+        case "disarm":
+        case "hurl": {
           const line = this.worldEffect(e, actor);
-          if (line) lines.push(line);
+          if (line) {
+            lines.push(line);
+            // What people will remember (and talk about): fire, smashing, walls and ceilings.
+            const deed =
+              e.kind === "ground" && e.surface === "fire" ? "Feuer gelegt" :
+              e.kind === "object" && e.how === "ignite" ? "etwas in Brand gesteckt" :
+              e.kind === "object" && e.how === "smash" ? "etwas kurz und klein geschlagen" :
+              e.kind === "wall_break" ? "eine Wand eingerissen" :
+              e.kind === "collapse" ? "die Decke einstürzen lassen" : undefined;
+            if (deed) this.onDeed?.(actor.name, deed);
+          }
           break;
         }
         case "cost": {
@@ -769,8 +809,12 @@ export class GameController {
     return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
   }
 
-  /** One barricade per map (it must not wall the game shut). */
+  /** One barricade per map (it must not wall the game shut); one broken wall and one caved-in ceiling, too. */
   private barricades = 0;
+  private wallsBroken = 0;
+  private collapses = 0;
+  /** Characters who ran an errand, foes who were questioned (once each). */
+  private errands = new Set<string>();
   /** Characters who already gave something (once per adventure). */
   private gave = new Set<string>();
 
@@ -826,13 +870,20 @@ export class GameController {
           cells.push(p);
         }
         const extra: string[] = [];
+        let doused = 0;
         for (const p of cells) {
           const i = cellIndex(this.map, p.x, p.y);
           if (e.surface === "fire") {
             if (this.map.surface[i]?.kind === "puddle") continue;
             this.map.surface[i] = { kind: "fire", turns: 2 };
-          } else this.map.surface[i] = { kind: e.surface };
+          } else {
+            if (this.map.surface[i]?.kind === "fire" && (e.surface === "puddle" || e.surface === "mud" || e.surface === "ice")) doused++;
+            // Oil on fire only feeds it.
+            if (e.surface === "oil" && this.map.surface[i]?.kind === "fire") continue;
+            this.map.surface[i] = { kind: e.surface };
+          }
         }
+        if (doused) extra.push("💨 Zischend geht das Feuer aus!");
         if (e.surface === "fire") extra.push(...fireHits(this.map, this.envRng, [t]).lines.map((l) => l.text));
         this.syncWorld();
         fx(e.surface === "fire" ? "shake" : e.surface === "puddle" || e.surface === "ice" ? "splash" : "puff", t);
@@ -862,11 +913,10 @@ export class GameController {
             fx("shake", o);
             return `💥 ${actor.name} zerschlägt ${name} in tausend Stücke.`;
           case "ignite": {
-            if (o.kind === "prop" && !propDef(o)?.flammable) return `🔥 ${name} brennt nicht.`;
-            this.map.surface ??= {};
-            const i = cellIndex(this.map, o.x, o.y);
-            this.map.surface[i] = { kind: "fire", turns: 3 };
-            const extra = fireHits(this.map, this.envRng, [{ x: o.x, y: o.y }]).lines.map((l) => l.text);
+            if (!propDef(o)?.flammable && o.kind !== "barrel") return `🔥 ${name} brennt nicht.`;
+            // Through the room's fire rules: barrels burst, oil catches, neighbours may catch too.
+            const lit = setAlight(this.map, o).lines.map((l) => l.text);
+            const extra = [...lit.filter((t) => !t.includes("fängt Feuer")), ...fireHits(this.map, this.envRng, [{ x: o.x, y: o.y }]).lines.map((l) => l.text)];
             this.syncWorld();
             fx("shake", o);
             return [`🔥 ${actor.name} setzt ${name} in Brand!`, ...extra].join(" ");
@@ -1034,6 +1084,201 @@ export class GameController {
         applyDamage(this.rng, t, total);
         fx("shake", t.pos);
         return `🍳 ${actor.name} haut ${t.name} mit etwas Improvisiertem eins über: ${d.total}${abilityMod(actor.abilities.STR) ? ` ${abilityMod(actor.abilities.STR) > 0 ? "+" : "−"} ${Math.abs(abilityMod(actor.abilities.STR))}` : ""} = ${total} Schaden${t.dead ? ` – ${t.name} ist besiegt!` : "."}`;
+      }
+      case "wall_break": {
+        if (this.wallsBroken >= 1) return `🧱 Die Wände hier halten – eine zweite gibt nicht nach.`;
+        const map = this.map;
+        const toward = e.target ? this.resolveRef(e.target, actor)?.pos : undefined;
+        const inner = (x: number, y: number) => x > 0 && y > 0 && x < map.width - 1 && y < map.height - 1;
+        const walls = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+          .map((d) => ({ d, p: { x: pos.x + d.x, y: pos.y + d.y } }))
+          .filter(({ p }) => inner(p.x, p.y) && map.cells[cellIndex(map, p.x, p.y)] === "wall")
+          .sort((a, b) => (toward ? this.cheb(a.p, toward) - this.cheb(b.p, toward) : 0));
+        const pick = walls.find(({ d, p }) => map.cells[cellIndex(map, p.x + d.x, p.y + d.y)] === "floor") ?? walls[0];
+        if (!pick) return `🧱 Hier ist keine Wand zum Einreißen.`;
+        this.wallsBroken++;
+        const here = cellIndex(map, pos.x, pos.y);
+        const open = (p: GridPos) => {
+          const i = cellIndex(map, p.x, p.y);
+          map.cells[i] = "floor";
+          map.frames[i] = map.frames[here]!;
+          map.roomOf[i] = map.roomOf[here] ?? -1;
+          map.explored[i] = true;
+          map.objects.push({ id: `rubble${++this.rollCounter}`, kind: "prop", prop: "rubble", x: p.x, y: p.y, frame: "rubble", blocking: false });
+        };
+        open(pick.p);
+        const beyond = { x: pick.p.x + pick.d.x, y: pick.p.y + pick.d.y };
+        if (map.cells[cellIndex(map, beyond.x, beyond.y)] === "wall" && inner(beyond.x, beyond.y) && map.cells[cellIndex(map, beyond.x + pick.d.x, beyond.y + pick.d.y)] === "floor") open(beyond);
+        revealAround(map, pick.p, 4);
+        this.syncWorld();
+        this.emit("mapChanged");
+        fx("shake", pick.p);
+        return `💥 ${actor.name} rammt die morsche Wand – sie bricht krachend ein! Ein neuer Durchgang.`;
+      }
+      case "collapse": {
+        if (this.collapses >= 1) return `🪨 Die Decke hier hält.`;
+        const t = this.resolveRef(e.target, actor)?.pos;
+        if (!t || this.cheb(pos, t) > 8) return undefined;
+        this.collapses++;
+        const out: string[] = [`🪨 Ein Knirschen – dann bricht über ${this.resolveRef(e.target, actor)?.name ?? "der Stelle"} die Decke ein!`];
+        for (const c of Object.values(this.battle.creatures)) {
+          if (!c.pos || c.dead || this.cheb(c.pos, t) > 1) continue;
+          const save = savingThrow(this.rng, c, "DEX", this.sg(13));
+          const d = rollDice(this.rng, parseDice("2d6")).total;
+          const dmg = save.success ? Math.floor(d / 2) : d;
+          applyDamage(this.rng, c, dmg);
+          out.push(`${c.name}: ${dmg} Schaden${save.success ? " (ausgewichen, halbiert)" : ""}${c.dead ? " – besiegt!" : ""}.`);
+        }
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+          const p = { x: t.x + dx, y: t.y + dy };
+          if (this.map.cells[cellIndex(this.map, p.x, p.y)] !== "floor" || this.map.objects.some((o) => o.x === p.x && o.y === p.y) || this.envRng.next() < 0.4) continue;
+          this.map.objects.push({ id: `rubble${++this.rollCounter}`, kind: "prop", prop: "rubble", x: p.x, y: p.y, frame: "rubble", blocking: false });
+        }
+        this.syncWorld();
+        fx("shake", t);
+        return out.join(" ");
+      }
+      case "leap": {
+        const goal = this.resolveRef(e.target, actor);
+        if (!goal) return undefined;
+        const free = (p: GridPos) => isWalkable(this.map, p) && !Object.values(this.battle.creatures).some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y) && !this.map.objects.some((o) => o.blocking && o.x === p.x && o.y === p.y);
+        const land = goal.creature || goal.object?.blocking || !free(goal.pos) ? besideFree(this.map, this.battle, goal.pos) : goal.pos;
+        if (this.cheb(pos, land) > 4) return `🤸 Das ist zu weit für einen Sprung (höchstens 4 Felder).`;
+        actor.pos = { ...land };
+        actor.effects = actor.effects.filter((x) => x.id !== "elevated");
+        revealAround(this.map, land);
+        this.syncWorld();
+        fx("puff", land);
+        return `🤸 ${actor.name} nimmt Anlauf und springt – ${goal.creature || goal.object ? `landet bei ${goal.name}` : "landet sicher auf der anderen Seite"}!`;
+      }
+      case "pounce": {
+        const t = enemy(e.target);
+        if (!t?.pos) return undefined;
+        const high = hasEffect(actor, "elevated") || (this.battle.terrain?.high ?? []).includes(`${pos.x},${pos.y}`);
+        if (!high) return `🦅 ${actor.name} steht nicht erhöht – erst hochklettern, dann springen!`;
+        if (this.cheb(pos, t.pos) > 3) return `🦅 ${t.name} ist zu weit weg für einen Sprung.`;
+        actor.pos = besideFree(this.map, this.battle, t.pos);
+        actor.effects = actor.effects.filter((x) => x.id !== "elevated");
+        const d = rollDice(this.rng, parseDice("1d6"));
+        const dmg = Math.max(1, d.total + abilityMod(actor.abilities.STR));
+        applyDamage(this.rng, t, dmg);
+        if (!t.dead && ["tiny", "small", "medium"].includes(t.size)) addCondition(t, { id: "prone" });
+        this.syncWorld();
+        fx("shake", t.pos);
+        return `🦅 ${actor.name} springt von oben auf ${t.name}: ${dmg} Schaden${t.dead ? ` – ${t.name} ist besiegt!` : ` und ${t.name} liegt am Boden!`}`;
+      }
+      case "noise": {
+        const spot = (e.target && this.resolveRef(e.target, actor)?.pos) || pos;
+        const staged = this.staged;
+        if (!staged) return e.how === "loud" ? `📢 ${actor.name} macht einen Heidenlärm – aber nichts regt sich.` : `🪨 Der Stein klackert über den Boden. Niemand reagiert.`;
+        if (e.how === "loud") {
+          this.engage(false, `📢 ${actor.name}s Lärm weckt sie auf – zu den Waffen!`);
+          return undefined;
+        }
+        const free = (p: GridPos) => isWalkable(this.map, p) && !Object.values(this.battle.creatures).some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
+        for (const m of staged.spawned) {
+          if (!m.pos || m.dead || this.bossIds.has(m.id)) continue;
+          let at: GridPos = m.pos;
+          for (let n = 0; n < 4; n++) {
+            const next: GridPos = { x: at.x + Math.sign(spot.x - at.x), y: at.y + Math.sign(spot.y - at.y) };
+            if (!free(next)) break;
+            at = next;
+          }
+          m.pos = at;
+          addEffect(m, "distracted", 99, actor.id);
+        }
+        fx("puff", spot);
+        return `🪨 ${actor.name} wirft einen Stein – klack! Die Wachen drehen sich um und schleichen dem Geräusch nach. Abgelenkt!`;
+      }
+      case "errand": {
+        const c = this.battle.creatures[e.target];
+        if (!c?.pos || c.side !== "neutral" || c.dead) return undefined;
+        if (this.errands.has(`e:${c.name}`)) return `🤷 ${c.name} hat euch schon geholfen.`;
+        this.errands.add(`e:${c.name}`);
+        const paid = this.spendGold(3);
+        const pay = paid ? " (3 Gold)" : " (als Gefallen)";
+        this.emit("speech", c.id, "Wird gemacht!");
+        fx("sparkle", c.pos);
+        if (e.how === "heal") {
+          for (const h of this.heroes()) if (!h.dead) heal(h, rollDice(this.rng, parseDice("1d6")).total);
+          return `🩹 ${c.name} verbindet alle Wunden${pay}: jeder bekommt 1W6 Trefferpunkte.`;
+        }
+        if (e.how === "sharpen") {
+          addEffect(actor, "helped", 99, c.id);
+          return `⚒️ ${c.name} schärft ${actor.name}s Waffe${pay}: Vorteil auf den nächsten Wurf.`;
+        }
+        if (e.how === "hide") {
+          for (const h of this.heroes()) if (!h.dead) addCondition(h, { id: "invisible", rounds: 2, sourceId: c.id });
+          return `🫥 ${c.name} versteckt die Gruppe im Hinterzimmer${pay}: 2 Runden unsichtbar.`;
+        }
+        const last = this.map.rooms[this.map.rooms.length - 1]!;
+        revealAround(this.map, { x: last.x + Math.floor(last.w / 2), y: last.y + Math.floor(last.h / 2) }, 6);
+        const traps = this.map.objects.filter((o) => o.kind === "trap" && o.state === "hidden");
+        traps.forEach((t) => (t.state = "found"));
+        this.emit("mapChanged");
+        return `🗺️ ${c.name} erzählt alles, was sie weiß${pay}: der Weg voraus${traps.length ? ` und ${traps.length} Falle${traps.length > 1 ? "n" : ""}` : ""} sind jetzt auf der Karte.`;
+      }
+      case "disguise":
+        addEffect(actor, "disguised", 999, actor.id);
+        fx("puff");
+        return `🥸 ${actor.name} verkleidet sich – wartende Gegner halten ${actor.name} für einen von ihnen (bis zum ersten Angriff).`;
+      case "interrogate": {
+        const c = this.battle.creatures[e.target];
+        if (!c?.pos || c.side !== "neutral" || c.dead || c.id.startsWith("npc-")) return undefined;
+        if (this.errands.has(`i:${c.id}`)) return `🤐 ${c.name} hat schon alles gesagt.`;
+        this.errands.add(`i:${c.id}`);
+        const traps = this.map.objects.filter((o) => o.kind === "trap" && o.state === "hidden");
+        traps.forEach((t) => (t.state = "found"));
+        const last = this.map.rooms[this.map.rooms.length - 1]!;
+        revealAround(this.map, { x: last.x + Math.floor(last.w / 2), y: last.y + Math.floor(last.h / 2) }, 6);
+        this.emit("mapChanged");
+        this.emit("speech", c.id, "Schon gut, schon gut! Ich sag ja alles!");
+        return `🗣️ ${c.name} packt aus: der Weg voraus${traps.length ? ` und ${traps.length} versteckte Falle${traps.length > 1 ? "n" : ""}` : ""} – alles auf der Karte.`;
+      }
+      case "feud": {
+        const t = enemy(e.target);
+        const other = this.battle.creatures[e.other];
+        if (!t || !other || other.dead || other.side !== "enemy") return undefined;
+        addEffect(t, "feud", 1, other.id);
+        this.emit("speech", t.id, `${other.name}, du Verräter!`);
+        return `😤 ${actor.name} sät Zwietracht: ${t.name} geht im nächsten Zug auf ${other.name} los!`;
+      }
+      case "disarm": {
+        const t = this.battle.creatures[e.target];
+        if (!t || t.side !== "enemy" || t.dead) return undefined;
+        if (e.what === "shield") {
+          if (t.baseAc.some((p) => p.label === "Schild zerbrochen")) return `🛡️ Der Schild von ${t.name} ist schon kaputt.`;
+          t.baseAc.push({ label: "Schild zerbrochen", value: -2, glossarKey: "ruestungsklasse" });
+          fx("shake", t.pos);
+          return `🛡️ ${actor.name} zertrümmert den Schild von ${t.name}: −2 Rüstungsklasse!`;
+        }
+        if (this.bossIds.has(t.id)) return undefined;
+        addEffect(t, "hampered", 99, actor.id);
+        fx("puff", t.pos);
+        return `⚔️ ${actor.name} schlägt ${t.name} die Waffe aus der Hand: Nachteil auf alle Angriffe bis Kampfende!`;
+      }
+      case "hurl": {
+        const t = enemy(e.target);
+        if (!t?.pos) return undefined;
+        if (!["tiny", "small"].includes(t.size)) return `💪 ${t.name} ist zu groß zum Werfen.`;
+        if (abilityMod(actor.abilities.STR) < 1) return `💪 ${actor.name} ist nicht stark genug, um ${t.name} hochzuheben.`;
+        if (this.cheb(pos, t.pos) > 1) return `💪 ${t.name} ist zu weit weg – erst hingehen.`;
+        const toward = e.toward ? this.battle.creatures[e.toward] : undefined;
+        const other = (toward?.side === "enemy" && !toward.dead ? toward : undefined) ?? this.enemiesVisible().filter((x) => x.id !== t.id && isActive(x) && x.pos && this.cheb(x.pos, pos) <= 6)[0];
+        const d1 = rollDice(this.rng, parseDice("1d6")).total;
+        applyDamage(this.rng, t, d1);
+        if (other?.pos) {
+          t.pos = besideFree(this.map, this.battle, other.pos);
+          const d2 = rollDice(this.rng, parseDice("1d6")).total;
+          applyDamage(this.rng, other, d2);
+          if (!other.dead && !this.bossIds.has(other.id) && ["tiny", "small", "medium"].includes(other.size)) addCondition(other, { id: "prone" });
+          if (!t.dead) addCondition(t, { id: "prone" });
+          fx("shake", other.pos);
+          return `💪 ${actor.name} packt ${t.name} und schleudert ${t.name} auf ${other.name}: ${d1} und ${d2} Schaden – beide gehen zu Boden!`;
+        }
+        if (!t.dead) addCondition(t, { id: "prone" });
+        fx("shake", t.pos);
+        return `💪 ${actor.name} packt ${t.name} und wirft ${t.name} zu Boden: ${d1} Schaden!`;
       }
       case "set_trap": {
         if (this.map.objects.some((o) => o.x === pos.x && o.y === pos.y && (o.kind === "trap" || o.blocking))) return undefined;
@@ -1259,7 +1504,7 @@ export class GameController {
 
   /** Enemies that notice the heroes: visible and not too far away. */
   private awakeEnemies(): Creature[] {
-    return this.enemiesVisible().filter((e) => isActive(e) && this.heroes().some((h) => isActive(h) && distanceFt(h, e) <= (unaware(e) ? 10 : 60)));
+    return this.enemiesVisible().filter((e) => isActive(e) && this.heroes().some((h) => isActive(h) && !(unaware(e) && hasEffect(h, "disguised")) && distanceFt(h, e) <= (unaware(e) ? 10 : 60)));
   }
 
   private checkCombatStart(): boolean {
@@ -1362,6 +1607,26 @@ export class GameController {
       if (delay <= 0) this.endTurn();
       else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
       return;
+    }
+    // Talked into a quarrel: this turn it goes for another foe.
+    const feud = monster.effects.find((x) => x.id === "feud");
+    if (feud) {
+      monster.effects = monster.effects.filter((x) => x.id !== "feud");
+      const other = this.battle.creatures[feud.sourceId];
+      const option = monster.attacks[0];
+      if (other?.pos && !other.dead && option && monster.pos) {
+        if (this.cheb(monster.pos, other.pos) > 1) monster.pos = besideFree(this.map, this.battle, other.pos);
+        const attack = resolveAttack(this.rng, this.battle, monster, other, option);
+        const roll = this.outcomeToRoll(monster, `${monster.name} greift ${other.name} an!`, 20, { ok: true, actorId: monster.id, cost: "action", kind: "attack", attack });
+        roll.lines.unshift({ text: `😤 ${monster.name} geht auf ${other.name} los: „Verräter!“`, glossarKeys: [] });
+        this.publishRoll(roll);
+        this.emit("changed");
+        if (this.checkWinner()) return;
+        const delay = this.opts.monsterDelayMs ?? 1200;
+        if (delay <= 0) this.endTurn();
+        else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
+        return;
+      }
     }
     // Monsters use the room too: flip tables, tip braziers, throw torches, hurl crates.
     if (this.monsterTrick(monster)) {
@@ -2003,6 +2268,11 @@ export class GameController {
     this.tellFlavor(r);
     this.track(r);
     this.trashTalk(r);
+    const striker = this.battle.creatures[r.creatureId];
+    if (striker && hasEffect(striker, "disguised") && r.hits?.some((x) => this.battle.creatures[x.targetId]?.side === "enemy")) {
+      striker.effects = striker.effects.filter((x) => x.id !== "disguised");
+      r.lines.push({ text: `🥸 ${striker.name}s Verkleidung fliegt auf!`, glossarKeys: [] });
+    }
     // TV: who did what, then the coloured points ("⚔️ −7 Schaden an Goblin 1").
     const actor = this.battle.creatures[r.creatureId]?.name;
     const head = r.lines[0]?.text && !MATH_LINE.test(r.lines[0].text) ? r.lines[0].text : `${actor ? `${actor}: ` : ""}${r.title}`;
@@ -4689,6 +4959,10 @@ export class GameController {
     this.session.map = map;
     this.seedEnv(map);
     this.findsThisMap = 0;
+    this.ideasRewarded = 0;
+    this.barricades = 0;
+    this.wallsBroken = 0;
+    this.collapses = 0;
     this.firstAidThisMap.clear();
     this.npcHomes.clear();
     this.triedObject.clear();

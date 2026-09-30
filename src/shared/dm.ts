@@ -80,6 +80,8 @@ export interface DmResponse {
   request_roll?: RollRequest;
   /** Free actions: what should happen if the roll works (shown on the phone before rolling). */
   plan?: string;
+  /** Free actions: the idea was too unclear – a short question back to the player. */
+  ask_back?: string;
   spawn?: { monster: string; count: number; zone: string }[];
   reveal_room?: string;
   reveal_clue?: string;
@@ -141,6 +143,20 @@ export type DmEffect =
   | { kind: "feed_potion"; target: string }
   | { kind: "improvised"; target: string }
   | { kind: "set_trap" }
+  // bigger physics: break a wall, bring the ceiling down, a big jump, jump down on a foe, noise
+  | { kind: "wall_break"; target?: string }
+  | { kind: "collapse"; target: string }
+  | { kind: "leap"; target: string }
+  | { kind: "pounce"; target: string }
+  | { kind: "noise"; target?: string; how: "lure" | "loud" }
+  // characters: an errand, a disguise, questioning a beaten foe
+  | { kind: "errand"; target: string; how: "heal" | "sharpen" | "hide" | "info" }
+  | { kind: "disguise" }
+  | { kind: "interrogate"; target: string }
+  // fighting smart: foes against each other, disarm / break the shield, grab and throw
+  | { kind: "feud"; target: string; other: string }
+  | { kind: "disarm"; target: string; what: "weapon" | "shield" }
+  | { kind: "hurl"; target: string; toward?: string }
   // "yes, but": the acting hero pays a small price (1W4 damage, never knocked out)
   | { kind: "cost" }
   // setbacks after a clearly failed attempt

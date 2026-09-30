@@ -4,7 +4,7 @@
  * the DungeonMaster (scripted or AI) tells it and makes the "creative" decisions.
  */
 import { CLUE_XP } from "../shared/progression";
-import { familyAfterAdventure, familyFarewell, STAGE_LABEL, holdWeddings, partnerOf, proposalAnswer, attractedTo, bondOf, canDate, changeBond, changeLove, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, IN_LOVE, loveOf, markDate, meet, mindPrompt, remember, type FlirtOutcome, type NpcMind, type NpcWorld } from "./npc-world";
+import { hearRumors, spreadRumor, familyAfterAdventure, familyFarewell, STAGE_LABEL, holdWeddings, partnerOf, proposalAnswer, attractedTo, bondOf, canDate, changeBond, changeLove, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, IN_LOVE, loveOf, markDate, meet, mindPrompt, remember, type FlirtOutcome, type NpcMind, type NpcWorld } from "./npc-world";
 import { applyDamage, distanceFt, isActive } from "../engine/combat";
 import { savingThrow, skillParts, sumParts } from "../engine/core";
 import { parseDice, rollDice } from "../engine/dice";
@@ -176,6 +176,7 @@ export class Director {
     game.onFlirt = (playerId, hero, name) => void this.flirt(playerId, hero, name);
     game.onGift = (_playerId, hero, name, itemId, itemName) => this.gift(hero, name, itemId, itemName);
     game.onPropose = (playerId, hero, name) => this.propose(playerId, hero, name);
+    game.onDeed = (hero, deed) => this.deed(hero, deed);
     if (opts.world) {
       this.world = new World({
         game,
@@ -289,6 +290,8 @@ export class Director {
       }
     } else if (said && trigger.kind === "free_text") {
       remember(said, `${trigger.heroName} sagte zu mir: „${trigger.text.slice(0, 80)}“`);
+      // … and she tells others (lies can come out that way).
+      spreadRumor(w.world, `${trigger.heroName} hat zu ${said.name} gesagt: „${trigger.text.slice(0, 60)}“`, said.name);
       changed = true;
     }
     if (said && "heroName" in trigger && !(trigger.heroName in said.bond)) {
@@ -309,6 +312,8 @@ export class Director {
       this.minds.set(n.name, mind);
       this.metMinds.set(n.name, mind);
       w.onMeet?.(mind);
+      // News travels: she has heard what the heroes did and said elsewhere.
+      hearRumors(w.world, mind, 1);
       // What she feels about the group carries over: friends make things easier from the start.
       const bonds = this.heroes().map((h) => bondOf(mind, h.name));
       const atts = (this.state.attitudes ??= {});
@@ -475,6 +480,23 @@ export class Director {
       else lines.push({ text: e.stage === "jugend" ? `🧑 ${e.child.name} ist jetzt ${STAGE_LABEL[e.stage].toLowerCase()} – und darf als Knappe mit ${e.hero} ziehen, wenn ${e.hero} es erlaubt.` : `🧒 ${e.child.name} ist kein Baby mehr – und läuft schon überall herum.` });
     }
     if (lines.length) this.game.narrate(lines);
+  }
+
+  /** Deeds already noted in this scene (each once). */
+  private deedsNoted = new Set<string>();
+
+  /** The people here saw it – they remember, like the heroes less, and tell others ("Ihr habt meine Taverne abgefackelt!"). */
+  private deed(hero: string, deed: string): void {
+    const w = this.opts.npcs;
+    if (!w || !this.minds.size || this.deedsNoted.has(`${this.scene?.id}:${hero}:${deed}`)) return;
+    this.deedsNoted.add(`${this.scene?.id}:${hero}:${deed}`);
+    const place = this.scene?.title ?? "hier";
+    for (const mind of this.minds.values()) {
+      remember(mind, `${hero} hat bei „${place}“ ${deed}.`);
+      changeBond(mind, hero, -1);
+    }
+    spreadRumor(w.world, `${hero} hat bei „${place}“ ${deed}.`, [...this.minds.keys()][0] ?? "");
+    w.save();
   }
 
   /** Characters who know the group from before say so (once per adventure). */
@@ -1129,8 +1151,24 @@ export class Director {
   private async freeText(playerId: PlayerId, hero: Creature, text: string): Promise<void> {
     if (!this.scene || this.finished) return;
     this.actingRoom = this.game.surroundings(hero);
+    // „Wir stoßen ihn zusammen um, Brunhild!“: a friend right beside you pitches in – advantage on the roll.
+    const low = text.toLowerCase();
+    if (/zusammen|gemeinsam|wir beide|mit vereinten|zu zweit|helft mir/.test(low) && hero.pos) {
+      const friend = this.heroes().find((h) => h.id !== hero.id && isActive(h) && h.pos && low.includes(h.name.toLowerCase().split(" ")[0]!) && Math.max(Math.abs(h.pos.x - hero.pos!.x), Math.abs(h.pos.y - hero.pos!.y)) <= 2);
+      if (friend) {
+        this.game.teamUp(hero, friend);
+        this.game.narrate([{ text: `🤝 ${hero.name} und ${friend.name} packen gemeinsam an – Vorteil auf den Wurf!` }]);
+      }
+    }
     const trigger = { kind: "free_text" as const, text, playerId, heroName: hero.name };
     const res = await this.askDm(trigger);
+    // Too unclear: the game master asks back (the action is not used up).
+    if (res.ask_back && !res.request_roll && !res.effects?.length) {
+      this.game.refundFreeAction(hero);
+      if (hero.playerId) this.game.tellPlayer(hero.playerId, `❓ ${res.ask_back}`);
+      this.actingRoom = undefined;
+      return;
+    }
     // Effects without a roll (helping, taking cover).
     this.applyEffects(res.effects, trigger, hero);
     const roll = res.request_roll;
@@ -1153,6 +1191,7 @@ export class Director {
     // Real consequences – decided by the DM, checked and carried out by the rules.
     this.applyEffects(after.effects, result, hero);
     const margin = r.total - roll.dc;
+    if (r.success && margin >= 5) this.game.creativeIdea(hero);
     this.remember(`${hero.name}: ${text} → ${r.success ? (margin >= 5 ? "großartig geschafft" : "geschafft") : margin >= -2 ? "knapp, mit Preis" : "misslungen"}`);
     this.actingRoom = undefined;
   }

@@ -51,6 +51,8 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
 
   const scene = sceneById(story, ctx.sceneId);
   if (trigger.kind === "free_text") {
+    const back = str(o.rueckfrage, 160);
+    if (back) out.ask_back = back;
     const skill = str(o.roll_skill, 30) as SkillId;
     const dc = Math.round(Number(o.roll_dc));
     if (SKILL_IDS.includes(skill) && dc >= 5 && dc <= 25) {

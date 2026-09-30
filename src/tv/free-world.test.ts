@@ -152,3 +152,104 @@ describe("free actions change the map", () => {
     expect((await done).cancelled).toBe(true);
   });
 });
+
+describe("bigger ideas", () => {
+  it("breaks a wall into a new passage (once per map) and brings a ceiling down on foes", () => {
+    const { game, session, a, floorNear } = setup();
+    const m = session.map;
+    // Stand next to an inner wall.
+    let spot: { x: number; y: number } | undefined;
+    for (let i = 0; i < m.cells.length && !spot; i++) {
+      const x = i % m.width, y = Math.floor(i / m.width);
+      if (m.cells[i] !== "floor" || Object.values(session.battle.creatures).some((c) => c.pos?.x === x && c.pos?.y === y)) continue;
+      if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const q = { x: x + dx!, y: y + dy! }; return q.x > 0 && q.y > 0 && q.x < m.width - 1 && q.y < m.height - 1 && m.cells[cellIndex(m, q.x, q.y)] === "wall"; })) spot = { x, y };
+    }
+    a.pos = spot!;
+    const walls = m.cells.filter((c) => c === "wall").length;
+    expect(game.applyEffects([{ kind: "wall_break" }], a).join(" ")).toContain("Wand");
+    expect(m.cells.filter((c) => c === "wall").length).toBeLessThan(walls);
+    expect(game.applyEffects([{ kind: "wall_break" }], a).join(" ")).toContain("halten");
+    const gob = createMonster("goblin", "g9");
+    gob.pos = floorNear(a.pos);
+    session.battle.creatures[gob.id] = gob;
+    const hp = gob.hp;
+    game.applyEffects([{ kind: "collapse", target: gob.id }], a);
+    expect(gob.hp).toBeLessThan(hp);
+  });
+
+  it("jumps across, and jumps down on a foe from high up", () => {
+    const { game, session, a, floorNear } = setup();
+    const far = floorNear(floorNear(floorNear(a.pos!)));
+    const before = { ...a.pos! };
+    game.applyEffects([{ kind: "leap", target: `${far.x},${far.y}` }], a);
+    expect(a.pos).not.toEqual(before);
+    const gob = createMonster("goblin", "g8");
+    gob.pos = floorNear(a.pos!);
+    session.battle.creatures[gob.id] = gob;
+    expect(game.applyEffects([{ kind: "pounce", target: gob.id }], a).join(" ")).toContain("erhöht");
+    a.effects.push({ id: "elevated", rounds: 3, sourceId: a.id });
+    const hp = gob.hp;
+    game.applyEffects([{ kind: "pounce", target: gob.id }], a);
+    expect(gob.hp).toBeLessThan(hp);
+  });
+
+  it("a stone lures waiting guards away; noise wakes them; a disguise walks past", () => {
+    const { game, session, a } = setup();
+    const { spawned } = game.stageFight([{ monster: "goblin", count: 1, name: "Wache" }], "on-guard");
+    const g = spawned[0]!;
+    game.applyEffects([{ kind: "noise", how: "lure", target: `${g.pos!.x + 3},${g.pos!.y}` }], a);
+    expect(g.effects.some((e) => e.id === "distracted")).toBe(true);
+    game.applyEffects([{ kind: "disguise" }], a);
+    expect(a.effects.some((e) => e.id === "disguised")).toBe(true);
+    game.applyEffects([{ kind: "noise", how: "loud" }], a);
+    expect(game.hasStagedFight).toBe(false);
+    expect(session.battle.creatures[g.id]).toBeTruthy();
+  });
+
+  it("characters run errands (once) and beaten foes talk", () => {
+    const { game, session, a, b, floorNear } = setup();
+    const npc = createMonster("commoner", "npc-heiler", { name: "Heilerin Anna", side: "neutral" });
+    npc.pos = floorNear(a.pos!);
+    session.battle.creatures[npc.id] = npc;
+    b.hp = 1;
+    game.applyEffects([{ kind: "errand", target: npc.id, how: "heal" }], a);
+    expect(b.hp).toBeGreaterThan(1);
+    expect(game.applyEffects([{ kind: "errand", target: npc.id, how: "info" }], a).join(" ")).toContain("schon");
+    const prisoner = createMonster("bandit", "m5", { name: "Räuber 5", side: "neutral" });
+    prisoner.pos = floorNear(a.pos!, [npc.pos]);
+    session.battle.creatures[prisoner.id] = prisoner;
+    session.map.objects.push({ id: "trapX", kind: "trap", x: 1, y: 1, frame: "trap.plate", blocking: false, state: "hidden" });
+    game.applyEffects([{ kind: "interrogate", target: prisoner.id }], a);
+    expect(session.map.objects.find((o) => o.id === "trapX")!.state).toBe("found");
+  });
+
+  it("disarms, breaks a shield, and hurls a goblin at another", () => {
+    const { game, session, a, floorNear } = setup();
+    a.abilities.STR = 16;
+    const g1 = createMonster("goblin", "m1");
+    g1.pos = floorNear(a.pos!);
+    const g2 = createMonster("goblin", "m2");
+    g2.pos = floorNear(a.pos!, [g1.pos]);
+    for (const g of [g1, g2]) session.battle.creatures[g.id] = g;
+    game.applyEffects([{ kind: "disarm", target: g1.id, what: "weapon" }], a);
+    expect(g1.effects.some((e) => e.id === "hampered")).toBe(true);
+    game.applyEffects([{ kind: "disarm", target: g2.id, what: "shield" }], a);
+    expect(g2.baseAc.some((p) => p.label === "Schild zerbrochen")).toBe(true);
+    const line = game.applyEffects([{ kind: "hurl", target: g1.id, toward: g2.id }], a).join(" ");
+    expect(line).toContain("schleudert");
+    game.applyEffects([{ kind: "feud", target: g2.id, other: g1.id }], a);
+    expect(g2.effects.find((e) => e.id === "feud")?.sourceId).toBe(g1.id);
+  });
+
+  it("chain reactions: a burning barrel bursts; water puts fire out", () => {
+    const { game, session, a, floorNear, put } = setup();
+    const spot = floorNear(a.pos!);
+    const barrel = put({ kind: "barrel", x: spot.x, y: spot.y, frame: "barrel", blocking: true });
+    const line = game.applyEffects([{ kind: "object", target: barrel.id, how: "ignite" }], a).join(" ");
+    expect(line).toContain("platzt");
+    const fires = Object.values(session.map.surface ?? {}).filter((s) => s.kind === "fire").length;
+    expect(fires).toBeGreaterThan(1);
+    const douse = game.applyEffects([{ kind: "ground", target: `${spot.x},${spot.y}`, surface: "puddle" }], a).join(" ");
+    expect(douse).toContain("Feuer aus");
+  });
+});

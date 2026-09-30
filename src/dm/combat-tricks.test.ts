@@ -356,3 +356,18 @@ describe("the bigger toolbox", () => {
     expect(feed.effects).toEqual([{ kind: "move_to", target: "p2" }, { kind: "feed_potion", target: "p2" }]);
   });
 });
+
+describe("even more ideas without AI", () => {
+  it("asks back when an idea is too vague, and knows the new tricks", async () => {
+    const dm = new ScriptedDM(STORY);
+    const vague = await dm.respond(ctx(), free("Ich mache was"));
+    expect(vague.ask_back).toBeTruthy();
+    expect(vague.request_roll).toBeUndefined();
+    const feud = await dm.respond(ctx(bandits), { ...roll(15, 13, "Räuber 1, Räuber 2 will dich verraten!"), skill: "deception" });
+    expect(feud.effects?.[0]).toMatchObject({ kind: "feud", target: "m1", other: "m2" });
+    const wall = await dm.respond(ctx(), free("Ich ramme die morsche Wand ein"));
+    expect(wall.request_roll?.dc).toBe(15);
+    const ideas = await dm.respond(ctx(bandits, { room: { name: "Keller", objects: [], things: [{ id: "o1", name: "Fässer" }] } }), { kind: "suggest", playerId: "p1", heroName: "Pip" });
+    expect(ideas.ideas?.join(" ")).toContain("Fass");
+  });
+});

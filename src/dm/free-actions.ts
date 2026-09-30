@@ -14,7 +14,8 @@ type Intent =
   | "attack" | "help" | "cover" | "bribe" | "charm" | "surrender" | "scare" | "push" | "blind" | "hazard" | "trick"
   | "search" | "first_aid" | "door" | "reveal" | "befriend" | "shortcut" | "other"
   | "climb" | "hide" | "ignite" | "oil" | "water" | "barricade" | "roll_thing" | "smash_thing" | "light_on" | "light_off"
-  | "npc_follow" | "npc_way" | "npc_give" | "turncoat" | "pass" | "feed" | "improvised" | "trap";
+  | "npc_follow" | "npc_way" | "npc_give" | "turncoat" | "pass" | "feed" | "improvised" | "trap"
+  | "wall" | "ceiling" | "leap" | "pounce" | "lure" | "loud" | "errand" | "disguise" | "interrogate" | "feud" | "disarm" | "hurl";
 
 interface IntentRule {
   intent: Intent;
@@ -26,6 +27,19 @@ interface IntentRule {
 
 /** Order matters: the first match wins. */
 const RULES: IntentRule[] = [
+  // Bigger physics, people and fighting smart.
+  { intent: "wall", words: /wand (ein|durch)|reiß.* wand|durch die wand|wand einreiß|ramm.* (die )?wand|morsche (stelle|wand)/, combat: "both", skill: "athletics", dc: BYPASS_DC },
+  { intent: "ceiling", words: /decke (ein|zum einsturz|runter)|einstürz|stütz\w* (weg|um)|balken (weg|raus|umtreten)/, combat: "both", skill: "athletics", dc: BYPASS_DC },
+  { intent: "pounce", words: /spring\w* (von oben |herab |runter )?auf (den|die|das)|stürz\w* mich (von oben|herab)|von oben auf/, combat: true, skill: "acrobatics", dc: 13 },
+  { intent: "leap", words: /spring\w* (über|rüber|hinüber)|schwing\w* mich|am seil|großer sprung|sprung über/, combat: "both", skill: "acrobatics", dc: 12 },
+  { intent: "loud", words: /lärm|krach mach|mach\w* krach|schrei\w* laut|trommel|brüll\w* so laut/, combat: false },
+  { intent: "lure", words: /(wirf|werfe)\w* (einen |ein )?(stein|kiesel|münze)|lock\w* (sie |die wache )?weg|geräusch.* ablenk/, combat: false, skill: "stealth", dc: 12 },
+  { intent: "errand", words: /(kannst|könntest|würdest) du .*(heil|verbind|schärf|versteck|erzähl|verrat)|bitte .*(heil|schärf|versteck)/, combat: false, skill: "persuasion", dc: 12 },
+  { intent: "disguise", words: /verkleid|tarn\w* (mich )?als|kutte an|uniform an|zieh.* (die )?(kutte|uniform|rüstung der wache)/, combat: false, skill: "deception", dc: 13 },
+  { intent: "interrogate", words: /verhör|befrag|quetsch\w* .*aus|was weißt du|pack aus|rede endlich/, combat: false, skill: "intimidation", dc: 12 },
+  { intent: "feud", words: /verrät dich|verräter|will dich (verraten|umbringen|reinlegen)|gegeneinander|zwietracht|hetz/, combat: true, skill: "deception", dc: 13 },
+  { intent: "disarm", words: /entwaffn|schwert aus der hand|waffe (aus der hand|weg)|schild (kaputt|zerschlag|zertrümmer|zerbrech)|zerschlag\w* (den|seinen) schild/, combat: true, skill: "athletics", dc: 13 },
+  { intent: "hurl", words: /pack\w* .*(werf|schleuder)|schleuder\w* (den|die) |werf\w* (den|die) (goblin|kobold|ratte)/, combat: true, skill: "athletics", dc: 13 },
   // Things, ground, body and people (the map changes).
   { intent: "feed", words: /flöß|einflöß|trank (ein|in den mund)|gib .* (meinen |einen )?(heil)?trank/, combat: "both" },
   { intent: "pass", words: /wirf .* zu|werfe .* zu|zuwerf|reiche .* (den|die|das|einen|eine)|gebe .* (meinen|meine|einen|eine) /, combat: "both" },
@@ -98,6 +112,10 @@ export function scriptedFreeText(ctx: DmContext, trigger: Extract<DmTrigger, { k
   const rule = intentOf(trigger.text, fighting);
   const hero = trigger.heroName;
   if (!rule) {
+    // Too little to go on ("Ich mache was"): ask back instead of guessing.
+    if (trigger.text.trim().split(/\s+/).length <= 2 || /^(ich )?(mach|tu|probier)\w* (was|etwas|irgendwas)\b/.test(trigger.text.toLowerCase().trim())) {
+      return respond([], { ask_back: "Was genau willst du tun – und womit? Zum Beispiel: „Ich klettere auf den Tisch“." });
+    }
     // Any other idea outside a fight: the world answers with a roll (never just "nothing happens").
     if (fighting) return undefined;
     const skill = guessSkill(trigger.text);
@@ -123,6 +141,7 @@ export function scriptedFreeText(ctx: DmContext, trigger: Extract<DmTrigger, { k
     return respond([line(`${hero} holt aus …`)], { effects: [{ kind: "pass_item", target: friend.id, item }] });
   }
   if (rule.intent === "light_on") return respond([line(`${hero} macht Licht.`)], { effects: [{ kind: "light", on: true }] });
+  if (rule.intent === "loud") return respond([line(`${hero} macht einen Heidenlärm!`)], { effects: [{ kind: "noise", how: "loud" }] });
   if (rule.intent === "help") {
     const friend = mentioned(trigger.text, ctx.players.filter((p) => p.id !== trigger.playerId));
     if (!friend) return respond([line(`Wem will ${hero} helfen? Nennt den Namen des Helden, z. B. „Ich helfe Brunhild“.`)]);
@@ -258,6 +277,55 @@ export function scriptedRollResult(ctx: DmContext, trigger: Extract<DmTrigger, {
     case "trap":
       effects.push({ kind: "set_trap" });
       break;
+    case "wall":
+      effects.push({ kind: "wall_break" });
+      break;
+    case "ceiling":
+      if (named ?? one ?? enemies[0]) effects.push({ kind: "collapse", target: (named ?? one ?? enemies[0])!.id });
+      break;
+    case "leap": {
+      const goal = named ?? thingIn(trigger.text, ctx, /tisch|fass|kiste|fels|bühne|brunnen/) ?? mentioned(trigger.text, ctx.players);
+      if (goal) effects.push({ kind: "leap", target: goal.id });
+      break;
+    }
+    case "pounce":
+      if (one) effects.push({ kind: "pounce", target: one.id });
+      break;
+    case "lure":
+      effects.push({ kind: "noise", how: "lure" });
+      break;
+    case "errand": {
+      const who = mentioned(trigger.text, ctx.room?.people ?? []) ?? ctx.room?.people?.[0];
+      const t = trigger.text.toLowerCase();
+      const how = /heil|verbind/.test(t) ? "heal" : /schärf/.test(t) ? "sharpen" : /versteck/.test(t) ? "hide" : "info";
+      if (who) effects.push({ kind: "errand", target: who.id, how });
+      break;
+    }
+    case "disguise":
+      effects.push({ kind: "disguise" });
+      break;
+    case "interrogate": {
+      const who = mentioned(trigger.text, ctx.room?.people ?? []) ?? ctx.room?.people?.find((p) => !p.id.startsWith("npc-"));
+      if (who) effects.push({ kind: "interrogate", target: who.id });
+      break;
+    }
+    case "feud": {
+      const other = enemies.find((e) => e.id !== one?.id && trigger.text.toLowerCase().includes(e.name.toLowerCase())) ?? enemies.find((e) => e.id !== one?.id);
+      if (one && other) effects.push({ kind: "feud", target: one.id, other: other.id });
+      break;
+    }
+    case "disarm": {
+      const t = named ?? one;
+      if (t) effects.push({ kind: "disarm", target: t.id, what: /schild/.test(trigger.text.toLowerCase()) ? "shield" : "weapon" });
+      break;
+    }
+    case "hurl": {
+      const small = enemies.filter((e) => !e.boss);
+      const t = named && !named.boss ? named : small[0];
+      const other = small.find((e) => e.id !== t?.id) ?? enemies.find((e) => e.id !== t?.id);
+      if (t) effects.push({ kind: "hurl", target: t.id, ...(other ? { toward: other.id } : {}) });
+      break;
+    }
     case "befriend":
     case "other":
       break;
@@ -308,7 +376,17 @@ function setback(intent: Intent, ctx: DmContext, trigger: Extract<DmTrigger, { k
       case "npc_follow":
         return named ? [`${named.name} lacht nur – und ist jetzt richtig sauer!`, { kind: "enrage", target: named.id }] : [`Das kommt gar nicht gut an.`, undefined];
       case "improvised":
+      case "disarm":
         return [`${hero} haut daneben und steht ungeschützt da!`, { kind: "exposed" }];
+      case "wall":
+      case "ceiling":
+      case "hurl":
+        return [`Au! ${hero} prallt ab und hat sich ordentlich wehgetan.`, { kind: "hurt", severity: "mittel" }];
+      case "leap":
+      case "pounce":
+        return [`${hero} springt zu kurz und landet der Länge nach auf dem Boden!`, enemies.length ? { kind: "fall" } : { kind: "hurt", severity: "leicht" }];
+      case "feud":
+        return named ? [`${named.name} durchschaut die Lüge – und ist jetzt richtig sauer!`, { kind: "enrage", target: named.id }] : [`Keiner fällt darauf rein.`, undefined];
       default:
         return [`${hero} versucht es, aber es klappt nicht.`, undefined];
     }
@@ -347,6 +425,17 @@ const PLANS: Partial<Record<Intent, string>> = {
   turncoat: "Der Gegner kämpft ab jetzt für euch",
   improvised: "1W6 + Stärke Schaden",
   trap: "Eine Stolperfalle liegt bereit",
+  wall: "Die Wand bricht ein – ein neuer Durchgang",
+  ceiling: "Die Decke stürzt auf die Gegner (2W6)",
+  leap: "Du springst hinüber",
+  pounce: "Sprung von oben: Schaden und Gegner am Boden",
+  lure: "Die Wachen folgen dem Geräusch – abgelenkt",
+  errand: "Die Figur hilft dir (3 Gold)",
+  disguise: "Wartende Gegner erkennen dich nicht",
+  interrogate: "Er verrät Fallen und den Weg",
+  feud: "Die Gegner gehen aufeinander los",
+  disarm: "Waffe weg oder Schild kaputt",
+  hurl: "Du wirfst ihn auf einen anderen – beide am Boden",
 };
 
 /** A thing from the surroundings the text is about (by its name, else the first of the right sort). */
@@ -373,17 +462,30 @@ function guessSkill(text: string): string {
 /** "Was könnte ich tun?" without AI: ideas that the keywords above understand. */
 export function scriptedIdeas(ctx: DmContext): string[] {
   const enemies = ctx.combat?.enemies ?? [];
+  const things = (ctx.room?.things ?? []).map((t) => t.name);
+  const has = (re: RegExp) => things.find((t) => re.test(t));
+  const people = ctx.room?.people ?? [];
   if (enemies.length) {
     const e = enemies.find((x) => !x.boss) ?? enemies[0]!;
-    const ideas = [`Ich werfe ${e.name} Sand in die Augen`, `Ich stoße ${e.name} um`, "Ich brülle sie an und verjage sie"];
-    if ((ctx.gold ?? 0) >= BRIBE_PER_ENEMY) ideas.push(`Ich biete ${e.name} Gold an, damit er aufhört`);
-    ideas.push(`Ich mache ${e.name} schöne Augen`);
-    if (ctx.room?.objects.some((o) => /Fäss|Kiste|Fels/.test(o))) ideas.push(`Ich werfe ein Fass auf ${e.name}`);
+    const ideas: string[] = [];
+    // What this room offers first.
+    if (has(/Fass|Fässer/)) ideas.push(`🛢️ Ich rolle das Fass auf ${e.name}`);
+    if (has(/Tisch|Kiste|Fels|Bühne|Baumstumpf/)) ideas.push(`🧗 Ich klettere auf ${has(/Tisch|Kiste|Fels|Bühne|Baumstumpf/)!.startsWith("Tisch") ? "den Tisch" : "die Kiste"} und schieße von oben`);
+    if (has(/Kerzen|Kohlebecken/)) ideas.push(`🕯️ Ich werfe ${has(/Kerzen|Kohlebecken/)!.startsWith("Kerzen") ? "den Kerzenständer" : "das Kohlebecken"} auf ${e.name}`);
+    if (enemies.length > 1) ideas.push(`😤 Ich rufe: „${enemies[1]!.name} will dich verraten, ${e.name}!“`);
+    ideas.push(`🏖️ Ich werfe ${e.name} Sand in die Augen`, `💪 Ich stoße ${e.name} um`);
+    if ((ctx.gold ?? 0) >= BRIBE_PER_ENEMY) ideas.push(`💰 Ich biete ${e.name} Gold an, damit er aufhört`);
+    ideas.push("📢 Ich brülle sie an und verjage sie");
     return ideas.slice(0, 4);
   }
-  const ideas = ["Ich durchsuche den Raum", "Ich halte Ausschau nach verborgenen Wegen"];
+  const ideas: string[] = [];
+  if (people[0]) ideas.push(`🗣️ ${people[0].name}, zeig uns den Weg!`);
+  if (has(/Regal|Kiste|Truhe/)) ideas.push(`🔍 Ich durchsuche ${has(/Regal/) ? "das Bücherregal" : "die Kisten"}`);
+  if (has(/Fass|Fässer|Kiste/)) ideas.push("🧱 Ich baue aus Kisten und Fässern eine Barrikade");
+  ideas.push("👀 Ich halte Ausschau nach verborgenen Wegen");
   const hurt = ctx.players.find((p) => p.hp < p.maxHp);
-  if (hurt) ideas.push(`Ich verbinde ${hurt.name}s Wunden`);
-  if (ctx.room?.objects.includes("Tür")) ideas.push("Ich knacke das Schloss der Tür");
+  if (hurt) ideas.push(`🩹 Ich verbinde ${hurt.name}s Wunden`);
+  if (ctx.room?.objects.includes("Tür")) ideas.push("🔓 Ich knacke das Schloss der Tür");
+  ideas.push("🧱 Ich suche eine morsche Stelle in der Wand");
   return ideas.slice(0, 4);
 }

@@ -220,3 +220,17 @@ describe("family and children", () => {
     expect(proposalAnswer(world, mind, "Ole", "male")).toBe("too_soon");
   });
 });
+
+describe("rumours", () => {
+  it("what one person hears, the next one knows (never her own story twice)", async () => {
+    const { spreadRumor, hearRumors } = await import("./npc-world");
+    const world = emptyWorld();
+    const wirt = meet(world, "Wirt Otto", "commoner", "a", 0).mind;
+    const magd = meet(world, "Magd Lene", "commoner", "a", 0).mind;
+    spreadRumor(world, "Pip hat bei „Der Auftrag“ Feuer gelegt.", wirt.name);
+    expect(hearRumors(world, wirt)).toEqual([]);
+    expect(hearRumors(world, magd)).toEqual(["Pip hat bei „Der Auftrag“ Feuer gelegt."]);
+    expect(magd.facts.at(-1)).toContain("Man erzählt sich");
+    expect(hearRumors(world, magd)).toEqual([]);
+  });
+});

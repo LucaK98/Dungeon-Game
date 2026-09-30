@@ -96,6 +96,10 @@ export type EffectId =
   | "torch"
   /** Climbed onto something high (free action): counts as a high place. */
   | "elevated"
+  /** In disguise: waiting foes do not recognise this hero (until the hero attacks). */
+  | "disguised"
+  /** Talked into a quarrel: on its next turn it attacks the foe named by sourceId. */
+  | "feud"
   /** Tricked by a free action: the next attack against it has advantage. */
   | "distracted"
   /** A friend helps: advantage on the next attack or check. */

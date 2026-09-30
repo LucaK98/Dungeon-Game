@@ -1055,3 +1055,6 @@ details.fold > .card { background: #00000022; }
 .tv-watch { margin-top: 12px; font-size: 15px; opacity: 0.85; word-break: break-all; }
 .dice-plan { margin: 4px 0 6px; padding: 8px 12px; border-radius: 12px; background: #1f2a1a; border: 1px solid #5c8a4a; color: #e8f5dc; font-size: 15px; }
 .dice-cancel { margin-top: 6px; }
+.idea-row { display: flex; gap: 6px; align-items: stretch; }
+.idea-row .idea-chip { flex: 1; }
+.idea-edit { border: 1px solid #5a4a30; background: #2a2016; color: inherit; border-radius: 10px; padding: 0 10px; }

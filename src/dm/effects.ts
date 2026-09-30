@@ -56,7 +56,25 @@ export const EFFECT_HELP: Record<string, { combat: boolean | "both"; text: strin
   einfloessen: { combat: "both", text: "der Held flößt einem Helden in der Nähe seinen Heiltrank ein: 2W4+2 Trefferpunkte, auch Bewusstlose – ohne Probe" },
   improvisiert: { combat: true, text: "eine improvisierte Waffe (Stuhlbein, Bratpfanne, Kerzenständer) trifft einen Gegner: 1W6 + Stärke Schaden" },
   falle_stellen: { combat: "both", text: "der Held stellt eine Stolperfalle auf sein Feld: ein Gegner, der darauf tritt, fällt hin" },
+  // bigger physics
+  wand_einreissen: { combat: "both", text: "eine morsche Wand neben dem Helden bricht ein – ein neuer Durchgang (nur SCHWERE Probe, SG 15+; einmal pro Karte; richtung: wohin)" },
+  einsturz: { combat: "both", text: "die Decke über einem Ziel bricht ein: 2W6 Schaden für ALLE dort (Rettungswurf halbiert), Geröll bleibt liegen (nur SCHWERE Probe, SG 15+; einmal pro Karte)" },
+  sprung: { combat: "both", text: "ein großer Sprung oder Schwung am Seil zu einem Ziel bis 4 Felder weit – über Wasser, Tische, Abgründe" },
+  herabspringen: { combat: true, text: "der Held springt von oben (erhöht) auf einen Gegner: 1W6 + Stärke Schaden und der Gegner (kein Anführer) liegt am Boden" },
+  geraeusch: { combat: "both", text: "ein Geräusch (art: locken = Steinwurf lockt wartende Gegner weg und lenkt sie ab; laerm = weckt sie auf, der Kampf beginnt)" },
+  // characters
+  auftrag: { combat: false, text: "eine Figur aus LEUTE erledigt einen Auftrag (art: heilen = alle +1W6 TP, schaerfen = Vorteil auf den nächsten Wurf, verstecken = die Gruppe ist 2 Runden unsichtbar, auskunft = nächster Raum und Fallen werden sichtbar); kostet 3 Gold, jede Figur einmal" },
+  verkleiden: { combat: false, text: "der Held verkleidet sich (Kutte, Uniform): wartende Gegner erkennen ihn nicht, bis er angreift" },
+  verhoeren: { combat: false, text: "ein besiegter oder ergebener Gegner aus LEUTE packt aus: Fallen auf der Karte und der Weg voraus werden sichtbar" },
+  // fighting smart
+  zwietracht: { combat: true, text: "ein gewöhnlicher Gegner greift in seinem nächsten Zug einen anderen Gegner an (richtung = id des anderen)" },
+  entwaffnen: { combat: true, text: "art waffe: ein gewöhnlicher Gegner verliert die Waffe – Nachteil auf Angriffe bis Kampfende; art schild: der Schild zerbricht – −2 Rüstungsklasse (auch bei Anführern)" },
+  packen_werfen: { combat: true, text: "ein starker Held packt einen kleinen Gegner (klein/winzig, kein Anführer) und wirft ihn auf einen anderen Gegner (richtung): beide 1W6 Schaden und liegen am Boden" },
 };
+
+/** Effects that need a clean success on a hard roll (DC 15 or more). */
+const HARD = new Set(["seitenwechsel", "wand_einreissen", "einsturz"]);
+const HARD_KINDS = new Set<DmEffect["kind"]>(["turncoat", "wall_break", "collapse"]);
 
 /** Steps that cost nothing and do not count as an effect (they may start a chain). */
 export const FREE_KINDS = new Set<DmEffect["kind"]>(["move_to", "posture"]);
@@ -93,7 +111,8 @@ export function allowedEffectNames(ctx: DmContext, trigger: DmTrigger): string[]
   const names = Object.entries(EFFECT_HELP)
     .filter(([, e]) => e.combat === "both" || e.combat === fighting)
     .map(([name]) => name)
-    .filter((name) => name !== "seitenwechsel" || (trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))
+    .filter((name) => !HARD.has(name) || (trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))
+    .filter((name) => (name !== "auftrag" && name !== "verhoeren") || !!ctx.room?.people?.length)
     .filter((name) => (name !== "figur" && name !== "geschenk") || !!ctx.room?.people?.length)
     .filter((name) => name !== "objekt" || !!ctx.room?.things?.length)
     .filter((name) => name !== "flucht" || canFlee(ctx))
@@ -212,6 +231,42 @@ export function effectFromName(name: string, target: string | undefined, ctx: Dm
     }
     case "falle_stellen":
       return { kind: "set_trap" };
+    case "wand_einreissen":
+      return { kind: "wall_break", ...(toward || target ? { target: toward || target } : {}) };
+    case "einsturz":
+      return target ? { kind: "collapse", target } : enemies[0] ? { kind: "collapse", target: enemies[0].id } : undefined;
+    case "sprung":
+      return target ? { kind: "leap", target } : undefined;
+    case "herabspringen": {
+      const t = enemy ?? enemies[0];
+      return t && !t.boss ? { kind: "pounce", target: t.id } : undefined;
+    }
+    case "geraeusch":
+      return { kind: "noise", how: art === "laerm" || art === "lärm" ? "loud" : "lure", ...(target ? { target } : {}) };
+    case "auftrag": {
+      const who = ctx.room?.people?.find((p) => p.id === target || p.name === target);
+      const how = ({ heilen: "heal", schaerfen: "sharpen", schärfen: "sharpen", verstecken: "hide", auskunft: "info" } as const)[(art ?? "").toLowerCase() as "heilen"];
+      return who && how ? { kind: "errand", target: who.id, how } : undefined;
+    }
+    case "verkleiden":
+      return { kind: "disguise" };
+    case "verhoeren": {
+      const who = ctx.room?.people?.find((p) => p.id === target || p.name === target);
+      return who ? { kind: "interrogate", target: who.id } : undefined;
+    }
+    case "zwietracht": {
+      const other = enemies.find((e) => e.id === toward && e.id !== enemy?.id) ?? enemies.find((e) => e.id !== enemy?.id);
+      return enemy && !enemy.boss && other ? { kind: "feud", target: enemy.id, other: other.id } : undefined;
+    }
+    case "entwaffnen": {
+      const t = enemy ?? enemies[0];
+      const what = art === "schild" ? "shield" : "weapon";
+      return t && (what === "shield" || !t.boss) ? { kind: "disarm", target: t.id, what } : undefined;
+    }
+    case "packen_werfen": {
+      const t = enemy ?? enemies.find((e) => !e.boss);
+      return t && !t.boss ? { kind: "hurl", target: t.id, ...(toward ? { toward } : {}) } : undefined;
+    }
     case "blosse":
       return { kind: "exposed" };
     case "hinfallen":
@@ -231,9 +286,9 @@ export function effectFromName(name: string, target: string | undefined, ctx: Dm
   }
 }
 
-const COMBAT_KINDS = new Set<DmEffect["kind"]>(["distract", "prone", "hamper", "help", "cover", "hazard", "flee", "pacify", "exposed", "fall", "fumble", "enrage", "retreat", "turncoat", "rout", "improvised"]);
+const COMBAT_KINDS = new Set<DmEffect["kind"]>(["distract", "prone", "hamper", "help", "cover", "hazard", "flee", "pacify", "exposed", "fall", "fumble", "enrage", "retreat", "turncoat", "rout", "improvised", "pounce", "feud", "disarm", "hurl"]);
 const SETBACK_KINDS = new Set<DmEffect["kind"]>(["exposed", "fall", "fumble", "hurt", "lose_gold", "enrage"]);
-const BOTH_KINDS = new Set<DmEffect["kind"]>(["help", "hurt", "lose_gold", "move_to", "climb", "hide", "posture", "ground", "object", "barricade", "light", "pass_item", "feed_potion", "set_trap"]);
+const BOTH_KINDS = new Set<DmEffect["kind"]>(["help", "hurt", "lose_gold", "move_to", "climb", "hide", "posture", "ground", "object", "barricade", "light", "pass_item", "feed_potion", "set_trap", "wall_break", "collapse", "leap", "noise"]);
 const NO_ROLL_KINDS = new Set<DmEffect["kind"]>(["help", "cover", "move_to", "retreat", "posture", "pass_item", "feed_potion"]);
 
 /** Final check of a DM answer's effects against the roll and the situation. */
@@ -249,7 +304,7 @@ export function filterEffects(effects: DmEffect[] | undefined, ctx: DmContext, t
   const ok = (effects ?? [])
     .filter((e) => e.kind !== "cost" && !FREE_KINDS.has(e.kind) && !lights.includes(e))
     // A turncoat, like a shortcut, needs a clean success on a hard roll.
-    .filter((e) => e.kind !== "turncoat" || (trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))
+    .filter((e) => !HARD_KINDS.has(e.kind) || (trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))
     // Clear miss: only setbacks. Otherwise: no setbacks.
     .filter((e) => SETBACK_KINDS.has(e.kind) === miss)
     .filter((e) => (BOTH_KINDS.has(e.kind) ? true : COMBAT_KINDS.has(e.kind) === fighting))

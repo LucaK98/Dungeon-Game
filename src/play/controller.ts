@@ -503,6 +503,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
 
   let ideasBox: HTMLElement | undefined;
   let ideaInput: HTMLTextAreaElement | undefined;
+  let ideaSubmit: ((text: string) => void) | undefined;
 
   function freeText(prefill = ""): void {
     const fighting = view?.mode === "combat";
@@ -559,6 +560,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     tools.append(ideas);
     ideasBox = box;
     ideaInput = input;
+    ideaSubmit = submit;
     const cost = h(
       "p",
       { class: "lead free-cost" },
@@ -1950,12 +1952,15 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
       }
       box.replaceChildren(
         ...ideas.map((idea) => {
+          // Tap = do it right away; ✏️ = take it into the text field to change it first.
           const chip = h("button", { class: "idea-chip", type: "button", textContent: idea });
-          chip.addEventListener("click", () => {
+          chip.addEventListener("click", () => (ideaSubmit ? ideaSubmit(idea) : (input.value = idea)));
+          const edit = h("button", { class: "idea-edit", type: "button", textContent: "✏️", title: "Erst anpassen" });
+          edit.addEventListener("click", () => {
             input.value = idea;
             input.focus();
           });
-          return chip;
+          return h("div", { class: "idea-row" }, chip, edit);
         }),
       );
     },

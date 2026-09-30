@@ -17,6 +17,8 @@ export interface HeroStats {
   downs: number;
   emotes: number;
   freeActions: number;
+  /** Free actions that worked brilliantly (5 over the DC). */
+  greatIdeas?: number;
   /** For the secret goals (optional: older saves do not have them). */
   chests?: number;
   finds?: number;
@@ -76,6 +78,7 @@ export function buildHighlights(heroes: RecapHero[]): Highlight[] {
     count.set(hero.id, (count.get(hero.id) ?? 0) + 1);
     out.push({ icon, title, heroId: hero.id, text: text(hero) });
   };
+  add(best((s) => s.greatIdeas ?? 0), "💡", "Kreativkopf", (h) => `${h.stats.greatIdeas} geniale ${h.stats.greatIdeas === 1 ? "Idee" : "Ideen"} – die Welt hat sich gebogen`);
   add(best((s) => s.biggestHit), "💥", "Härtester Schlag", (h) => `${h.stats.biggestHit} Schaden${h.stats.biggestHitTarget ? ` gegen ${h.stats.biggestHitTarget}` : ""}`);
   add(best((s) => s.kills), "⚔️", "Bezwinger", (h) => `${h.stats.kills} ${h.stats.kills === 1 ? "Gegner" : "Gegner"} besiegt`);
   add(best((s) => s.healing), "💚", "Heiler", (h) => `${h.stats.healing} Trefferpunkte geheilt`);
