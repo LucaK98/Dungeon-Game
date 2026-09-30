@@ -15,7 +15,8 @@ type Intent =
   | "search" | "first_aid" | "door" | "reveal" | "befriend" | "shortcut" | "other"
   | "climb" | "hide" | "ignite" | "oil" | "water" | "barricade" | "roll_thing" | "smash_thing" | "light_on" | "light_off"
   | "npc_follow" | "npc_way" | "npc_give" | "turncoat" | "pass" | "feed" | "improvised" | "trap"
-  | "wall" | "ceiling" | "leap" | "pounce" | "lure" | "loud" | "errand" | "disguise" | "interrogate" | "feud" | "disarm" | "hurl";
+  | "wall" | "ceiling" | "leap" | "pounce" | "lure" | "loud" | "errand" | "disguise" | "interrogate" | "feud" | "disarm" | "hurl"
+  | "bees" | "scare_beasts" | "rats" | "ice_bridge" | "shove" | "bribe_npc" | "threaten_npc" | "free_captive" | "take_captive" | "hand_captive" | "study";
 
 interface IntentRule {
   intent: Intent;
@@ -27,6 +28,18 @@ interface IntentRule {
 
 /** Order matters: the first match wins. */
 const RULES: IntentRule[] = [
+  // Animals, spells used cleverly, pressure, prisoners, weak spots.
+  { intent: "bees", words: /bienen|bienenstock|wespen|hornissen/, combat: true, skill: "athletics", dc: 12 },
+  { intent: "rats", words: /ratten .*(lock|hetz|anlock)|lock\w* .*ratten|käse .*ratten/, combat: true, skill: "animal-handling", dc: 13 },
+  { intent: "scare_beasts", words: /(tiere|wölfe|wolf|hund|spinne|ratten) .*(scheuch|verjag|erschreck|scheu)|scheuch\w* .*(tiere|wölfe|wolf)|mach\w* .*scheu/, combat: true, skill: "animal-handling", dc: 12 },
+  { intent: "ice_bridge", words: /eisbrücke|(frier|gefrier)\w* .*wasser|wasser .*(einfrier|gefrier)/, combat: "both", skill: "arcana", dc: 12 },
+  { intent: "shove", words: /(stoß|stoss|schubs|schieb|tret|kick)\w* .*(ins feuer|aufs eis|auf das eis|ins wasser|in die flammen|in den abgrund|weg|zurück)/, combat: true, skill: "athletics", dc: 13 },
+  { intent: "study", words: /studier|beobacht\w* (den|die|das)|schwachstelle|schwäche|wo ist .* verwundbar/, combat: true, skill: "insight", dc: 12 },
+  { intent: "free_captive", words: /lass\w* .*(laufen|frei|gehen)|freilassen|lauf(en)? lassen/, combat: false },
+  { intent: "take_captive", words: /nehm\w* .*(mit|gefangen)|fessel|abführ/, combat: false },
+  { intent: "hand_captive", words: /übergeb|kopfgeld|ausliefer/, combat: false },
+  { intent: "bribe_npc", words: /bestech|schmier\w* |steck\w* .*gold zu|hier (hast du|sind) .*gold/, combat: false, skill: "persuasion", dc: 12 },
+  { intent: "threaten_npc", words: /droh|erpress|sonst passiert|ich weiß (dein|von deinem) geheimnis/, combat: false, skill: "intimidation", dc: 13 },
   // Bigger physics, people and fighting smart.
   { intent: "wall", words: /wand (ein|durch)|reiß.* wand|durch die wand|wand einreiß|ramm.* (die )?wand|morsche (stelle|wand)/, combat: "both", skill: "athletics", dc: BYPASS_DC },
   { intent: "ceiling", words: /decke (ein|zum einsturz|runter)|einstürz|stütz\w* (weg|um)|balken (weg|raus|umtreten)/, combat: "both", skill: "athletics", dc: BYPASS_DC },
@@ -141,6 +154,13 @@ export function scriptedFreeText(ctx: DmContext, trigger: Extract<DmTrigger, { k
     return respond([line(`${hero} holt aus …`)], { effects: [{ kind: "pass_item", target: friend.id, item }] });
   }
   if (rule.intent === "light_on") return respond([line(`${hero} macht Licht.`)], { effects: [{ kind: "light", on: true }] });
+  if (rule.intent === "free_captive" || rule.intent === "take_captive" || rule.intent === "hand_captive") {
+    const captives = (ctx.room?.people ?? []).filter((p) => !p.id.startsWith("npc-"));
+    const who = mentioned(trigger.text, captives) ?? captives[0];
+    if (!who) return respond([line(`Hier ist kein Gefangener.`)]);
+    const how = rule.intent === "free_captive" ? "free" : rule.intent === "take_captive" ? "take" : "hand_over";
+    return respond([line(`${hero} entscheidet über ${who.name}.`)], { effects: [{ kind: "captive", target: who.id, how }] });
+  }
   if (rule.intent === "loud") return respond([line(`${hero} macht einen Heidenlärm!`)], { effects: [{ kind: "noise", how: "loud" }] });
   if (rule.intent === "help") {
     const friend = mentioned(trigger.text, ctx.players.filter((p) => p.id !== trigger.playerId));
@@ -280,6 +300,27 @@ export function scriptedRollResult(ctx: DmContext, trigger: Extract<DmTrigger, {
     case "wall":
       effects.push({ kind: "wall_break" });
       break;
+    case "bees":
+    case "rats":
+    case "scare_beasts":
+      if (named ?? one ?? enemies[0]) effects.push({ kind: "animals", how: rule.intent === "bees" ? "bees" : rule.intent === "rats" ? "rats" : "scare", target: (named ?? one ?? enemies[0])!.id });
+      break;
+    case "ice_bridge":
+      effects.push({ kind: "ice_bridge", target: "" });
+      break;
+    case "shove":
+      if (one) effects.push({ kind: "shove", target: one.id });
+      break;
+    case "study":
+      if (named ?? enemies[0]) effects.push({ kind: "weakness", target: (named ?? enemies[0])!.id });
+      break;
+    case "bribe_npc":
+    case "threaten_npc": {
+      const who = mentioned(trigger.text, ctx.room?.people ?? []) ?? ctx.room?.people?.[0];
+      const how = rule.intent === "bribe_npc" ? "bribe" : /erpress|geheimnis/.test(trigger.text.toLowerCase()) ? "blackmail" : "threaten";
+      if (who && (how !== "bribe" || (ctx.gold ?? 0) >= 8)) effects.push({ kind: "pressure", target: who.id, how });
+      break;
+    }
     case "ceiling":
       if (named ?? one ?? enemies[0]) effects.push({ kind: "collapse", target: (named ?? one ?? enemies[0])!.id });
       break;
@@ -426,6 +467,14 @@ const PLANS: Partial<Record<Intent, string>> = {
   improvised: "1W6 + Stärke Schaden",
   trap: "Eine Stolperfalle liegt bereit",
   wall: "Die Wand bricht ein – ein neuer Durchgang",
+  bees: "Bienen stechen die Gegner (1W4, Nachteil)",
+  rats: "Ratten fallen über den Gegner her",
+  scare_beasts: "Die Tiere rennen davon",
+  ice_bridge: "Das Wasser wird zu Eis – begehbar",
+  shove: "Der Gegner fliegt 2 Felder zurück",
+  study: "Du findest seine Schwachstelle (Vorteil für alle)",
+  bribe_npc: "Für 8 Gold lässt sie euch durch oder verrät den Weg",
+  threaten_npc: "Sie gibt nach – und vergisst es euch nie",
   ceiling: "Die Decke stürzt auf die Gegner (2W6)",
   leap: "Du springst hinüber",
   pounce: "Sprung von oben: Schaden und Gegner am Boden",

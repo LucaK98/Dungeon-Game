@@ -371,3 +371,17 @@ describe("even more ideas without AI", () => {
     expect(ideas.ideas?.join(" ")).toContain("Fass");
   });
 });
+
+describe("round four without AI", () => {
+  it("understands bees, shoves into fire, weak spots, prisoners and threats", async () => {
+    const dm = new ScriptedDM(STORY);
+    const r = async (text: string, c: DmContext, dc = 13, total = 18) => (await dm.respond(c, { ...roll(total, dc, text), skill: "athletics" })).effects;
+    expect(await r("Ich werfe den Bienenstock auf Räuber 1", ctx(bandits))).toEqual([{ kind: "animals", how: "bees", target: "m1" }]);
+    expect(await r("Ich stoße Räuber 1 ins Feuer", ctx(bandits))).toEqual([{ kind: "shove", target: "m1" }]);
+    expect(await r("Ich studiere Räuber 2 und suche seine Schwachstelle", ctx(bandits))).toEqual([{ kind: "weakness", target: "m2" }]);
+    const room = { name: "Hof", objects: [], people: [{ id: "m4", name: "Räuber 4" }, { id: "npc-wirt", name: "Wirt Otto" }] };
+    const free = await dm.respond(ctx(undefined, { room }), { kind: "free_text", text: "Wir lassen Räuber 4 laufen", playerId: "p1", heroName: "Pip" });
+    expect(free.effects).toEqual([{ kind: "captive", target: "m4", how: "free" }]);
+    expect(await r("Wirt Otto, ich drohe dir: lass uns durch!", ctx(undefined, { room }))).toEqual([{ kind: "pressure", target: "npc-wirt", how: "threaten" }]);
+  });
+});

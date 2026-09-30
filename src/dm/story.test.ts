@@ -83,7 +83,7 @@ async function playStory(opts: { heroes?: { name: string; classId: string; raceI
     clock += 90_000;
     if (process.env.DEBUG_STORY && guard % 1000 === 0) {
       const d = director as unknown as { stepId?: string; scene?: { id: string } };
-      console.log(guard, state.sceneIndex, d.scene?.id, d.stepId, game.mode, game.active()?.name, JSON.stringify(game.heroes().map((h) => h.pos)), game.viewFor(game.heroes()[0]!.playerId!)?.story?.choices.map((c) => `${c.label}:${c.enabled}`));
+      console.log(guard, state.sceneIndex, d.scene?.id, d.stepId, game.mode, game.active()?.name, JSON.stringify(game.heroes().map((h) => [h.name, h.hp, h.conditions.map((c) => c.id), h.dead])), JSON.stringify(game.heroes().map((h) => h.pos)), game.viewFor(game.heroes()[0]!.playerId!)?.story?.choices.map((c) => `${c.label}:${c.enabled}`));
       const a = game.active();
       if (a?.playerId) {
         const v = game.viewFor(a.playerId)!;
@@ -460,4 +460,25 @@ describe("a wedding at home", () => {
     const second = await playStory({ seed: 4, duration: "kurz", npcs: world });
     expect(second.narration.some((l) => l.includes(`${hero} denkt an ${giver.name}`))).toBe(true);
   }, 60_000);
+});
+
+describe("consequences across adventures", () => {
+  it("someone the heroes threatened sends thugs; a foe they let go may come to help", async () => {
+    const world = emptyWorld();
+    const { meet, changeBond } = await import("./npc-world");
+    const angry = meet(world, "Krämer Gottlieb", "commoner", "alt", 0).mind;
+    changeBond(angry, HEROES[0]!.name, -5);
+    world.spared = [{ name: "Räuber Kuno", monster: "bandit" }];
+    let thugs = false;
+    let helped = false;
+    for (const seed of [2, 3, 4, 5, 6]) {
+      const w = structuredClone(world);
+      const { narration } = await playStory({ story: STORY, seed, duration: "kurz", npcs: w });
+      thugs ||= narration.some((l) => l.includes("Grüße von Krämer Gottlieb"));
+      helped ||= narration.some((l) => l.includes("Räuber Kuno taucht auf"));
+      if (thugs && helped) break;
+    }
+    expect(thugs).toBe(true);
+    expect(helped).toBe(true);
+  }, 120_000);
 });

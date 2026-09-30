@@ -67,6 +67,8 @@ export interface NpcMind {
 export interface NpcWorld {
   version: 1;
   npcs: Record<string, NpcMind>;
+  /** Foes the heroes let go: one may turn up one day and help (newest last). */
+  spared?: { name: string; monster: string }[];
   /** What people tell each other (newest last): deeds of the heroes and what they said. */
   rumors?: { text: string; from: string }[];
   /** Adventures played to the end on this TV (children grow with it). */

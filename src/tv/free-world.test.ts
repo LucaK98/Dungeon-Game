@@ -253,3 +253,98 @@ describe("bigger ideas", () => {
     expect(douse).toContain("Feuer aus");
   });
 });
+
+describe("round four", () => {
+  const fightWith = (monsters: string[]) => {
+    const env = setup();
+    const { session, a, floorNear } = env;
+    const taken: { x: number; y: number }[] = [];
+    const foes = monsters.map((m, i) => {
+      const c = createMonster(m, `m${i + 1}`);
+      c.pos = floorNear(a.pos!, taken);
+      taken.push(c.pos);
+      session.battle.creatures[c.id] = c;
+      return c;
+    });
+    return { ...env, foes };
+  };
+
+  it("bees sting, beasts run off, rats join the fight", () => {
+    const { game, a, foes, session } = fightWith(["goblin", "wolf"]);
+    game.spawnNearParty([]);
+    const [g, w] = foes;
+    const hp = g!.hp;
+    game.applyEffects([{ kind: "animals", how: "bees", target: g!.id }], a);
+    expect(g!.hp).toBeLessThan(hp);
+    game.applyEffects([{ kind: "animals", how: "scare", target: w!.id }], a);
+    expect(session.battle.creatures[w!.id]).toBeUndefined();
+  });
+
+  it("a shove throws a foe into the fire", () => {
+    const { game, a, foes, session } = fightWith(["goblin"]);
+    const g = foes[0]!;
+    const p = a.pos!;
+    const free = (x: number, y: number) => session.map.cells[cellIndex(session.map, x, y)] === "floor" && !Object.values(session.battle.creatures).some((c) => c !== g && c.pos?.x === x && c.pos?.y === y);
+    const dir = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }].find((d) => [1, 2, 3].every((n) => free(p.x + d.x * n, p.y + d.y * n)))!;
+    g.pos = { x: p.x + dir.x, y: p.y + dir.y };
+    session.map.surface ??= {};
+    for (const n of [2, 3]) session.map.surface[cellIndex(session.map, p.x + dir.x * n, p.y + dir.y * n)] = { kind: "fire", turns: 3 };
+    const hp = g.hp;
+    const line = game.applyEffects([{ kind: "shove", target: g.id }], a).join(" ");
+    expect(line).toContain("Feuer");
+    expect(g.pos).toEqual({ x: p.x + dir.x * 3, y: p.y + dir.y * 3 });
+    expect(g.hp).toBeLessThan(hp);
+  });
+
+  it("finds a weak spot (advantage for everybody) and a combo pays extra", () => {
+    const { game, a, b, foes } = fightWith(["ogre"]);
+    const o = foes[0]!;
+    expect(game.applyEffects([{ kind: "weakness", target: o.id }], a).join(" ")).toContain("wackeliges Knie");
+    expect(o.effects.some((e) => e.id === "weakspot")).toBe(true);
+    // A sets the ogre up, B's hit becomes a combo.
+    game.applyEffects([{ kind: "distract", target: o.id }], a);
+    const setups = (game as unknown as { setups: Map<string, { heroId: string }> }).setups;
+    expect(setups.get(o.id)?.heroId).toBe(a.id);
+    (game as unknown as { mode: string }).mode = "combat";
+    const hp = o.hp;
+    const r = { id: "x", creatureId: b.id, title: "Angriff", sides: 20, dice: [15], kept: 15, lines: [], hits: [{ targetId: o.id, amount: 3 }] };
+    (game as unknown as { combo(r: unknown): void }).combo(r);
+    expect(o.hp).toBeLessThan(hp);
+    expect(r.lines.map((l: { text: string }) => l.text).join(" ")).toContain("Kombo");
+  });
+
+  it("prisoners: take along, hand over for a reward, or let go (remembered)", () => {
+    const { game, a, session, floorNear } = setup();
+    const spared: string[] = [];
+    game.onSpared = (name) => spared.push(name);
+    const mk = (id: string) => {
+      const c = createMonster("bandit", id, { name: `Räuber ${id}`, side: "neutral" });
+      c.pos = floorNear(a.pos!, Object.values(session.battle.creatures).flatMap((x) => (x.pos ? [x.pos] : [])));
+      c.captive = true;
+      session.battle.creatures[c.id] = c;
+      return c;
+    };
+    const p1 = mk("m7");
+    game.applyEffects([{ kind: "captive", target: p1.id, how: "take" }], a);
+    expect(p1.followId).toBe(a.id);
+    const gold = a.pc!.inventory.find((i) => i.itemId === "gold")?.qty ?? 0;
+    const p2 = mk("m8");
+    game.applyEffects([{ kind: "captive", target: p2.id, how: "hand_over" }], a);
+    expect(a.pc!.inventory.find((i) => i.itemId === "gold")!.qty).toBe(gold + 8);
+    const p3 = mk("m9");
+    game.applyEffects([{ kind: "captive", target: p3.id, how: "free" }], a);
+    expect(spared).toEqual(["Räuber m9"]);
+  });
+
+  it("frost turns water into an ice bridge – only with frost magic", () => {
+    const { game, session, a, b } = setup();
+    const water = cellIndex(session.map, a.pos!.x + 1, a.pos!.y);
+    session.map.cells[water] = "deep";
+    expect(game.applyEffects([{ kind: "ice_bridge", target: `${a.pos!.x + 1},${a.pos!.y}` }], a).join(" ")).toContain("Frostmagie");
+    b.pc!.spells = [...b.pc!.spells, "ray-of-frost"];
+    b.pos = { ...a.pos! };
+    game.applyEffects([{ kind: "ice_bridge", target: `${a.pos!.x + 1},${a.pos!.y}` }], b);
+    expect(session.map.cells[water]).toBe("water");
+    expect(session.map.surface![water]!.kind).toBe("ice");
+  });
+});

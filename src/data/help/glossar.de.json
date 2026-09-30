@@ -3615,5 +3615,29 @@
     "siehe_auch": [
       "hochzeit"
     ]
+  },
+  "gefangene": {
+    "titel": "Gefangene",
+    "kurz": "Wer verliert, ergibt sich manchmal – was macht ihr mit ihm?",
+    "lang": "Gewöhnliche Gegner, die fast besiegt und in der Unterzahl sind, werfen manchmal die Waffe weg. Dann entscheidet ihr per freier Aktion: laufen lassen (er vergisst es nicht und hilft euch vielleicht einmal in einem späteren Kampf), mitnehmen (er folgt euch, ihr könnt ihn verhören) oder den Wachen übergeben (8 Gold Kopfgeld).",
+    "siehe_auch": [
+      "freie_aktion"
+    ]
+  },
+  "kombo": {
+    "titel": "Kombo",
+    "kurz": "Einer legt vor, ein anderer vollendet: +1W6 Schaden.",
+    "lang": "Hat ein Held einen Gegner mit einer freien Aktion vorbereitet (umgestoßen, abgelenkt, weggestoßen, entwaffnet …) und ein ANDERER Held trifft ihn in dieser oder der nächsten Runde, gibt es eine Kombo: +1W6 Schaden und ein paar EP. Die meisten Kombos bringen im Rückblick die Auszeichnung „Teamplayer“.",
+    "siehe_auch": [
+      "freie_aktion"
+    ]
+  },
+  "schwachstelle": {
+    "titel": "Schwachstelle",
+    "kurz": "Ein Gegner mit bekannter Schwachstelle wird mit Vorteil angegriffen.",
+    "lang": "Wer einen Gegner studiert („Ich beobachte den Oger genau“) und die Probe schafft, entdeckt seine Schwachstelle – ein wackeliges Knie, eine Lücke in der Rüstung. Danach haben alle Angriffe auf ihn Vorteil, auch bei Anführern.",
+    "siehe_auch": [
+      "vorteil"
+    ]
   }
 }

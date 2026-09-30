@@ -157,6 +157,17 @@ export type DmEffect =
   | { kind: "feud"; target: string; other: string }
   | { kind: "disarm"; target: string; what: "weapon" | "shield" }
   | { kind: "hurl"; target: string; toward?: string }
+  // animals of the surroundings: a beehive, scaring beasts off, rats set on a foe
+  | { kind: "animals"; how: "bees" | "scare" | "rats"; target: string }
+  // spells used creatively: ice bridge over water, a shove (by muscle or thunder) into fire, onto ice, into water
+  | { kind: "ice_bridge"; target: string }
+  | { kind: "shove"; target: string; toward?: string }
+  // pressure outside fights: bribe, blackmail, threaten (people remember threats)
+  | { kind: "pressure"; target: string; how: "bribe" | "blackmail" | "threaten" }
+  // prisoners: let go, take along, hand over for a reward
+  | { kind: "captive"; target: string; how: "free" | "take" | "hand_over" }
+  // study a foe: a weak spot (attacks against it have advantage)
+  | { kind: "weakness"; target: string }
   // "yes, but": the acting hero pays a small price (1W4 damage, never knocked out)
   | { kind: "cost" }
   // setbacks after a clearly failed attempt

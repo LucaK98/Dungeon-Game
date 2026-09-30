@@ -100,6 +100,8 @@ export type EffectId =
   | "disguised"
   /** Talked into a quarrel: on its next turn it attacks the foe named by sourceId. */
   | "feud"
+  /** Its weak spot is known: attacks against it have advantage. */
+  | "weakspot"
   /** Tricked by a free action: the next attack against it has advantage. */
   | "distracted"
   /** A friend helps: advantage on the next attack or check. */
@@ -202,6 +204,8 @@ export interface Creature {
   companion?: CompanionInfo & { ownerId: string };
   /** A character who walks along with this hero (free action "folgen"). */
   followId?: string;
+  /** A foe who gave up: a prisoner (let go, taken along or handed over). */
+  captive?: boolean;
   /** A hero's teenage child along as squire (fights beside them, goes home when wounded). */
   squire?: { ownerId: string };
   /** A companion's target, commanded by its hero ("Bello, fass den Goblin!"). */

@@ -69,6 +69,12 @@ export const EFFECT_HELP: Record<string, { combat: boolean | "both"; text: strin
   // fighting smart
   zwietracht: { combat: true, text: "ein gewöhnlicher Gegner greift in seinem nächsten Zug einen anderen Gegner an (richtung = id des anderen)" },
   entwaffnen: { combat: true, text: "art waffe: ein gewöhnlicher Gegner verliert die Waffe – Nachteil auf Angriffe bis Kampfende; art schild: der Schild zerbricht – −2 Rüstungsklasse (auch bei Anführern)" },
+  tiere: { combat: true, text: "Tiere der Umgebung (art: bienen = Bienenstock auf einen Gegner: er und seine Nachbarn 1W4 und gestochen; scheuchen = wilde Tiere unter den Gegnern fliehen; ratten = mit Essen gelockte Ratten fallen über einen Gegner her, einmal pro Karte)" },
+  eisbruecke: { combat: "both", text: "Frostmagie macht Wasser um ein Ziel zu begehbarem Eis (nur wer einen Kältezauber kennt)" },
+  stossen: { combat: true, text: "ein gewöhnlicher Gegner wird 2 Felder weggestoßen (mit Kraft oder Donnerwelle) – landet er in Feuer, auf Eis oder im Wasser, hat das Folgen (richtung: wohin)" },
+  druck: { combat: false, text: "Druck auf eine Figur aus LEUTE (art: bestechen = 8 Gold; erpressen/drohen = sie hasst euch danach und schickt später Schläger) – sie lässt euch durch oder verrät den Weg" },
+  gefangen: { combat: false, text: "ein Gefangener aus LEUTE (art: laufen_lassen = er vergisst es euch nicht und hilft vielleicht einmal; mitnehmen = er folgt euch; uebergeben = 8 Gold Kopfgeld)" },
+  schwachstelle: { combat: true, text: "der Held studiert einen Gegner und entdeckt eine Schwachstelle: alle Angriffe auf ihn haben Vorteil (auch bei Anführern)" },
   packen_werfen: { combat: true, text: "ein starker Held packt einen kleinen Gegner (klein/winzig, kein Anführer) und wirft ihn auf einen anderen Gegner (richtung): beide 1W6 Schaden und liegen am Boden" },
 };
 
@@ -112,7 +118,7 @@ export function allowedEffectNames(ctx: DmContext, trigger: DmTrigger): string[]
     .filter(([, e]) => e.combat === "both" || e.combat === fighting)
     .map(([name]) => name)
     .filter((name) => !HARD.has(name) || (trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))
-    .filter((name) => (name !== "auftrag" && name !== "verhoeren") || !!ctx.room?.people?.length)
+    .filter((name) => !["auftrag", "verhoeren", "druck", "gefangen"].includes(name) || !!ctx.room?.people?.length)
     .filter((name) => (name !== "figur" && name !== "geschenk") || !!ctx.room?.people?.length)
     .filter((name) => name !== "objekt" || !!ctx.room?.things?.length)
     .filter((name) => name !== "flucht" || canFlee(ctx))
@@ -263,6 +269,32 @@ export function effectFromName(name: string, target: string | undefined, ctx: Dm
       const what = art === "schild" ? "shield" : "weapon";
       return t && (what === "shield" || !t.boss) ? { kind: "disarm", target: t.id, what } : undefined;
     }
+    case "tiere": {
+      const how = art === "scheuchen" ? "scare" : art === "ratten" ? "rats" : "bees";
+      const t = enemy ?? enemies[0];
+      return t ? { kind: "animals", how, target: t.id } : undefined;
+    }
+    case "eisbruecke":
+      return { kind: "ice_bridge", target: target ?? "" };
+    case "stossen": {
+      const t = enemy ?? enemies.find((e) => !e.boss);
+      return t && !t.boss ? { kind: "shove", target: t.id, ...(toward ? { toward } : {}) } : undefined;
+    }
+    case "druck": {
+      const who = ctx.room?.people?.find((p) => p.id === target || p.name === target);
+      const how = art === "bestechen" ? "bribe" : art === "erpressen" ? "blackmail" : "threaten";
+      if (how === "bribe" && (ctx.gold ?? 0) < 8) return undefined;
+      return who ? { kind: "pressure", target: who.id, how } : undefined;
+    }
+    case "gefangen": {
+      const who = ctx.room?.people?.find((p) => p.id === target || p.name === target);
+      const how = art === "mitnehmen" ? "take" : art === "uebergeben" || art === "übergeben" ? "hand_over" : "free";
+      return who ? { kind: "captive", target: who.id, how } : undefined;
+    }
+    case "schwachstelle": {
+      const t = enemy ?? enemies[0];
+      return t ? { kind: "weakness", target: t.id } : undefined;
+    }
     case "packen_werfen": {
       const t = enemy ?? enemies.find((e) => !e.boss);
       return t && !t.boss ? { kind: "hurl", target: t.id, ...(toward ? { toward } : {}) } : undefined;
@@ -286,9 +318,9 @@ export function effectFromName(name: string, target: string | undefined, ctx: Dm
   }
 }
 
-const COMBAT_KINDS = new Set<DmEffect["kind"]>(["distract", "prone", "hamper", "help", "cover", "hazard", "flee", "pacify", "exposed", "fall", "fumble", "enrage", "retreat", "turncoat", "rout", "improvised", "pounce", "feud", "disarm", "hurl"]);
+const COMBAT_KINDS = new Set<DmEffect["kind"]>(["animals", "shove", "weakness", "distract", "prone", "hamper", "help", "cover", "hazard", "flee", "pacify", "exposed", "fall", "fumble", "enrage", "retreat", "turncoat", "rout", "improvised", "pounce", "feud", "disarm", "hurl"]);
 const SETBACK_KINDS = new Set<DmEffect["kind"]>(["exposed", "fall", "fumble", "hurt", "lose_gold", "enrage"]);
-const BOTH_KINDS = new Set<DmEffect["kind"]>(["help", "hurt", "lose_gold", "move_to", "climb", "hide", "posture", "ground", "object", "barricade", "light", "pass_item", "feed_potion", "set_trap", "wall_break", "collapse", "leap", "noise"]);
+const BOTH_KINDS = new Set<DmEffect["kind"]>(["help", "hurt", "lose_gold", "move_to", "climb", "hide", "posture", "ground", "object", "barricade", "light", "pass_item", "feed_potion", "set_trap", "wall_break", "collapse", "leap", "noise", "ice_bridge"]);
 const NO_ROLL_KINDS = new Set<DmEffect["kind"]>(["help", "cover", "move_to", "retreat", "posture", "pass_item", "feed_potion"]);
 
 /** Final check of a DM answer's effects against the roll and the situation. */

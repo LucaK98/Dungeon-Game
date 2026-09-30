@@ -100,6 +100,7 @@ export function attackReasons(battle: Battle, attacker: Creature, target: Creatu
   if (!canSee(battle, target, attacker)) r.push(advantage("Das Ziel sieht dich im Dunkeln nicht", "dunkelheit"));
   if (hasEffect(target, "guiding-bolt")) r.push(advantage("Lenkendes Geschoss leuchtet auf dem Ziel", "zauber:guiding-bolt"));
   if (hasEffect(target, "distracted")) r.push(advantage("Ziel ist abgelenkt", "abgelenkt"));
+  if (hasEffect(target, "weakspot")) r.push(advantage("Schwachstelle erkannt", "schwachstelle"));
   if (hasEffect(attacker, "helped")) r.push(advantage("Ein Freund hilft dir", "helfen"));
   if (hasEffect(attacker, "hampered")) r.push(disadvantage("Du bist behindert (entwaffnet, geblendet …)", "behindert"));
   if (hasEffect(attacker, "enraged")) r.push(advantage("Wütend: greift mit voller Wucht an", "wuetend"));

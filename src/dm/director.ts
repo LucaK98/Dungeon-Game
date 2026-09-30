@@ -177,6 +177,15 @@ export class Director {
     game.onGift = (_playerId, hero, name, itemId, itemName) => this.gift(hero, name, itemId, itemName);
     game.onPropose = (playerId, hero, name) => this.propose(playerId, hero, name);
     game.onDeed = (hero, deed) => this.deed(hero, deed);
+    game.onPressure = (hero, npcId, how) => this.pressure(hero, npcId, how);
+    game.onSpared = (name, monster) => {
+      const w = this.opts.npcs;
+      if (!w) return;
+      (w.world.spared ??= []).push({ name, monster });
+      if (w.world.spared.length > 6) w.world.spared.shift();
+      spreadRumor(w.world, `Die Helden haben ${name} laufen lassen.`, name);
+      w.save();
+    };
     if (opts.world) {
       this.world = new World({
         game,
@@ -481,6 +490,36 @@ export class Director {
     }
     if (lines.length) this.game.narrate(lines);
   }
+
+  /** Bribe, blackmail, threat: the way opens (or she tells it) – threats make an enemy who sends thugs later. */
+  private pressure(hero: Creature, npcId: string, how: "bribe" | "blackmail" | "threaten"): string | undefined {
+    const c = this.game.session.battle.creatures[npcId];
+    if (!c || c.side !== "neutral") return undefined;
+    if (how === "bribe" && !this.game.payGold(8)) return `💰 Dafür reicht das Gold nicht (8 Gold).`;
+    const w = this.opts.npcs;
+    const mind = this.minds.get(c.name);
+    if (mind) {
+      if (how === "bribe") changeBond(mind, hero.name, 1);
+      else {
+        changeBond(mind, hero.name, -4);
+        remember(mind, `${hero.name} hat mich ${how === "blackmail" ? "erpresst" : "bedroht"}. Das zahle ich heim.`);
+      }
+    }
+    if (w && how !== "bribe") spreadRumor(w.world, `${hero.name} hat ${c.name} ${how === "blackmail" ? "erpresst" : "bedroht"}.`, c.name);
+    w?.save();
+    const what = how === "bribe" ? `💰 ${c.name} steckt 8 Gold ein` : how === "blackmail" ? `🗝️ ${c.name} wird blass – ${hero.name} weiß zu viel` : `😠 ${c.name} weicht vor ${hero.name} zurück`;
+    this.game.bubble(npcId, how === "bribe" ? "Ich hab nichts gesehen …" : "Schon gut! Aber das merk ich mir!");
+    if (this.bypassable()) {
+      this.takeShortcut(hero);
+      return `${what} und lässt euch durch.`;
+    }
+    const traps = this.game.revealWay();
+    return `${what} und verrät den Weg${traps ? ` und ${traps} Falle${traps > 1 ? "n" : ""}` : ""}.`;
+  }
+
+  /** Revenge and gratitude from earlier: each at most once per adventure. */
+  private grudgeUsed = false;
+  private sparedUsed = false;
 
   /** Deeds already noted in this scene (each once). */
   private deedsNoted = new Set<string>();
@@ -1058,6 +1097,29 @@ export class Director {
       this.nemesisUsed = true;
       groups = [...groups, { monster: foe.monster, count: 1, name: `${foe.name} (sinnt auf Rache)` }];
       this.game.narrate([{ text: `🗡️ „Da seid ihr ja wieder!“ ${foe.name} ist zurück – und will Rache für „${foe.from}“!` }]);
+    }
+    // Someone the heroes threatened or hurt sends thugs.
+    const w = this.opts.npcs;
+    if (w && !training && !this.grudgeUsed) {
+      const names = this.heroes().map((h) => h.name);
+      const angry = Object.values(w.world.npcs).find((m) => !this.minds.has(m.name) && names.some((n) => bondOf(m, n) <= -4));
+      if (angry) {
+        this.grudgeUsed = true;
+        groups = [...groups, { monster: "thug", count: 1, name: `Schläger von ${angry.name}` }];
+        for (const n of names) if (bondOf(angry, n) <= -4) changeBond(angry, n, 1);
+        remember(angry, "Ich habe den Helden Schläger auf den Hals gehetzt.");
+        w.save();
+        this.game.narrate([{ text: `😈 „Grüße von ${angry.name}!“ – jemand hat euch nicht vergessen und Schläger geschickt.` }]);
+      }
+    }
+    // Someone they once let go returns the favour.
+    const spared = w?.world.spared?.[0];
+    if (w && spared && !training && !this.sparedUsed && this.rng.next() < 0.4) {
+      this.sparedUsed = true;
+      w.world.spared!.shift();
+      w.save();
+      allies.push({ monster: spared.monster, name: `${spared.name} (verschont – hilft euch)` });
+      this.game.narrate([{ text: `🕊️ ${spared.name} taucht auf: „Ihr habt mich damals laufen lassen – jetzt bin ich dran!“` }]);
     }
     if (hasBoss && last) {
       const b = groups.find((g) => g.boss);
