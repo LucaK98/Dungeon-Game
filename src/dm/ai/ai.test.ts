@@ -219,3 +219,40 @@ describe("tests never spend AI credit", () => {
     }
   });
 });
+
+describe("the server AI is the standard", () => {
+  const withStorage = async (stored: unknown, run: (mod: typeof import("./settings")) => void) => {
+    const data = new Map<string, string>();
+    if (stored !== undefined) data.set("couch-dungeon.ai", JSON.stringify(stored));
+    const fake = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+    const g = globalThis as { localStorage?: unknown };
+    const saved = g.localStorage;
+    Object.defineProperty(globalThis, "localStorage", { value: fake, configurable: true });
+    try {
+      run(await import("./settings"));
+    } finally {
+      Object.defineProperty(globalThis, "localStorage", { value: saved, configurable: true });
+    }
+    return data;
+  };
+
+  it("a new device starts on the server AI", async () => {
+    await withStorage(undefined, (m) => expect(m.loadAiSettings().provider).toBe("server"));
+  });
+
+  it("old settings (script or own key) move to the server AI, keys stay", async () => {
+    await withStorage({ provider: "off", keys: {} }, (m) => expect(m.loadAiSettings().provider).toBe("server"));
+    await withStorage({ provider: "gemini", keys: { gemini: "AQ.test" } }, (m) => {
+      const s = m.loadAiSettings();
+      expect(s.provider).toBe("server");
+      expect(s.keys.gemini).toBe("AQ.test");
+    });
+  });
+
+  it("a choice made on purpose stays (script or own key)", async () => {
+    const data = await withStorage(undefined, (m) => m.saveAiSettings({ ...m.DEFAULT_SETTINGS, provider: "off" }));
+    const saved = JSON.parse(data.get("couch-dungeon.ai")!);
+    await withStorage(saved, (m) => expect(m.loadAiSettings().provider).toBe("off"));
+    await withStorage({ ...saved, provider: "groq" }, (m) => expect(m.loadAiSettings().provider).toBe("groq"));
+  });
+});

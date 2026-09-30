@@ -11,8 +11,8 @@ import { loadCrude, loadGraphicsMode, loadLookMode, saveCrude, saveGraphicsMode,
 import { prepareVoice, setSpeechRate, setVoiceEngine, speak, speechRate, stopSpeaking, storytellerProblem, voiceEngine, type VoiceEngine } from "./speech";
 
 const VOICES: { id: VoiceEngine; label: string; detail: string }[] = [
-  { id: "storyteller", label: "📖 Erzähler (Gemini)", detail: "Klingt wie ein echter Märchenerzähler – Figuren mit eigenen Stimmen. Braucht einen Gemini-Schlüssel und Internet; beim Gratis-Limit springt kurz die natürliche Stimme ein." },
-  { id: "natural", label: "✨ Natürliche Stimmen", detail: "Kostenlos, jede Figur klingt anders. Lädt einmalig ca. 200 MB (danach offline)." },
+  { id: "natural", label: "✨ Natürliche Stimmen (Standard)", detail: "Kostenlos, jede Figur klingt anders. Lädt einmalig ca. 200 MB (danach offline)." },
+  { id: "storyteller", label: "📖 Erzähler (Gemini)", detail: "Klingt wie ein echter Märchenerzähler – Figuren mit eigenen Stimmen. Braucht einen eigenen Gemini-Schlüssel und Internet; beim Gratis-Limit springt kurz die natürliche Stimme ein." },
   { id: "browser", label: "🌐 Browser-Stimme", detail: "Sofort da. Am natürlichsten in Microsoft Edge („Natural“-Stimmen) oder Chrome." },
 ];
 
@@ -33,12 +33,18 @@ const LOOKS: { id: LookMode; label: string }[] = [
   { id: "klassisch", label: "🗺️ Klassisch (hell, schont schwache Geräte)" },
 ];
 
-const PROVIDERS: { id: AiSettings["provider"]; label: string; detail: string }[] = [
-  { id: "off", label: "📜 Drehbuch", detail: "Ohne KI. Der Erzähler folgt der Geschichte, freie Aktionen versteht er nur bei Stichworten." },
-  { id: "server", label: "🌐 Server-KI", detail: "Empfohlen: Kein Schlüssel auf diesem Gerät nötig. Die KI läuft über euren Supabase-Server, der Gemini-Schlüssel liegt dort sicher als Geheimnis." },
-  { id: "gemini", label: "🧠 Gemini (Google)", detail: "Kostenloser Schlüssel aus Google AI Studio (aistudio.google.com). Die KI erzählt frei und reagiert auf eure Ideen." },
-  { id: "groq", label: "⚡ Groq", detail: "Ersatz-Anbieter mit Gratis-Stufe (console.groq.com)." },
+/** Three choices: the server AI (standard), an own key, or only the script. */
+type Mode = "server" | "own" | "off";
+const MODES: { id: Mode; label: string; detail: string }[] = [
+  { id: "server", label: "🌐 Server-KI (Standard)", detail: "Läuft einfach: Kein Schlüssel auf diesem Gerät nötig. Die KI erzählt frei und reagiert auf eure Ideen." },
+  { id: "own", label: "🔑 Eigener API-Schlüssel", detail: "Mit deinem eigenen Gemini- oder Groq-Schlüssel (Gratis-Stufen: aistudio.google.com, console.groq.com)." },
+  { id: "off", label: "📜 Nur Drehbuch", detail: "Ohne KI. Der Erzähler folgt der Geschichte, freie Aktionen versteht er nur bei Stichworten." },
 ];
+const OWN: { id: Exclude<ProviderId, "server">; label: string }[] = [
+  { id: "gemini", label: "🧠 Gemini (Google)" },
+  { id: "groq", label: "⚡ Groq" },
+];
+const modeOf = (p: AiSettings["provider"]): Mode => (p === "gemini" || p === "groq" ? "own" : p);
 
 export function settingsScreen(root: HTMLElement): Promise<void> {
   return new Promise((resolve) => {
@@ -59,9 +65,11 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     const test = h("button", { class: "tv-btn", type: "button", textContent: "🔌 Verbindung testen" });
     const clearKey = h("button", { class: "tv-btn small", type: "button", textContent: "🗑 Schlüssel löschen" });
     const done = h("button", { class: "tv-btn primary", type: "button", textContent: "✔ Speichern & zurück" });
+    const ownRow = h("div", { class: "tv-row" });
     const aiPart = h(
       "div",
       { class: "settings-ai" },
+      h("label", {}, "Anbieter", ownRow),
       h("label", {}, "Schlüssel", h("div", { class: "tv-row" }, keyInput, showKey)),
       h("label", {}, "Modell", modelInput),
       h("label", {}, "Ausweich-Modell (wenn das Gratis-Limit erreicht ist)", fallbackInput),
@@ -72,14 +80,18 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
 
     // The key field shows the key of the chosen provider (the server needs none).
     const current = (): Exclude<ProviderId, "server"> | undefined => (s.provider === "off" || s.provider === "server" ? undefined : s.provider);
-    const backupInput = h("input", { class: "settings-input", type: "password", autocomplete: "off", spellcheck: false, placeholder: "optional: eigener Gemini-Schlüssel", value: s.backupKey ?? "" }) as HTMLInputElement;
+    // An old backup key (from earlier versions) keeps working until it is removed here.
+    const dropBackup = h("button", { class: "tv-btn small", type: "button", textContent: "🗑 Alten Ausweich-Schlüssel entfernen" });
+    dropBackup.addEventListener("click", () => {
+      delete s.backupKey;
+      saveAiSettings(s);
+      dropBackup.remove();
+      status.textContent = "Ausweich-Schlüssel entfernt.";
+    });
     const serverPart = h(
       "div",
       { class: "settings-ai" },
-      h("div", { class: "tv-row" }, h("button", { class: "tv-btn", type: "button", textContent: "🔌 Server testen", onclick: () => void testServer() })),
-      h("label", {}, "Ausweich-Schlüssel (springt ein, wenn das Server-Kontingent aufgebraucht ist)", backupInput),
-      h("p", { class: "settings-warn" }, "🔒 Bleibt nur auf diesem Gerät gespeichert und wird nie an die Handys geschickt."),
-      h("p", { class: "settings-warn" }, "Einmalig einrichten: Im Supabase-Dashboard unter Edge Functions → Secrets den Eintrag GEMINI_API_KEY mit eurem Gemini-Schlüssel anlegen."),
+      h("div", { class: "tv-row" }, h("button", { class: "tv-btn", type: "button", textContent: "🔌 Server testen", onclick: () => void testServer() }), ...(s.backupKey ? [dropBackup] : [])),
     );
     const testServer = async () => {
       status.textContent = "Teste den Server …";
@@ -106,9 +118,6 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
       }
     };
     const pull = () => {
-      const backup = backupInput.value.trim();
-      if (backup) s.backupKey = backup;
-      else delete s.backupKey;
       const p = current();
       if (!p) return;
       const key = keyInput.value.trim();
@@ -117,14 +126,31 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
       if (modelInput.value.trim()) s.models[p] = modelInput.value.trim();
       s.fallbackModels[p] = fallbackInput.value.trim();
     };
+    /** The own provider last used (the one with a key, else Gemini). */
+    let ownChoice: Exclude<ProviderId, "server"> = s.provider === "groq" || (!s.keys.gemini && s.keys.groq) ? "groq" : "gemini";
     const render = () => {
       providerRow.replaceChildren(
-        ...PROVIDERS.map((p) => {
-          const b = h("button", { class: `story-card provider${s.provider === p.id ? " selected" : ""}`, type: "button" }, h("h2", {}, p.label), h("p", {}, p.detail));
+        ...MODES.map((m) => {
+          const b = h("button", { class: `story-card provider${modeOf(s.provider) === m.id ? " selected" : ""}`, type: "button" }, h("h2", {}, m.label), h("p", {}, m.detail));
           b.addEventListener("click", () => {
             pull();
-            s.provider = p.id;
+            s.provider = m.id === "own" ? ownChoice : m.id;
+            // The choice counts at once (the game uses what is saved).
+            saveAiSettings(s);
             status.textContent = "";
+            render();
+          });
+          return b;
+        }),
+      );
+      ownRow.replaceChildren(
+        ...OWN.map((o) => {
+          const b = h("button", { class: `tv-btn small${s.provider === o.id ? " primary" : ""}`, type: "button", textContent: o.label });
+          b.addEventListener("click", () => {
+            pull();
+            ownChoice = o.id;
+            s.provider = o.id;
+            saveAiSettings(s);
             render();
           });
           return b;

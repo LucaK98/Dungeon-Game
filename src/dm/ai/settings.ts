@@ -14,6 +14,8 @@ export interface AiSettings {
   fallbackModels: Record<ProviderId, string>;
   /** A Gemini key of this TV that steps in when the server's free quota is used up (stored only here). */
   backupKey?: string;
+  /** Version 2: the server AI is the standard; "off" and own keys are a choice made on purpose. */
+  v?: 2;
 }
 
 const KEY = "couch-dungeon.ai";
@@ -41,7 +43,8 @@ export function loadAiSettings(): AiSettings {
     if (!raw) return structuredClone(DEFAULT_SETTINGS);
     const s = JSON.parse(raw) as Partial<AiSettings>;
     return {
-      provider: s.provider ?? "off",
+      // Settings from before version 2 start on the server AI (stored keys stay, one tap away).
+      provider: s.v === 2 ? (s.provider ?? "server") : "server",
       keys: s.keys ?? {},
       models: { ...DEFAULT_SETTINGS.models, ...s.models },
       fallbackModels: { ...DEFAULT_SETTINGS.fallbackModels, ...s.fallbackModels },
@@ -54,7 +57,7 @@ export function loadAiSettings(): AiSettings {
 
 export function saveAiSettings(s: AiSettings): void {
   try {
-    storage()?.setItem(KEY, JSON.stringify(s));
+    storage()?.setItem(KEY, JSON.stringify({ ...s, v: 2 }));
   } catch {
     // Storage blocked: settings last for this page only.
   }

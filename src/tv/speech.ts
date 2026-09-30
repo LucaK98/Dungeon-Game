@@ -14,7 +14,8 @@ import { loadAiSettings } from "../dm/ai/settings";
 import { aiBlocked } from "../dm/ai/provider";
 
 const KEY = "couch-dungeon.speech";
-const ENGINE_KEY = "couch-dungeon.voice-engine";
+/** Version 2: the natural voices are the standard – only a choice made since then counts. */
+const ENGINE_KEY = "couch-dungeon.voice-engine.v2";
 
 export type VoiceEngine = "storyteller" | "natural" | "browser";
 
@@ -62,8 +63,8 @@ export function voiceEngine(): VoiceEngine {
   try {
     const v = localStorage.getItem(ENGINE_KEY);
     if (v === "browser" || v === "natural" || v === "storyteller") return v;
-    // Not chosen yet: the storyteller if there is a Gemini key on this TV.
-    return geminiKey() ? "storyteller" : "natural";
+    // Not chosen: the natural voices.
+    return "natural";
   } catch {
     return "natural";
   }
