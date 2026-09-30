@@ -267,8 +267,12 @@ export class Director {
     }
     const { response } = validateResponse(raw, { story: this.story, scene: this.scene, truth: this.state.truth, eventsUsed: this.state.eventsUsed });
     // Free text from the game master is kept short (read aloud in full; long texts lose the table).
-    const lines: Narration[] = (response.script ?? (response.narration ? [{ text: shorten(response.narration, 2) }] : [])).filter((l) => l.npc || !DIRECTION.test(l.text));
-    if (response.npc_say) lines.push({ npc: response.npc_say.name, text: response.npc_say.text });
+    let lines: Narration[] = (response.script ?? (response.narration ? [{ text: shorten(response.narration, 2) }] : [])).filter((l) => l.npc || !DIRECTION.test(l.text));
+    if (response.npc_say) {
+      // Someone answers: only they speak. The narrator stays quiet, unless something happens on the map.
+      if (!response.effects?.length && !response.request_roll) lines = lines.filter((l) => l.npc);
+      lines.push({ npc: response.npc_say.name, text: response.npc_say.text });
+    }
     this.game.narrate(lines);
     if (response.reveal_twist) this.state.twistRevealed = true;
     this.set(response.set_flags);

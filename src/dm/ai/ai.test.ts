@@ -256,3 +256,12 @@ describe("the server AI is the standard", () => {
     await withStorage({ ...saved, provider: "groq" }, (m) => expect(m.loadAiSettings().provider).toBe("groq"));
   });
 });
+
+describe("when a character speaks, the narrator stays quiet", () => {
+  it("accepts an answer that is only the character's words", () => {
+    const free = { kind: "free_text" as const, text: "Ich frage den Bürgermeister nach dem Drachen", playerId: "p1", heroName: "Pip" };
+    const out = coerceAiAnswer({ narration: "", npc_name: "Bürgermeister", npc_text: "Der Drache? Fragt die Köhlerin." }, STORY, ctx(), free, { narration: "", next: "await_action" });
+    expect(out.npc_say).toEqual({ name: "Bürgermeister", text: "Der Drache? Fragt die Köhlerin." });
+    expect(out.script).toEqual([]);
+  });
+});

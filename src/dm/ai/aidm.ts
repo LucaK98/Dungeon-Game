@@ -40,8 +40,10 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
   if (typeof raw !== "object" || raw === null) throw new LlmError("bad_json", "Antwort ist kein Objekt.");
   const o = raw as Record<string, unknown>;
   const narration = str(o.narration, 1200);
-  if (!narration && trigger.kind !== "suggest" && trigger.kind !== "rules_question") throw new LlmError("bad_json", "Antwort ohne Erzähltext.");
-  const script: Narration[] = [{ text: narration }];
+  // A character's answer alone is enough (the narrator does not have to speak as well).
+  const speaks = !!(str(o.npc_name, 40) && str(o.npc_text, 400));
+  if (!narration && !speaks && trigger.kind !== "suggest" && trigger.kind !== "rules_question") throw new LlmError("bad_json", "Antwort ohne Erzähltext.");
+  const script: Narration[] = narration ? [{ text: narration }] : [];
   const out: DmResponse = { narration, script, next: "await_action" };
   const npcName = str(o.npc_name, 40);
   const npcText = str(o.npc_text, 400);

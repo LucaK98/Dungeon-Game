@@ -94,7 +94,6 @@ export class DungeonScene extends Phaser.Scene {
   private combatFx!: CombatFx;
   /** A boss entrance: the camera looks at it until then. */
   private spotlightUntil = 0;
-  private lastLook = 0;
   /** "Stimmungsvoll" look (setting): light and shadow, outlines, tinted shadows. */
   private mood = false;
   /** Light shapes with wall shadows, by light (torches, fires, glowing props). */
@@ -519,7 +518,7 @@ export class DungeonScene extends Phaser.Scene {
   private showTags(f: Figure, c: Creature): void {
     const states = stateIcons(c);
     const weak = c.side === "enemy" ? (this.typesOf?.(c) ?? []).filter((t) => t.includes("×2")).map((t) => firstSign(t)) : [];
-    const text = [states.join(""), weak.length ? `💥${weak.join("")}` : ""].filter(Boolean).join(" ");
+    const text = [states.join(""), weak.length ? `×2${weak.join("")}` : ""].filter(Boolean).join(" ");
     if (!text || c.dead || c.hp <= 0) {
       f.tags?.destroy();
       f.tags = undefined;
@@ -604,6 +603,7 @@ export class DungeonScene extends Phaser.Scene {
   setLogOpen(open: boolean): void {
     this.logOpen = open;
     this.layout();
+    this.focusParty(false);
   }
 
   private logOpen = false;
@@ -743,6 +743,7 @@ export class DungeonScene extends Phaser.Scene {
     this.camTarget.set(f ? f.container.x : (c.pos.x + n / 2) * TILE, f ? f.container.y : (c.pos.y + n / 2) * TILE);
     this.spotlightUntil = this.time.now + 2600;
     const cam = this.cameras.main;
+    cam.pan(this.camTarget.x, this.camTarget.y, 700, "Sine.easeInOut", true);
     const base = this.zoomBase;
     this.tweens.add({ targets: cam, zoom: base * 1.3, duration: 900, ease: "Sine.easeInOut", yoyo: true, hold: 1000, onComplete: () => cam.setZoom(base) });
     if (f) this.tweens.add({ targets: f.body, scaleX: 1.25, scaleY: 1.25, duration: 300, yoyo: true, delay: 700, ease: "Back.easeOut" });
@@ -753,6 +754,7 @@ export class DungeonScene extends Phaser.Scene {
     this.ambience?.setCombat(on);
     this.combatLayout = on;
     this.layout();
+    this.focusParty(false);
   }
 
   private combatLayout = false;
@@ -768,6 +770,7 @@ export class DungeonScene extends Phaser.Scene {
     this.zoomBase = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, fit)) * RES;
     this.tweens.killTweensOf(cam);
     cam.setZoom(this.zoomBase);
+    this.zoomTarget = 0;
     this.applyBounds();
   }
 
@@ -806,12 +809,25 @@ export class DungeonScene extends Phaser.Scene {
     const halfW = Math.max(...spots.map((p) => Math.abs(p.x - actor.x))) + TILE * 2.5;
     const halfH = Math.max(...spots.map((p) => Math.abs(p.y - actor.y))) + TILE * 2.5;
     const need = Math.min(cam.width / (2 * halfW), cam.height / (2 * halfH));
-    this.zoomTarget = Math.max(MIN_ZOOM * RES, Math.min(this.zoomBase, need));
-    this.camTarget.set(actor.x, actor.y);
+    // Calm camera: it zooms out only in clear steps (never a little every moment) and glides to the actor
+    // in one move – and not at all for small steps, so the picture stays still while someone walks.
+    const zoom = Math.max(MIN_ZOOM * RES, Math.min(this.zoomBase, need));
+    const zoomChange = Math.abs(zoom - this.zoomTarget) / Math.max(zoom, 0.01) > 0.15;
+    if (instant || !this.zoomTarget || zoomChange) this.zoomTarget = zoom;
+    const moved = Math.hypot(actor.x - this.camTarget.x, actor.y - this.camTarget.y) > TILE * 2;
     if (instant) {
+      this.camTarget.set(actor.x, actor.y);
       cam.setZoom(this.zoomTarget);
       this.applyBounds();
       cam.centerOn(actor.x, actor.y);
+      return;
+    }
+    if (zoomChange && this.time.now > this.spotlightUntil) {
+      cam.zoomTo(this.zoomTarget, 700, "Sine.easeInOut", true, (_c: unknown, progress: number) => progress >= 1 && this.applyBounds());
+    }
+    if (moved || zoomChange) {
+      this.camTarget.set(actor.x, actor.y);
+      cam.pan(actor.x, actor.y, 900, "Sine.easeInOut", true);
     }
   }
 
@@ -993,13 +1009,6 @@ export class DungeonScene extends Phaser.Scene {
       this.spotlightUntil = 0;
       this.focusParty(false);
     }
-    // Monsters look around now and then.
-    if (time - this.lastLook > 1400) {
-      this.lastLook = time;
-      const monsters = Object.values(this.session.battle.creatures).filter((c) => c.kind === "monster" && !c.dead && this.figures.has(c.id));
-      const c = monsters[Math.floor(Math.random() * monsters.length)];
-      if (c && Math.random() < 0.6) this.face(this.figures.get(c.id)!, Math.random() < 0.5 ? 1 : -1, c);
-    }
     // Torch animation and light at ~15 fps is plenty and cheap.
     if (time - this.lastLight > 66) {
       this.lastLight = time;
@@ -1007,15 +1016,6 @@ export class DungeonScene extends Phaser.Scene {
       for (const [i, s] of this.surfaceImages) if (s.kind === "fire") s.img.setFrame(`fire.${Math.floor(time / 110 + i) % 3}`);
       this.drawLight(time);
     }
-    const cam = this.cameras.main;
-    // Gentle zoom towards the target (not while a boss spotlight tween runs).
-    if (this.zoomTarget && time > this.spotlightUntil && Math.abs(cam.zoom - this.zoomTarget) > 0.002) {
-      cam.setZoom(cam.zoom + (this.zoomTarget - cam.zoom) * 0.04);
-      this.applyBounds();
-    }
-    const cx = cam.scrollX + cam.width / 2;
-    const cy = cam.scrollY + cam.height / 2;
-    cam.centerOn(cx + (this.camTarget.x - cx) * 0.08, cy + (this.camTarget.y - cy) * 0.08);
   }
 }
 

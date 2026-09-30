@@ -220,6 +220,9 @@ function objectName(o: MapObject): string {
   return (o.kind === "prop" ? propDef(o)?.name : OBJECT_NAMES[o.kind]) || "Gegenstand";
 }
 
+/** Pause before and after a foe's move: time to see what happens (one thing after another). */
+const MONSTER_PAUSE_MS = 2200;
+
 export class GameController {
   private log: ExplainedLine[] = [];
   private pending: PendingRoll | undefined;
@@ -1816,7 +1819,7 @@ export class GameController {
     const c = this.active();
     if (this.mode !== "combat" || !c || this.destroyed) return;
     if (c.kind !== "monster" && !this.opts.autoHeroes) return;
-    const delay = this.opts.monsterDelayMs ?? 1200;
+    const delay = this.opts.monsterDelayMs ?? MONSTER_PAUSE_MS;
     const run = () => this.runMonster(c.id);
     if (delay <= 0) run();
     else this.monsterTimer = setTimeout(run, delay);
@@ -1835,7 +1838,7 @@ export class GameController {
       monster.effects = monster.effects.filter((e) => e.id !== "surprised");
       this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: id, title: `${monster.name} ist überrascht`, sides: 20, dice: [], kept: 0, lines: [{ text: `😲 ${monster.name} ist überrascht und verliert den ersten Zug.`, glossarKeys: ["ueberrascht"] }] });
       this.emit("changed");
-      const delay = this.opts.monsterDelayMs ?? 1200;
+      const delay = this.opts.monsterDelayMs ?? MONSTER_PAUSE_MS;
       if (delay <= 0) this.endTurn();
       else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
       return;
@@ -1886,7 +1889,7 @@ export class GameController {
         this.publishRoll(roll);
         this.emit("changed");
         if (this.checkWinner()) return;
-        const delay = this.opts.monsterDelayMs ?? 1200;
+        const delay = this.opts.monsterDelayMs ?? MONSTER_PAUSE_MS;
         if (delay <= 0) this.endTurn();
         else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
         return;
@@ -1915,7 +1918,7 @@ export class GameController {
     }
     this.emit("changed");
     if (this.checkWinner()) return;
-    const delay = this.opts.monsterDelayMs ?? 1200;
+    const delay = this.opts.monsterDelayMs ?? MONSTER_PAUSE_MS;
     if (delay <= 0) this.endTurn();
     else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
   }
@@ -2497,9 +2500,9 @@ export class GameController {
   crude = true;
   private lastTaunt = 0;
 
-  /** Enemies who can talk mock the heroes: at most one line every few seconds. */
+  /** Enemies who can talk mock the heroes – now and then (at most one line every 15 seconds). */
   private trashTalk(r: RollOutcome): void {
-    if (this.mode !== "combat" || !r.hits?.length || Date.now() - this.lastTaunt < 5000) return;
+    if (this.mode !== "combat" || !r.hits?.length || Date.now() - this.lastTaunt < 15_000) return;
     const actor = this.battle.creatures[r.creatureId];
     if (!actor) return;
     for (const hit of r.hits) {
@@ -2516,8 +2519,10 @@ export class GameController {
       const line = tauntFor(event, enemy.monsterId ?? "", hero.name, this.crude, this.envRng.next(), this.envRng.next(), young);
       if (!line) continue;
       this.lastTaunt = Date.now();
+      // A bubble over the foe; read aloud only for its last words (less talking over the game).
       this.emit("speech", enemy.id, line);
-      this.narrate([{ npc: enemy.name, text: line }]);
+      if (event === "dying") this.narrate([{ npc: enemy.name, text: line }]);
+      else this.addLog([{ text: `💬 ${enemy.name}: „${line}“`, glossarKeys: [] }]);
       return;
     }
   }

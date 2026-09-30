@@ -100,8 +100,11 @@ export class World {
       if (ev) {
         this.used.push(ev.id);
         this.run(this.event(ev));
+        return;
       }
     }
+    // Otherwise, one character nearby may greet the heroes (never in the middle of a turn).
+    this.greetings();
   }
 
   /** Lets the world run while the story waits for the heroes (reach/explore steps). */
@@ -125,8 +128,8 @@ export class World {
   private tick(): void {
     if (this.running || !this.game.idle) return;
     const now = this.host.now();
-    this.greetings();
-    // Exploring in turns: events and the clock come at the end of a round (roundEnded).
+    // Exploring in turns: greetings, events and the clock come at the end of a round (roundEnded).
+    if (this.game.freeExplore) this.greetings();
     if (!this.game.freeExplore) {
       const quiet = Math.min(now - this.game.lastActionAt, now - this.lastNudgeAt);
       if (quiet > QUIET_S * 1000) {

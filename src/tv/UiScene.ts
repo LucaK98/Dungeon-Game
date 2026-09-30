@@ -86,7 +86,7 @@ export class UiScene extends Phaser.Scene {
     this.bannerBusy = false;
     // Board pixels → screen pixels.
     this.cameras.main.setOrigin(0, 0).setZoom(RES);
-    this.orderBar = this.add.container(20, 168);
+    this.orderBar = this.add.container(20, 190);
     this.banner = this.add
       // In the middle of the screen: at the top the dice card would cover it during fights.
       .text(0, BOARD_HEIGHT * 0.42, "", crisp({ fontFamily: FONT, fontSize: "64px", color: "#f3e9d2", stroke: "#000", strokeThickness: 12 }))
@@ -99,7 +99,7 @@ export class UiScene extends Phaser.Scene {
     this.rollBox = this.anchor(this.add.container(0, 40), (r) => r - 30);
     this.logBox = this.add.container(0, 0);
     this.chapter = this.add.text(24, 20, "", crisp({ fontFamily: FONT, fontSize: "26px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 }));
-    this.goal = this.add.text(24, 54, "", crisp({ fontFamily: FONT, fontSize: "30px", color: "#ffe08a", fontStyle: "bold", stroke: "#000", strokeThickness: 6, wordWrap: { width: BOARD_WIDTH - LOG_PANEL - 900 } }));
+    this.goal = this.add.text(24, 54, "", crisp({ fontFamily: FONT, fontSize: "30px", color: "#ffe08a", fontStyle: "bold", stroke: "#000", strokeThickness: 6, wordWrap: { width: BOARD_WIDTH - 900 } }));
     this.notesLine = this.add.text(26, 98, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 }));
     this.ticker = this.add.container(0, 0).setDepth(20);
     this.narrationBox = this.anchor(this.add.container(0, 0).setAlpha(0), (r) => r - BOARD_WIDTH);
@@ -134,9 +134,9 @@ export class UiScene extends Phaser.Scene {
       this.turnInfo.setText(seconds !== undefined && seconds <= 60 ? `${base} · ⏱ ${seconds} s` : base);
       this.turnInfo.setColor(seconds !== undefined && seconds <= 15 ? "#ff8a7e" : "#e0c68a");
     };
+    // One message per round: "Runde 3 vorbei", with what happened on the side.
     const onRound = (ended: number) => {
-      this.flushSummary(ended);
-      this.showBanner(`🔔 Runde ${ended} vorbei`, undefined, true);
+      if (!this.flushSummary(ended)) this.showBanner(`🔔 Runde ${ended} vorbei`, undefined, true);
     };
     const onFlash = (text: string) => this.showBanner(text, flashColor(text));
     this.game.events.on("flash", onFlash);
@@ -170,11 +170,14 @@ export class UiScene extends Phaser.Scene {
     const onChapter = (text: string, goal?: string) => {
       this.chapter.setText(text);
       this.goal.setText(goal ? `🎯 ${goal}` : "");
+      // The notes line sits right under the goal (which may take two lines).
+      this.notesLine.setY(this.goal.y + Math.max(36, this.goal.height) + 4);
     };
     // A short note under the chapter: the game was saved (with the code for another device).
     const saved = this.add.text(24, 126, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setAlpha(0);
     const onSaved = (code?: string) => {
       saved.setText(code ? `💾 Gespeichert · Code zum Weiterspielen: ${code}` : "💾 Gespeichert").setAlpha(1);
+      saved.setY(this.notesLine.y + (this.notesLine.text ? 28 : 0));
       this.tweens.killTweensOf(saved);
       this.tweens.add({ targets: saved, alpha: 0, delay: 9000, duration: 1500 });
     };
@@ -487,7 +490,8 @@ export class UiScene extends Phaser.Scene {
       .setAlpha(1)
       .setScale(0.85);
     // Waiting messages make the one on screen go faster.
-    const hold = this.bannerQueue.length ? 1100 : 1800 + Math.min(1500, b.text.length * 25);
+    // Every message gets time to be read, even when more are waiting.
+    const hold = (this.bannerQueue.length ? 1700 : 2200) + Math.min(1500, b.text.length * 25);
     this.tweens.add({ targets: this.banner, scale: 1, duration: 220, ease: "Back.easeOut" });
     this.tweens.add({ targets: this.banner, alpha: 0, delay: hold, duration: 350, onComplete: () => this.nextBanner() });
   }
@@ -533,6 +537,8 @@ export class UiScene extends Phaser.Scene {
   private takeNews(texts: string[]): void {
     let last: string | undefined;
     for (const t of texts) {
+      // Foes' remarks already show as a bubble over the figure.
+      if (t.startsWith("💬")) continue;
       const small = summaryOf(t);
       if (small) this.summary.push(small);
       else last = t;
@@ -560,13 +566,14 @@ export class UiScene extends Phaser.Scene {
   }
 
   /** "📋 Runde 3: +20 EP · 12 Gold · Goblin 2 brennt" – once, at the end of the round. */
-  private flushSummary(round?: number): void {
+  private flushSummary(round?: number): boolean {
     this.summaryTimer?.remove(false);
     this.summaryTimer = undefined;
-    if (!this.summary.length) return;
+    if (!this.summary.length) return false;
     const text = mergeSummary(this.summary);
     this.summary = [];
-    this.showBanner(`📋 ${round !== undefined ? `Runde ${round}: ` : ""}${text}`, "#ffd75e", true);
+    this.showBanner(`🔔 ${round !== undefined ? `Runde ${round} vorbei · ` : ""}${text}`, "#ffd75e", true);
+    return true;
   }
 
   private showTurn(name: string, color?: string, free?: boolean, info?: string): void {
@@ -592,7 +599,7 @@ export class UiScene extends Phaser.Scene {
     this.orderBar.removeAll(true);
     // Up to 6 heroes plus their foes: rows shrink so everything fits on the screen.
     const visible = entries.slice(0, 14);
-    const row = Math.min(92, Math.floor((BOARD_HEIGHT - 310) / Math.max(1, visible.length)));
+    const row = Math.min(92, Math.floor((BOARD_HEIGHT - 330) / Math.max(1, visible.length)));
     const scale = row / 92;
     visible.forEach((e, i) => {
       const y = i * row;
