@@ -4,7 +4,9 @@ export type Route =
   | { view: "home" }
   | { view: "dm-lab" }
   | { view: "tv"; net: NetKind; demo: boolean }
-  | { view: "play"; net: NetKind; room: string | null };
+  | { view: "play"; net: NetKind; room: string | null }
+  /** A viewer at home: the TV's board on this screen, the phone (or a side window) to play. */
+  | { view: "watch"; net: NetKind; room: string | null };
 
 /**
  * Parses the hash route used on GitHub Pages:
@@ -29,6 +31,10 @@ export function parseRoute(hash: string, fallbackNet: NetKind = "local"): Route 
       return { view: "dm-lab" };
     case "/tv":
       return { view: "tv", net, demo: params.has("demo") };
+    case "/watch": {
+      const room = params.get("room")?.trim().toUpperCase() || null;
+      return { view: "watch", net, room };
+    }
     case "/play": {
       const room = params.get("room")?.trim().toUpperCase() || null;
       return { view: "play", net, room };

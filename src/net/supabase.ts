@@ -43,7 +43,7 @@ interface Envelope {
 
 export const topicForRoom = (code: RoomCode) => `couch-dungeon-v1:${code}`;
 
-async function defaultFactory(): Promise<ChannelFactory> {
+export async function defaultFactory(): Promise<ChannelFactory> {
   const { createClient } = await import("@supabase/supabase-js");
   const client = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
   return (topic) => client.channel(topic, { config: { broadcast: { self: false, ack: false } } }) as unknown as ChannelLike;

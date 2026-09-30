@@ -422,6 +422,11 @@ export class DungeonScene extends Phaser.Scene {
     }
     for (const c of Object.values(this.session.battle.creatures)) {
       const f = this.figures.get(c.id);
+      // Who moved last? The camera follows them (heroes and their helpers; in a fight everyone).
+      const at = c.pos && !c.dead ? `${c.pos.x},${c.pos.y}` : "";
+      const was = this.lastPos.get(c.id);
+      if (at && was !== undefined && was !== at && (c.side === "party" || this.combatLayout)) this.focusId = c.id;
+      this.lastPos.set(c.id, at);
       if (c.dead && f) {
         // Defeated: sink and fade away.
         this.figures.delete(c.id);
@@ -680,13 +685,35 @@ export class DungeonScene extends Phaser.Scene {
     cam.setBounds((w - bw) / 2, (h - bh) / 2, bw, bh);
   }
 
+  private lastPos = new Map<string, string>();
+  private focusId: string | undefined;
+  private zoomTarget = 0;
+
+  /**
+   * The camera follows whoever is acting (in a fight: whose turn it is; exploring: who moved last),
+   * close up. It only zooms out – gently, never below the minimum – to keep the rest of the group in view.
+   */
   focusParty(instant: boolean): void {
-    const heroes = this.session.partyIds.map((id) => this.session.battle.creatures[id]).filter((c): c is Creature => !!c?.pos);
+    const creatures = this.session.battle.creatures;
+    const heroes = this.session.partyIds.map((id) => creatures[id]).filter((c): c is Creature => !!c?.pos && !c.dead);
     if (!heroes.length) return;
-    const x = (heroes.reduce((s, c) => s + c.pos!.x, 0) / heroes.length + 0.5) * TILE;
-    const y = (heroes.reduce((s, c) => s + c.pos!.y, 0) / heroes.length + 0.5) * TILE;
-    this.camTarget.set(x, y);
-    if (instant) this.cameras.main.centerOn(x, y);
+    const turnId = this.combatLayout ? this.session.battle.combat?.turn.creatureId : undefined;
+    const pick = [turnId, this.focusId].map((id) => (id ? creatures[id] : undefined)).find((c) => c?.pos && !c.dead);
+    const center = (c: Creature) => ({ x: (c.pos!.x + sizeInSquares(c.size) / 2) * TILE, y: (c.pos!.y + sizeInSquares(c.size) / 2) * TILE });
+    const actor = pick ? center(pick) : { x: (heroes.reduce((s, c) => s + c.pos!.x, 0) / heroes.length + 0.5) * TILE, y: (heroes.reduce((s, c) => s + c.pos!.y, 0) / heroes.length + 0.5) * TILE };
+    // How far out do we need to be to see the actor and every hero (with a margin)?
+    const cam = this.cameras.main;
+    const spots = [actor, ...heroes.map(center)];
+    const halfW = Math.max(...spots.map((p) => Math.abs(p.x - actor.x))) + TILE * 2.5;
+    const halfH = Math.max(...spots.map((p) => Math.abs(p.y - actor.y))) + TILE * 2.5;
+    const need = Math.min(cam.width / (2 * halfW), cam.height / (2 * halfH));
+    this.zoomTarget = Math.max(MIN_ZOOM * RES, Math.min(this.zoomBase, need));
+    this.camTarget.set(actor.x, actor.y);
+    if (instant) {
+      cam.setZoom(this.zoomTarget);
+      this.applyBounds();
+      cam.centerOn(actor.x, actor.y);
+    }
   }
 
   // ---------------------------------------------------------------- light
@@ -882,6 +909,11 @@ export class DungeonScene extends Phaser.Scene {
       this.drawLight(time);
     }
     const cam = this.cameras.main;
+    // Gentle zoom towards the target (not while a boss spotlight tween runs).
+    if (this.zoomTarget && time > this.spotlightUntil && Math.abs(cam.zoom - this.zoomTarget) > 0.002) {
+      cam.setZoom(cam.zoom + (this.zoomTarget - cam.zoom) * 0.04);
+      this.applyBounds();
+    }
     const cx = cam.scrollX + cam.width / 2;
     const cy = cam.scrollY + cam.height / 2;
     cam.centerOn(cx + (this.camTarget.x - cx) * 0.08, cy + (this.camTarget.y - cy) * 0.08);

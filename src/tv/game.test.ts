@@ -451,3 +451,23 @@ describe("traps", () => {
     }
   });
 });
+
+describe("narrow corridors", () => {
+  it("lets a hero walk onto a friend: the two trade places", () => {
+    const { game, session, last } = setup(4, { free: true });
+    const a = game.heroOf("p1")!;
+    const b = game.heroOf("p2")!;
+    // Put the two right next to each other.
+    const bPos = { ...b.pos! };
+    const free = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: bPos.x + dx!, y: bPos.y + dy! })).find((p) => session.map.cells[p.y * session.map.width + p.x] === "floor" && !Object.values(session.battle.creatures).some((c) => c.pos?.x === p.x && c.pos?.y === p.y));
+    expect(free).toBeTruthy();
+    a.pos = free!;
+    session.map.explored.fill(true);
+    game.broadcast();
+    const v = last("p1", "state_update");
+    expect(v?.type === "state_update" && v.state.minimap.reachable.some((p) => p.x === bPos.x && p.y === bPos.y)).toBe(true);
+    game.handle("p1", { kind: "move", to: bPos });
+    expect(a.pos).toEqual(bPos);
+    expect(b.pos).toEqual(free);
+  });
+});

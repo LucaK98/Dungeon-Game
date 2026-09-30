@@ -306,3 +306,24 @@ describe("setbacks: something always happens", () => {
     expect(win.effects).toBeUndefined();
   });
 });
+
+describe("shortcuts and the 'yes, and' rule", () => {
+  it("allows a shortcut only after a clean success on a hard roll, and only where there is an obstacle", () => {
+    const around = ctx(undefined, { bypass: "an den Wachen vorbeikommen" });
+    expect(filterEffects([{ kind: "bypass" }], around, roll(16, 15))).toEqual([{ kind: "bypass" }]);
+    // Too easy a roll, a miss, or no obstacle: no shortcut.
+    expect(filterEffects([{ kind: "bypass" }], around, roll(16, 13))).toEqual([]);
+    expect(filterEffects([{ kind: "bypass" }], around, roll(14, 15))).toEqual([]);
+    expect(filterEffects([{ kind: "bypass" }], ctx(), roll(18, 15))).toEqual([]);
+  });
+
+  it("without AI, sneaking past asks for a hard roll, and any other idea gets a roll instead of 'nothing happens'", async () => {
+    const dm = new ScriptedDM(STORY);
+    const sneak = await dm.respond(ctx(undefined, { bypass: "vorbeikommen" }), free("Ich schleiche mich an den Wachen vorbei"));
+    expect(sneak.request_roll).toMatchObject({ skill: "stealth", dc: 15 });
+    const odd = await dm.respond(ctx(), free("Ich klopfe dreimal an die alte Standuhr"));
+    expect(odd.request_roll?.dc).toBe(13);
+    const after = await dm.respond(ctx(), { ...roll(15, 13, "Ich klopfe dreimal an die alte Standuhr"), skill: "investigation" });
+    expect(after.effects).toEqual([{ kind: "reveal" }]);
+  });
+});

@@ -88,6 +88,12 @@ export class GameHost {
     return `${base}#/play?room=${this.lobby.room}&net=${this.net}`;
   }
 
+  /** Friends at home open this on their computer to see the board (src/watch/boot.ts). */
+  watchUrl(): string {
+    const base = `${location.origin}${location.pathname}`;
+    return `${base}#/watch?room=${this.lobby.room}&net=${this.net}`;
+  }
+
   setStory(story: LobbyState["story"]): void {
     this.lobby.story = story;
     this.changed();

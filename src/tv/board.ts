@@ -19,7 +19,7 @@ import { clearSave, writeSave } from "./save";
 import { formatCode, newCloudId, type CloudId } from "../net/cloud-save";
 import { createSession, type GameSession } from "./session";
 import { UiScene } from "./UiScene";
-import { initRes } from "./render";
+import { initRes, loadCrude } from "./render";
 import { THEMES } from "../map/modules";
 import { cellIndex } from "../shared/map";
 import { play, setAmbience, unlockSoundOnGesture } from "../ui/sound";
@@ -28,24 +28,45 @@ import { settingsScreen } from "./settings";
 import { loadNpcWorld, saveNpcWorld } from "./npc-store";
 import { bondLabel, bondOf, familyView, findMind, loveLabel, loveOf, nameChild, setChildWish, setSquire, squireOf } from "../dm/npc-world";
 import { castCharacter } from "./voice/cast";
+import { MIRRORED_SCENE, MIRRORED_UI, MirrorHost } from "./mirror";
+import { openStream } from "../net/stream";
 
 /** Sounds for a roll on the TV: dice first, then what happened. */
 /** How long the die tumbles on the TV before it lands (ms). */
 const TUMBLE_ASKED = 900;
 const TUMBLE_QUICK = 450;
 
+/** Sounds, music and background noise also go to viewers at home (src/tv/mirror.ts). */
+let mirror: MirrorHost | undefined;
+let lastMood: Parameters<typeof setMood>[0] | undefined;
+let lastAmbience: Parameters<typeof setAmbience>[0];
+function sfx(name: Parameters<typeof play>[0]): void {
+  play(name);
+  mirror?.push({ k: "sound", n: name });
+}
+function moodTo(m: Parameters<typeof setMood>[0]): void {
+  setMood(m);
+  if (m !== lastMood) mirror?.push({ k: "mood", mood: m });
+  lastMood = m;
+}
+function ambienceTo(a: Parameters<typeof setAmbience>[0]): void {
+  setAmbience(a);
+  if (JSON.stringify(a) !== JSON.stringify(lastAmbience)) mirror?.push({ k: "mood", ambience: a ?? null });
+  lastAmbience = a;
+}
+
 function rollSounds(r: RollOutcome, impactMs = 0, tumbled = false): void {
-  if (r.title === "Sieg!") return play("victory");
-  if (r.title === "Niederlage") return play("defeat");
+  if (r.title === "Sieg!") return sfx("victory");
+  if (r.title === "Niederlage") return sfx("defeat");
   const hits = r.hits ?? [];
   const after = () => {
-    if (hits.some((h) => h.crit)) play("crit");
-    else if (hits.some((h) => !h.miss && !h.heal && h.amount > 0)) play("hit");
-    else if (hits.some((h) => h.heal)) play("heal");
-    else if (hits.some((h) => h.miss)) play("miss");
+    if (hits.some((h) => h.crit)) sfx("crit");
+    else if (hits.some((h) => !h.miss && !h.heal && h.amount > 0)) sfx("hit");
+    else if (hits.some((h) => h.heal)) sfx("heal");
+    else if (hits.some((h) => h.miss)) sfx("miss");
   };
   if (r.dice.length) {
-    if (!tumbled) play("dice");
+    if (!tumbled) sfx("dice");
     setTimeout(after, Math.max(420, impactMs));
   } else setTimeout(after, impactMs);
 }
@@ -109,6 +130,48 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   });
 
   unlockSoundOnGesture();
+
+  // Viewers at home (#/watch) see and hear the same board: UI events, board effects and state go out.
+  const emitRaw = game.events.emit.bind(game.events);
+  game.events.emit = ((name: string | symbol, ...args: unknown[]) => {
+    if (typeof name === "string" && MIRRORED_UI.has(name)) mirror?.ui(name, args);
+    return emitRaw(name, ...args);
+  }) as typeof game.events.emit;
+  const sceneApi = scene as unknown as Record<string, (...args: unknown[]) => unknown>;
+  for (const m of MIRRORED_SCENE) {
+    const orig = sceneApi[m]!.bind(scene);
+    sceneApi[m] = (...args: unknown[]) => {
+      mirror?.scene(m, args);
+      return orig(...args);
+    };
+  }
+  const refreshBoard = scene.refresh.bind(scene);
+  scene.refresh = () => {
+    mirror?.changed();
+    refreshBoard();
+  };
+  void openStream(host.lobby.room, host.net === "local")
+    .then((stream) => {
+      mirror = new MirrorHost(stream, () => session, () => {
+        const c = controller;
+        const m = mirror;
+        if (!c || !m) return;
+        m.scene("setCombatLayout", [c.mode === "combat"]);
+        m.ui("combat", [c.mode === "combat"]);
+        m.ui("log", [c.recentLog(14), 0]);
+        m.ui("order", [c.mode === "combat" || !c.freeExplore ? c.orderEntries() : []]);
+        if (c.storyView) {
+          m.ui("chapter", [c.storyView.chapter, c.storyView.goal]);
+          m.ui("notes", [c.storyView.tasks ?? [], c.storyView.moreTasks ?? 0, c.storyView.clues.map((x) => x.text)]);
+        }
+        if (lastAi) m.ui("ai-status", [lastAi]);
+        m.push({ k: "mood", ...(lastMood ? { mood: lastMood } : {}), ambience: lastAmbience ?? null });
+      });
+    })
+    .catch(() => {
+      // No stream (offline): the game works without viewers.
+    });
+  let lastAi: unknown;
   /** Background sound for where the heroes are: wind, crickets, drips or a quiet hum. */
   const updateAmbience = (c: GameController) => {
     const map = c.map;
@@ -116,13 +179,13 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     if (!lead?.pos) return;
     const room = map.rooms[map.roomOf[cellIndex(map, lead.pos.x, lead.pos.y)] ?? -1];
     if (!room) return;
-    setAmbience({ outdoor: THEMES[room.theme].outdoor, night: !!map.dark, cave: ["cave", "mine", "lair"].includes(room.theme) });
+    ambienceTo({ outdoor: THEMES[room.theme].outdoor, night: !!map.dark, cave: ["cave", "mine", "lair"].includes(room.theme) });
     // Music: the fight decides; otherwise the place.
-    if (c.mode === "combat") setMood(c.enemiesInFight().some((e) => e.boss) ? "boss" : "fight");
-    else if (map.dark || ["cave", "mine", "lair", "crypt"].includes(room.theme)) setMood("night");
-    else if (["village", "town", "tavern"].includes(room.theme)) setMood("town");
-    else if (THEMES[room.theme].outdoor) setMood("wild");
-    else setMood("halls");
+    if (c.mode === "combat") moodTo(c.enemiesInFight().some((e) => e.boss) ? "boss" : "fight");
+    else if (map.dark || ["cave", "mine", "lair", "crypt"].includes(room.theme)) moodTo("night");
+    else if (["village", "town", "tavern"].includes(room.theme)) moodTo("town");
+    else if (THEMES[room.theme].outdoor) moodTo("wild");
+    else moodTo("halls");
   };
   let controller: GameController | undefined;
   let worldTimer: ReturnType<typeof setInterval> | undefined;
@@ -141,6 +204,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       { autoHeroes: !!opts.demo, turnBasedExplore: true },
     );
     controller = c;
+    c.crude = loadCrude();
     c.difficulty = difficulty;
     c.village = [...village.built];
     // Lines already in the TV's log column.
@@ -190,7 +254,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         const tumble = r.dice.length ? (askedFor === r.creatureId ? TUMBLE_ASKED : TUMBLE_QUICK) : 0;
         askedFor = undefined;
         game.events.emit("roll", r, tumble);
-        if (tumble) play("dice");
+        if (tumble) sfx("dice");
         // First the swing, arrow or spell, then the numbers where it lands.
         const start = () => {
           const impact = scene.sys.isActive() ? scene.playFx(r.fx) : 0;
@@ -204,7 +268,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       combat: (started) => {
         game.events.emit("combat", started);
         updateAmbience(c);
-        if (started) play("fight");
+        if (started) sfx("fight");
         if (scene.sys.isActive()) scene.setCombatLayout(started);
       },
       point: (id, at, path) => {
@@ -216,7 +280,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       narration: (lines) => {
         // NPCs talk with a bubble over their figure too.
         if (scene.sys.isActive()) for (const l of lines) if (l.npc) scene.showSpeechByName(l.npc, l.text);
-        if (lines.some((l) => l.text.startsWith("✨"))) play("chime");
+        if (lines.some((l) => l.text.startsWith("✨"))) sfx("chime");
         // The UI scene may not exist yet (story intro): keep the lines until it is ready.
         if (uiReady) game.events.emit("narration", lines);
         else early.push(...lines);
@@ -224,47 +288,48 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       banner: (info) => game.events.emit("info-banner", info),
       travel: (t) => {
         game.events.emit("travel", t);
-        if (t?.chosen !== undefined) play("chime");
+        if (t?.chosen !== undefined) sfx("chime");
       },
       vote: (state) => {
         game.events.emit("vote", state);
-        if (state?.cast) play("pop");
+        if (state?.cast) sfx("pop");
       },
       camp: (state) => {
         game.events.emit("camp", state);
-        if (state) setMood("town");
+        if (state) moodTo("town");
         else updateAmbience(c);
       },
       reward: (r) => {
         const active = scene.sys.isActive();
         if (r.kind === "gold") {
           if (active) scene.showGain(r.heroId, `+${r.amount} 💰`);
-          play("coin");
+          sfx("coin");
           return;
         }
         if (r.kind === "item") {
           if (active) scene.showGain(r.heroId, `+${r.qty} ${r.icon}`, "#b8f5c0");
-          play("pop");
+          sfx("pop");
           return;
         }
         if (active) scene.showGain(r.heroId, r.kind === "level" ? `⬆️ Stufe ${r.level}` : `${r.icon} ${r.title}`);
-        play(r.kind === "level" ? "victory" : "chime");
+        sfx(r.kind === "level" ? "victory" : "chime");
         game.events.emit("reward", r, c.battle.creatures[r.heroId]?.appearance?.look);
       },
       emote: (id, emoji) => {
         if (scene.sys.isActive()) scene.showEmote(id, emoji);
-        play("pop");
+        sfx("pop");
       },
       fx: (kind, pos) => {
         if (scene.sys.isActive()) scene.fx(kind, pos);
-        play(kind === "puff" ? "thud" : kind === "shake" ? "rumble" : kind === "splash" ? "splash" : "coin");
+        sfx(kind === "puff" ? "thud" : kind === "shake" ? "rumble" : kind === "splash" ? "splash" : "coin");
       },
       spotlight: (id) => {
         if (scene.sys.isActive()) scene.spotlight(id);
-        play("boss");
+        sfx("boss");
       },
       mapChanged: () => {
         if (scene.sys.isActive() || scene.sys.isPaused()) scene.scene.restart();
+        mirror?.sendMap();
       },
     });
     c.start();
@@ -284,6 +349,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
             onCall: countAiCall,
             onStatus: (s) => {
               aiStatus = s;
+              lastAi = s;
               showAi();
             },
           })
@@ -358,6 +424,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
           result.village = { income, gold: home.gold, ally: result.homeland?.ally?.name, nemesis: result.homeland?.nemesis?.name };
           // Let the last narration run before showing the summary.
           setTimeout(() => {
+            mirror?.push({ k: "end", result });
             closeEnd = endScreen(root, result, () => {
               closeEnd?.();
               opts.onExit?.();
@@ -407,6 +474,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     void settingsScreen(layer).then(() => {
       layer.remove();
       settingsOpen = false;
+      if (controller) controller.crude = loadCrude();
     });
   };
   const gear = document.createElement("button");
@@ -435,6 +503,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     if (e.key === "r" || e.key === "R") {
       session = newSession();
       wire();
+      mirror?.sendMap();
       scene.scene.restart();
     }
   };
@@ -444,8 +513,10 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
 
   return () => {
     offLobby();
+    mirror?.close();
+    mirror = undefined;
     if (worldTimer) clearInterval(worldTimer);
-    setAmbience(undefined);
+    ambienceTo(undefined);
     closeEnd?.();
     controller?.destroy();
     window.removeEventListener("keydown", onKey);

@@ -24,7 +24,8 @@ So erzählst du:
 - Zahlen und Regeln macht das Programm: Erfinde keine Werte, keinen Schaden, keine Monster, keine Gegenstände und keine Belohnungen.
 - Bleib beim Ziel der aktuellen Szene. Weichen die Helden ab, lass es zu – die Welt reagiert, aber du schubst sie nicht zurück.
 - Die geheime Wahrheit verrätst du NIE direkt. Die Gruppe erfährt sie nur über Hinweise, und zwar nur über die erlaubten Hinweise aus dem Kontext, höchstens einen pro Antwort, und nur wenn die Helden ihn sich verdient haben (gute Idee oder gelungene Probe).
-- Freie Aktionen: Ist unsicher, ob etwas klappt, verlange eine Probe (roll_skill und roll_dc; leicht 10, mittel 13, schwer 16). Ist es sicher oder unwichtig, beschreibe einfach, was passiert. Unmögliches biegst du freundlich ab.
+- Freie Aktionen – „Ja, und …“: Nimm JEDE Idee ernst und lass sie in der Welt wirken. Ist unsicher, ob etwas klappt, verlange eine Probe (roll_skill und roll_dc; leicht 10, mittel 13, schwer 16). Ist es sicher oder unwichtig, beschreibe einfach, was passiert. Sag nie bloß „nichts passiert“: Selbst eine seltsame Idee bekommt eine Reaktion der Welt oder eine Probe. Nur wirklich Unmögliches (fliegen ohne Zauber, den Mond holen) biegst du freundlich ab.
+- Mehrere Wege zum Ziel: Steht unter ABKÜRZUNG ein Hindernis, darf eine clevere Idee es lösen (Wache überreden, an schlafenden Gegnern vorbeischleichen, Geheimgang finden). Das ist wertvoll und soll schwer bleiben: Verlange dafür IMMER eine schwere Probe (SG 15–17) und wähle den Effekt abkuerzung nur, wenn sie gelingt. Endgegner und die großen Entscheidungen der Geschichte lassen sich nicht abkürzen.
 - Nach einer Probe erzählst du, was aus dem Erfolg oder Misserfolg folgt. Misserfolge sind nie das Ende, sondern machen die Lage nur schwieriger oder lustiger.
 - Nichtspielerfiguren sprechen über npc_name und npc_text, in ihrer eigenen Art.
 - Tempo: Liegt die Gruppe weit hinter der geplanten Zeit, darf eine Figur eine kleine Andeutung machen – nie die Lösung.
@@ -144,6 +145,7 @@ export function buildPrompt(story: Story, ctx: DmContext, trigger: DmTrigger, sc
       ? `HALTUNG DER FIGUREN: ${Object.entries(ctx.attitudes!).map(([id, v]) => `${story.npcs.find((n) => n.id === id)?.name ?? id} ${v > 0 ? "+" : ""}${v}`).join(", ")}`
       : "",
     story.npcs.length ? `FIGUREN-IDS (für npc_attitude): ${story.npcs.map((n) => `${n.id} = ${n.name}`).join(", ")}` : "",
+    ctx.bypass && (trigger.kind === "free_text" || trigger.kind === "roll_result") ? `ABKÜRZUNG möglich: ${ctx.bypass}. Nur mit schwerer Probe (SG 15–17), dann Effekt abkuerzung.` : "",
     allowedEffectNames(ctx, trigger).length
       ? `${isClearMiss(trigger) ? "RÜCKSCHLÄGE (wähle genau einen)" : "EFFEKTE"} (Name: Wirkung): ${allowedEffectNames(ctx, trigger).map((n) => `${n}: ${(EFFECT_HELP[n] ?? SETBACK_HELP[n])!.text}`).join(" | ")}. Ziele: Gegner-id aus KAMPF, Helden-id aus HELDEN-IDS, oder „alle“.`
       : "",

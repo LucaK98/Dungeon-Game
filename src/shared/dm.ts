@@ -15,6 +15,8 @@ export interface DmContext {
   truth: string;
   sceneId: string;
   stepId?: string;
+  /** The obstacle a clever idea may get around right now (hard roll, once per scene), if any. */
+  bypass?: string;
   sceneIndex: number;
   sceneCount: number;
   players: { id: PlayerId; name: string; classId: string; hp: number; maxHp: number }[];
@@ -114,6 +116,8 @@ export type DmEffect =
   | { kind: "first_aid"; target: string }
   | { kind: "open_door" }
   | { kind: "reveal" }
+  // a clever idea solves the scene's current obstacle (hard roll only, once per scene)
+  | { kind: "bypass" }
   // "yes, but": the acting hero pays a small price (1W4 damage, never knocked out)
   | { kind: "cost" }
   // setbacks after a clearly failed attempt

@@ -8,11 +8,11 @@ import { getSkill } from "../engine/data";
 import type { DmContext, DmEffect, DmResponse, DmTrigger } from "../shared/dm";
 import type { Narration } from "../shared/story";
 import { canFlee } from "./combat-tricks";
-import { BRIBE_PER_ENEMY } from "./effects";
+import { BRIBE_PER_ENEMY, BYPASS_DC } from "./effects";
 
 type Intent =
   | "attack" | "help" | "cover" | "bribe" | "charm" | "surrender" | "scare" | "push" | "blind" | "hazard" | "trick"
-  | "search" | "first_aid" | "door" | "reveal" | "befriend";
+  | "search" | "first_aid" | "door" | "reveal" | "befriend" | "shortcut" | "other";
 
 interface IntentRule {
   intent: Intent;
@@ -35,6 +35,7 @@ const RULES: IntentRule[] = [
   { intent: "hazard", words: /fass|fässer|kronleuchter|felsbrocken|stein|wirf|werf|schleuder|kiste|umkipp|lawine|seil/, combat: true, skill: "athletics", dc: 13 },
   { intent: "trick", words: /ablenk|täusch|trick|bluff|verwirr|lock|list|hinter dir/, combat: true, skill: "deception", dc: 13 },
   { intent: "attack", words: /greif|schlag|hau |haue|stech|schieß|schiess|angriff|attack|töte|kämpf|schwert/, combat: true },
+  { intent: "shortcut", words: /schleich|umgeh|abkürz|abkuerz|vorbeischleich|an .* vorbei|anderen weg|geheimgang|hintertür|über die mauer|überred.*(wache|wächter|torwache)/, combat: false, skill: "stealth", dc: BYPASS_DC },
   { intent: "befriend", words: /geschenk|schenk|bestech|kompliment|schmeichel|lob|freund/, combat: false, skill: "persuasion", dc: 12 },
   { intent: "search", words: /durchsuch|such|stöber|untersuch|wühl|schau.*(nach|unter|hinter)/, combat: false, skill: "investigation", dc: 12 },
   { intent: "first_aid", words: /verbind|verarzt|heil|pfleg|erste hilfe|wunde/, combat: false, skill: "medicine", dc: 10 },
@@ -75,7 +76,15 @@ export function scriptedFreeText(ctx: DmContext, trigger: Extract<DmTrigger, { k
   const fighting = !!ctx.combat?.enemies.length;
   const rule = intentOf(trigger.text, fighting);
   const hero = trigger.heroName;
-  if (!rule) return undefined;
+  if (!rule) {
+    // Any other idea outside a fight: the world answers with a roll (never just "nothing happens").
+    if (fighting) return undefined;
+    const skill = guessSkill(trigger.text);
+    return respond([line(`${hero} probiert es. Mal sehen, ob das klappt …`)], {
+      request_roll: { playerId: trigger.playerId, ability: getSkill(skill as never).ability, skill, dc: 13 },
+      next: "await_roll",
+    });
+  }
   if (rule.intent === "attack") {
     return respond([
       line(`${hero} holt aus – aber gerade ist kein Gegner in Reichweite.`, {
@@ -108,7 +117,11 @@ export function scriptedRollResult(ctx: DmContext, trigger: Extract<DmTrigger, {
   const hero = trigger.heroName;
   const nearMiss = !trigger.success && margin >= -2;
   const intro = trigger.success ? (margin >= 5 ? "Großartig geschafft!" : "Geschafft!") : nearMiss ? "Knapp! Es klappt – aber nicht ohne Preis." : "Das geht schief!";
-  if (!rule) return respond([line(`${intro} ${trigger.success ? `${hero} gelingt es.` : `${hero} versucht es, aber es klappt nicht.`}`)]);
+  if (!rule) {
+    // An idea without keywords: success uncovers something, a near miss too (with a price).
+    if (fighting || (!trigger.success && !nearMiss)) return respond([line(`${intro} ${trigger.success ? `${hero} gelingt es.` : `${hero} versucht es, aber es klappt nicht.`}`)]);
+    return respond([line(`${intro} ${hero} entdeckt dabei etwas, das vorher niemand bemerkt hat.`)], { effects: [{ kind: "reveal" }] });
+  }
   if (!trigger.success && !nearMiss) return setback(rule.intent, ctx, trigger);
 
   const enemies = ctx.combat?.enemies ?? [];
@@ -158,7 +171,11 @@ export function scriptedRollResult(ctx: DmContext, trigger: Extract<DmTrigger, {
     case "reveal":
       effects.push({ kind: "reveal" });
       break;
+    case "shortcut":
+      effects.push({ kind: "bypass" });
+      break;
     case "befriend":
+    case "other":
       break;
   }
   if (rule.intent === "befriend") return respond([line(trigger.success ? `${intro} Das kommt gut an.` : intro)]);
@@ -199,6 +216,20 @@ function setback(intent: Intent, ctx: DmContext, trigger: Extract<DmTrigger, { k
   };
   const [text, effect] = pick();
   return respond([line(`Das geht schief! ${text}`)], effect ? { effects: [effect] } : {});
+}
+
+/** Which skill an idea without keywords needs (a rough guess from the verbs). */
+function guessSkill(text: string): string {
+  const t = text.toLowerCase();
+  if (/rede|frag|sprech|erzähl|überzeug|bitte|verhandel/.test(t)) return "persuasion";
+  if (/kletter|spring|heb|zieh|drück|schieb|trag|brech|stemm|schwimm/.test(t)) return "athletics";
+  if (/schleich|versteck|leise|heimlich/.test(t)) return "stealth";
+  if (/lausch|horch|schau|beobacht|späh|riech/.test(t)) return "perception";
+  if (/les|entziffer|erinner|kenn|wiss|geschichte/.test(t)) return "history";
+  if (/zauber|magie|rune|beschwör|arkan/.test(t)) return "arcana";
+  if (/tier|pferd|hund|füttr|streichel/.test(t)) return "animal-handling";
+  if (/lüg|täusch|verkleid|tu so/.test(t)) return "deception";
+  return "investigation";
 }
 
 /** "Was könnte ich tun?" without AI: ideas that the keywords above understand. */

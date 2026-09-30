@@ -50,6 +50,7 @@ export function renderLobby(root: HTMLElement, host: GameHost, onStart: () => vo
       h("div", { class: "tv-code-label" }, "oder Code eingeben:"),
       h("div", { class: "tv-code" }, host.lobby.room),
       h("div", { class: "tv-url" }, url),
+      h("p", { class: "tv-watch" }, "🏠 Freunde zu Hause sehen das Spielbrett hier: ", h("strong", {}, host.watchUrl())),
     ),
     h(
       "section",

@@ -21,6 +21,7 @@ import { craft, recipeById } from "../shared/crafting";
 import { COMPANIONS, newCompanion, traitOf } from "../shared/companions";
 import { RECIPES } from "../shared/crafting";
 import { makeCompanion, placeStray } from "./companions";
+import { tauntFor } from "../dm/taunts";
 import { arenaFor, arenaRound, type ArenaState } from "./arena";
 import { besideFree } from "./session";
 import { addTotals, newBadges } from "../shared/achievements";
@@ -510,7 +511,8 @@ export class GameController {
     const d = (p: GridPos) => Math.max(Math.abs(p.x - goal.pos.x), Math.abs(p.y - goal.pos.y));
     const now = d(hero.pos!);
     if (now <= 1) return;
-    const best = this.reachable(hero).sort((a, b) => d(a) - d(b) || Math.max(Math.abs(a.x - hero.pos!.x), Math.abs(a.y - hero.pos!.y)) - Math.max(Math.abs(b.x - hero.pos!.x), Math.abs(b.y - hero.pos!.y)))[0];
+    const taken = (p: GridPos) => Object.values(this.battle.creatures).some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
+    const best = this.reachable(hero).filter((p) => !taken(p)).sort((a, b) => d(a) - d(b) || Math.max(Math.abs(a.x - hero.pos!.x), Math.abs(a.y - hero.pos!.y)) - Math.max(Math.abs(b.x - hero.pos!.x), Math.abs(b.y - hero.pos!.y)))[0];
     if (!best || d(best) >= now) {
       this.sendTo(playerId, { type: "action_error", reason: `Zu ${goal.name} kommst du in diesem Zug nicht näher heran.` });
       return;
@@ -1605,6 +1607,33 @@ export class GameController {
     this.sendView(playerId);
   }
 
+  /** Enemies swear (switched off in the TV settings: then they are only cheeky). */
+  crude = true;
+  private lastTaunt = 0;
+
+  /** Enemies who can talk mock the heroes: at most one line every few seconds. */
+  private trashTalk(r: RollOutcome): void {
+    if (this.mode !== "combat" || !r.hits?.length || Date.now() - this.lastTaunt < 5000) return;
+    const actor = this.battle.creatures[r.creatureId];
+    if (!actor) return;
+    for (const hit of r.hits) {
+      const target = this.battle.creatures[hit.targetId];
+      if (!target || hit.heal) continue;
+      const enemyActs = actor.side === "enemy" && target.side === "party";
+      const heroActs = actor.side === "party" && target.side === "enemy";
+      if (!enemyActs && !heroActs) continue;
+      const enemy = enemyActs ? actor : target;
+      const hero = enemyActs ? target : actor;
+      const event = enemyActs ? (hit.miss ? "missed_hero" : "hit_hero") : hit.miss ? "hero_missed" : target.dead || target.hp <= 0 ? "dying" : target.hp / target.maxHp < 0.3 ? "low" : "hurt";
+      const line = tauntFor(event, enemy.monsterId ?? "", hero.name, this.crude, this.envRng.next(), this.envRng.next());
+      if (!line) continue;
+      this.lastTaunt = Date.now();
+      this.emit("speech", enemy.id, line);
+      this.narrate([{ npc: enemy.name, text: line }]);
+      return;
+    }
+  }
+
   private publishRoll(r: RollOutcome): void {
     if (!r.bullets) {
       r.bullets = bulletsFor(r, (id) => {
@@ -1614,6 +1643,7 @@ export class GameController {
     }
     this.tellFlavor(r);
     this.track(r);
+    this.trashTalk(r);
     // TV: who did what, then the coloured points ("⚔️ −7 Schaden an Goblin 1").
     const actor = this.battle.creatures[r.creatureId]?.name;
     const head = r.lines[0]?.text && !MATH_LINE.test(r.lines[0].text) ? r.lines[0].text : `${actor ? `${actor}: ` : ""}${r.title}`;
@@ -1724,10 +1754,23 @@ export class GameController {
     const before = { pos: hero.pos ? { ...hero.pos } : undefined, ft: turn?.movementLeftFt ?? 0, hp: hero.hp, conditions: hero.conditions.length, explored: this.exploredCount(), mode: this.mode, prone: hasCondition(hero, "prone") };
     const companions = this.heroes().filter((c) => c.companion && c.pos).map((c): [string, GridPos] => [c.id, { ...c.pos! }]);
     const steps = Math.floor((turn?.movementLeftFt ?? hero.speedFt) / 5);
+    // Walking onto a friend: the two trade places (so nobody gets stuck behind the group in a tunnel).
+    const partner = this.swapPartner(hero, to);
+    const partnerPos = partner?.pos;
+    if (partner) partner.pos = undefined;
+    const restore = () => {
+      if (partner) partner.pos = partnerPos;
+    };
     const path = findPath(this.battle, hero, (p) => p.x === to.x && p.y === to.y, (p) => isWalkable(this.map, p), steps);
     if (!path || path.length === 0 || pathCost(this.battle, path) > steps) {
+      restore();
       this.sendTo(playerId, { type: "action_error", reason: "Dorthin kommst du in diesem Zug nicht." });
       return;
+    }
+    if (partner && this.map.objects.some((o) => o.kind === "trap" && o.state === "hidden" && path.some((p) => p.x === o.x && p.y === o.y) && !(o.x === to.x && o.y === to.y))) {
+      // A hidden trap on the way stops the walk before the swap: keep it simple, no swap then.
+      restore();
+      return this.move(playerId, hero, path.find((p) => this.map.objects.some((o) => o.kind === "trap" && o.state === "hidden" && o.x === p.x && o.y === p.y))!);
     }
     // Stop on the first hidden trap on the way.
     let walk = path;
@@ -1735,10 +1778,17 @@ export class GameController {
     if (trapIndex >= 0) walk = path.slice(0, trapIndex + 1);
     const outcome = perform(this.rng, this.battle, hero.id, { type: "move", path: walk });
     if (!outcome.ok) {
+      restore();
       this.sendTo(playerId, { type: "action_error", reason: outcome.reason });
       return;
     }
     const lines = explainOutcome(this.battle, outcome);
+    if (partner) {
+      const behind = walk.length > 1 ? walk[walk.length - 2]! : before.pos;
+      const free = (p: GridPos | undefined) => p && !Object.values(this.battle.creatures).some((c) => c.id !== partner.id && !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
+      partner.pos = free(behind) ? { ...behind! } : free(before.pos) ? { ...before.pos! } : besideFree(this.map, this.battle, hero.pos!);
+      lines.push({ text: `🔄 ${hero.name} und ${partner.name} tauschen die Plätze.`, glossarKeys: ["bewegung"] });
+    }
     if (hero.pos) {
       for (const room of revealAround(this.map, hero.pos)) {
         const name = this.map.rooms[room]!.name;
@@ -1752,7 +1802,7 @@ export class GameController {
     this.emit("lines", lines);
     this.walkedThrough(hero, walk);
     if (this.mode !== "combat") this.companionsFollow(hero);
-    const quiet = outcome.kind === "move" && !outcome.opportunityAttacks.length && trapIndex < 0 && !lines.some((l) => /^(🗺️|💰|🧪)/.test(l.text));
+    const quiet = outcome.kind === "move" && !partner && !outcome.opportunityAttacks.length && trapIndex < 0 && !lines.some((l) => /^(🗺️|💰|🧪)/.test(l.text));
     this.undo = undefined;
     this.afterAction();
     // Taking it back is fair as long as the move showed nothing new and nothing happened on the way.
@@ -3747,6 +3797,12 @@ export class GameController {
     return n ? { bond: n.bond, mood: n.mood, ...(n.memory ? { memory: n.memory } : {}), ...(n.love ? { love: n.love, loveLabel: n.loveLabel ?? "" } : {}), ...(n.tie ? { tie: n.tie } : {}) } : {};
   }
 
+  /** A friend standing on this square who would trade places (narrow tunnels!). */
+  private swapPartner(me: Creature, p: GridPos): Creature | undefined {
+    if (squaresOf(me).length !== 1) return undefined;
+    return Object.values(this.battle.creatures).find((c) => c.id !== me.id && c.side === me.side && !c.dead && isActive(c) && c.pos?.x === p.x && c.pos?.y === p.y && squaresOf(c).length === 1);
+  }
+
   /** Squares reachable with the movement left (8 directions, around creatures and obstacles). */
   reachable(me: Creature): GridPos[] {
     const turn = this.turnFor(me);
@@ -3772,7 +3828,7 @@ export class GameController {
             const cost = s + stepCost(this.battle, q);
             if (cost > steps || (best.has(k) && best.get(k)! <= cost) || enemies.has(k) || !isWalkable(this.map, q)) continue;
             if (!this.map.explored[cellIndex(this.map, q.x, q.y)] && !this.map.explored[cellIndex(this.map, p.x, p.y)]) continue;
-            if (!best.has(k) && !occupied.has(k)) out.push(q);
+            if (!best.has(k) && (!occupied.has(k) || this.swapPartner(me, q))) out.push(q);
             best.set(k, cost);
             (buckets[cost] ??= []).push(q);
           }
@@ -3992,6 +4048,11 @@ export class GameController {
 
   get hasStagedFight(): boolean {
     return !!this.staged;
+  }
+
+  /** A boss waits among the staged foes (no sneaking past those). */
+  get stagedHasBoss(): boolean {
+    return !!this.staged?.spawned.some((m) => this.bossIds.has(m.id));
   }
 
   /** The staged fight begins. With surprise, the monsters lose their first turn. */

@@ -133,3 +133,22 @@ export function prepareTiles(scene: Phaser.Scene): void {
   // Smooth filtering: the upscaled art is already detailed, and odd scales stay soft instead of jagged.
   canvas.setFilter(Phaser.Textures.FilterMode.LINEAR);
 }
+
+const CRUDE_KEY = "couch-dungeon.crude";
+
+/** Enemies swear in their trash talk (on unless switched off). */
+export function loadCrude(): boolean {
+  try {
+    return localStorage.getItem(CRUDE_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function saveCrude(on: boolean): void {
+  try {
+    localStorage.setItem(CRUDE_KEY, on ? "on" : "off");
+  } catch {
+    // ignore
+  }
+}

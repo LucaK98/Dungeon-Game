@@ -32,7 +32,11 @@ export const EFFECT_HELP: Record<string, { combat: boolean; text: string }> = {
   erste_hilfe: { combat: false, text: "ein Held wird verarztet: 1W4+1 Trefferpunkte" },
   tuer_oeffnen: { combat: false, text: "die nächste verschlossene Tür geht auf" },
   entdecken: { combat: false, text: "ein verborgener Teil der Umgebung wird sichtbar" },
+  abkuerzung: { combat: false, text: "die Idee löst das aktuelle Hindernis der Szene (nur nach gelungener SCHWERER Probe, SG 15 oder mehr; einmal pro Szene)" },
 };
+
+/** Only a hard roll (this DC or more) may open a shortcut. */
+export const BYPASS_DC = 15;
 
 /** Setbacks for a clearly failed attempt ("Rückschläge"). */
 export const SETBACK_HELP: Record<string, { combat: boolean | "both"; text: string }> = {
@@ -64,7 +68,8 @@ export function allowedEffectNames(ctx: DmContext, trigger: DmTrigger): string[]
     .filter(([, e]) => e.combat === fighting)
     .map(([name]) => name)
     .filter((name) => name !== "flucht" || canFlee(ctx))
-    .filter((name) => name !== "bestechen" || (ctx.gold ?? 0) >= BRIBE_PER_ENEMY);
+    .filter((name) => name !== "bestechen" || (ctx.gold ?? 0) >= BRIBE_PER_ENEMY)
+    .filter((name) => name !== "abkuerzung" || (!!ctx.bypass && trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC));
   if (trigger.kind === "free_text") return names.filter((n) => NO_ROLL.has(n));
   if (trigger.kind === "roll_result") return names;
   return [];
@@ -126,6 +131,8 @@ export function effectFromName(name: string, target: string | undefined, ctx: Dm
       return { kind: "open_door" };
     case "entdecken":
       return { kind: "reveal" };
+    case "abkuerzung":
+      return { kind: "bypass" };
     case "blosse":
       return { kind: "exposed" };
     case "hinfallen":
@@ -163,6 +170,8 @@ export function filterEffects(effects: DmEffect[] | undefined, ctx: DmContext, t
     .filter((e) => (BOTH_KINDS.has(e.kind) ? true : COMBAT_KINDS.has(e.kind) === fighting))
     .filter((e) => trigger.kind !== "free_text" || NO_ROLL_KINDS.has(e.kind))
     .filter((e) => e.kind !== "flee" || canFlee(ctx))
+    // A shortcut needs a clean success on a hard roll – it must not make the game easy.
+    .filter((e) => e.kind !== "bypass" || (!!ctx.bypass && trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))
     .slice(0, max);
   if (!ok.length) return [];
   return cost ? [...ok, { kind: "cost" }] : ok;

@@ -223,6 +223,7 @@ export class Director {
       truth: this.state.truth,
       sceneId: this.scene.id,
       ...(this.stepId ? { stepId: this.stepId } : {}),
+      ...((b) => (b ? { bypass: b } : {}))(this.bypassable()),
       sceneIndex: this.state.sceneIndex,
       sceneCount: this.state.plan.length,
       players: heroes.map((h) => ({ id: h.playerId ?? h.id, name: h.name, classId: h.pc?.classId ?? "", hp: h.hp, maxHp: h.maxHp })),
@@ -758,6 +759,7 @@ export class Director {
 
   private async playScene(scene: Scene): Promise<"done" | "defeat"> {
     this.scene = scene;
+    this.shortcutUsed = false;
     this.doneSteps.clear();
     this.stepId = undefined;
     const { act } = actOf(this.story, scene.id);
@@ -860,6 +862,7 @@ export class Director {
 
   private async runStep(step: Step): Promise<"next" | "end" | "defeat" | { goto: string }> {
     this.stepId = step.id;
+    this.shortcutNow = false;
     this.updateView();
     await this.askDm({ kind: "step_start" });
     let result: "next" | "end" | "defeat" | { goto: string } = "next";
@@ -867,10 +870,10 @@ export class Director {
     switch (step.kind) {
       case "narrate":
       case "explore":
-        if (step.kind === "explore") await this.roam(this.game.waitFor(() => this.heroInLastRoom()));
+        if (step.kind === "explore") await this.roam(this.game.waitFor(() => this.shortcutNow || this.heroInLastRoom()));
         break;
       case "reach":
-        await this.roam(this.game.waitFor(() => (step.target === "exit" ? this.heroInLastRoom() : this.heroNextTo(step.target ?? ""))));
+        await this.roam(this.game.waitFor(() => this.shortcutNow || (step.target === "exit" ? this.heroInLastRoom() : this.heroNextTo(step.target ?? ""))));
         break;
       case "check": {
         const c = step.check!;
@@ -901,7 +904,7 @@ export class Director {
         // Somebody already opened a chest or used an item in this scene (e.g. during the fight): done.
         if (this.game.itemUses > this.sceneItemUses) break;
         const before = this.game.itemUses;
-        await this.game.waitFor(() => this.game.itemUses > before);
+        await this.game.waitFor(() => this.shortcutNow || this.game.itemUses > before);
         break;
       }
       case "choice":
@@ -1149,7 +1152,32 @@ export class Director {
 
   private applyEffects(effects: DmResponse["effects"], trigger: DmTrigger, hero: Creature): void {
     const ok = filterEffects(effects, this.ctx(), trigger);
-    if (ok.length) this.game.applyEffects(ok, hero);
+    if (ok.some((e) => e.kind === "bypass")) this.takeShortcut(hero);
+    const rest = ok.filter((e) => e.kind !== "bypass");
+    if (rest.length) this.game.applyEffects(rest, hero);
+  }
+
+  /** A clever idea may get around the scene's current obstacle – once per scene. */
+  private shortcutUsed = false;
+  private shortcutNow = false;
+
+  private bypassable(): string | undefined {
+    if (this.shortcutUsed || this.game.mode === "combat") return undefined;
+    if (this.game.hasStagedFight) return this.game.stagedHasBoss ? undefined : "unbemerkt an den wartenden Gegnern vorbeikommen (kein Kampf)";
+    const step = this.scene?.steps.find((s) => s.id === this.stepId);
+    if (!step) return undefined;
+    if (step.kind === "reach") return step.target === "exit" ? "einen schnelleren Weg zum Ausgang finden" : "direkt zu der gesuchten Person gelangen";
+    if (step.kind === "explore") return "eine Abkürzung durch die Gegend finden";
+    if (step.kind === "use_item") return "die Sache ohne den gesuchten Gegenstand lösen";
+    return undefined;
+  }
+
+  private takeShortcut(hero: Creature): void {
+    if (!this.bypassable()) return;
+    this.shortcutUsed = true;
+    if (this.game.hasStagedFight) this.game.pacifyStaged();
+    else this.shortcutNow = true;
+    this.game.narrate([{ text: `✨ Abkürzung! Dank ${hero.name}s Idee ist dieses Hindernis geschafft.` }]);
   }
 
   private remember(entry: string): void {

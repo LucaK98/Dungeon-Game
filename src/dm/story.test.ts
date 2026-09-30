@@ -180,7 +180,8 @@ async function playStory(opts: { heroes?: { name: string; classId: string; raceI
       const here = active.pos!;
       goals = goals.filter((g) => Math.max(Math.abs(g.x - here.x), Math.abs(g.y - here.y)) > 1).slice(0, 1);
     }
-    const reach = view.minimap.reachable;
+    // Bots only walk to free squares (trading places with friends would let two of them swap forever).
+    const reach = view.minimap.reachable.filter((p) => !creatures.some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y));
     if (goals.length && reach.length && view.turn.movementLeftFt > 0) {
       const field = walkDistances(map, goals);
       const d = (p: { x: number; y: number }) => {

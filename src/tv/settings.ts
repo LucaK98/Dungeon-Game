@@ -7,7 +7,7 @@ import { SYSTEM_PROMPT } from "../dm/ai/prompt";
 import { GeminiProvider, GroqProvider, LlmError, ServerProvider, type ProviderId } from "../dm/ai/provider";
 import { aiCallsToday, countAiCall, loadAiSettings, providersFrom, saveAiSettings, type AiSettings } from "../dm/ai/settings";
 import { h } from "../ui/dom";
-import { loadGraphicsMode, loadLookMode, saveGraphicsMode, saveLookMode, type GraphicsMode, type LookMode } from "./render";
+import { loadCrude, loadGraphicsMode, loadLookMode, saveCrude, saveGraphicsMode, saveLookMode, type GraphicsMode, type LookMode } from "./render";
 import { prepareVoice, setSpeechRate, setVoiceEngine, speak, speechRate, stopSpeaking, storytellerProblem, voiceEngine, type VoiceEngine } from "./speech";
 
 const VOICES: { id: VoiceEngine; label: string; detail: string }[] = [
@@ -216,6 +216,25 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     };
     renderLook();
 
+    const crudeRow = h("div", { class: "tv-row" });
+    const renderCrude = () => {
+      const on = loadCrude();
+      crudeRow.replaceChildren(
+        ...([
+          [true, "🤬 Derbe Sprache (Gegner fluchen)"],
+          [false, "😇 Jugendfrei (Gegner sind nur frech)"],
+        ] as const).map(([value, label]) => {
+          const b = h("button", { class: `tv-btn${on === value ? " primary" : ""}`, type: "button", textContent: label });
+          b.addEventListener("click", () => {
+            saveCrude(value);
+            renderCrude();
+          });
+          return b;
+        }),
+      );
+    };
+    renderCrude();
+
     const voiceRow = h("div", { class: "tv-row" });
     const voiceStatus = h("p", { class: "muted" });
     // The storyteller needs a Gemini key on this TV (also when the AI runs on the server).
@@ -287,7 +306,7 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     const el = h(
       "main",
       { class: "tv-screen" },
-      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("p", { class: "muted" }, "Sprechtempo (antippen zum Anhören):"), rateRow, h("h2", {}, "🖼 Grafik"), graphicsRow, h("p", { class: "muted" }, "Aussehen des Spielbretts (gilt ab der nächsten Karte):"), lookRow, h("div", { class: "tv-row" }, done)),
+      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("p", { class: "muted" }, "Sprechtempo (antippen zum Anhören):"), rateRow, h("h2", {}, "🖼 Grafik"), graphicsRow, h("p", { class: "muted" }, "Aussehen des Spielbretts (gilt ab der nächsten Karte):"), lookRow, h("h2", {}, "💬 Sprüche der Gegner"), crudeRow, h("div", { class: "tv-row" }, done)),
     );
     done.addEventListener("click", () => {
       pull();
