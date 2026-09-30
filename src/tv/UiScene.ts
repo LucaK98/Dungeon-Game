@@ -8,10 +8,9 @@ import type { DollLook } from "../shared/doll";
 import { prefetchSpeech, speak, speechRate, stopSpeaking } from "./speech";
 import { BOARD_HEIGHT, BOARD_WIDTH, LOG_PANEL } from "./DungeonScene";
 
-/** Right edge of the map on the TV (the log column is next to it). */
-const MAP_RIGHT = BOARD_WIDTH - LOG_PANEL;
 import type { AiStatus } from "../dm/ai/aidm";
 import { crisp, RES, TILES, UP } from "./render";
+import { mergeSummary, rollVerdict, summaryOf, TONE } from "./tv-text";
 
 const FONT = "system-ui, sans-serif";
 
@@ -49,28 +48,63 @@ export class UiScene extends Phaser.Scene {
   private logBox!: Phaser.GameObjects.Container;
   private tumbling: ReturnType<typeof setTimeout> | undefined;
   private tumbleFlips: Phaser.Time.TimerEvent | undefined;
+  /** The full log column is only shown on demand (key L); otherwise the map takes the whole width. */
+  private logOpen = false;
+  private logCloseTimer: Phaser.Time.TimerEvent | undefined;
+  /** Log closed: the newest line in one row at the bottom. */
+  private ticker!: Phaser.GameObjects.Container;
+  /** Log closed: tasks and clues as one short line under the goal. */
+  private notesLine!: Phaser.GameObjects.Text;
+  /** Messages in the middle of the screen, one after the other. */
+  private bannerQueue: { text: string; color?: string; small?: boolean }[] = [];
+  private bannerBusy = false;
+  /** Small things (EP, gold, elemental states) are collected and shown once per round. */
+  private summary: string[] = [];
+  private summaryTimer: Phaser.Time.TimerEvent | undefined;
+  private round: number | undefined;
+  private rollUntil = 0;
+  /** Things placed relative to the right edge of the map (it moves when the log opens). */
+  private anchors: [Phaser.GameObjects.Components.Transform, (right: number) => number][] = [];
+
+  /** Right edge of the map on the TV (the log column is next to it while open). */
+  private mapRight(): number {
+    return BOARD_WIDTH - (this.logOpen ? LOG_PANEL : 0);
+  }
+
+  private anchor<T extends Phaser.GameObjects.Components.Transform>(obj: T, x: (right: number) => number): T {
+    this.anchors.push([obj, x]);
+    obj.x = x(this.mapRight());
+    return obj;
+  }
 
   create(): void {
     // A fresh start (new map): no card is on screen any more.
     this.rewardShowing = false;
     this.rewardTimer = undefined;
+    this.anchors = [];
+    this.bannerQueue = [];
+    this.bannerBusy = false;
     // Board pixels → screen pixels.
     this.cameras.main.setOrigin(0, 0).setZoom(RES);
-    this.orderBar = this.add.container(20, 150);
+    this.orderBar = this.add.container(20, 168);
     this.banner = this.add
       // In the middle of the screen: at the top the dice card would cover it during fights.
-      .text(MAP_RIGHT / 2, BOARD_HEIGHT * 0.42, "", crisp({ fontFamily: FONT, fontSize: "64px", color: "#f3e9d2", stroke: "#000", strokeThickness: 12 }))
+      .text(0, BOARD_HEIGHT * 0.42, "", crisp({ fontFamily: FONT, fontSize: "64px", color: "#f3e9d2", stroke: "#000", strokeThickness: 12 }))
       .setOrigin(0.5)
       .setAlpha(0);
+    this.anchor(this.banner, (r) => r / 2);
     this.turnBox = this.add.graphics();
     this.turnText = this.add.text(40, BOARD_HEIGHT - 70, "", crisp({ fontFamily: FONT, fontSize: "44px", color: "#fff", stroke: "#000", strokeThickness: 8 })).setOrigin(0, 0.5);
     this.turnInfo = this.add.text(44, BOARD_HEIGHT - 128, "", crisp({ fontFamily: FONT, fontSize: "26px", color: "#e0c68a", stroke: "#000", strokeThickness: 6 })).setOrigin(0, 0.5);
-    this.rollBox = this.add.container(MAP_RIGHT - 30, 40);
+    this.rollBox = this.anchor(this.add.container(0, 40), (r) => r - 30);
     this.logBox = this.add.container(0, 0);
     this.chapter = this.add.text(24, 20, "", crisp({ fontFamily: FONT, fontSize: "26px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 }));
-    this.goal = this.add.text(24, 54, "", crisp({ fontFamily: FONT, fontSize: "30px", color: "#ffe08a", fontStyle: "bold", stroke: "#000", strokeThickness: 6, wordWrap: { width: MAP_RIGHT - 900 } }));
-    this.narrationBox = this.add.container(0, 0).setAlpha(0);
-    this.aiBadge = this.add.text(MAP_RIGHT - 24, BOARD_HEIGHT - 20, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setOrigin(1, 1);
+    this.goal = this.add.text(24, 54, "", crisp({ fontFamily: FONT, fontSize: "30px", color: "#ffe08a", fontStyle: "bold", stroke: "#000", strokeThickness: 6, wordWrap: { width: BOARD_WIDTH - LOG_PANEL - 900 } }));
+    this.notesLine = this.add.text(26, 98, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 }));
+    this.ticker = this.add.container(0, 0).setDepth(20);
+    this.narrationBox = this.anchor(this.add.container(0, 0).setAlpha(0), (r) => r - BOARD_WIDTH);
+    this.aiBadge = this.add.text(0, BOARD_HEIGHT - 20, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setOrigin(1, 1);
+    this.anchor(this.aiBadge, (r) => r - 24);
 
     // The scene card already names the place: no second title right after it.
     const onRoom = (name: string) => {
@@ -78,7 +112,13 @@ export class UiScene extends Phaser.Scene {
       this.showBanner(name);
     };
     const onTurn = (name: string, color?: string, free?: boolean, info?: string) => this.showTurn(name, color, free, info);
-    const onRoll = (r: RollOutcome, tumble = 0) => this.rollIn(r, tumble);
+    const onRoll = (r: RollOutcome, tumble = 0) => {
+      // Its lines are on the roll card: the ticker does not repeat them.
+      this.rollUntil = Date.now() + tumble + 1500;
+      this.tweens.killTweensOf(this.ticker);
+      this.ticker.removeAll(true);
+      this.rollIn(r, tumble);
+    };
     const onAsked = (prompt: RollPrompt, name: string, color?: string) => this.showAsk(prompt, name, color);
     const onOrder = (entries: OrderEntry[]) => this.showOrder(entries);
     const onCombat = (started: boolean) => started && this.showBanner("⚔️ Kampf!");
@@ -94,12 +134,15 @@ export class UiScene extends Phaser.Scene {
       this.turnInfo.setText(seconds !== undefined && seconds <= 60 ? `${base} · ⏱ ${seconds} s` : base);
       this.turnInfo.setColor(seconds !== undefined && seconds <= 15 ? "#ff8a7e" : "#e0c68a");
     };
-    const onRound = (ended: number) => this.showBanner(`🔔 Runde ${ended} vorbei`);
-    const onFlash = (text: string) => this.showBanner(text);
+    const onRound = (ended: number) => {
+      this.flushSummary(ended);
+      this.showBanner(`🔔 Runde ${ended} vorbei`, undefined, true);
+    };
+    const onFlash = (text: string) => this.showBanner(text, flashColor(text));
     this.game.events.on("flash", onFlash);
     this.events.once("shutdown", () => this.game.events.off("flash", onFlash));
     // A new scene: title and goal big in the middle for a few seconds.
-    const sceneCard = this.add.container(MAP_RIGHT / 2, BOARD_HEIGHT * 0.24).setDepth(45).setAlpha(0);
+    const sceneCard = this.anchor(this.add.container(0, BOARD_HEIGHT * 0.24).setDepth(45).setAlpha(0), (r) => r / 2);
     const onSceneCard = (title: string, goal: string) => {
       this.sceneCardAt = Date.now();
       this.banner.setAlpha(0);
@@ -129,7 +172,7 @@ export class UiScene extends Phaser.Scene {
       this.goal.setText(goal ? `🎯 ${goal}` : "");
     };
     // A short note under the chapter: the game was saved (with the code for another device).
-    const saved = this.add.text(24, 104, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setAlpha(0);
+    const saved = this.add.text(24, 126, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setAlpha(0);
     const onSaved = (code?: string) => {
       saved.setText(code ? `💾 Gespeichert · Code zum Weiterspielen: ${code}` : "💾 Gespeichert").setAlpha(1);
       this.tweens.killTweensOf(saved);
@@ -157,7 +200,19 @@ export class UiScene extends Phaser.Scene {
     const onLog = (lines: ExplainedLine[], added = 0) => {
       this.logLines = lines;
       this.showLog(lines, added);
+      this.takeNews(lines.slice(lines.length - Math.min(added, lines.length)).map((l) => l.text));
     };
+    // L: the whole log for a moment (it folds away again by itself).
+    const onKeyL = () => this.setLogOpen(!this.logOpen);
+    this.input.keyboard?.on("keydown-L", onKeyL);
+    const onLogPanel = (open: boolean) => this.setLogOpen(open);
+    this.game.events.on("log-panel", onLogPanel);
+    this.events.once("shutdown", () => {
+      this.input.keyboard?.off("keydown-L", onKeyL);
+      this.game.events.off("log-panel", onLogPanel);
+      this.logCloseTimer?.remove(false);
+      this.summaryTimer?.remove(false);
+    });
     // Tasks and clues at the top of the right column (redrawn only when they change).
     const onNotes = (tasks: { text: string; done: boolean }[], more: number, clues: string[]) => {
       const key = JSON.stringify([tasks, more, clues.slice(-3)]);
@@ -165,12 +220,13 @@ export class UiScene extends Phaser.Scene {
       this.notesKey = key;
       this.notes = { tasks, more, clues };
       this.showLog(this.logLines, 0);
+      this.showNotesLine();
     };
     this.game.events.on("notes", onNotes);
     this.events.once("shutdown", () => this.game.events.off("notes", onNotes));
     this.game.events.on("log", onLog);
     // The campfire rest: a warm panel at the top while the phones tell and shop.
-    const campBox = this.add.container(MAP_RIGHT / 2 + 60, 96).setDepth(40);
+    const campBox = this.anchor(this.add.container(0, 96).setDepth(40), (r) => r / 2 + 60);
     const onCamp = (state?: { ready: number; total: number }) => {
       this.tweens.killTweensOf(campBox.list);
       campBox.removeAll(true);
@@ -187,7 +243,7 @@ export class UiScene extends Phaser.Scene {
     };
     this.game.events.on("camp", onCamp);
     // A group vote: one bar per option, filled with the colours of who voted for it.
-    const voteBox = this.add.container(MAP_RIGHT / 2 + 60, 96).setDepth(41);
+    const voteBox = this.anchor(this.add.container(0, 96).setDepth(41), (r) => r / 2 + 60);
     const onVote = (state?: { total: number; cast: number; options: { label: string; voters: { name: string; color: string }[] }[] }) => {
       voteBox.removeAll(true);
       if (!state) return;
@@ -214,7 +270,7 @@ export class UiScene extends Phaser.Scene {
     };
     this.game.events.on("vote", onVote);
     // A big note while the table waits for one phone (e.g. the final blow).
-    const infoBox = this.add.container(MAP_RIGHT / 2 + 60, 96).setDepth(42);
+    const infoBox = this.anchor(this.add.container(0, 96).setDepth(42), (r) => r / 2 + 60);
     const onInfo = (info?: { icon: string; title: string; text: string }) => {
       this.tweens.killTweensOf(infoBox.list);
       infoBox.removeAll(true);
@@ -232,7 +288,7 @@ export class UiScene extends Phaser.Scene {
     };
     this.game.events.on("info-banner", onInfo);
     // The Harz travel map between chapters: three routes, the chosen one is ridden along.
-    const travelBox = this.add.container(MAP_RIGHT / 2 + 60, 410).setDepth(30);
+    const travelBox = this.anchor(this.add.container(0, 410).setDepth(30), (r) => r / 2 + 60);
     const onTravel = (t?: { from: string; to: string; routes: { icon: string; name: string; text: string; x: number; y: number }[]; chosen?: number }) => {
       this.tweens.killTweensOf(travelBox.list);
       travelBox.removeAll(true);
@@ -349,7 +405,8 @@ export class UiScene extends Phaser.Scene {
     box.setAlpha(1);
     // Between the initiative bar (left, in fights) and the log column.
     const width = 1060;
-    const x = MAP_RIGHT - width - 30;
+    // (The box moves with the right edge of the map, see anchor.)
+    const x = BOARD_WIDTH - width - 30;
     const speaker = line.npc ? this.add.text(x + 30, 0, line.npc, crisp({ fontFamily: FONT, fontSize: "30px", color: "#e0a526", fontStyle: "bold" })) : undefined;
     const text = this.add.text(x + 30, 0, "", crisp({ fontFamily: FONT, fontSize: "34px", color: "#f3e9d2", wordWrap: { width: width - 60 }, lineSpacing: 8, fontStyle: line.npc ? "italic" : "normal" }));
     // Measure the full height first.
@@ -408,16 +465,119 @@ export class UiScene extends Phaser.Scene {
     });
   }
 
-  private showBanner(name: string): void {
-    this.banner.setText(name).setAlpha(1);
+  /** Messages come one after the other (never on top of each other); the same one twice is shown once. */
+  private showBanner(text: string, color?: string, small = false): void {
+    if (this.bannerQueue.some((b) => b.text === text)) return;
+    this.bannerQueue.push({ text, ...(color ? { color } : {}), small });
+    if (!this.bannerBusy) this.nextBanner();
+  }
+
+  private nextBanner(): void {
+    const b = this.bannerQueue.shift();
+    if (!b) {
+      this.bannerBusy = false;
+      return;
+    }
+    this.bannerBusy = true;
     this.tweens.killTweensOf(this.banner);
-    this.tweens.add({ targets: this.banner, alpha: 0, delay: 2500, duration: 1200 });
+    this.banner
+      .setText(b.text)
+      .setColor(b.color ?? "#f3e9d2")
+      .setFontSize(b.small ? 40 : 64)
+      .setAlpha(1)
+      .setScale(0.85);
+    // Waiting messages make the one on screen go faster.
+    const hold = this.bannerQueue.length ? 1100 : 1800 + Math.min(1500, b.text.length * 25);
+    this.tweens.add({ targets: this.banner, scale: 1, duration: 220, ease: "Back.easeOut" });
+    this.tweens.add({ targets: this.banner, alpha: 0, delay: hold, duration: 350, onComplete: () => this.nextBanner() });
+  }
+
+  /** Opens or closes the log column; the map and everything on it moves along. */
+  private setLogOpen(open: boolean): void {
+    this.logCloseTimer?.remove(false);
+    this.logCloseTimer = undefined;
+    if (open) this.logCloseTimer = this.time.delayedCall(20_000, () => this.setLogOpen(false));
+    if (open === this.logOpen) return;
+    this.logOpen = open;
+    const right = this.mapRight();
+    for (const [obj, x] of this.anchors) obj.x = x(right);
+    const dungeon = this.scene.get("dungeon") as unknown as { setLogOpen?: (open: boolean) => void } | undefined;
+    dungeon?.setLogOpen?.(open);
+    this.showLog(this.logLines, 0);
+    if (!open) this.logBox.removeAll(true);
+    this.showNotesLine();
+    this.ticker.setVisible(!open);
+  }
+
+  /** Log closed: the open task and the clues in one small line under the goal. */
+  private showNotesLine(): void {
+    const n = this.notes;
+    if (this.logOpen || (!n.tasks.length && !n.clues.length)) {
+      this.notesLine.setText("");
+      return;
+    }
+    const total = n.tasks.length + n.more;
+    const done = n.tasks.filter((t) => t.done).length;
+    const parts = [
+      total > 1 ? `☑️ ${done} von ${total} erledigt` : "",
+      n.clues.length ? `🧩 ${n.clues.length} ${n.clues.length === 1 ? "Hinweis" : "Hinweise"}` : "",
+      "📜 Taste L: Protokoll",
+    ].filter(Boolean);
+    this.notesLine.setText(parts.join("   ·   "));
+  }
+
+  /**
+   * New log lines while the log is closed: small things (EP, gold, elemental states) wait for the
+   * round summary, the rest shows in the one-line ticker at the bottom.
+   */
+  private takeNews(texts: string[]): void {
+    let last: string | undefined;
+    for (const t of texts) {
+      const small = summaryOf(t);
+      if (small) this.summary.push(small);
+      else last = t;
+    }
+    if (last && Date.now() > this.rollUntil) this.showTicker(last);
+    // Without rounds (free exploring) the summary comes after a quiet moment.
+    if (this.summary.length && this.round === undefined) {
+      this.summaryTimer?.remove(false);
+      this.summaryTimer = this.time.delayedCall(6000, () => this.flushSummary());
+    }
+  }
+
+  private showTicker(text: string): void {
+    const box = this.ticker;
+    this.tweens.killTweensOf(box);
+    box.removeAll(true);
+    if (this.logOpen) return;
+    const right = this.mapRight();
+    const t = this.add.text(right - 40, BOARD_HEIGHT - 70, text.length > 110 ? `${text.slice(0, 107)} …` : text, crisp({ fontFamily: FONT, fontSize: "28px", color: logColor(text), stroke: "#000", strokeThickness: 6 })).setOrigin(1, 1);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0d0b09, 0.7).fillRoundedRect(t.x - t.width - 18, t.y - t.height - 8, t.width + 36, t.height + 16, 12);
+    box.add([bg, t]);
+    box.setAlpha(1);
+    this.tweens.add({ targets: box, alpha: 0, delay: 6000, duration: 800 });
+  }
+
+  /** "📋 Runde 3: +20 EP · 12 Gold · Goblin 2 brennt" – once, at the end of the round. */
+  private flushSummary(round?: number): void {
+    this.summaryTimer?.remove(false);
+    this.summaryTimer = undefined;
+    if (!this.summary.length) return;
+    const text = mergeSummary(this.summary);
+    this.summary = [];
+    this.showBanner(`📋 ${round !== undefined ? `Runde ${round}: ` : ""}${text}`, "#ffd75e", true);
   }
 
   private showTurn(name: string, color?: string, free?: boolean, info?: string): void {
     // A roll that was asked for and never thrown (the turn moved on): take the waiting die away.
     if (this.asking) this.clearRollBox();
     this.turnText.setText(free ? `🧭 ${name}` : `▶ ${name} ist dran`);
+    // A new round: what happened on the side comes as one short summary.
+    const round = /Runde (\d+)/.exec(info ?? "")?.[1];
+    const now = round ? Number(round) : undefined;
+    if (this.round !== undefined && now !== this.round) this.flushSummary(this.round);
+    this.round = now;
     this.turnInfo.setText(info ?? "").setColor("#e0c68a").setData("base", info);
     const w = Math.max(this.turnText.width, this.turnInfo.width + (info ? 130 : 0)) + 60;
     const top = info ? BOARD_HEIGHT - 150 : BOARD_HEIGHT - 110;
@@ -432,7 +592,7 @@ export class UiScene extends Phaser.Scene {
     this.orderBar.removeAll(true);
     // Up to 6 heroes plus their foes: rows shrink so everything fits on the screen.
     const visible = entries.slice(0, 14);
-    const row = Math.min(92, Math.floor((BOARD_HEIGHT - 290) / Math.max(1, visible.length)));
+    const row = Math.min(92, Math.floor((BOARD_HEIGHT - 310) / Math.max(1, visible.length)));
     const scale = row / 92;
     visible.forEach((e, i) => {
       const y = i * row;
@@ -513,7 +673,7 @@ export class UiScene extends Phaser.Scene {
   /** The celebration card: a golden frame with rays, the heroes and what they gained. */
   private rewardCard(items: { r: Reward; look?: DollLook }[]): Phaser.GameObjects.Container {
     const width = 900;
-    const cx = MAP_RIGHT / 2 + 60;
+    const cx = this.mapRight() / 2 + 60;
     const card = this.add.container(cx, BOARD_HEIGHT * 0.36).setDepth(50);
     const parts: Phaser.GameObjects.GameObject[] = [];
     const first = items[0]!.r;
@@ -589,7 +749,8 @@ export class UiScene extends Phaser.Scene {
     const box = this.logBox;
     this.tweens.killTweensOf(box.list);
     box.removeAll(true);
-    const x = MAP_RIGHT + 10;
+    if (!this.logOpen) return;
+    const x = this.mapRight() + 10;
     const width = LOG_PANEL - 30;
     const top = 20;
     const bottom = BOARD_HEIGHT - 20;
@@ -633,8 +794,8 @@ export class UiScene extends Phaser.Scene {
     const fresh = Math.min(added, texts.length);
     let y = bottom - 18;
     const limit = ny + 52;
-    // Only the newest five: older ones are gone, the rest fade with age.
-    for (let i = texts.length - 1; i >= Math.max(0, texts.length - 5); i--) {
+    // Opened on purpose: the newest twelve, older ones fade.
+    for (let i = texts.length - 1; i >= Math.max(0, texts.length - 12); i--) {
       const text = texts[i]!;
       const age = texts.length - 1 - i;
       const t = this.add.text(x + 30, 0, text, crisp({ fontFamily: FONT, fontSize: "22px", color: logColor(text), wordWrap: { width: width - 48 }, lineSpacing: 4 }));
@@ -746,60 +907,50 @@ export class UiScene extends Phaser.Scene {
     this.tumbleFlips = flips;
   }
 
-  /** Big result card with the breakdown, e.g. "🎲 14 + 3 (Stärke) + 2 (Übung) = 19 gegen RK 15 → Treffer!". */
+  /**
+   * The result as one short card: "🎲 17 → Treffer! · −9 Schaden an Goblin 1 · 💥 Sehr effektiv".
+   * The arithmetic stays on the phone of whoever rolled.
+   */
   private showRoll(r: RollOutcome): void {
     this.tumbleFlips?.remove(false);
     this.tumbleFlips = undefined;
     this.clearRollBox();
-    const width = 860;
+    const width = 780;
     const hasDie = r.dice.length > 0;
-    const left = hasDie ? 170 : 30;
-    const title = this.add.text(-width + left, 24, r.title, crisp({ fontFamily: FONT, fontSize: "36px", color: "#e0a526", fontStyle: "bold" }));
-    // The dice sum in one small line, then what it did as coloured points (damage red, healing green …).
-    const sum = r.lines.find((l) => /= \d+ gegen (RK|SG)/.test(l.text))?.text;
-    const parts: Phaser.GameObjects.Text[] = [];
-    let y = 80;
-    if (sum) {
-      const t = this.add.text(-width + left, y, sum, crisp({ fontFamily: FONT, fontSize: "22px", color: "#b3a58a", wordWrap: { width: width - left - 30 } }));
+    const left = hasDie ? 150 : 30;
+    const title = this.add.text(-width + left, 20, r.title, crisp({ fontFamily: FONT, fontSize: "26px", color: "#b3a58a", fontStyle: "bold", wordWrap: { width: width - left - 30 } }));
+    const verdict = rollVerdict(r);
+    const head = this.add.text(-width + left, 24 + title.height, verdict.text, crisp({ fontFamily: FONT, fontSize: "46px", color: verdict.color, fontStyle: "bold", stroke: "#000", strokeThickness: 6 }));
+    const parts: Phaser.GameObjects.Text[] = [head];
+    let y = 30 + title.height + head.height;
+    // What it did: at most three short points (the rest is in the log and on the phone).
+    const points = (r.bullets?.length ? r.bullets.map((b) => ({ text: `${BULLET_ICON[b.tone]} ${b.text}`, color: BULLET_COLOR[b.tone] })) : r.lines.filter((l) => !/= \d+ gegen (RK|SG)/.test(l.text)).slice(0, 1).map((l) => ({ text: l.text, color: TONE.text })))
+      .concat(r.lines.filter((l) => /^(💥 Sehr effektiv|🛡️ Nicht sehr effektiv|🚫 Wirkt nicht)/u.test(l.text)).slice(0, 1).map((l) => ({ text: l.text.replace(/ – das merkt ihr euch!$/, ""), color: l.text.startsWith("💥") ? TONE.good : TONE.danger })))
+      .slice(0, 3);
+    for (const p of points) {
+      const t = this.add.text(-width + left, y, p.text, crisp({ fontFamily: FONT, fontSize: "28px", color: p.color, fontStyle: "bold", wordWrap: { width: width - left - 30 } }));
       parts.push(t);
-      y += t.height + 10;
+      y += t.height + 4;
     }
-    const bullets = r.bullets?.length ? r.bullets : undefined;
-    if (bullets) {
-      for (const b of bullets) {
-        const t = this.add.text(-width + left, y, `${BULLET_ICON[b.tone]}  ${b.text}`, crisp({ fontFamily: FONT, fontSize: "32px", color: BULLET_COLOR[b.tone], fontStyle: "bold", wordWrap: { width: width - left - 30 } }));
-        parts.push(t);
-        y += t.height + 6;
-      }
-    } else {
-      const t = this.add.text(-width + left, y, r.lines.slice(0, 3).map((l) => l.text).join("\n"), crisp({ fontFamily: FONT, fontSize: "28px", color: "#f3e9d2", wordWrap: { width: width - left - 30 }, lineSpacing: 8 }));
-      parts.push(t);
-      y += t.height;
-    }
-    const body = { height: y - 80 };
-    const height = Math.max(180, 110 + body.height);
+    const height = Math.max(hasDie ? 150 : 110, y + 18);
     const bg = this.add.graphics();
-    const edge = r.crit ? 0xffd700 : r.success === true ? 0x4caf50 : r.success === false ? 0xe04040 : 0x5a4d42;
+    const edge = Phaser.Display.Color.HexStringToColor(verdict.color).color;
     bg.fillStyle(0x14110f, 0.92).fillRoundedRect(-width, 0, width, height, 18);
     bg.lineStyle(6, edge, 1).strokeRoundedRect(-width, 0, width, height, 18);
     this.rollBox.add([bg, title, ...parts]);
     if (hasDie) {
       // The die that counts, big enough to read from the sofa.
       const die = this.add.graphics();
-      die.fillStyle(r.crit ? 0xb8860b : 0x7a2e22, 1).fillRoundedRect(-width + 24, 24, 120, 120, 20);
-      die.lineStyle(4, 0xf3e9d2, 1).strokeRoundedRect(-width + 24, 24, 120, 120, 20);
-      const n = this.add.text(-width + 84, 76, String(r.kept), crisp({ fontFamily: FONT, fontSize: r.kept >= 10 ? "56px" : "68px", fontStyle: "bold", color: "#fff", stroke: "#000", strokeThickness: 6 })).setOrigin(0.5);
-      const sides = this.add.text(-width + 84, 128, `W${r.sides}`, crisp({ fontFamily: FONT, fontSize: "20px", color: "#f3e9d2" })).setOrigin(0.5);
+      die.fillStyle(r.crit ? 0xb8860b : 0x7a2e22, 1).fillRoundedRect(-width + 20, 20, 110, 110, 18);
+      die.lineStyle(4, 0xf3e9d2, 1).strokeRoundedRect(-width + 20, 20, 110, 110, 18);
+      const n = this.add.text(-width + 75, 68, String(r.kept), crisp({ fontFamily: FONT, fontSize: r.kept >= 10 ? "52px" : "62px", fontStyle: "bold", color: "#fff", stroke: "#000", strokeThickness: 6 })).setOrigin(0.5);
+      const sides = this.add.text(-width + 75, 116, `W${r.sides}`, crisp({ fontFamily: FONT, fontSize: "18px", color: "#f3e9d2" })).setOrigin(0.5);
       this.rollBox.add([die, n, sides]);
-      if (r.dice.length > 1) {
-        const other = r.dice.find((d, i) => d !== r.kept || i > 0 && r.dice[0] === r.kept) ?? r.dice[1]!;
-        this.rollBox.add(this.add.text(-width + 84, 162, `(auch: ${other})`, crisp({ fontFamily: FONT, fontSize: "20px", color: "#b3a58a" })).setOrigin(0.5));
-      }
       n.setScale(1.6);
       this.tweens.add({ targets: n, scale: 1, duration: 300, ease: "Back.easeOut" });
     }
     this.rollBox.setAlpha(1);
-    this.tweens.add({ targets: this.rollBox, alpha: 0, delay: 5000 + parts.length * 900, duration: 800 });
+    this.tweens.add({ targets: this.rollBox, alpha: 0, delay: 3200 + points.length * 700, duration: 600 });
   }
 }
 
@@ -807,8 +958,16 @@ export class UiScene extends Phaser.Scene {
 function logColor(text: string): string {
   const bullet = (Object.keys(BULLET_ICON) as (keyof typeof BULLET_ICON)[]).find((k) => text.startsWith(`${BULLET_ICON[k]} `));
   if (bullet) return BULLET_COLOR[bullet];
-  if (/nicht geschafft|verfehlt|daneben|misslingt|fehlschlag|→ kein treffer/i.test(text)) return "#f0a3a3";
-  if (/treffer|geschafft|erfolg|kritisch/i.test(text)) return "#a8e6a3";
-  if (/^(⬆️|✨|💰|🎁|🏆)/u.test(text)) return "#ffd75e";
-  return "#e8dcc4";
+  if (/nicht geschafft|verfehlt|daneben|misslingt|fehlschlag|→ kein treffer|nicht sehr effektiv|wirkt nicht/i.test(text)) return TONE.danger;
+  if (/treffer|geschafft|erfolg|kritisch|sehr effektiv/i.test(text)) return TONE.good;
+  if (/^(⬆️|✨|💰|🎁|🏆)/u.test(text)) return TONE.reward;
+  if (/^(ℹ️|💡|🔎|📚)/u.test(text)) return TONE.info;
+  return TONE.text;
+}
+
+/** Flash messages in the colour of what they mean. */
+function flashColor(text: string): string | undefined {
+  if (/Sehr effektiv|Kombo|Stark beschrieben|geschafft/i.test(text)) return TONE.good;
+  if (/Nicht sehr effektiv|Wirkt nicht|Gefahr|Achtung/i.test(text)) return TONE.danger;
+  return undefined;
 }

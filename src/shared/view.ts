@@ -226,6 +226,8 @@ export interface RollPrompt {
   plan?: string;
   /** Free actions: the player may still take it back (and write something else). */
   cancellable?: boolean;
+  /** Whom the roll is aimed at (the TV draws an arrow and shows the foe's card). */
+  targetIds?: string[];
 }
 
 export interface RollNeed {

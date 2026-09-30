@@ -4,6 +4,11 @@
   --text: #f3e9d2;
   --muted: #b3a58a;
   --accent: #e0a526;
+  /* The colour language: green = good for you, red = danger, gold = reward, blue = info. */
+  --good: #7fdc8a;
+  --danger: #ff7a6e;
+  --reward: #ffd75e;
+  --info: #8fc3ff;
   --radius: 14px;
   color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -274,8 +279,8 @@ body.is-phone { background: var(--bg); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .chips-label { color: var(--muted); font-size: 0.9rem; }
 .chip { border: 1px solid #4a3e33; background: var(--panel); color: var(--text); border-radius: 999px; padding: 8px 12px; font-size: 0.95rem; cursor: pointer; }
-.chip.warn { border-color: #c0503c; }
-.chip.good { border-color: #4caf50; }
+.chip.warn { border-color: var(--danger); }
+.chip.good { border-color: var(--good); }
 .help-list { display: flex; flex-direction: column; gap: 8px; }
 .help-item { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 12px; border: none; background: var(--panel); color: var(--text); cursor: pointer; }
 .help-item span { color: var(--muted); font-size: 0.95rem; }
@@ -319,6 +324,9 @@ body.tip-mode::after {
 .hp-bar { width: 80px; height: 8px; background: #3a2f27; border-radius: 4px; overflow: hidden; }
 .hp-fill { height: 100%; }
 .ctl-ac { font-weight: 700; font-size: 0.95rem; }
+.ctl-states { display: flex; gap: 2px; padding: 2px 6px; border-radius: 999px; border: 1px solid #4a3e33; background: rgba(255, 255, 255, 0.05); font-size: 1.05rem; line-height: 1.3; cursor: pointer; }
+.ctl-states .bad { filter: drop-shadow(0 0 3px rgb(255 122 110 / 70%)); }
+.ctl-states .good { filter: drop-shadow(0 0 3px rgb(127 220 138 / 70%)); }
 .ctl-status { margin: 10px 12px 0; padding: 10px 14px; border-radius: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ctl-status.mine { background: #3b2d10; border: 2px solid var(--accent); }
 .ctl-status.mine > strong { font-size: 1.2rem; width: 100%; }
@@ -888,11 +896,11 @@ body.tip-mode::after {
 .bullets { list-style: none; margin: 0.4rem 0; padding: 0; display: grid; gap: 0.35rem; text-align: left; }
 .bullet { display: flex; gap: 0.5rem; align-items: center; font-weight: 700; font-size: 1.1rem; padding: 0.35rem 0.6rem; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border-left: 4px solid currentColor; }
 .bullet-icon { font-size: 1.1rem; }
-.bullet.damage { color: #ff6b5e; }
-.bullet.heal { color: #6fdc7a; }
+.bullet.damage { color: var(--danger); }
+.bullet.heal { color: var(--good); }
 .bullet.miss { color: #b8b0a0; }
-.bullet.status { color: #ffd75e; }
-.bullet.buff { color: #7cc4ff; }
+.bullet.status { color: var(--info); }
+.bullet.buff { color: var(--good); }
 .bullet.down { color: #e08aff; }
 .bullet.info { color: #e8dcc4; }
 .dice-how { margin-top: 0.4rem; font-size: 0.9rem; opacity: 0.85; text-align: left; }
@@ -901,8 +909,8 @@ body.tip-mode::after {
 /* ---------------------------------------------------------------- compact choice chips */
 .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.25rem; }
 .chip, .chips .odds { font-size: 0.85rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(255, 255, 255, 0.07); white-space: nowrap; }
-.chip.dmg { color: #ff8a7e; background: rgba(255, 90, 70, 0.14); }
-.chip.heal { color: #7fe38a; background: rgba(90, 220, 110, 0.14); }
+.chip.dmg { color: var(--danger); background: rgba(255, 90, 70, 0.14); }
+.chip.heal { color: var(--good); background: rgba(90, 220, 110, 0.14); }
 .chip.range, .chip.slots, .chip.area { color: #cfc4ad; }
 .chip.area { color: #ffb45e; }
 
@@ -928,11 +936,11 @@ body.tip-mode::after {
 .enemy-hp-bar.ok { background: #4caf50; }
 .enemy-hp-bar.hurt { background: #e0b030; }
 .enemy-hp-bar.low { background: #e04040; }
-.chip.danger.high { background: #5a1e1a; color: #ffb0a6; }
-.chip.danger.mid { background: #4a3d16; color: #ffe08a; }
-.chip.danger.low { background: #24452a; color: #aef0b0; }
-.chip.type.weak { background: #3d2a12; color: #ffc66b; }
-.chip.type.strong { background: #22303f; color: #a9c8ff; }
+.chip.danger.high { background: #5a1e1a; color: var(--danger); }
+.chip.danger.mid { background: #4a2f16; color: #ffb45e; }
+.chip.danger.low { background: #24452a; color: var(--good); }
+.chip.type.weak { background: #1f3a24; color: var(--good); }
+.chip.type.strong { background: #43241c; color: var(--danger); }
 
 /* ---------------------------------------------------------------- scene checklist */
 .st-tasks { list-style: none; padding: 0; margin: 0.35rem 0; display: grid; gap: 0.2rem; }
@@ -1005,15 +1013,17 @@ body.tip-mode::after {
 .group-body.tiles[hidden] { display: none; }
 .tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 64px; padding: 8px 10px; border-radius: 12px; border: 2px solid #3b322b; background: #1d1814; color: var(--text); font: inherit; text-align: left; cursor: pointer; -webkit-touch-callout: none; user-select: none; }
 .tile.recommended { border-color: var(--accent); }
+.tile.edge-good { box-shadow: inset 4px 0 0 var(--good); }
+.tile.edge-bad { box-shadow: inset 4px 0 0 var(--danger); }
 .tile.queueable { border-style: dashed; opacity: 0.9; }
 .tile.urgent-heal { border-color: #3fbf6a; box-shadow: 0 0 0 3px rgb(63 191 106 / 35%); }
 .tile.urgent-safe { border-color: #e8c440; box-shadow: 0 0 0 3px rgb(232 196 64 / 35%); }
 .tile-label { font-weight: 800; font-size: 0.95rem; line-height: 1.15; }
 .tile-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .tile-chips .chip { font-size: 0.72rem; padding: 1px 6px; }
-.chip.edge.good { background: #1f3a24; color: #9be3a8; }
-.chip.edge.bad { background: #43241c; color: #ffb49a; }
-.chip.odds-good { color: #9be3a8; } .chip.odds-mid { color: #f0d27a; } .chip.odds-low { color: #ffb49a; }
+.chip.edge.good { background: #1f3a24; color: var(--good); }
+.chip.edge.bad { background: #43241c; color: var(--danger); }
+.chip.odds-good { color: var(--good); } .chip.odds-mid { color: #ffb45e; } .chip.odds-low { color: var(--danger); }
 .tile-cost { font-size: 0.7rem; color: var(--muted); font-weight: 700; }
 .tile-cost.free { color: #9be3a8; }
 .ctl-head { flex-wrap: wrap; row-gap: 4px; padding-bottom: 6px; }
@@ -1060,3 +1070,6 @@ details.fold > .card { background: #00000022; }
 .idea-row { display: flex; gap: 6px; align-items: stretch; }
 .idea-row .idea-chip { flex: 1; }
 .idea-edit { border: 1px solid #5a4a30; background: #2a2016; color: inherit; border-radius: 10px; padding: 0 10px; }
+
+/* Automatic end of the turn: a countdown bar above the tabs. */
+.auto-end { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 14px; background: #1f3a24; border: 2px solid var(--good); color: var(--text); font-weight: 800; box-shadow: 0 6px 20px rgb(0 0 0 / 50%); }

@@ -2,7 +2,7 @@
  * The game board on the TV: dungeon, figures, torches, fog of war and light.
  */
 import Phaser from "phaser";
-import { sizeInSquares } from "../engine/combat";
+import { armorClass, sizeInSquares } from "../engine/combat";
 import { dollFrames } from "../shared/doll";
 import type { Creature } from "../shared/game";
 import { cellIndex, type DungeonMap, type MapObject } from "../shared/map";
@@ -57,6 +57,8 @@ interface Figure {
   glow?: Phaser.GameObjects.Image;
   /** 🛡️ while standing in cover (in fights). */
   shield?: Phaser.GameObjects.Text;
+  /** States (🔥💧🎯 …) and known weaknesses (💥❄️) over the figure. */
+  tags?: Phaser.GameObjects.Text;
   /** Last square, to face the walking direction. */
   lastX?: number;
 }
@@ -403,6 +405,7 @@ export class DungeonScene extends Phaser.Scene {
     f.lastX = c.pos.x;
     this.showMood(f, c);
     this.showShield(f, c);
+    this.showTags(f, c);
     if (f.hpBar) {
       f.hpBar.clear();
       if (c.hp < c.maxHp) {
@@ -508,6 +511,102 @@ export class DungeonScene extends Phaser.Scene {
     f.container.add(f.shield);
     this.tweens.add({ targets: f.shield, scale: 0.5, duration: 200, yoyo: true, ease: "Back.easeOut" });
   }
+
+  /** What the heroes learned about a foe ("💥 Feuer ×2" …), set by the host. */
+  typesOf: ((c: Creature) => string[]) | undefined;
+
+  /** Small signs over a figure: its states, and for foes the weaknesses the heroes know. */
+  private showTags(f: Figure, c: Creature): void {
+    const states = stateIcons(c);
+    const weak = c.side === "enemy" ? (this.typesOf?.(c) ?? []).filter((t) => t.includes("×2")).map((t) => firstSign(t)) : [];
+    const text = [states.join(""), weak.length ? `💥${weak.join("")}` : ""].filter(Boolean).join(" ");
+    if (!text || c.dead || c.hp <= 0) {
+      f.tags?.destroy();
+      f.tags = undefined;
+      return;
+    }
+    if (!f.tags) {
+      f.tags = this.add.text(0, c.kind === "monster" ? -22 : -19, "", crisp({ fontFamily: "system-ui, sans-serif", fontSize: "22px", stroke: "#000", strokeThickness: 4 })).setOrigin(0.5, 1).setScale(0.36);
+      f.container.add(f.tags);
+    }
+    if (f.tags.text !== text) f.tags.setText(text);
+  }
+
+  /** The hero's chosen target: an arrow from the hero, a ring, and one card about the foe. */
+  showAim(heroId: string, targetIds: string[]): void {
+    this.clearAim();
+    const hero = this.figures.get(heroId);
+    const color = this.session.battle.creatures[heroId]?.appearance?.color;
+    const tint = color ? Phaser.Display.Color.HexStringToColor(color).color : 0xffd75e;
+    const g = this.add.graphics().setDepth(5150);
+    const parts: Phaser.GameObjects.GameObject[] = [g];
+    for (const id of targetIds.slice(0, 4)) {
+      const t = this.figures.get(id);
+      if (!t) continue;
+      if (hero) {
+        const [x1, y1, x2, y2] = [hero.container.x, hero.container.y, t.container.x, t.container.y];
+        const len = Math.hypot(x2 - x1, y2 - y1);
+        if (len > 8) {
+          const ux = (x2 - x1) / len;
+          const uy = (y2 - y1) / len;
+          const ex = x2 - ux * 13;
+          const ey = y2 - uy * 13;
+          // Dashed line with a head: whom the hero means.
+          for (let d = 10; d < len - 18; d += 8) {
+            const a = { x: x1 + ux * d, y: y1 + uy * d };
+            g.lineStyle(4, 0x000000, 0.45).lineBetween(a.x, a.y, a.x + ux * 4, a.y + uy * 4);
+            g.lineStyle(2, tint, 1).lineBetween(a.x, a.y, a.x + ux * 4, a.y + uy * 4);
+          }
+          g.fillStyle(tint, 1).fillTriangle(ex + ux * 6, ey + uy * 6, ex - uy * 5, ey + ux * 5, ex + uy * 5, ey - ux * 5);
+        }
+      }
+      g.lineStyle(2.5, tint, 1).strokeCircle(t.container.x, t.container.y, 15);
+    }
+    this.tweens.add({ targets: g, alpha: 0.55, duration: 600, yoyo: true, repeat: -1 });
+    // One detailed card: only the foe being attacked right now.
+    const foe = targetIds.map((id) => this.session.battle.creatures[id]).find((c) => c?.side === "enemy");
+    const ff = foe ? this.figures.get(foe.id) : undefined;
+    if (foe && ff) {
+      const known = this.typesOf?.(foe) ?? [];
+      const states = stateIcons(foe);
+      const lines = [
+        `❤️ ${foe.hp}/${foe.maxHp}   🛡️ RK ${armorClass(foe)}`,
+        known.length ? known.join("  ") : "Stärken/Schwächen: noch unbekannt",
+        ...(states.length ? [states.join(" ")] : []),
+      ];
+      const name = this.add.text(0, 0, foe.name, crisp({ fontFamily: "system-ui, sans-serif", fontSize: "26px", fontStyle: "bold", color: "#ffd75e" })).setOrigin(0.5, 0);
+      const body = this.add.text(0, name.height + 4, lines.join("\n"), crisp({ fontFamily: "system-ui, sans-serif", fontSize: "22px", color: "#f3e9d2", align: "center", lineSpacing: 4 })).setOrigin(0.5, 0);
+      const w = Math.max(name.width, body.width) + 30;
+      const hgt = name.height + body.height + 22;
+      const bg = this.add.graphics();
+      bg.fillStyle(0x14110f, 0.92).fillRoundedRect(-w / 2, -10, w, hgt, 12);
+      bg.lineStyle(3, 0xe04040, 1).strokeRoundedRect(-w / 2, -10, w, hgt, 12);
+      const card = this.add.container(ff.container.x, ff.container.y - 26, [bg, name, body]).setDepth(6150).setScale(0.36);
+      // Above the foe; below it if there is no room at the top of the map.
+      card.y -= hgt * 0.36;
+      if (card.y < 4) card.y = ff.container.y + 22;
+      parts.push(card);
+    }
+    this.aimParts = parts;
+  }
+
+  clearAim(): void {
+    for (const p of this.aimParts) {
+      this.tweens.killTweensOf(p);
+      p.destroy();
+    }
+    this.aimParts = [];
+  }
+
+  private aimParts: Phaser.GameObjects.GameObject[] = [];
+
+  /** The log column is open (key L): the map gets narrower. */
+  setLogOpen(open: boolean): void {
+    this.logOpen = open;
+    this.layout();
+  }
+
+  private logOpen = false;
 
   /** A speech bubble over a figure (a hero's idea, an NPC's words). */
   /** A player points at a square on the phone: a ring in the hero's colour, and the planned route as dots. */
@@ -663,7 +762,7 @@ export class DungeonScene extends Phaser.Scene {
   private layout(): void {
     const cam = this.cameras.main;
     const left = this.combatLayout ? ORDER_PANEL : 0;
-    cam.setViewport(Math.round(left * RES), 0, Math.round((BOARD_WIDTH - left - LOG_PANEL) * RES), Math.round(BOARD_HEIGHT * RES));
+    cam.setViewport(Math.round(left * RES), 0, Math.round((BOARD_WIDTH - left - (this.logOpen ? LOG_PANEL : 0)) * RES), Math.round(BOARD_HEIGHT * RES));
     const map = this.session.map;
     const fit = Math.min(cam.width / (map.width * TILE), cam.height / (map.height * TILE)) / RES;
     this.zoomBase = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, fit)) * RES;
@@ -918,4 +1017,23 @@ export class DungeonScene extends Phaser.Scene {
     const cy = cam.scrollY + cam.height / 2;
     cam.centerOn(cx + (this.camTarget.x - cx) * 0.08, cy + (this.camTarget.y - cy) * 0.08);
   }
+}
+
+const STATE_ICON: Record<string, string> = {
+  burning: "🔥", chilled: "❄️", shocked: "⚡", wet: "💧", weakspot: "🎯", distracted: "💫", feud: "😤", disguised: "🥸", bless: "🙏", "shield-of-faith": "🛡️",
+  prone: "🛌", poisoned: "🤢", incapacitated: "💫", stunned: "😵", unconscious: "💤", restrained: "⛓️", frightened: "😱", paralyzed: "🥶", charmed: "💘", blinded: "🙈", grappled: "🤼",
+};
+
+/** The signs of what is going on with a creature (each once, at most five). */
+export function stateIcons(c: Pick<Creature, "effects" | "conditions">): string[] {
+  const out: string[] = [];
+  for (const id of [...c.conditions.map((x) => x.id), ...c.effects.map((e) => e.id)]) {
+    const icon = STATE_ICON[id];
+    if (icon && !out.includes(icon)) out.push(icon);
+  }
+  return out.slice(0, 5);
+}
+
+function firstSign(text: string): string {
+  return [...new Intl.Segmenter().segment(text)][0]?.segment ?? "";
 }

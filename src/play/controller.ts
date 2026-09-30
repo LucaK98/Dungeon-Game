@@ -16,6 +16,7 @@ import { abilityName, nameOf } from "../engine/names";
 import { armorClass } from "../engine/combat";
 import { EMOTES, type PlayerAction } from "../shared/events";
 import type { Creature } from "../shared/game";
+import { targetShort } from "./short";
 import { ABILITIES } from "../shared/rules";
 import type { ActionChoice, ActionGroup, CampView, FamilyView, MiniCreature, PlayerView, RollOutcome, RollPrompt } from "../shared/view";
 import { matchFreeText, matchUtility } from "../shared/intent-match";
@@ -35,6 +36,13 @@ import { ABILITY_GLOSSAR } from "../engine/core";
 const ABILITY_ICON: Record<string, string> = { STR: "💪", DEX: "🤸", CON: "🫀", INT: "🧠", WIS: "🦉", CHA: "🗣️" };
 /** Small elemental states (src/tv/elements.ts). */
 const ELEMENT_STATES: Record<string, string> = { burning: "🔥 brennt", chilled: "❄️ unterkühlt", shocked: "⚡ geschockt", wet: "💧 nass" };
+/** One sign per condition for the bar under the hit points. */
+const CONDITION_ICON: Record<string, string> = {
+  blinded: "🙈", charmed: "💘", deafened: "🙉", frightened: "😱", grappled: "🤼", incapacitated: "💫", invisible: "👻", paralyzed: "🥶",
+  petrified: "🗿", poisoned: "🤢", prone: "🛌", restrained: "⛓️", stunned: "😵", unconscious: "💤", exhaustion: "😩",
+};
+/** Good effects on the hero (spells) with their sign. */
+const BUFF_ICON: Record<string, string> = { bless: "🙏", "shield-of-faith": "🛡️", "divine-favor": "✨" };
 
 type Tab = "action" | "sheet" | "inventory" | "clues";
 
@@ -177,7 +185,12 @@ function signed(n: number): string {
   return n >= 0 ? `+${n}` : `−${Math.abs(n)}`;
 }
 
-export function createController(playerId: () => string, send: (a: PlayerAction) => void): Controller {
+export function createController(playerId: () => string, sendRaw: (a: PlayerAction) => void): Controller {
+  // Doing something yourself stops the automatic end of the turn (pointing and reactions do not).
+  const send = (a: PlayerAction): void => {
+    if (a.kind !== "point" && a.kind !== "emote") stopAutoEnd(true);
+    sendRaw(a);
+  };
   let view: PlayerView | undefined;
   let tab: Tab = "action";
   let dice: DiceOverlay | undefined;
@@ -209,7 +222,58 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   let queueWasMine = false;
   /** A move chosen while someone else is still on (one tap once it is this hero's turn). */
   let queued: { choiceId: string; group: ActionGroup; label: string; targetIds: string[]; targetNames: string[] } | undefined;
-  let lastActions = 0;
+  /** Automatic end of the turn: the countdown on screen, and "doch noch" for the rest of this turn. */
+  let autoEnd: { timer: ReturnType<typeof setInterval>; el: HTMLElement } | undefined;
+  let autoEndOff = false;
+  let autoEndRetry: ReturnType<typeof setTimeout> | undefined;
+
+  /** Nothing useful left (action used, no extra action, nothing queued): the turn ends by itself after a moment. */
+  function maybeAutoEnd(v: PlayerView): void {
+    const done = v.turn.mine && !v.turn.free && v.mode === "combat" && v.turn.actions <= 0 && !v.pendingRoll && !v.story?.choices.length && !queued && !v.finalBlow;
+    const extras = v.choices.some((c) => c.enabled && c.cost === "bonus");
+    if (!done || extras || autoEndOff || !loadPrefs().autoEnd) {
+      if (!done) stopAutoEnd(false);
+      return;
+    }
+    if (autoEnd) return;
+    // The result of the roll is still open: first read it, then the countdown.
+    if (dice || landed?.isOpen()) {
+      if (!autoEndRetry) autoEndRetry = setTimeout(() => {
+        autoEndRetry = undefined;
+        if (view) maybeAutoEnd(view);
+      }, 700);
+      return;
+    }
+    // With squares left to walk there is a bit more time (stepping back is often clever).
+    const fields = Math.floor(v.turn.movementLeftFt / 5);
+    let left = fields > 0 ? 5 : 3;
+    const text = h("span", {});
+    const again = h("button", { class: "btn secondary small", type: "button", textContent: "↩️ Doch noch" });
+    const el = h("div", { class: "auto-end" }, text, again);
+    const paint = () => (text.textContent = `✅ Zug endet in ${left} s${fields > 0 ? ` · 🦶 noch ${fields} ${fields === 1 ? "Feld" : "Felder"}` : ""}`);
+    paint();
+    again.addEventListener("click", () => {
+      autoEndOff = true;
+      stopAutoEnd(false);
+      showToast("Gut – beende den Zug selbst, wenn du fertig bist.");
+    });
+    root.append(el);
+    const timer = setInterval(() => {
+      left--;
+      if (left > 0) return paint();
+      stopAutoEnd(false);
+      const now = view;
+      if (now?.turn.mine && now.turn.actions <= 0 && !now.pendingRoll) sendRaw({ kind: "end_turn" });
+    }, 1000);
+    autoEnd = { timer, el };
+  }
+
+  function stopAutoEnd(_byPlayer: boolean): void {
+    if (!autoEnd) return;
+    clearInterval(autoEnd.timer);
+    autoEnd.el.remove();
+    autoEnd = undefined;
+  }
   const tickTimer = () => {
     const el = status.querySelector<HTMLElement>(".turn-timer");
     if (!el || turnEnds === undefined) return;
@@ -299,9 +363,35 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         h("span", {}, `❤️ ${me.hp}/${me.maxHp}`),
       ),
       h("div", { class: "ctl-ac", dataset: { help: "ruestungsklasse" } }, `🛡️ ${armorClass(me)}`),
+      statesStrip(me),
       help,
       status,
     );
+  }
+
+  /** Conditions and effects as small signs next to the hit points; a tap names and explains them. */
+  function statesStrip(me: Creature): HTMLElement | string {
+    const items = [
+      ...me.conditions.filter((c) => CONDITION_ICON[c.id]).map((c) => ({ icon: CONDITION_ICON[c.id]!, name: nameOf("conditions", c.id), help: `zustand:${c.id}`, bad: true })),
+      ...me.effects.filter((e) => BUFF_ICON[e.id]).map((e) => ({ icon: BUFF_ICON[e.id]!, name: nameOf("spells", e.id), help: `zauber:${e.id}`, bad: false })),
+      ...me.effects.filter((e) => ELEMENT_STATES[e.id]).map((e) => ({ icon: ELEMENT_STATES[e.id]!.split(" ")[0]!, name: ELEMENT_STATES[e.id]!.split(" ").slice(1).join(" "), help: "zustand_element", bad: true })),
+    ];
+    const seen = new Set<string>();
+    const unique = items.filter((i) => !seen.has(i.icon) && seen.add(i.icon));
+    if (!unique.length) return "";
+    const strip = h("button", { class: "ctl-states", type: "button", attrs: { "aria-label": "Zustände" } }, ...unique.map((i) => h("span", { class: i.bad ? "bad" : "good" }, i.icon)));
+    strip.addEventListener("click", () =>
+      showSheet(
+        "Zustände",
+        h(
+          "div",
+          { class: "chips" },
+          ...unique.map((i) => h("button", { class: `chip ${i.bad ? "warn" : "good"}`, type: "button", textContent: `${i.icon} ${i.name}`, onclick: () => openHelp(i.help) })),
+        ),
+        h("p", { class: "muted small" }, "Tippe einen Zustand an, um zu lesen, was er bewirkt."),
+      ),
+    );
+    return strip;
   }
 
   /** A lamp that is lit while something is still available (movement, action, bonus action). */
@@ -457,7 +547,13 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     };
     const buttons = targets.map((t) => {
       const count = h("span", { class: "count" });
-      const b = h("button", { class: "target", type: "button" }, h("strong", {}, t.name), h("span", {}, t.detail), count);
+      // Short: name, chance and what is special (💥 ×2, ✨ advantage …); everything on a long press.
+      const short = targetShort(t);
+      const b = h("button", { class: "target", type: "button" }, h("strong", {}, t.name), short ? h("span", {}, short) : "", count);
+      onHold(b, () => showToast(`${t.name}: ${t.detail}`));
+      // The finger on a target shows on the TV, so the sofa sees who is meant.
+      const at = view?.minimap.creatures.find((x) => x.id === t.id);
+      if (at) b.addEventListener("pointerdown", () => send({ kind: "point", x: at.x, y: at.y }));
       b.addEventListener("click", () => {
         if (pick.max === 1) {
           closeSheet();
@@ -611,15 +707,16 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
   /** A small tile: name, one line of chips (damage/effect, what the situation does), cost. Long press explains. */
   function tileButton(c: ActionChoice): HTMLElement {
     const q = !c.enabled && canQueue(c);
+    // Name and ONE number (the chance to hit, else the average); the rest on a long press.
     const chips: HTMLElement[] = [];
     const avg = c.avg !== undefined ? Math.round(c.avg) : undefined;
-    if (avg && c.avgKind === "heal") chips.push(h("span", { class: "chip heal" }, `💚 ≈${avg}`));
-    else if (avg) chips.push(h("span", { class: "chip dmg" }, `⚔️ ≈${avg}`));
-    if (c.chance !== undefined) chips.push(h("span", { class: `chip odds-${c.chance >= 0.65 ? "good" : c.chance >= 0.4 ? "mid" : "low"}` }, `🎯 ${Math.round(c.chance * 100)} %`));
-    if (c.edge) chips.push(h("span", { class: `chip edge ${c.edge.tone}` }, c.edge.text));
+    const edgeIcon = c.edge ? ([...new Intl.Segmenter().segment(c.edge.text)][0]?.segment ?? "") : "";
+    if (c.chance !== undefined) chips.push(h("span", { class: `chip odds-${c.chance >= 0.65 ? "good" : c.chance >= 0.4 ? "mid" : "low"}` }, `${Math.round(c.chance * 100)} %${edgeIcon ? ` ${edgeIcon}` : ""}`));
+    else if (avg && c.avgKind === "heal") chips.push(h("span", { class: "chip heal" }, `💚 ≈${avg}`));
+    else if (avg) chips.push(h("span", { class: "chip dmg" }, `≈${avg}`));
     const b = h(
       "button",
-      { class: `tile${q ? " queueable" : ""}${c.recommended ? " recommended" : ""}${urgency(c)}`, type: "button", dataset: { help: c.glossarKey } },
+      { class: `tile${q ? " queueable" : ""}${c.recommended ? " recommended" : ""}${c.edge ? ` edge-${c.edge.tone}` : ""}${urgency(c)}`, type: "button", dataset: { help: c.glossarKey } },
       h("span", { class: "tile-label" }, c.label.replace(/ \(Bonusaktion\)/, "")),
       chips.length ? h("span", { class: "tile-chips" }, ...chips) : "",
       q ? h("span", { class: "queue-hint" }, queued?.choiceId === c.id ? "📌 vorgemerkt" : "📌 vormerken") : c.cost === "bonus" ? h("span", { class: "tile-cost extra", dataset: { help: "bonusaktion" } }, "+ extra") : c.cost === "free" ? h("span", { class: "tile-cost free" }, "gratis") : "",
@@ -638,7 +735,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
     });
     showSheet(
       `🔎 ${c.label}`,
-      h("div", { class: "chips" }, ...choiceChips(c)),
+      h("div", { class: "chips" }, ...choiceChips(c), ...(c.edge ? [h("span", { class: `chip edge ${c.edge.tone}` }, c.edge.text)] : [])),
       c.detail ? h("p", { class: "lead" }, c.detail) : null,
       h("p", { class: "muted" }, c.cost === "free" ? "Kostet keine Aktion." : c.cost === "bonus" ? "Kostet deine Bonusaktion." : "Kostet deine Aktion."),
       !c.enabled && c.reason ? h("p", { class: "route-warn" }, `⛔ ${c.reason}`) : null,
@@ -1474,24 +1571,8 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         ),
       );
     }
-    // On top: the hero, the essentials and what is wrong right now. Everything else behind "Alle Werte".
+    // What is wrong right now shows as signs in the top bar (statesStrip), tap for the names.
     const conditions: HTMLElement[] = [];
-    if (me.conditions.length || me.effects.length) {
-      conditions.push(
-        h(
-          "section",
-          { class: "card" },
-          h("div", { class: "card-title" }, "Zustände"),
-          h(
-            "div",
-            { class: "chips" },
-            ...me.conditions.map((c) => h("button", { class: "chip warn", type: "button", textContent: nameOf("conditions", c.id), onclick: () => openHelp(`zustand:${c.id}`) })),
-            ...me.effects.filter((e) => ["bless", "shield-of-faith", "divine-favor"].includes(e.id)).map((e) => h("button", { class: "chip good", type: "button", textContent: nameOf("spells", e.id), onclick: () => openHelp(`zauber:${e.id}`) })),
-            ...me.effects.filter((e) => e.id in ELEMENT_STATES).map((e) => h("button", { class: "chip warn", type: "button", textContent: ELEMENT_STATES[e.id]!, onclick: () => openHelp("zustand_element") })),
-          ),
-        ),
-      );
-    }
     // Experience: only enemies and clues bring EP – the bar shows how far the next level is.
     const prog = xpProgress(pc.xp ?? 0);
     const xpBar = h(
@@ -1819,21 +1900,14 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         }
       }
       queueWasMine = v.turn.mine;
-      // "Zug automatisch beenden": the action is used up and no bonus action is left to use.
-      const actedNow = v.turn.mine && lastActions > 0 && v.turn.actions <= 0;
-      lastActions = v.turn.mine ? v.turn.actions : 0;
-      if (actedNow && loadPrefs().autoEnd && !v.pendingRoll && !v.story?.choices.length) {
-        const bonusLeft = v.choices.some((c) => c.enabled && c.cost === "bonus");
-        if (!bonusLeft) {
-          setTimeout(() => {
-            const now = view;
-            if (now?.turn.mine && now.turn.actions <= 0 && !now.pendingRoll) send({ kind: "end_turn" });
-          }, 1800);
-        }
+      if (!v.turn.mine) {
+        stopAutoEnd(false);
+        autoEndOff = false;
       }
       const becameMine = v.turn.mine && !wasMine;
       wasMine = v.turn.mine;
       view = v;
+      maybeAutoEnd(v);
       if (becameMine) {
         if ("vibrate" in navigator) navigator.vibrate([120, 80, 120]);
         tab = "action";

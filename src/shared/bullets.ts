@@ -90,8 +90,8 @@ export const BULLET_COLOR: Record<BulletTone, string> = {
   damage: "#ff6b5e",
   heal: "#6fdc7a",
   miss: "#b8b0a0",
-  status: "#ffd75e",
-  buff: "#7cc4ff",
+  status: "#8fc3ff",
+  buff: "#7fdc8a",
   down: "#e08aff",
   info: "#e8dcc4",
 };

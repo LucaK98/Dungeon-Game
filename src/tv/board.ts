@@ -243,21 +243,25 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       },
       turn: (name, color, free, info) => {
         askedFor = undefined;
+        if (scene.sys.isActive()) scene.clearAim();
         game.events.emit("turn", name, color, free, info);
       },
       askCancelled: () => {
         askedFor = undefined;
+        if (scene.sys.isActive()) scene.clearAim();
         game.events.emit("ask-cancel");
       },
       asked: (prompt, id, name, color) => {
         askedFor = id;
         game.events.emit("asked", prompt, name, color);
+        if (scene.sys.isActive() && prompt.targetIds?.length) scene.showAim(id, prompt.targetIds);
       },
       roll: (r) => {
         // The die tumbles on the TV first (longer when everybody waited for this throw).
         const tumble = r.dice.length ? (askedFor === r.creatureId ? TUMBLE_ASKED : TUMBLE_QUICK) : 0;
         askedFor = undefined;
         game.events.emit("roll", r, tumble);
+        if (scene.sys.isActive()) setTimeout(() => scene.sys.isActive() && scene.clearAim(), tumble + 400);
         if (tumble) sfx("dice");
         // First the swing, arrow or spell, then the numbers where it lands.
         const start = () => {
@@ -336,6 +340,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         mirror?.sendMap();
       },
     });
+    // Known weaknesses show over the foes.
+    scene.typesOf = (x) => c.knownTypes(x);
     c.start();
     // Characters stroll, guards patrol.
     worldTimer = setInterval(() => c.tickWorld(), 3000);

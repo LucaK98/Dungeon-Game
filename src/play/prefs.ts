@@ -19,16 +19,17 @@ const KEY = "couch-dungeon.phone-prefs";
 
 export function loadPrefs(): PhonePrefs {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<PhonePrefs>;
-    return { simple: !!raw.simple, autoEnd: !!raw.autoEnd, shake: raw.shake !== false, autoClose: raw.autoClose !== false, tips: !!raw.tips };
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<PhonePrefs> & { v?: number };
+    // Since version 2 the turn ends by itself unless switched off (a countdown with "doch noch").
+    return { simple: !!raw.simple, autoEnd: raw.v === 2 ? !!raw.autoEnd : true, shake: raw.shake !== false, autoClose: raw.autoClose !== false, tips: !!raw.tips };
   } catch {
-    return { simple: false, autoEnd: false, shake: true, autoClose: true, tips: false };
+    return { simple: false, autoEnd: true, shake: true, autoClose: true, tips: false };
   }
 }
 
 export function savePrefs(p: PhonePrefs): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(p));
+    localStorage.setItem(KEY, JSON.stringify({ ...p, v: 2 }));
   } catch {
     // no storage: the choice lasts for this page only
   }

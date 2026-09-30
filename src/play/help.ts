@@ -244,7 +244,7 @@ function openMenu(ctx: HelpContext): void {
         h("h3", { class: "prefs-title" }, "📱 Dieses Handy"),
         toggle("tips", "💡 Tipps für Anfänger (kurze Erklärungen, wenn etwas zum ersten Mal vorkommt)"),
         toggle("simple", "Einfache Ansicht: nur die wichtigsten Aktionen (alles andere hinter „Alle Aktionen“)"),
-        toggle("autoEnd", "Zug nach meiner Aktion automatisch beenden"),
+        toggle("autoEnd", "Zug automatisch beenden, wenn nichts mehr übrig ist (mit Countdown und „Doch noch“)"),
         toggle("shake", "Würfeln durch Schütteln", allowMotion),
         toggle("autoClose", "Würfelergebnis schließt sich nach ein paar Sekunden selbst"),
       ]

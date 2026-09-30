@@ -2459,7 +2459,7 @@ export class GameController {
       const target = this.battle.creatures[a.targetId];
       const option = hero.attacks.find((o) => o.id === a.optionId);
       const need = target && option ? rollNeed("RK", armorClass(target), sumParts(option.toHit)) : undefined;
-      return { title: `Angriff auf ${target?.name ?? "?"}`, sides: 20, glossarKey: "angriffswurf", ...(need ? { need } : {}) };
+      return { title: `Angriff auf ${target?.name ?? "?"}`, sides: 20, glossarKey: "angriffswurf", ...(need ? { need } : {}), targetIds: [a.targetId] };
     }
     if (a.kind === "cast") {
       const spell = getSpell(a.spellId);
@@ -2467,12 +2467,12 @@ export class GameController {
       if (spell.attack) {
         const target = a.targetIds[0] ? this.battle.creatures[a.targetIds[0]] : undefined;
         const need = target ? rollNeed("RK", armorClass(target), sumParts(spellAttackParts(hero, spell.id))) : undefined;
-        return { title: name, sides: 20, glossarKey: `zauber:${spell.id}`, ...(need ? { need } : {}) };
+        return { title: name, sides: 20, glossarKey: `zauber:${spell.id}`, ...(need ? { need } : {}), targetIds: a.targetIds };
       }
       const dice = spell.damage?.byCharLevel?.["1"] ?? spell.damage?.bySlot?.[String(spell.level)] ?? spell.heal?.[String(spell.level)] ?? spell.hpPool?.["1"];
       if (!dice) return undefined;
       const sides = parseDice(dice, 0).terms[0]?.sides ?? 6;
-      return { title: name, sides, glossarKey: `zauber:${spell.id}` };
+      return { title: name, sides, glossarKey: `zauber:${spell.id}`, ...(a.targetIds.length ? { targetIds: a.targetIds } : {}) };
     }
     if (a.kind === "use_item") return { title: "Heiltrank", sides: 4, glossarKey: "gegenstand:potion-of-healing" };
     if (a.kind === "feature") {
