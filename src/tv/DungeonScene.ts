@@ -15,6 +15,7 @@ import type { ActionFx } from "../shared/view";
 import { crisp, loadLookMode, prepareTiles, RES, TILES, UP } from "./render";
 import { DETAIL_PX, detailFrame, ensureDetailTexture } from "./textures";
 import type { GameSession } from "./session";
+import { gridPath } from "./walk-path";
 
 export const BOARD_WIDTH = 1920;
 export const BOARD_HEIGHT = 1080;
@@ -61,6 +62,11 @@ interface Figure {
   tags?: Phaser.GameObjects.Text;
   /** Last square, to face the walking direction. */
   lastX?: number;
+  /** Where the figure stands on the board (the walk starts here). */
+  grid?: { x: number; y: number };
+  /** Walking right now: step by step (a new move takes over from the current square). */
+  walk?: Phaser.Tweens.TweenChain;
+  walkUntil?: number;
 }
 
 /** What a figure looks like (to notice new equipment). */
@@ -330,6 +336,12 @@ export class DungeonScene extends Phaser.Scene {
     if (!img) {
       img = this.tile(o.x * TILE, o.y * TILE, o.frame).setOrigin(0);
       this.objectImages.set(o.id, img);
+    } else if (Math.abs(img.x - o.x * TILE) > 1 || Math.abs(img.y - o.y * TILE) > 1) {
+      // Pushed or rolled: it slides over and lands with a little bump.
+      const squares = Math.max(Math.abs(img.x - o.x * TILE), Math.abs(img.y - o.y * TILE)) / TILE;
+      this.tweens.killTweensOf(img);
+      const target = img;
+      this.tweens.add({ targets: target, x: o.x * TILE, y: o.y * TILE, duration: Math.min(900, 140 * squares + 120), ease: "Quad.easeOut", onComplete: () => this.tweens.add({ targets: target, y: target.y - 3, duration: 80, yoyo: true }) });
     } else if (img.frame.name !== o.frame) {
       img.setFrame(o.frame);
       this.tweens.add({ targets: img, scaleX: img.scaleX * 1.15, scaleY: img.scaleY * 1.15, duration: 120, yoyo: true });
@@ -394,13 +406,15 @@ export class DungeonScene extends Phaser.Scene {
     const x = (c.pos.x + n / 2) * TILE;
     const y = (c.pos.y + n / 2) * TILE;
     f.container.setDepth(100 + (c.pos.y + n - 1) * 10 + 5);
-    const moved = Math.abs(f.container.x - x) > 1 || Math.abs(f.container.y - y) > 1;
-    if (animate && moved) {
-      this.tweens.add({ targets: f.container, x, y, duration: 220, ease: "Sine.easeInOut" });
-      // A little hop per step, facing the way it walks.
-      this.tweens.add({ targets: f.body, y: 9, duration: 110, yoyo: true, ease: "Quad.easeOut" });
-      if (f.lastX !== undefined && c.pos.x !== f.lastX) this.face(f, c.pos.x > f.lastX ? 1 : -1, c);
-    } else if (!animate) f.container.setPosition(x, y);
+    const from = f.grid;
+    const movedSquare = !from || from.x !== c.pos.x || from.y !== c.pos.y;
+    if (animate && movedSquare && from) this.walkTo(f, c, from, n);
+    else if (!animate || !f.walk) {
+      f.walk?.stop();
+      f.walk = undefined;
+      f.container.setPosition(x, y);
+    }
+    f.grid = { x: c.pos.x, y: c.pos.y };
     f.lastX = c.pos.x;
     this.showMood(f, c);
     this.showShield(f, c);
@@ -412,6 +426,57 @@ export class DungeonScene extends Phaser.Scene {
         f.hpBar.fillStyle(c.hp / c.maxHp > 0.5 ? 0x5bd15b : c.hp / c.maxHp > 0.25 ? 0xe0c040 : 0xe04040, 1).fillRect(-11, -18, (22 * c.hp) / c.maxHp, 2);
       }
     }
+  }
+
+  /**
+   * The figure walks there square by square – around walls and furniture, with a little step for
+   * every square and facing the way it goes. Far or blocked ways (a jump, a push): one smooth move.
+   */
+  private walkTo(f: Figure, c: Creature, from: { x: number; y: number }, n: number): void {
+    const to = c.pos!;
+    // Already on the way: start from the square the figure is on right now.
+    if (f.walk) {
+      f.walk.stop();
+      from = { x: Math.round(f.container.x / TILE - n / 2), y: Math.round(f.container.y / TILE - n / 2) };
+    }
+    const path = gridPath(this.session.map, from, to) ?? [];
+    const center = (p: { x: number; y: number }) => ({ x: (p.x + n / 2) * TILE, y: (p.y + n / 2) * TILE });
+    const steps = path.length && path.length <= 30 ? path : [to];
+    const stepMs = steps.length === 1 && path.length !== 1 ? 260 : 150;
+    let last = from;
+    const tweens = steps.map((p) => {
+      const prev = last;
+      last = p;
+      const at = center(p);
+      return {
+        targets: f.container,
+        x: at.x,
+        y: at.y,
+        duration: stepMs,
+        ease: "Linear",
+        onStart: () => {
+          if (p.x !== prev.x) this.face(f, p.x > prev.x ? 1 : -1, c);
+          f.container.setDepth(100 + (Math.max(p.y, prev.y) + n - 1) * 10 + 5);
+          // A little step: the body bobs up and tilts once per square.
+          this.tweens.add({ targets: f.body, y: 9, angle: p.x >= prev.x ? 4 : -4, duration: stepMs / 2, yoyo: true, ease: "Sine.easeOut" });
+        },
+      };
+    });
+    f.walkUntil = this.time.now + steps.length * stepMs;
+    f.walk = this.tweens.chain({
+      tweens,
+      onComplete: () => {
+        f.walk = undefined;
+        f.body.setAngle(0);
+      },
+    });
+  }
+
+  /** How long figures are still walking (ms) – attacks wait until they arrived. */
+  walkRemaining(): number {
+    let most = 0;
+    for (const f of this.figures.values()) if (f.walk && f.walkUntil) most = Math.max(most, f.walkUntil - this.time.now);
+    return Math.max(0, most);
   }
 
   /** Called by the host after the state changed. */

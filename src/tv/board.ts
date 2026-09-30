@@ -269,8 +269,13 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
           rollSounds(r, impact, tumble > 0);
           if (scene.sys.isActive() && r.hits?.length) showHitsLater(r.hits, impact);
         };
-        if (tumble) setTimeout(start, tumble);
-        else start();
+        // A hero who walks up first strikes when arrived, never from mid-way (the walk starts with the
+        // board update right after this, so look a moment later).
+        setTimeout(() => {
+          const wait = Math.max(tumble, scene.sys.isActive() ? scene.walkRemaining() : 0);
+          if (wait) setTimeout(start, wait);
+          else start();
+        }, 0);
       },
       roomRevealed: (name) => scene.showRoomName(name),
       combat: (started) => {
