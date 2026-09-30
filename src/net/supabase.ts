@@ -15,12 +15,12 @@ import { ClientCore } from "./client-core";
 import { HostCore } from "./host-core";
 import { isWire, type Wire } from "./wire";
 
-export const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "https://ityjpcxznauprubztqdz.supabase.co";
-export const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_KEY as string | undefined) ?? "sb_publishable_4-nakKezTg9UbVlUMyXOgQ_AQ7Khjjr";
+export const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "https://xfjfpmvemvotiepnnlzv.supabase.co";
+export const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_KEY as string | undefined) ?? "sb_publishable_FShgpaaMm_QwX63Q5aVZQQ_e68pIBVy";
 /** Public anon key in JWT form: edge functions with JWT check need it (the publishable key is no JWT). */
 export const SUPABASE_ANON_JWT =
   (import.meta.env.VITE_SUPABASE_ANON_JWT as string | undefined) ??
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0eWpwY3h6bmF1cHJ1Ynp0cWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MjkzNzIsImV4cCI6MjA5OTEwNTM3Mn0._AwiI1fgEWZK2sLxaPxNVPp6duUjTQuWuDJk1pJCmkM";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmamZwbXZlbXZvdGllcG5ubHp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MzY4NjMsImV4cCI6MjEwNjAxMjg2M30.B01YgWFm_I5ul7fwPX558WNorcURsr92_qwd7Ufg3Kk";
 export const DM_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/dm`;
 
 /** What we need from a Supabase Realtime channel (tests plug in a fake). */
