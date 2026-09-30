@@ -147,6 +147,13 @@ export class UiScene extends Phaser.Scene {
     this.game.events.on("turn", onTurn);
     this.game.events.on("roll", onRoll);
     this.game.events.on("asked", onAsked);
+    const onAskCancel = () => {
+      if (!this.asking) return;
+      this.asking = false;
+      this.clearRollBox();
+    };
+    this.game.events.on("ask-cancel", onAskCancel);
+    this.events.once("shutdown", () => this.game.events.off("ask-cancel", onAskCancel));
     const onLog = (lines: ExplainedLine[], added = 0) => {
       this.logLines = lines;
       this.showLog(lines, added);
@@ -681,6 +688,11 @@ export class UiScene extends Phaser.Scene {
       const why = this.add.text(-width + left, y + 58, `Ziel ${need.label} ${need.target} · Bonus ${need.bonus >= 0 ? "+" : ""}${need.bonus}`, crisp({ fontFamily: FONT, fontSize: "24px", color: "#b3a58a" }));
       parts.push(line, why);
       y += 96;
+    }
+    if (prompt.plan) {
+      const plan = this.add.text(-width + left, y + 4, `🎯 Wenn's klappt: ${prompt.plan}`, crisp({ fontFamily: FONT, fontSize: "26px", color: "#f3e9d2", wordWrap: { width: width - left - 30 } }));
+      parts.push(plan);
+      y += plan.height + 10;
     }
     const tip = this.add.text(-width + left, y + 4, "👉 Auf dem Handy tippen", crisp({ fontFamily: FONT, fontSize: "26px", color: "#8fd18f" }));
     parts.push(tip);

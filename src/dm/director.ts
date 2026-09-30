@@ -1140,7 +1140,14 @@ export class Director {
     }
     // The DM wants a roll for this idea: the same hero rolls, then the DM tells what follows.
     const skill = roll.skill as SkillId;
-    const r = await this.game.check(hero, skill, roll.dc, "Freie Aktion");
+    // The phone shows what would happen – the player may still say "Lieber nicht".
+    const r = await this.game.check(hero, skill, roll.dc, "Freie Aktion", { plan: res.plan?.trim() || `„${text.slice(0, 60)}“`, cancellable: true });
+    if (r.cancelled) {
+      this.game.refundFreeAction(hero);
+      if (hero.playerId) this.game.tellPlayer(hero.playerId, "Okay – nichts passiert. Schreib einfach etwas anderes.");
+      this.actingRoom = undefined;
+      return;
+    }
     const result = { kind: "roll_result" as const, text, playerId, heroName: hero.name, skill, dc: roll.dc, total: r.total, success: r.success };
     const after = await this.askDm(result);
     // Real consequences – decided by the DM, checked and carried out by the rules.

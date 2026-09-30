@@ -60,6 +60,8 @@ export type PlayerAction =
   /** "Frag den Spielleiter": a rules question (answered with "rules_answer", only to this phone). */
   | { kind: "ask_rules"; question: string }
   | { kind: "roll"; rollId: string }
+  /** Take back a free action before rolling ("Lieber nicht"). */
+  | { kind: "cancel_roll"; rollId: string }
   | { kind: "end_turn" }
   | { kind: "story_choice"; choiceId: string }
   | { kind: "set_beginner_mode"; on: boolean }

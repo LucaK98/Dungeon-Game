@@ -94,6 +94,8 @@ export type EffectId =
   | "turned"
   /** Carries a burning torch: bright light around (night scenes). */
   | "torch"
+  /** Climbed onto something high (free action): counts as a high place. */
+  | "elevated"
   /** Tricked by a free action: the next attack against it has advantage. */
   | "distracted"
   /** A friend helps: advantage on the next attack or check. */
@@ -194,6 +196,8 @@ export interface Creature {
   appearance?: { look: DollLook; color: string; /** For romance: whom a character can fall for. */ gender?: "female" | "male" };
   /** A tamed animal: whose it is, its name and gift (src/shared/companions.ts). */
   companion?: CompanionInfo & { ownerId: string };
+  /** A character who walks along with this hero (free action "folgen"). */
+  followId?: string;
   /** A hero's teenage child along as squire (fights beside them, goes home when wounded). */
   squire?: { ownerId: string };
   /** A companion's target, commanded by its hero ("Bello, fass den Goblin!"). */

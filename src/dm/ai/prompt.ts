@@ -25,6 +25,8 @@ So erzählst du:
 - Bleib beim Ziel der aktuellen Szene. Weichen die Helden ab, lass es zu – die Welt reagiert, aber du schubst sie nicht zurück.
 - Die geheime Wahrheit verrätst du NIE direkt. Die Gruppe erfährt sie nur über Hinweise, und zwar nur über die erlaubten Hinweise aus dem Kontext, höchstens einen pro Antwort, und nur wenn die Helden ihn sich verdient haben (gute Idee oder gelungene Probe).
 - Freie Aktionen – „Ja, und …“: Nimm JEDE Idee ernst und lass sie in der Welt wirken. Ist unsicher, ob etwas klappt, verlange eine Probe (roll_skill und roll_dc; leicht 10, mittel 13, schwer 16). Ist es sicher oder unwichtig, beschreibe einfach, was passiert. Sag nie bloß „nichts passiert“: Selbst eine seltsame Idee bekommt eine Reaktion der Welt oder eine Probe. Nur wirklich Unmögliches (fliegen ohne Zauber, den Mond holen) biegst du freundlich ab.
+- Mach Ideen SICHTBAR: Wähle Effekte, die auf der Karte etwas verändern oder den Helden handeln lassen (hingehen, hochklettern, verstecken, boden, objekt, verbarrikadieren, licht, figur, geschenk, zuwerfen, einfloessen, improvisiert, falle_stellen, seitenwechsel, verjagen …). Nutze dafür die ids aus DINGE, LEUTE, KAMPF und HELDEN-IDS.
+- Ketten: Eine Idee darf mehrere Schritte haben. „hingehen“ (und aufstehen) sind kostenlose erste Schritte und passieren schon bei der Antwort auf die Idee; danach kommt die Probe und dann die Wirkung (z. B. „Ich renne zum Fass und rolle es auf die Goblins“: jetzt hingehen + Probe Athletik 13; nach Erfolg objekt/rollen mit richtung = Goblin). Beschreibe in plan in wenigen Worten, was bei Erfolg passieren soll.
 - Mehrere Wege zum Ziel: Steht unter ABKÜRZUNG ein Hindernis, darf eine clevere Idee es lösen (Wache überreden, an schlafenden Gegnern vorbeischleichen, Geheimgang finden). Das ist wertvoll und soll schwer bleiben: Verlange dafür IMMER eine schwere Probe (SG 15–17) und wähle den Effekt abkuerzung nur, wenn sie gelingt. Endgegner und die großen Entscheidungen der Geschichte lassen sich nicht abkürzen.
 - Nach einer Probe erzählst du, was aus dem Erfolg oder Misserfolg folgt. Misserfolge sind nie das Ende, sondern machen die Lage nur schwieriger oder lustiger.
 - Nichtspielerfiguren sprechen über npc_name und npc_text, in ihrer eigenen Art.
@@ -138,6 +140,8 @@ export function buildPrompt(story: Story, ctx: DmContext, trigger: DmTrigger, sc
       ? `KAMPF LÄUFT. Gegner: ${ctx.combat.enemies.map((e) => `${e.id} = ${e.name} (${e.hp}/${e.maxHp} TP${e.boss ? ", Anführer" : ""})`).join("; ")}. Flucht möglich: ${canFlee(ctx) ? "ja" : "nein"}`
       : "",
     ctx.room ? `UMGEBUNG: ${ctx.room.name}${ctx.room.objects.length ? ` – ${ctx.room.objects.join(", ")}` : ""}` : "",
+    ctx.room?.things?.length ? `DINGE (id = Name, für objekt/hingehen): ${ctx.room.things.map((t) => `${t.id} = ${t.name}`).join(", ")}` : "",
+    ctx.room?.people?.length ? `LEUTE (id = Name, für figur/geschenk/hingehen): ${ctx.room.people.map((p) => `${p.id} = ${p.name}`).join(", ")}` : "",
     `GOLD DER GRUPPE: ${ctx.gold ?? 0} (Bestechung kostet ${BRIBE_PER_ENEMY} Gold pro Gegner)`,
     ctx.chronicle?.length ? `CHRONIK (frühere Taten): ${ctx.chronicle.join(" | ")}` : "",
     ctx.tales?.length ? `LAGERFEUER (die Helden über sich): ${ctx.tales.join(" | ")}` : "",
@@ -172,6 +176,7 @@ export function responseSchema(story: Story, ctx: DmContext, trigger: DmTrigger)
   if (trigger.kind === "free_text") {
     properties.roll_skill = S("Fertigkeit für eine Probe oder none", { enum: ["none", ...SKILL_IDS] });
     properties.roll_dc = { type: "INTEGER", description: "Schwierigkeit 8–18, 0 wenn keine Probe" };
+    properties.plan = S("Bei einer Probe: was bei Erfolg passiert, in höchstens 8 Wörtern (z. B. „Das Fass rollt auf die Goblins“)");
   }
   if (trigger.kind === "free_text" || trigger.kind === "roll_result") {
     const clues = allowedClues(story, scene, ctx);
@@ -190,6 +195,8 @@ export function responseSchema(story: Story, ctx: DmContext, trigger: DmTrigger)
           name: S("Effekt", { enum: effectNames }),
           target: S("Ziel: Gegner-id, Helden-id oder alle (leer, wenn nicht nötig)"),
           severity: S("nur bei umgebung", { enum: ["leicht", "mittel", "schwer"] }),
+          art: S("Art: boden feuer/oel/wasser/eis/schlamm; objekt umwerfen/zerschlagen/anzuenden/schieben/rollen; figur folgen/kommen/gehen/weg_zeigen; geschenk/zuwerfen gold/trank/fackel"),
+          richtung: S("Ziel-id, wohin geschoben/gerollt/verbarrikadiert wird (optional)"),
         },
         required: ["name"],
       },

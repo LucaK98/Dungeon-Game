@@ -15,7 +15,7 @@ import { canFlee } from "./combat-tricks";
 export const BRIBE_PER_ENEMY = 5;
 
 /** German effect names (as the AI sees them) → what they do. */
-export const EFFECT_HELP: Record<string, { combat: boolean; text: string }> = {
+export const EFFECT_HELP: Record<string, { combat: boolean | "both"; text: string }> = {
   ablenken: { combat: true, text: "ein Gegner ist abgelenkt: der nächste Angriff auf ihn hat Vorteil" },
   umstossen: { combat: true, text: "ein Gegner (kein Anführer) liegt am Boden: Nahkampfangriffe auf ihn haben Vorteil" },
   behindern: { combat: true, text: "ein Gegner (kein Anführer) ist entwaffnet oder geblendet: seine Angriffe haben Nachteil" },
@@ -33,7 +33,33 @@ export const EFFECT_HELP: Record<string, { combat: boolean; text: string }> = {
   tuer_oeffnen: { combat: false, text: "die nächste verschlossene Tür geht auf" },
   entdecken: { combat: false, text: "ein verborgener Teil der Umgebung wird sichtbar" },
   abkuerzung: { combat: false, text: "die Idee löst das aktuelle Hindernis der Szene (nur nach gelungener SCHWERER Probe, SG 15 oder mehr; einmal pro Szene)" },
+  // the hero's body
+  hingehen: { combat: "both", text: "der Held läuft zu einem Ziel (Ding, Figur, Gegner oder Held; id oder Name), so weit sein Zug reicht – ohne Probe, zählt nicht als Effekt; gern als erster Schritt einer Kette" },
+  hochklettern: { combat: "both", text: "der Held klettert auf etwas Hohes daneben (Tisch, Fass, Kiste, Fels, Mauer): 3 Runden erhöht, Vorteil bei Fernangriffen nach unten" },
+  verstecken: { combat: "both", text: "der Held versteckt sich: unsichtbar für Gegner bis zu seinem nächsten Angriff (höchstens 2 Runden)" },
+  rueckzug: { combat: true, text: "der Held zieht sich geordnet zurück: keine Gelegenheitsangriffe in diesem Zug (ohne Probe)" },
+  aufstehen: { combat: "both", text: "der Held steht auf (ohne Probe)" },
+  hinlegen: { combat: "both", text: "der Held wirft sich hin: Fernangriffe auf ihn haben Nachteil (ohne Probe)" },
+  // the surroundings
+  boden: { combat: "both", text: "der Boden um ein Ziel ändert sich (art: feuer, oel, wasser, eis oder schlamm) – Feuer brennt, Öl fängt Feuer, Eis lässt ausrutschen, Schlamm bremst" },
+  objekt: { combat: "both", text: "ein Ding aus DINGE wird benutzt (art: umwerfen, zerschlagen, anzuenden, schieben oder rollen; richtung: Ziel-id beim Schieben/Rollen). Rollt ein Fass/Fels in Gegner: Schaden 2W6" },
+  verbarrikadieren: { combat: "both", text: "der Held baut eine Barrikade (Kisten, Bänke) auf ein Feld Richtung Gegner/Tür: dort kommt keiner durch (einmal pro Szene)" },
+  licht_an: { combat: "both", text: "der Held zündet eine Fackel oder eine erloschene Lichtquelle an (ohne Probe)" },
+  licht_aus: { combat: "both", text: "Lichter in der Nähe gehen aus (Kerzen, Kohlebecken) – im Dunkeln sieht man schlechter" },
+  // people
+  figur: { combat: false, text: "eine Figur aus LEUTE handelt (art: folgen = begleitet die Gruppe, kommen = kommt zum Helden, gehen = geht weg, weg_zeigen = führt Richtung Ausgang und deckt ihn auf)" },
+  geschenk: { combat: false, text: "eine Figur aus LEUTE gibt dem Helden etwas (art: gold, trank oder fackel) – jede Figur nur einmal" },
+  seitenwechsel: { combat: true, text: "ein gewöhnlicher Gegner (kein Anführer) wechselt die Seite und kämpft für euch – nur nach gelungener SCHWERER Probe (SG 15+)" },
+  verjagen: { combat: true, text: "ein gewöhnlicher Gegner (kein Anführer) rennt davon und ist weg" },
+  // things
+  zuwerfen: { combat: "both", text: "der Held wirft einem Helden etwas aus seiner Tasche zu (art: trank, fackel, gold oder ein Gegenstand) – ohne Probe" },
+  einfloessen: { combat: "both", text: "der Held flößt einem Helden in der Nähe seinen Heiltrank ein: 2W4+2 Trefferpunkte, auch Bewusstlose – ohne Probe" },
+  improvisiert: { combat: true, text: "eine improvisierte Waffe (Stuhlbein, Bratpfanne, Kerzenständer) trifft einen Gegner: 1W6 + Stärke Schaden" },
+  falle_stellen: { combat: "both", text: "der Held stellt eine Stolperfalle auf sein Feld: ein Gegner, der darauf tritt, fällt hin" },
 };
+
+/** Steps that cost nothing and do not count as an effect (they may start a chain). */
+export const FREE_KINDS = new Set<DmEffect["kind"]>(["move_to", "posture"]);
 
 /** Only a hard roll (this DC or more) may open a shortcut. */
 export const BYPASS_DC = 15;
@@ -48,7 +74,7 @@ export const SETBACK_HELP: Record<string, { combat: boolean | "both"; text: stri
   gold_verloren: { combat: "both", text: "die Gruppe verliert 1W6 Gold" },
 };
 
-const NO_ROLL = new Set(["helfen", "deckung"]);
+const NO_ROLL = new Set(["helfen", "deckung", "hingehen", "rueckzug", "aufstehen", "hinlegen", "licht_an", "zuwerfen", "einfloessen"]);
 
 /** A clearly failed roll: only setbacks are allowed. */
 export function isClearMiss(trigger: DmTrigger): boolean {
@@ -65,8 +91,11 @@ export function allowedEffectNames(ctx: DmContext, trigger: DmTrigger): string[]
       .filter((name) => name !== "gold_verloren" || (ctx.gold ?? 0) > 0);
   }
   const names = Object.entries(EFFECT_HELP)
-    .filter(([, e]) => e.combat === fighting)
+    .filter(([, e]) => e.combat === "both" || e.combat === fighting)
     .map(([name]) => name)
+    .filter((name) => name !== "seitenwechsel" || (trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))
+    .filter((name) => (name !== "figur" && name !== "geschenk") || !!ctx.room?.people?.length)
+    .filter((name) => name !== "objekt" || !!ctx.room?.things?.length)
     .filter((name) => name !== "flucht" || canFlee(ctx))
     .filter((name) => name !== "bestechen" || (ctx.gold ?? 0) >= BRIBE_PER_ENEMY)
     .filter((name) => name !== "abkuerzung" || (!!ctx.bypass && trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC));
@@ -86,7 +115,7 @@ export function rollAllowance(trigger: DmTrigger): { max: number; cost: boolean 
 }
 
 /** Name + target from the AI → a DmEffect (or undefined if it makes no sense). */
-export function effectFromName(name: string, target: string | undefined, ctx: DmContext, severity?: string): DmEffect | undefined {
+export function effectFromName(name: string, target: string | undefined, ctx: DmContext, severity?: string, art?: string, toward?: string): DmEffect | undefined {
   const enemies = ctx.combat?.enemies ?? [];
   const enemy = enemies.find((e) => e.id === target);
   const hero = ctx.players.find((p) => p.id === target);
@@ -133,6 +162,56 @@ export function effectFromName(name: string, target: string | undefined, ctx: Dm
       return { kind: "reveal" };
     case "abkuerzung":
       return { kind: "bypass" };
+    case "hingehen":
+      return target ? { kind: "move_to", target } : undefined;
+    case "hochklettern":
+      return { kind: "climb" };
+    case "verstecken":
+      return { kind: "hide" };
+    case "rueckzug":
+      return { kind: "retreat" };
+    case "aufstehen":
+      return { kind: "posture", how: "up" };
+    case "hinlegen":
+      return { kind: "posture", how: "down" };
+    case "boden": {
+      const surface = ({ feuer: "fire", oel: "oil", öl: "oil", wasser: "puddle", eis: "ice", schlamm: "mud" } as const)[(art ?? severity ?? "").toLowerCase() as "feuer"];
+      return surface ? { kind: "ground", target: target ?? "", surface } : undefined;
+    }
+    case "objekt": {
+      const how = ({ umwerfen: "topple", zerschlagen: "smash", anzuenden: "ignite", anzünden: "ignite", schieben: "push", rollen: "roll" } as const)[(art ?? "").toLowerCase() as "umwerfen"];
+      return how && target ? { kind: "object", target, how, ...(toward ? { toward } : {}) } : undefined;
+    }
+    case "verbarrikadieren":
+      return { kind: "barricade", ...(toward || target ? { toward: toward || target } : {}) };
+    case "licht_an":
+      return { kind: "light", on: true };
+    case "licht_aus":
+      return { kind: "light", on: false };
+    case "figur": {
+      const how = ({ folgen: "follow", kommen: "come", gehen: "leave", weg_zeigen: "show_way" } as const)[(art ?? "").toLowerCase() as "folgen"];
+      const who = ctx.room?.people?.find((p) => p.id === target || p.name === target);
+      return how && who ? { kind: "npc", target: who.id, how } : undefined;
+    }
+    case "geschenk": {
+      const who = ctx.room?.people?.find((p) => p.id === target || p.name === target);
+      const item = art === "trank" || art === "fackel" ? art : "gold";
+      return who ? { kind: "npc_gift", target: who.id, item } : undefined;
+    }
+    case "seitenwechsel":
+      return enemy && !enemy.boss ? { kind: "turncoat", target: enemy.id } : undefined;
+    case "verjagen":
+      return enemy && !enemy.boss ? { kind: "rout", target: enemy.id } : undefined;
+    case "zuwerfen":
+      return hero ? { kind: "pass_item", target: hero.id, item: art || "trank" } : undefined;
+    case "einfloessen":
+      return hero ? { kind: "feed_potion", target: hero.id } : undefined;
+    case "improvisiert": {
+      const t = enemy ?? enemies[0];
+      return t ? { kind: "improvised", target: t.id } : undefined;
+    }
+    case "falle_stellen":
+      return { kind: "set_trap" };
     case "blosse":
       return { kind: "exposed" };
     case "hinfallen":
@@ -152,10 +231,10 @@ export function effectFromName(name: string, target: string | undefined, ctx: Dm
   }
 }
 
-const COMBAT_KINDS = new Set<DmEffect["kind"]>(["distract", "prone", "hamper", "help", "cover", "hazard", "flee", "pacify", "exposed", "fall", "fumble", "enrage"]);
+const COMBAT_KINDS = new Set<DmEffect["kind"]>(["distract", "prone", "hamper", "help", "cover", "hazard", "flee", "pacify", "exposed", "fall", "fumble", "enrage", "retreat", "turncoat", "rout", "improvised"]);
 const SETBACK_KINDS = new Set<DmEffect["kind"]>(["exposed", "fall", "fumble", "hurt", "lose_gold", "enrage"]);
-const BOTH_KINDS = new Set<DmEffect["kind"]>(["help", "hurt", "lose_gold"]);
-const NO_ROLL_KINDS = new Set<DmEffect["kind"]>(["help", "cover"]);
+const BOTH_KINDS = new Set<DmEffect["kind"]>(["help", "hurt", "lose_gold", "move_to", "climb", "hide", "posture", "ground", "object", "barricade", "light", "pass_item", "feed_potion", "set_trap"]);
+const NO_ROLL_KINDS = new Set<DmEffect["kind"]>(["help", "cover", "move_to", "retreat", "posture", "pass_item", "feed_potion"]);
 
 /** Final check of a DM answer's effects against the roll and the situation. */
 export function filterEffects(effects: DmEffect[] | undefined, ctx: DmContext, trigger: DmTrigger): DmEffect[] {
@@ -163,8 +242,14 @@ export function filterEffects(effects: DmEffect[] | undefined, ctx: DmContext, t
   if (!max) return [];
   const fighting = !!ctx.combat?.enemies.length;
   const miss = isClearMiss(trigger);
+  const fits = (e: DmEffect) => (BOTH_KINDS.has(e.kind) ? true : COMBAT_KINDS.has(e.kind) === fighting);
+  // Free steps (walking there, getting up) happen whatever the dice say – they start a chain.
+  const free = (effects ?? []).filter((e) => FREE_KINDS.has(e.kind) && fits(e)).slice(0, 2);
+  const lights = (effects ?? []).filter((e) => e.kind === "light" && e.on && trigger.kind === "free_text").slice(0, 1);
   const ok = (effects ?? [])
-    .filter((e) => e.kind !== "cost")
+    .filter((e) => e.kind !== "cost" && !FREE_KINDS.has(e.kind) && !lights.includes(e))
+    // A turncoat, like a shortcut, needs a clean success on a hard roll.
+    .filter((e) => e.kind !== "turncoat" || (trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))
     // Clear miss: only setbacks. Otherwise: no setbacks.
     .filter((e) => SETBACK_KINDS.has(e.kind) === miss)
     .filter((e) => (BOTH_KINDS.has(e.kind) ? true : COMBAT_KINDS.has(e.kind) === fighting))
@@ -172,7 +257,7 @@ export function filterEffects(effects: DmEffect[] | undefined, ctx: DmContext, t
     .filter((e) => e.kind !== "flee" || canFlee(ctx))
     // A shortcut needs a clean success on a hard roll – it must not make the game easy.
     .filter((e) => e.kind !== "bypass" || (!!ctx.bypass && trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))
-    .slice(0, max);
-  if (!ok.length) return [];
-  return cost ? [...ok, { kind: "cost" }] : ok;
+    .slice(0, trigger.kind === "free_text" ? 2 : max);
+  if (!ok.length) return [...free, ...lights];
+  return cost ? [...free, ...lights, ...ok, { kind: "cost" }] : [...free, ...lights, ...ok];
 }

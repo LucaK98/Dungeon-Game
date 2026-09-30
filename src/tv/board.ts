@@ -245,6 +245,10 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         askedFor = undefined;
         game.events.emit("turn", name, color, free, info);
       },
+      askCancelled: () => {
+        askedFor = undefined;
+        game.events.emit("ask-cancel");
+      },
       asked: (prompt, id, name, color) => {
         askedFor = id;
         game.events.emit("asked", prompt, name, color);

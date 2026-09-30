@@ -327,3 +327,32 @@ describe("shortcuts and the 'yes, and' rule", () => {
     expect(after.effects).toEqual([{ kind: "reveal" }]);
   });
 });
+
+describe("the bigger toolbox", () => {
+  const room = { name: "Schankraum", objects: ["Fässer"], things: [{ id: "o7", name: "Fässer" }, { id: "o8", name: "Tisch" }], people: [{ id: "npc-wirt", name: "Wirt Otto" }] };
+
+  it("walking there always happens (even on a clear miss); a turncoat needs a hard roll", () => {
+    const c = ctx(bandits, { room });
+    expect(filterEffects([{ kind: "move_to", target: "o7" }, { kind: "object", target: "o7", how: "roll", toward: "m1" }], c, roll(5, 13))).toEqual([{ kind: "move_to", target: "o7" }]);
+    expect(filterEffects([{ kind: "move_to", target: "o7" }, { kind: "object", target: "o7", how: "roll", toward: "m1" }], c, roll(15, 13))).toHaveLength(2);
+    expect(filterEffects([{ kind: "turncoat", target: "m1" }], c, roll(15, 13))).toEqual([]);
+    expect(filterEffects([{ kind: "turncoat", target: "m1" }], c, roll(16, 15))).toEqual([{ kind: "turncoat", target: "m1" }]);
+    // Before the roll only free and no-roll steps.
+    expect(filterEffects([{ kind: "move_to", target: "o7" }, { kind: "climb" }], c, free("Ich renne hin und klettere hoch"))).toEqual([{ kind: "move_to", target: "o7" }]);
+  });
+
+  it("without AI: barrels roll, characters come along, potions are given – with a plan on the phone", async () => {
+    const dm = new ScriptedDM(STORY);
+    const c = ctx(bandits, { room });
+    const ask = await dm.respond(c, free("Ich rolle das Fass auf Räuber 1"));
+    expect(ask.request_roll?.skill).toBe("athletics");
+    expect(ask.plan).toContain("rollt");
+    const after = await dm.respond(c, { ...roll(16, 13, "Ich rolle das Fass auf Räuber 1"), skill: "athletics" });
+    expect(after.effects).toEqual([{ kind: "object", target: "o7", how: "roll", toward: "m1" }]);
+    const calm = ctx(undefined, { room });
+    const follow = await dm.respond(calm, { ...roll(15, 12, "Wirt Otto, komm mit uns!"), skill: "persuasion" });
+    expect(follow.effects).toEqual([{ kind: "npc", target: "npc-wirt", how: "follow" }]);
+    const feed = await dm.respond(ctx(undefined, { room, players: [{ id: "p1", name: "Pip", classId: "rogue", hp: 5, maxHp: 10 }, { id: "p2", name: "Brunhild", classId: "fighter", hp: 1, maxHp: 12 }] }), free("Ich flöße Brunhild meinen Heiltrank ein"));
+    expect(feed.effects).toEqual([{ kind: "move_to", target: "p2" }, { kind: "feed_potion", target: "p2" }]);
+  });
+});

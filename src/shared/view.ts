@@ -220,6 +220,10 @@ export interface RollPrompt {
   glossarKey: string;
   /** What the die must show: at least `min` (target minus bonus). Only for W20 rolls against a number. */
   need?: RollNeed;
+  /** Free actions: what happens if it works ("Das Fass rollt auf die Goblins"). */
+  plan?: string;
+  /** Free actions: the player may still take it back (and write something else). */
+  cancellable?: boolean;
 }
 
 export interface RollNeed {

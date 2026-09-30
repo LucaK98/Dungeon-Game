@@ -56,6 +56,8 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
     if (SKILL_IDS.includes(skill) && dc >= 5 && dc <= 25) {
       out.request_roll = { playerId: trigger.playerId, ability: getSkill(skill).ability, skill, dc };
       out.next = "await_roll";
+      const plan = str(o.plan, 90);
+      if (plan) out.plan = plan;
     }
   }
   if (trigger.kind === "free_text" || trigger.kind === "roll_result") {
@@ -74,9 +76,10 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
     const effects = raw
       .map((e) => (typeof e === "object" && e ? (e as Record<string, unknown>) : {}))
       .filter((e) => allowed.includes(str(e.name, 30)))
-      .map((e) => effectFromName(str(e.name, 30), str(e.target, 60) || undefined, ctx, str(e.severity, 10)))
+      .map((e) => effectFromName(str(e.name, 30), str(e.target, 60) || undefined, ctx, str(e.severity, 10), str(e.art, 20) || undefined, str(e.richtung, 60) || undefined))
       .filter((e): e is DmEffect => !!e);
-    if (effects.length) out.effects = effects.slice(0, 2);
+    // A small chain: walk there, then up to three things (the Director checks them against the roll).
+    if (effects.length) out.effects = effects.slice(0, 4);
     const att = o.npc_attitude as { npc?: unknown; change?: unknown } | undefined;
     const change = Math.round(Number(att?.change));
     if (att && typeof att.npc === "string" && story.npcs.some((n) => n.id === att.npc) && change && Math.abs(change) <= 2) {

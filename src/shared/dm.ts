@@ -32,7 +32,7 @@ export interface DmContext {
   /** Set while a fight is running: the enemies still standing. */
   combat?: { enemies: { id: string; name: string; hp: number; maxHp: number; boss: boolean }[] };
   /** Where the acting hero stands and what is around (for ideas with the surroundings). */
-  room?: { name: string; objects: string[] };
+  room?: { name: string; objects: string[]; things?: { id: string; name: string }[]; people?: { id: string; name: string }[] };
   /** Gold of the whole group (bribes cost gold). */
   gold?: number;
   /** Short memory of notable deeds, newest last. */
@@ -78,6 +78,8 @@ export interface DmResponse {
   /** Structured narration (scripted DM): several lines with speaker and beginner tips. */
   script?: Narration[];
   request_roll?: RollRequest;
+  /** Free actions: what should happen if the roll works (shown on the phone before rolling). */
+  plan?: string;
   spawn?: { monster: string; count: number; zone: string }[];
   reveal_room?: string;
   reveal_clue?: string;
@@ -118,6 +120,27 @@ export type DmEffect =
   | { kind: "reveal" }
   // a clever idea solves the scene's current obstacle (hard roll only, once per scene)
   | { kind: "bypass" }
+  // the hero's body: go somewhere (free), climb up high, hide, pull back, lie down / get up
+  | { kind: "move_to"; target: string }
+  | { kind: "climb" }
+  | { kind: "hide" }
+  | { kind: "retreat" }
+  | { kind: "posture"; how: "up" | "down" }
+  // the surroundings: ground (fire, oil, water, ice, mud), things (topple, smash, set alight, push, roll), barricade, light
+  | { kind: "ground"; target: string; surface: "fire" | "oil" | "puddle" | "ice" | "mud" }
+  | { kind: "object"; target: string; how: "topple" | "smash" | "ignite" | "push" | "roll"; toward?: string }
+  | { kind: "barricade"; toward?: string }
+  | { kind: "light"; on: boolean }
+  // people: characters come, follow, leave, show the way; a gift; an enemy changes sides or runs off
+  | { kind: "npc"; target: string; how: "follow" | "come" | "leave" | "show_way" }
+  | { kind: "npc_gift"; target: string; item: "gold" | "trank" | "fackel" }
+  | { kind: "turncoat"; target: string }
+  | { kind: "rout"; target: string }
+  // things: throw something to a friend, give a potion, an improvised weapon, a trap
+  | { kind: "pass_item"; target: string; item: string }
+  | { kind: "feed_potion"; target: string }
+  | { kind: "improvised"; target: string }
+  | { kind: "set_trap" }
   // "yes, but": the acting hero pays a small price (1W4 damage, never knocked out)
   | { kind: "cost" }
   // setbacks after a clearly failed attempt

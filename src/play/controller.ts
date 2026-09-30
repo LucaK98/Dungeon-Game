@@ -1851,7 +1851,16 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         landed = undefined;
         dice?.close();
         diceFor = prompt.id;
-        dice = showRollPrompt(prompt, () => send({ kind: "roll", rollId: prompt.id }));
+        dice = showRollPrompt(
+          prompt,
+          () => send({ kind: "roll", rollId: prompt.id }),
+          () => {
+            send({ kind: "cancel_roll", rollId: prompt.id });
+            dice?.close();
+            dice = undefined;
+            diceFor = undefined;
+          },
+        );
         if (view) maybeHint(playerId(), "first_roll", loadPrefs().tips, document.querySelector(".dice-panel") ?? body);
       };
       waitingPrompt = prompt;

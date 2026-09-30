@@ -38,7 +38,7 @@ export interface DiceOverlay {
 }
 
 /** Shows the roll screen. `onRoll` is called when the player taps the die. */
-export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOverlay {
+export function showRollPrompt(prompt: RollPrompt, onRoll: () => void, onCancel?: () => void): DiceOverlay {
   const title = h("h2", {}, prompt.title);
   const shake = loadPrefs().shake && "DeviceMotionEvent" in window;
   const hint = h("p", { class: "lead" }, shake ? "Tippe auf den Würfel – oder schüttle das Handy!" : "Tippe auf den Würfel!");
@@ -57,7 +57,11 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
         h("span", { class: "need-why" }, `Ziel: ${need.label} ${need.target} · dein Bonus ${need.bonus >= 0 ? "+" : ""}${need.bonus}`),
       )
     : null;
-  const panel = h("div", { class: "dice-panel" }, title, h("p", { class: "dice-term" }, term(`W${prompt.sides}`, `w${prompt.sides}`)), ...(needBox ? [needBox] : []), stage, hint, lines, done);
+  // Free actions: what happens if it works – and a way back.
+  const planBox = prompt.plan ? h("p", { class: "dice-plan" }, `🎯 Wenn's klappt: ${prompt.plan}`) : null;
+  const cancel = prompt.cancellable && onCancel ? h("button", { class: "btn secondary small dice-cancel", type: "button", textContent: "✖ Lieber nicht – was anderes machen" }) : null;
+  const panel = h("div", { class: "dice-panel" }, title, h("p", { class: "dice-term" }, term(`W${prompt.sides}`, `w${prompt.sides}`)), ...(planBox ? [planBox] : []), ...(needBox ? [needBox] : []), stage, hint, ...(cancel ? [cancel] : []), lines, done);
+  cancel?.addEventListener("click", () => onCancel?.());
   const overlay = h("div", { class: "dice-overlay" }, panel);
   document.body.append(overlay);
 
@@ -114,6 +118,7 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void): DiceOver
     }, 70);
     if ("vibrate" in navigator) navigator.vibrate(30);
     play("dice");
+    cancel?.remove();
     onRoll();
   });
 

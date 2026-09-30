@@ -7,7 +7,7 @@ import { pointsDue, pointsSpent } from "../shared/improvements";
 import { longRest, perform, type ActionOutcome, type CombatAction } from "../engine/actions";
 import { attackReasons, inRange, rangeBonuses, resolveAttack, RUN_UP_FT } from "../engine/attack";
 import { addCondition, addEffect, applyDamage, armorClass, combatWinner, distanceFt, endCombat, hasCondition, hasEffect, heal, isActive, nextTurn, newTurn, sizeInSquares, squaresOf, startCombat } from "../engine/combat";
-import { advantage, modPart, profPart, savingThrow, skillCheck, skillParts, sumParts } from "../engine/core";
+import { abilityMod, advantage, modPart, profPart, savingThrow, skillCheck, skillParts, sumParts } from "../engine/core";
 import { spellAttackParts } from "../engine/spells";
 import { getSpell } from "../engine/data";
 import { averageOf, parseDice, rollDice } from "../engine/dice";
@@ -104,6 +104,8 @@ interface PendingRoll {
   playerId: PlayerId;
   creatureId: string;
   run: () => RollOutcome | { error: string };
+  /** Free actions: taken back before the throw. */
+  cancel?: () => void;
 }
 
 export interface GameEvents {
@@ -131,6 +133,8 @@ export interface GameEvents {
   spotlight(creatureId: string): void;
   /** A hero has to roll now (the TV shows the waiting die). */
   asked(prompt: RollPrompt, creatureId: string, name: string, color: string | undefined): void;
+  /** The waiting roll was taken back. */
+  askCancelled(): void;
   /** A big note at the top of the TV (undefined = away). */
   banner(info: { icon: string; title: string; text: string } | undefined): void;
   /** A group vote: the options with who voted for them (undefined = vote over). */
@@ -237,6 +241,15 @@ export class GameController {
   onFamily: ((hero: Creature, act: Extract<PlayerAction, { kind: "family" }>) => string | undefined) | undefined;
   /** What a character feels about a hero and remembers last (the phone shows it on her card). */
   npcNote: ((name: string, hero: string) => { bond: number; mood: string; memory?: string; love?: number; loveLabel?: string; tie?: "spouse" | "engaged" } | undefined) | undefined;
+
+  /** A free action was taken back before the throw: its action is free again. */
+  refundFreeAction(hero: Creature): void {
+    const turn = this.mode === "combat" ? this.battle.combat?.turn : undefined;
+    if (turn && turn.creatureId === hero.id) turn.actions += 1;
+    const stats = this.statsOf(hero.id);
+    stats.freeActions = Math.max(0, stats.freeActions - 1);
+    this.broadcast();
+  }
 
   /** A short note for one player's phone. */
   tellPlayer(playerId: PlayerId, reason: string): void {
@@ -525,7 +538,7 @@ export class GameController {
   }
 
   /** Objects near a hero, in words (for the game master's ideas). */
-  surroundings(hero: Creature): { name: string; objects: string[] } | undefined {
+  surroundings(hero: Creature): { name: string; objects: string[]; things?: { id: string; name: string }[]; people?: { id: string; name: string }[] } | undefined {
     if (!hero.pos) return undefined;
     const map = this.map;
     const roomIndex = map.roomOf[cellIndex(map, hero.pos.x, hero.pos.y)] ?? -1;
@@ -537,7 +550,18 @@ export class GameController {
     const around = [...Array(9).keys()].map((k) => ({ x: hero.pos!.x + (k % 3) - 1, y: hero.pos!.y + Math.floor(k / 3) - 1 }));
     if (around.some((p) => ["water", "deep"].includes(map.cells[cellIndex(map, p.x, p.y)] ?? ""))) objects.push("Wasser");
     if (Object.keys(map.overlays).some((k) => map.overlays[Number(k)]?.startsWith("torch"))) objects.push("Fackeln an den Wänden");
-    return { name: room?.name ?? "ein Gang", objects };
+    // Things and people with ids: the game master can point at them (free actions that change the map).
+    const dist = (x: number, y: number) => Math.max(Math.abs(x - hero.pos!.x), Math.abs(y - hero.pos!.y));
+    const things = near
+      .filter((o) => o.kind !== "trap" && o.kind !== "gold" && o.kind !== "potion" && map.explored[cellIndex(map, o.x, o.y)])
+      .sort((a, b) => dist(a.x, a.y) - dist(b.x, b.y))
+      .slice(0, 12)
+      .map((o) => ({ id: o.id, name: objectName(o) }));
+    const people = Object.values(this.battle.creatures)
+      .filter((c) => c.side === "neutral" && !c.dead && c.pos && !c.wild && dist(c.pos.x, c.pos.y) <= 12)
+      .slice(0, 6)
+      .map((c) => ({ id: c.id, name: c.name }));
+    return { name: room?.name ?? "ein Gang", objects, ...(things.length ? { things } : {}), ...(people.length ? { people } : {}) };
   }
 
   /**
@@ -686,6 +710,29 @@ export class GameController {
           lines.push(`😡 Rückschlag: ${t.name} wird wütend – Vorteil auf den nächsten Angriff.`);
           break;
         }
+        case "bypass":
+          break;
+        case "move_to":
+        case "climb":
+        case "hide":
+        case "retreat":
+        case "posture":
+        case "ground":
+        case "object":
+        case "barricade":
+        case "light":
+        case "npc":
+        case "npc_gift":
+        case "turncoat":
+        case "rout":
+        case "pass_item":
+        case "feed_potion":
+        case "improvised":
+        case "set_trap": {
+          const line = this.worldEffect(e, actor);
+          if (line) lines.push(line);
+          break;
+        }
         case "cost": {
           const roll = rollDice(this.rng, parseDice("1d4"));
           const dmg = Math.min(roll.total, Math.max(0, actor.hp - 1));
@@ -700,6 +747,304 @@ export class GameController {
     this.emit("changed");
     this.broadcast();
     return lines;
+  }
+
+  // ---------------------------------------------------------------- free actions that change the map
+
+  /** Something the game master pointed at: a creature, a thing or a place (id, name or "x,y"). */
+  private resolveRef(ref: string, actor: Creature): { pos: GridPos; name: string; creature?: Creature; object?: MapObject } | undefined {
+    const c = this.battle.creatures[ref];
+    if (c?.pos && !c.dead) return { pos: c.pos, name: c.name, creature: c };
+    const o = this.map.objects.find((x) => x.id === ref);
+    if (o) return { pos: { x: o.x, y: o.y }, name: objectName(o), object: o };
+    const xy = /^(\d+)\s*,\s*(\d+)$/.exec(ref);
+    if (xy) return { pos: { x: Number(xy[1]), y: Number(xy[2]) }, name: "die Stelle" };
+    const goal = ref ? this.walkGoal(actor, ref.toLowerCase()) : undefined;
+    if (!goal) return undefined;
+    const at = (p: { x: number; y: number }) => p.x === goal.pos.x && p.y === goal.pos.y;
+    return { ...goal, creature: Object.values(this.battle.creatures).find((x) => x.pos && at(x.pos) && !x.dead), object: this.map.objects.find((x) => at(x)) };
+  }
+
+  private cheb(a: GridPos, b: GridPos): number {
+    return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+  }
+
+  /** One barricade per map (it must not wall the game shut). */
+  private barricades = 0;
+  /** Characters who already gave something (once per adventure). */
+  private gave = new Set<string>();
+
+  /** The new toolbox of free actions: walking, climbing, ground, things, people, items. Returns a log line. */
+  private worldEffect(e: DmEffect, actor: Creature): string | undefined {
+    const pos = actor.pos;
+    if (!pos) return undefined;
+    const fx = (kind: "puff" | "shake" | "sparkle" | "splash", at: GridPos = pos) => this.emit("fx", kind, at);
+    const enemy = (id: string) => {
+      const c = this.battle.creatures[id];
+      return c && c.side === "enemy" && isActive(c) && !this.bossIds.has(c.id) ? c : undefined;
+    };
+    switch (e.kind) {
+      case "move_to": {
+        const goal = this.resolveRef(e.target, actor);
+        if (!goal || !actor.playerId || this.cheb(pos, goal.pos) <= 1) return undefined;
+        this.walkTowards(actor.playerId, actor, { pos: goal.pos, name: goal.name });
+        return undefined;
+      }
+      case "climb": {
+        const HIGH = new Set(["table", "table-flipped", "bench", "counter", "crate", "stump", "rock-ledge", "stage", "column-broken", "stalagmite", "coffin", "well"]);
+        const spot = this.map.objects.find((o) => this.cheb(pos, o) <= 1 && o.state !== "used" && (o.kind === "prop" ? HIGH.has(o.prop ?? "") : ["box", "barrel", "boulder", "statue", "altar", "throne", "fountain", "chest"].includes(o.kind)));
+        if (!spot) return `🧗 ${actor.name} sucht etwas zum Hochklettern – aber hier ist nichts Hohes.`;
+        addEffect(actor, "elevated", 3, actor.id);
+        this.syncWorld();
+        fx("puff");
+        this.emit("speech", actor.id, "⬆️");
+        return `🧗 ${actor.name} klettert auf ${objectName(spot)}: erhöht (Vorteil bei Fernangriffen nach unten, 3 Runden).`;
+      }
+      case "hide":
+        addCondition(actor, { id: "invisible", rounds: 2, sourceId: actor.id });
+        fx("puff");
+        return `🫥 ${actor.name} verschwindet im Schatten: unsichtbar für die Gegner bis zum nächsten Angriff.`;
+      case "retreat":
+        addEffect(actor, "disengage", 1, actor.id);
+        return `↩️ ${actor.name} zieht sich geordnet zurück: keine Gelegenheitsangriffe in diesem Zug.`;
+      case "posture":
+        if (e.how === "up") {
+          if (!hasCondition(actor, "prone")) return undefined;
+          actor.conditions = actor.conditions.filter((c) => c.id !== "prone");
+          return `🧍 ${actor.name} rappelt sich auf.`;
+        }
+        if (this.mode !== "combat" || !addCondition(actor, { id: "prone" })) return undefined;
+        return `🤸 ${actor.name} wirft sich flach auf den Boden: Fernangriffe auf ${actor.name} haben Nachteil.`;
+      case "ground": {
+        const t = (e.target && this.resolveRef(e.target, actor)?.pos) || pos;
+        if (this.cheb(pos, t) > 8) return undefined;
+        this.map.surface ??= {};
+        const cells: GridPos[] = [];
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+          const p = { x: t.x + dx, y: t.y + dy };
+          if (!isWalkable(this.map, p) || (Math.abs(dx) + Math.abs(dy) === 2 && this.envRng.next() < 0.5)) continue;
+          cells.push(p);
+        }
+        const extra: string[] = [];
+        for (const p of cells) {
+          const i = cellIndex(this.map, p.x, p.y);
+          if (e.surface === "fire") {
+            if (this.map.surface[i]?.kind === "puddle") continue;
+            this.map.surface[i] = { kind: "fire", turns: 2 };
+          } else this.map.surface[i] = { kind: e.surface };
+        }
+        if (e.surface === "fire") extra.push(...fireHits(this.map, this.envRng, [t]).lines.map((l) => l.text));
+        this.syncWorld();
+        fx(e.surface === "fire" ? "shake" : e.surface === "puddle" || e.surface === "ice" ? "splash" : "puff", t);
+        const what = { fire: "🔥 Flammen schlagen hoch", oil: "🛢️ Öl breitet sich glitschig aus", puddle: "💦 Wasser schwappt über den Boden", ice: "🧊 Der Boden überfriert – spiegelglatt", mud: "🟤 Der Boden wird zu zähem Schlamm" }[e.surface];
+        return [`${what} (${actor.name}).`, ...extra].join(" ");
+      }
+      case "object": {
+        const ref = this.resolveRef(e.target, actor);
+        const o = ref?.object;
+        if (!o || this.cheb(pos, o) > (e.how === "ignite" ? 6 : 2)) return undefined;
+        const name = objectName(o);
+        switch (e.how) {
+          case "topple":
+            if (o.prop === "table") {
+              o.prop = "table-flipped";
+              o.frame = "table.flipped";
+            } else if (o.kind === "prop" && !propDef(o)?.blocking) return undefined;
+            this.syncWorld();
+            fx("puff", o);
+            return `💪 ${actor.name} wirft ${name} um – krachend! Dahinter ist jetzt Deckung.`;
+          case "smash":
+            if (o.kind === "door" || o.kind === "chest" || o.kind === "stairs-down" || o.kind === "stairs-up") return undefined;
+            o.state = "used";
+            o.blocking = false;
+            o.frame = o.prop === "pot" ? "pot.shards" : "debris";
+            this.syncWorld();
+            fx("shake", o);
+            return `💥 ${actor.name} zerschlägt ${name} in tausend Stücke.`;
+          case "ignite": {
+            if (o.kind === "prop" && !propDef(o)?.flammable) return `🔥 ${name} brennt nicht.`;
+            this.map.surface ??= {};
+            const i = cellIndex(this.map, o.x, o.y);
+            this.map.surface[i] = { kind: "fire", turns: 3 };
+            const extra = fireHits(this.map, this.envRng, [{ x: o.x, y: o.y }]).lines.map((l) => l.text);
+            this.syncWorld();
+            fx("shake", o);
+            return [`🔥 ${actor.name} setzt ${name} in Brand!`, ...extra].join(" ");
+          }
+          case "push":
+          case "roll": {
+            const toward = e.toward ? this.resolveRef(e.toward, actor)?.pos : undefined;
+            const dir = toward ? { x: Math.sign(toward.x - o.x), y: Math.sign(toward.y - o.y) } : { x: Math.sign(o.x - pos.x), y: Math.sign(o.y - pos.y) };
+            if (!dir.x && !dir.y) return undefined;
+            const steps = e.how === "roll" ? 6 : 2;
+            let at = { x: o.x, y: o.y };
+            let victim: Creature | undefined;
+            for (let n = 0; n < steps; n++) {
+              const next = { x: at.x + dir.x, y: at.y + dir.y };
+              if (!isWalkable(this.map, next) || this.map.objects.some((x) => x !== o && x.blocking && x.x === next.x && x.y === next.y)) break;
+              victim = Object.values(this.battle.creatures).find((c) => !c.dead && c.pos?.x === next.x && c.pos?.y === next.y);
+              if (victim) break;
+              at = next;
+            }
+            const moved = at.x !== o.x || at.y !== o.y;
+            o.x = at.x;
+            o.y = at.y;
+            this.syncWorld();
+            fx("puff", at);
+            if (victim && victim.side === "enemy" && e.how === "roll") {
+              const d = rollDice(this.rng, parseDice("2d6"));
+              applyDamage(this.rng, victim, d.total);
+              if (!this.bossIds.has(victim.id) && ["tiny", "small", "medium"].includes(victim.size) && !victim.dead) addCondition(victim, { id: "prone" });
+              fx("shake", victim.pos!);
+              return `🛢️ ${actor.name} rollt ${name} los – rumms, voll in ${victim.name}: ${d.dice.join(" + ")} = ${d.total} Schaden${victim.dead ? `, ${victim.name} ist besiegt!` : ", und umgehauen!"}`;
+            }
+            return moved ? `📦 ${actor.name} ${e.how === "roll" ? "rollt" : "schiebt"} ${name} ein Stück weiter.` : `📦 ${name} bewegt sich keinen Zentimeter.`;
+          }
+        }
+        return undefined;
+      }
+      case "barricade": {
+        if (this.barricades >= 1) return `🧱 Für eine zweite Barrikade ist hier nichts mehr übrig.`;
+        const toward = (e.toward && this.resolveRef(e.toward, actor)?.pos) || this.enemiesVisible().find((x) => x.pos)?.pos;
+        const around = [...Array(9).keys()].map((k) => ({ x: pos.x + (k % 3) - 1, y: pos.y + Math.floor(k / 3) - 1 })).filter((p) => (p.x !== pos.x || p.y !== pos.y) && isWalkable(this.map, p) && !Object.values(this.battle.creatures).some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y) && !this.map.objects.some((o) => o.x === p.x && o.y === p.y && (o.blocking || o.kind === "door" || o.kind.startsWith("stairs"))));
+        const spot = around.sort((a, b) => (toward ? this.cheb(a, toward) - this.cheb(b, toward) : 0))[0];
+        if (!spot) return undefined;
+        this.barricades++;
+        this.map.objects.push({ id: `barricade${++this.rollCounter}`, kind: "box", x: spot.x, y: spot.y, frame: "box", blocking: true });
+        this.syncWorld();
+        this.emit("mapChanged");
+        fx("puff", spot);
+        return `🧱 ${actor.name} stapelt Kisten und Bänke zu einer Barrikade – da kommt keiner mehr durch.`;
+      }
+      case "light":
+        if (e.on) {
+          if (hasEffect(actor, "torch")) return undefined;
+          const out = this.map.objects.find((o) => propDef(o)?.light && o.variant === "out" && this.cheb(pos, o) <= 2);
+          if (out) {
+            delete out.variant;
+            this.syncWorld();
+            fx("sparkle", out);
+            return `🕯️ ${actor.name} zündet ${objectName(out)} wieder an.`;
+          }
+          if (!this.hasFire(actor)) return `🔦 ${actor.name} hat nichts zum Anzünden.`;
+          addEffect(actor, "torch", 999, actor.id);
+          this.syncWorld();
+          fx("sparkle");
+          return `🔥 ${actor.name} entzündet eine Fackel – Licht!`;
+        } else {
+          const lit = this.map.objects.filter((o) => propLight(o) && this.cheb(pos, o) <= 6);
+          for (const o of lit) o.variant = "out";
+          if (!lit.length) return undefined;
+          this.syncWorld();
+          fx("puff", lit[0]);
+          return `🌑 ${lit.length > 1 ? `${lit.length} Lichter gehen` : `${objectName(lit[0]!)} geht`} aus – es wird dunkel.`;
+        }
+      case "npc": {
+        const c = this.battle.creatures[e.target];
+        if (!c?.pos || c.side !== "neutral" || c.dead) return undefined;
+        if (e.how === "follow") {
+          c.followId = actor.id;
+          this.emit("speech", c.id, "Ich komme mit!");
+          return `🚶 ${c.name} schließt sich ${actor.name} an und folgt der Gruppe.`;
+        }
+        if (e.how === "come") {
+          c.pos = besideFree(this.map, this.battle, pos);
+          this.npcHomes.set(c.id, { ...c.pos });
+          this.emit("speech", c.id, "Ja?");
+          return `🚶 ${c.name} kommt zu ${actor.name} herüber.`;
+        }
+        if (e.how === "leave") {
+          delete c.followId;
+          const away = [...Array(25).keys()].map((k) => ({ x: c.pos!.x + (k % 5) - 2, y: c.pos!.y + Math.floor(k / 5) - 2 })).filter((p) => isWalkable(this.map, p) && !Object.values(this.battle.creatures).some((x) => !x.dead && x.pos?.x === p.x && x.pos?.y === p.y)).sort((a, b) => this.cheb(b, pos) - this.cheb(a, pos))[0];
+          if (away) c.pos = away;
+          this.npcHomes.set(c.id, { ...c.pos });
+          return `🚶 ${c.name} geht ${actor.name} lieber aus dem Weg.`;
+        }
+        // show_way: leads towards the exit and uncovers the way.
+        const last = this.map.rooms[this.map.rooms.length - 1]!;
+        const exit = { x: last.x + Math.floor(last.w / 2), y: last.y + Math.floor(last.h / 2) };
+        revealAround(this.map, exit, 6);
+        const step = { x: c.pos.x + Math.sign(exit.x - c.pos.x) * 2, y: c.pos.y + Math.sign(exit.y - c.pos.y) * 2 };
+        if (isWalkable(this.map, step) && !Object.values(this.battle.creatures).some((x) => !x.dead && x.pos?.x === step.x && x.pos?.y === step.y)) c.pos = step;
+        this.npcHomes.set(c.id, { ...c.pos });
+        this.emit("mapChanged");
+        this.emit("speech", c.id, "Da lang!");
+        return `🧭 ${c.name} zeigt ${actor.name} den Weg – der Ausgang ist jetzt auf der Karte.`;
+      }
+      case "npc_gift": {
+        const c = this.battle.creatures[e.target];
+        if (!c?.pos || c.side !== "neutral" || this.gave.has(c.name)) return c && this.gave.has(c.name) ? `🤷 ${c.name} hat euch schon etwas gegeben.` : undefined;
+        this.gave.add(c.name);
+        if (e.item === "trank") this.addItem(actor, "potion-of-healing", 1);
+        else if (e.item === "fackel") this.addItem(actor, "torch", 1);
+        else this.addItem(actor, "gold", rollDice(this.rng, parseDice("1d6")).total);
+        fx("sparkle", c.pos);
+        this.emit("speech", c.id, "Hier, nimm!");
+        return `🎁 ${c.name} gibt ${actor.name} ${e.item === "trank" ? "einen Heiltrank" : e.item === "fackel" ? "eine Fackel" : "ein paar Goldmünzen"}.`;
+      }
+      case "turncoat": {
+        const t = enemy(e.target);
+        if (!t) return undefined;
+        t.side = "party";
+        t.effects = [];
+        this.emit("speech", t.id, "Ich bin raus – ab jetzt kämpf ich für euch!");
+        fx("sparkle", t.pos);
+        return `🔄 ${t.name} wechselt die Seite und kämpft jetzt für die Helden!`;
+      }
+      case "rout": {
+        const t = enemy(e.target);
+        if (!t) return undefined;
+        this.emit("speech", t.id, "Nix wie weg!");
+        delete this.battle.creatures[t.id];
+        this.victoryNote = "Die Gegner sind geflohen.";
+        return `🏃 ${t.name} rennt schreiend davon und ist weg.`;
+      }
+      case "pass_item": {
+        const friend = this.heroByRef(e.target);
+        if (!friend?.pos || friend.id === actor.id || this.cheb(pos, friend.pos) > 8) return undefined;
+        const wanted = e.item.toLowerCase();
+        const inv = actor.pc?.inventory ?? [];
+        const id = /trank|heil/.test(wanted) ? "potion-of-healing" : /fackel/.test(wanted) ? "torch" : /gold|münz/.test(wanted) ? "gold" : inv.find((i) => i.qty > 0 && nameFits(wanted, itemTitle(i.itemId)))?.itemId;
+        const have = id ? inv.find((i) => i.itemId === id && i.qty > 0) : undefined;
+        if (!id || !have) return `🤷 ${actor.name} hat so etwas nicht dabei.`;
+        const qty = id === "gold" ? Math.min(have.qty, 5) : 1;
+        have.qty -= qty;
+        actor.pc!.inventory = inv.filter((i) => i.qty > 0);
+        this.addItem(friend, id, qty);
+        fx("sparkle", friend.pos);
+        return `🤾 ${actor.name} wirft ${friend.name} ${qty > 1 ? `${qty} × ` : ""}${itemTitle(id)} zu – gefangen!`;
+      }
+      case "feed_potion": {
+        const friend = this.heroByRef(e.target);
+        if (!friend?.pos || friend.dead || this.cheb(pos, friend.pos) > 1) return friend ? `🧪 ${friend.name} ist zu weit weg – erst hingehen.` : undefined;
+        const potion = actor.pc?.inventory.find((i) => i.itemId === "potion-of-healing" && i.qty > 0);
+        if (!potion) return `🧪 ${actor.name} hat keinen Heiltrank.`;
+        potion.qty--;
+        actor.pc!.inventory = actor.pc!.inventory.filter((i) => i.qty > 0);
+        const roll = rollDice(this.rng, parseDice("2d4+2"));
+        heal(friend, roll.total);
+        fx("sparkle", friend.pos);
+        return `🧪 ${actor.name} flößt ${friend.name} einen Heiltrank ein: +${roll.total} Trefferpunkte.`;
+      }
+      case "improvised": {
+        const t = enemy(e.target) ?? (this.battle.creatures[e.target]?.side === "enemy" ? this.battle.creatures[e.target] : undefined);
+        if (!t?.pos || t.dead) return undefined;
+        const d = rollDice(this.rng, parseDice("1d6"));
+        const total = Math.max(1, d.total + abilityMod(actor.abilities.STR));
+        applyDamage(this.rng, t, total);
+        fx("shake", t.pos);
+        return `🍳 ${actor.name} haut ${t.name} mit etwas Improvisiertem eins über: ${d.total}${abilityMod(actor.abilities.STR) ? ` ${abilityMod(actor.abilities.STR) > 0 ? "+" : "−"} ${Math.abs(abilityMod(actor.abilities.STR))}` : ""} = ${total} Schaden${t.dead ? ` – ${t.name} ist besiegt!` : "."}`;
+      }
+      case "set_trap": {
+        if (this.map.objects.some((o) => o.x === pos.x && o.y === pos.y && (o.kind === "trap" || o.blocking))) return undefined;
+        this.map.objects.push({ id: `wire${++this.rollCounter}`, kind: "trap", variant: "wire", x: pos.x, y: pos.y, frame: "trap.net", blocking: false, state: "found" });
+        this.syncWorld();
+        fx("puff");
+        return `🪤 ${actor.name} spannt eine Stolperfalle – wer hier drauftritt, fällt hin.`;
+      }
+      default:
+        return undefined;
+    }
   }
 
   /** Another phone took over this player's hero (the old phone lost its ID). */
@@ -1287,6 +1632,15 @@ export class GameController {
       void (this.onSuggest?.(playerId, hero) ?? Promise.resolve([])).then((ideas) => this.sendTo(playerId, { type: "suggestions", ideas }));
       return;
     }
+    if (action.kind === "cancel_roll") {
+      const p = this.pending;
+      if (!p || p.playerId !== playerId || p.prompt.id !== action.rollId || !p.cancel) return;
+      this.pending = undefined;
+      p.cancel();
+      this.emit("askCancelled");
+      this.broadcast();
+      return;
+    }
     if (action.kind === "roll") {
       if (!this.pending || this.pending.playerId !== playerId || this.pending.prompt.id !== action.rollId) return;
       const pending = this.pending;
@@ -1601,9 +1955,9 @@ export class GameController {
     return undefined;
   }
 
-  private ask(playerId: PlayerId, hero: Creature, prompt: Omit<RollPrompt, "id">, run: PendingRoll["run"]): void {
+  private ask(playerId: PlayerId, hero: Creature, prompt: Omit<RollPrompt, "id">, run: PendingRoll["run"], cancel?: () => void): void {
     const full: RollPrompt = { ...prompt, id: `r${++this.rollCounter}` };
-    this.pending = { prompt: full, playerId, creatureId: hero.id, run };
+    this.pending = { prompt: full, playerId, creatureId: hero.id, run, ...(cancel ? { cancel } : {}) };
     this.sendTo(playerId, { type: "request_roll", prompt: full });
     // The TV shows the die waiting for this hero.
     this.emit("asked", full, hero.id, hero.name, hero.appearance?.color);
@@ -1788,6 +2142,11 @@ export class GameController {
       return;
     }
     const lines = explainOutcome(this.battle, outcome);
+    // Climbed down to walk on.
+    if (hasEffect(hero, "elevated")) {
+      hero.effects = hero.effects.filter((x) => x.id !== "elevated");
+      this.syncWorld();
+    }
     if (partner) {
       const behind = walk.length > 1 ? walk[walk.length - 2]! : before.pos;
       const free = (p: GridPos | undefined) => p && !Object.values(this.battle.creatures).some((c) => c.id !== partner.id && !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
@@ -3121,7 +3480,8 @@ export class GameController {
 
   /** In exploration companions trot after their hero. */
   private companionsFollow(hero: Creature): void {
-    for (const pet of [this.companionOf(hero), this.squireOf(hero)]) {
+    const followers = Object.values(this.battle.creatures).filter((c) => c.followId === hero.id && c.side === "neutral" && !c.dead);
+    for (const pet of [this.companionOf(hero), this.squireOf(hero), ...followers]) {
       if (!pet?.pos || !hero.pos || !isActive(pet)) continue;
       if (Math.max(Math.abs(pet.pos.x - hero.pos.x), Math.abs(pet.pos.y - hero.pos.y)) <= 1) continue;
       pet.pos = besideFree(this.map, this.battle, hero.pos);
@@ -3972,7 +4332,7 @@ export class GameController {
   }
 
   /** A skill check for one hero; resolves when the phone has rolled. */
-  check(hero: Creature, skill: SkillId, baseDc: number, title: string): Promise<CheckResult> {
+  check(hero: Creature, skill: SkillId, baseDc: number, title: string, opts: { plan?: string; cancellable?: boolean } = {}): Promise<CheckResult & { cancelled?: boolean }> {
     const dc = this.sg(baseDc);
     return new Promise((resolve) => {
       const playerId = hero.playerId!;
@@ -3991,7 +4351,10 @@ export class GameController {
           this.waiters.push({ pred: () => !this.pending, resolve: tryAsk });
           return;
         }
-        this.ask(playerId, hero, { title: `${title} (${nameOf("skills", skill)}, SG ${dc})`, sides: 20, glossarKey: `fertigkeit:${skill}`, need: rollNeed("SG", dc, sumParts(skillParts(hero, skill))) }, run);
+        const prompt = { title: `${title} (${nameOf("skills", skill)}, SG ${dc})`, sides: 20, glossarKey: `fertigkeit:${skill}`, need: rollNeed("SG", dc, sumParts(skillParts(hero, skill))), ...(opts.plan ? { plan: opts.plan } : {}), ...(opts.cancellable ? { cancellable: true } : {}) };
+        // Taken back: no roll, nothing happens (the caller gives the action back).
+        const cancel = opts.cancellable ? () => resolve({ ...skillCheck(this.envRng, hero, skill, 99), success: false, cancelled: true }) : undefined;
+        this.ask(playerId, hero, prompt, run, cancel);
       };
       tryAsk();
     });
@@ -4199,8 +4562,8 @@ export class GameController {
       if (!c.pos || c.dead) continue;
       if ((c.id.startsWith("npc-") || c.wild) && c.side === "neutral") {
         if (!this.npcHomes.has(c.id)) this.npcHomes.set(c.id, { ...c.pos });
-        // Stays put while someone talks to them; otherwise strolls now and then.
-        if (heroNear(c.pos, 2) || this.rng.next() > 0.25) continue;
+        // Stays put while someone talks to them (or walks along with the group); otherwise strolls now and then.
+        if (c.followId || heroNear(c.pos, 2) || this.rng.next() > 0.25) continue;
         const home = this.npcHomes.get(c.id)!;
         const options = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
           .map((d) => ({ x: c.pos!.x + d.x, y: c.pos!.y + d.y }))
@@ -4372,6 +4735,8 @@ export class GameController {
     const map = this.map;
     if (!map) return;
     this.battle.terrain = terrainOf(map);
+    // Heroes who climbed onto a table, a barrel, a rock count as standing high.
+    for (const c of Object.values(this.battle.creatures)) if (c.pos && !c.dead && hasEffect(c, "elevated")) this.battle.terrain.high.push(`${c.pos.x},${c.pos.y}`);
     if (!map.dark) {
       delete this.battle.darkness;
       return;

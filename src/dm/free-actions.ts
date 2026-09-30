@@ -12,7 +12,9 @@ import { BRIBE_PER_ENEMY, BYPASS_DC } from "./effects";
 
 type Intent =
   | "attack" | "help" | "cover" | "bribe" | "charm" | "surrender" | "scare" | "push" | "blind" | "hazard" | "trick"
-  | "search" | "first_aid" | "door" | "reveal" | "befriend" | "shortcut" | "other";
+  | "search" | "first_aid" | "door" | "reveal" | "befriend" | "shortcut" | "other"
+  | "climb" | "hide" | "ignite" | "oil" | "water" | "barricade" | "roll_thing" | "smash_thing" | "light_on" | "light_off"
+  | "npc_follow" | "npc_way" | "npc_give" | "turncoat" | "pass" | "feed" | "improvised" | "trap";
 
 interface IntentRule {
   intent: Intent;
@@ -24,6 +26,25 @@ interface IntentRule {
 
 /** Order matters: the first match wins. */
 const RULES: IntentRule[] = [
+  // Things, ground, body and people (the map changes).
+  { intent: "feed", words: /flöß|einflöß|trank (ein|in den mund)|gib .* (meinen |einen )?(heil)?trank/, combat: "both" },
+  { intent: "pass", words: /wirf .* zu|werfe .* zu|zuwerf|reiche .* (den|die|das|einen|eine)|gebe .* (meinen|meine|einen|eine) /, combat: "both" },
+  { intent: "turncoat", words: /seite wechs|wechsel.* seite|kämpf.* für uns|überlauf|lauf.* über/, combat: true, skill: "persuasion", dc: BYPASS_DC },
+  { intent: "improvised", words: /stuhlbein|bratpfanne|pfanne|kerzenständer|improvis|flasche über|krug über/, combat: true, skill: "athletics", dc: 12 },
+  { intent: "light_off", words: /licht aus|lösch|auspust|pust.* aus|mach.* dunkel/, combat: "both", skill: "sleight-of-hand", dc: 10 },
+  { intent: "light_on", words: /fackel an|licht an|zünde .*fackel|mach.* licht/, combat: "both" },
+  { intent: "ignite", words: /zünd.*an|anzünd|in brand|feuer leg|legt? feuer|abfackel|brenn.* (ab|nieder)/, combat: "both", skill: "sleight-of-hand", dc: 12 },
+  { intent: "oil", words: /öl .*(aus|verschütt|gieß|kipp)|gieß.* öl|kipp.* öl/, combat: "both", skill: "sleight-of-hand", dc: 11 },
+  { intent: "water", words: /wasser .*(aus|verschütt|gieß|kipp)|gieß.* wasser|eimer wasser/, combat: "both", skill: "athletics", dc: 10 },
+  { intent: "barricade", words: /barrika|verrammel|versperr|verbarrik|blockier|tür zu(stell|mach)/, combat: "both", skill: "athletics", dc: 13 },
+  { intent: "roll_thing", words: /(roll|schieb|kick|stoß).*(fass|fässer|kiste|fels|stein)|(fass|kiste|fels).*(roll|schieb)/, combat: "both", skill: "athletics", dc: 13 },
+  { intent: "smash_thing", words: /zerschlag|zertrümmer|kaputt(mach|schlag|hau)|zerschmetter|trete? .* ein/, combat: "both", skill: "athletics", dc: 11 },
+  { intent: "climb", words: /kletter|steig.* auf|spring.* auf (den|die|das)|stell.* mich auf/, combat: "both", skill: "athletics", dc: 12 },
+  { intent: "trap", words: /falle (stellen|aufstellen|spannen|bauen)|stell.* (eine )?falle|stolperdraht|seil spannen/, combat: "both", skill: "sleight-of-hand", dc: 12 },
+  { intent: "npc_follow", words: /komm.* mit|folg.* (mir|uns)|begleit|schließ dich/, combat: false, skill: "persuasion", dc: 12 },
+  { intent: "npc_way", words: /zeig.* (den|uns den|mir den) weg|führ.* uns|wo geht.*(raus|lang|weiter)/, combat: false, skill: "persuasion", dc: 12 },
+  { intent: "npc_give", words: /gib (mir|uns)|schenk (mir|uns)|hast du .*(trank|gold|fackel|was)|kannst du (mir|uns) .*geben/, combat: false, skill: "persuasion", dc: 13 },
+  { intent: "hide", words: /versteck|in den schatten|unsichtbar mach|tarn/, combat: false, skill: "stealth", dc: 12 },
   { intent: "help", words: /helf|hilf|unterstütz|beisteh|räuberleiter/, combat: "both" },
   { intent: "cover", words: /deckung|versteck|duck|hinter .*(fass|säule|stein|baum|kiste)/, combat: true },
   { intent: "bribe", words: /bestech|münz|goldstück|bezahl|zahl|geld|gold an/, combat: true, skill: "persuasion", dc: 12 },
@@ -93,6 +114,15 @@ export function scriptedFreeText(ctx: DmContext, trigger: Extract<DmTrigger, { k
       }),
     ]);
   }
+  // Without a roll: throwing something to a friend, a potion for a friend, lighting a torch.
+  if (rule.intent === "feed" || rule.intent === "pass") {
+    const friend = mentioned(trigger.text, ctx.players.filter((p) => p.id !== trigger.playerId));
+    if (!friend) return respond([line(`Wem denn? Nennt den Namen des Helden, z. B. „Ich werfe Brunhild meinen Trank zu“.`)]);
+    if (rule.intent === "feed") return respond([line(`${hero} eilt zu ${friend.name}.`)], { effects: [{ kind: "move_to", target: friend.id }, { kind: "feed_potion", target: friend.id }] });
+    const item = /fackel/.test(trigger.text.toLowerCase()) ? "fackel" : /gold|münz/.test(trigger.text.toLowerCase()) ? "gold" : /trank/.test(trigger.text.toLowerCase()) ? "trank" : trigger.text.toLowerCase().replace(/.*(wirf|werfe|reiche|gebe)\s+\S+\s+/, "").split(" ").slice(0, 3).join(" ");
+    return respond([line(`${hero} holt aus …`)], { effects: [{ kind: "pass_item", target: friend.id, item }] });
+  }
+  if (rule.intent === "light_on") return respond([line(`${hero} macht Licht.`)], { effects: [{ kind: "light", on: true }] });
   if (rule.intent === "help") {
     const friend = mentioned(trigger.text, ctx.players.filter((p) => p.id !== trigger.playerId));
     if (!friend) return respond([line(`Wem will ${hero} helfen? Nennt den Namen des Helden, z. B. „Ich helfe Brunhild“.`)]);
@@ -106,6 +136,7 @@ export function scriptedFreeText(ctx: DmContext, trigger: Extract<DmTrigger, { k
   return respond([line(`${hero} versucht es. Gelingt die Probe?`)], {
     request_roll: { playerId: trigger.playerId, ability: getSkill(skill as never).ability, skill, dc: rule.dc! },
     next: "await_roll",
+    ...(PLANS[rule.intent] ? { plan: PLANS[rule.intent] } : {}),
   });
 }
 
@@ -174,6 +205,59 @@ export function scriptedRollResult(ctx: DmContext, trigger: Extract<DmTrigger, {
     case "shortcut":
       effects.push({ kind: "bypass" });
       break;
+    case "climb":
+      effects.push({ kind: "climb" });
+      break;
+    case "hide":
+      effects.push({ kind: "hide" });
+      break;
+    case "ignite": {
+      const thing = thingIn(trigger.text, ctx, /tisch|bank|regal|kiste|heu|busch|gebüsch|netz|fass|hocker|tresen|dorn/);
+      effects.push(thing ? { kind: "object", target: thing.id, how: "ignite" } : { kind: "ground", target: one?.id ?? "", surface: "fire" });
+      break;
+    }
+    case "oil":
+    case "water":
+      effects.push({ kind: "ground", target: (named ?? one)?.id ?? "", surface: rule.intent === "oil" ? "oil" : "puddle" });
+      break;
+    case "barricade":
+      effects.push({ kind: "barricade", ...(one ? { toward: one.id } : {}) });
+      break;
+    case "roll_thing": {
+      const thing = thingIn(trigger.text, ctx, /fass|fässer|kiste|fels|stein/);
+      if (thing) effects.push({ kind: "object", target: thing.id, how: /schieb/.test(trigger.text.toLowerCase()) ? "push" : "roll", ...((named ?? one) ? { toward: (named ?? one)!.id } : {}) });
+      // No barrel on the map list: it is simply something from the surroundings that hits.
+      else if (enemies.length) effects.push({ kind: "hazard", target: (named ?? enemies[0])!.id, severity: margin >= 5 ? "schwer" : "mittel" });
+      break;
+    }
+    case "smash_thing": {
+      const thing = thingIn(trigger.text, ctx, /kiste|krug|topf|fass|tisch|hocker|regal|statue|säule/);
+      if (thing) effects.push({ kind: "object", target: thing.id, how: "smash" });
+      break;
+    }
+    case "light_off":
+      effects.push({ kind: "light", on: false });
+      break;
+    case "npc_follow":
+    case "npc_way":
+    case "npc_give": {
+      const who = mentioned(trigger.text, ctx.room?.people ?? []) ?? ctx.room?.people?.[0];
+      if (!who) break;
+      if (rule.intent === "npc_give") {
+        const t = trigger.text.toLowerCase();
+        effects.push({ kind: "npc_gift", target: who.id, item: /trank/.test(t) ? "trank" : /fackel/.test(t) ? "fackel" : "gold" });
+      } else effects.push({ kind: "npc", target: who.id, how: rule.intent === "npc_way" ? "show_way" : "follow" });
+      break;
+    }
+    case "turncoat":
+      if (one) effects.push({ kind: "turncoat", target: one.id });
+      break;
+    case "improvised":
+      if (named ?? one ?? enemies[0]) effects.push({ kind: "improvised", target: (named ?? one ?? enemies[0])!.id });
+      break;
+    case "trap":
+      effects.push({ kind: "set_trap" });
+      break;
     case "befriend":
     case "other":
       break;
@@ -210,12 +294,66 @@ function setback(intent: Intent, ctx: DmContext, trigger: Extract<DmTrigger, { k
         return [`Das Schloss schnappt zu – ${hero} klemmt sich die Finger.`, { kind: "hurt", severity: "leicht" }];
       case "reveal":
         return [`${hero} rutscht beim Klettern ab und schürft sich auf.`, { kind: "hurt", severity: "leicht" }];
+      case "climb":
+        return [`${hero} rutscht ab und plumpst unsanft auf den Hintern!`, enemies.length ? { kind: "fall" } : { kind: "hurt", severity: "leicht" }];
+      case "ignite":
+      case "oil":
+        return [`Autsch – ${hero} verbrennt sich die Finger!`, { kind: "hurt", severity: "leicht" }];
+      case "roll_thing":
+      case "smash_thing":
+      case "barricade":
+        return [`Das Ding ist schwerer als gedacht – ${hero} zerrt sich was!`, { kind: "hurt", severity: "leicht" }];
+      case "turncoat":
+      case "npc_give":
+      case "npc_follow":
+        return named ? [`${named.name} lacht nur – und ist jetzt richtig sauer!`, { kind: "enrage", target: named.id }] : [`Das kommt gar nicht gut an.`, undefined];
+      case "improvised":
+        return [`${hero} haut daneben und steht ungeschützt da!`, { kind: "exposed" }];
       default:
         return [`${hero} versucht es, aber es klappt nicht.`, undefined];
     }
   };
   const [text, effect] = pick();
   return respond([line(`Das geht schief! ${text}`)], effect ? { effects: [effect] } : {});
+}
+
+/** What the scripted narrator would do if the roll works (shown on the phone before rolling). */
+const PLANS: Partial<Record<Intent, string>> = {
+  bribe: "Der Gegner nimmt das Gold und hört auf",
+  charm: "Der Gegner ist betört und kämpft nicht mehr",
+  surrender: "Der Gegner gibt auf",
+  scare: "Die Gegner fliehen (oder einer gibt auf)",
+  push: "Der Gegner liegt am Boden",
+  blind: "Der Gegner ist behindert (Nachteil)",
+  hazard: "Etwas aus der Umgebung trifft den Gegner",
+  trick: "Der Gegner ist abgelenkt",
+  search: "Du findest etwas",
+  first_aid: "Wunden werden verbunden (+1W4+1 TP)",
+  door: "Die Tür geht auf",
+  reveal: "Ein verborgener Teil wird sichtbar",
+  shortcut: "Das Hindernis ist umgangen",
+  climb: "Du stehst erhöht (Vorteil beim Schießen)",
+  hide: "Du bist für die Gegner unsichtbar",
+  ignite: "Es brennt!",
+  oil: "Öl auf dem Boden – glitschig und brennbar",
+  water: "Wasser auf dem Boden",
+  barricade: "Eine Barrikade versperrt den Weg",
+  roll_thing: "Das Ding rollt los – Schaden bei Treffer",
+  smash_thing: "Es geht zu Bruch",
+  light_off: "Die Lichter gehen aus",
+  npc_follow: "Die Figur kommt mit euch",
+  npc_way: "Die Figur zeigt euch den Weg",
+  npc_give: "Die Figur gibt dir etwas",
+  turncoat: "Der Gegner kämpft ab jetzt für euch",
+  improvised: "1W6 + Stärke Schaden",
+  trap: "Eine Stolperfalle liegt bereit",
+};
+
+/** A thing from the surroundings the text is about (by its name, else the first of the right sort). */
+function thingIn(text: string, ctx: DmContext, sort: RegExp): { id: string; name: string } | undefined {
+  const things = ctx.room?.things ?? [];
+  const t = text.toLowerCase();
+  return things.find((x) => t.includes(x.name.toLowerCase().split(" ")[0]!)) ?? things.find((x) => sort.test(x.name.toLowerCase()));
 }
 
 /** Which skill an idea without keywords needs (a rough guess from the verbs). */
