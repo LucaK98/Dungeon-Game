@@ -34,6 +34,17 @@ import { itemIcon, itemTitle } from "../shared/reward";
 import { ABILITY_GLOSSAR } from "../engine/core";
 
 const ABILITY_ICON: Record<string, string> = { STR: "💪", DEX: "🤸", CON: "🫀", INT: "🧠", WIS: "🦉", CHA: "🗣️" };
+/** Names of limited abilities (charges) on the character sheet. */
+const RESOURCE_NAME: Record<string, string> = {
+  ki: "Ki",
+  "second-wind": "Durchatmen",
+  "action-surge": "Tatendrang",
+  "lay-on-hands": "Handauflegen (TP)",
+  "channel-divinity": "Göttliche Macht",
+  "bardic-inspiration": "Bardische Inspiration",
+  "wild-shape": "Tiergestalt",
+  rage: "Kampfrausch",
+};
 /** Small elemental states (src/tv/elements.ts). */
 const ELEMENT_STATES: Record<string, string> = { burning: "🔥 brennt", chilled: "❄️ unterkühlt", shocked: "⚡ geschockt", wet: "💧 nass" };
 /** One sign per condition for the bar under the hit points. */
@@ -466,7 +477,9 @@ export function createController(playerId: () => string, sendRaw: (a: PlayerActi
       case "interact":
         return { ...a, targetId: ids[0]! };
       case "feature":
-        // The TV caps healing at what the target is missing.
+        // Abilities with a target (Kampfkunst, Schlaghagel, Inspiration, Handauflegen …) need it along –
+        // without it the throw failed on the TV. (The TV caps healing at what the target is missing.)
+        return ids[0] ? { ...a, targetId: ids[0] } : a;
       default:
         return a;
     }
@@ -686,7 +699,7 @@ export function createController(playerId: () => string, sendRaw: (a: PlayerActi
     const b = h(
       "button",
       { class: `choice-btn${c.enabled ? "" : canQueue(c) ? " queueable" : " disabled"}${c.recommended ? " recommended" : ""}${c.votes?.mine ? " voted" : ""}${urgency(c)}`, type: "button", dataset: { help: c.glossarKey } },
-      h("span", { class: "choice-label" }, c.label, c.recommended ? h("span", { class: "rec" }, "⭐ Empfohlen") : null),
+      h("span", { class: "choice-label" }, c.label, c.uses ? h("span", { class: "uses", title: "So oft geht es noch (bis zur nächsten Rast)" }, c.uses) : null, c.recommended ? h("span", { class: "rec" }, "⭐ Empfohlen") : null),
       ...choiceBody(c),
       c.votes
         ? h(
@@ -717,7 +730,7 @@ export function createController(playerId: () => string, sendRaw: (a: PlayerActi
     const b = h(
       "button",
       { class: `tile${q ? " queueable" : ""}${c.recommended ? " recommended" : ""}${c.edge ? ` edge-${c.edge.tone}` : ""}${urgency(c)}`, type: "button", dataset: { help: c.glossarKey } },
-      h("span", { class: "tile-label" }, c.label.replace(/ \(Bonusaktion\)/, "")),
+      h("span", { class: "tile-label" }, c.label.replace(/ \(Bonusaktion\)/, "").replace(/ \(\d+ übrig\)/, ""), c.uses ? h("span", { class: "uses", title: "So oft geht es noch (bis zur nächsten Rast)" }, c.uses) : null),
       chips.length ? h("span", { class: "tile-chips" }, ...chips) : "",
       q ? h("span", { class: "queue-hint" }, queued?.choiceId === c.id ? "📌 vorgemerkt" : "📌 vormerken") : c.cost === "bonus" ? h("span", { class: "tile-cost extra", dataset: { help: "bonusaktion" } }, "+ extra") : c.cost === "free" ? h("span", { class: "tile-cost free" }, "gratis") : "",
     );
@@ -1333,6 +1346,7 @@ export function createController(playerId: () => string, sendRaw: (a: PlayerActi
     if (v.camp) return [campSection(v.camp)];
     campCard = undefined;
     const top: HTMLElement[] = [];
+    if (v.narrating) top.push(h("section", { class: "card story-note" }, "📖 Der Erzähler spricht – hör kurz zu, gleich geht es weiter."));
     const planned = queuedCard(v);
     if (planned) top.push(planned);
     // One helper card at a time: queued move, else what is right here, else (in a fight) a suggestion.
@@ -1584,7 +1598,15 @@ export function createController(playerId: () => string, sendRaw: (a: PlayerActi
     );
     const fam = view?.family;
     const family = fam ? familyCard(fam) : "";
-    return [h("section", { class: "card hero-card" }, hero, stats, xpBar, family), ...pointsCard(me), ...conditions, fold("sheet-all", "📊 Alle Werte", out)];
+    // Charges: spell slots and abilities with limited uses, at a glance.
+    const charges = [
+      ...pc.spellSlotsMax.map((max, i) => (max ? h("span", { class: "pill", dataset: { help: "zauberplaetze" } }, `✨ Grad ${i + 1}: ${pc.spellSlots[i] ?? 0}/${max}`) : null)),
+      ...Object.entries(pc.resources).map(([id, r]) =>
+        h("span", { class: "pill", title: r.recharge === "short" ? "kommt nach einer kurzen Rast zurück" : "kommt nach einer langen Rast zurück" }, `${RESOURCE_NAME[id] ?? nameOf("features", id)}: ${r.max - r.used}/${r.max}${r.recharge === "short" ? " ⏳" : " 🌙"}`),
+      ),
+    ].filter((x): x is HTMLElement => !!x);
+    const chargeCard = charges.length ? [h("section", { class: "card" }, h("div", { class: "card-title" }, "🔋 Aufladungen"), h("div", { class: "budget" }, ...charges), h("p", { class: "muted small" }, "⏳ kommt nach einer kurzen Rast zurück · 🌙 nach einer langen Rast"))] : [];
+    return [h("section", { class: "card hero-card" }, hero, stats, xpBar, family), ...pointsCard(me), ...conditions, ...chargeCard, fold("sheet-all", "📊 Alle Werte", out)];
   }
 
   /** Partner and children in the home village: a child wish, names, a squire. */
@@ -1907,6 +1929,8 @@ export function createController(playerId: () => string, sendRaw: (a: PlayerActi
       const becameMine = v.turn.mine && !wasMine;
       wasMine = v.turn.mine;
       view = v;
+      // While the TV tells the story, moves wait (the buttons are dimmed, a note says why).
+      root.classList.toggle("story-lock", !!v.narrating);
       maybeAutoEnd(v);
       if (becameMine) {
         if ("vibrate" in navigator) navigator.vibrate([120, 80, 120]);
@@ -2065,6 +2089,14 @@ export function createController(playerId: () => string, sendRaw: (a: PlayerActi
       }
     },
     error(reason) {
+      // The throw failed on the TV: the die stops and shows why (instead of spinning forever).
+      if (dice?.isRolling()) {
+        dice.fail(reason);
+        landed = dice;
+        dice = undefined;
+        diceFor = undefined;
+        return;
+      }
       showToast(reason);
     },
     reward(r) {

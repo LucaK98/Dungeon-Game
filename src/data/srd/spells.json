@@ -279,6 +279,7 @@
   {
     "id": "scorching-ray",
     "level": 2,
+    "attack": "ranged",
     "school": "evocation",
     "classes": [
       "sorcerer",

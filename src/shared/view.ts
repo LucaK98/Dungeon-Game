@@ -74,6 +74,8 @@ export type ActionGroup = "story" | "attack" | "spell" | "item" | "ability" | "l
 
 export interface ActionChoice {
   id: string;
+  /** How often it still works: "2×" (spell slots, uses until the next rest), "∞" for cantrips. */
+  uses?: string;
   group: ActionGroup;
   label: string;
   /** Short explanation shown under the label. */
@@ -145,6 +147,8 @@ export interface CompanionView {
 
 export interface PlayerView {
   me: Creature;
+  /** The TV tells the story right now: moves wait until it is done. */
+  narrating?: boolean;
   /** The hero's tamed animal (if any). */
   companion?: CompanionView;
   mode: "explore" | "combat";

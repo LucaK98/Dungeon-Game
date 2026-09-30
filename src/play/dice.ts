@@ -32,6 +32,10 @@ export interface DiceOverlay {
   /** The TV sent the result for this roll. */
   land(result: RollOutcome): void;
   close(): void;
+  /** The throw did not work out (the TV said no): the die stops and says why. */
+  fail(reason: string): void;
+  /** The die was thrown and waits for the TV. */
+  isRolling(): boolean;
   isOpen(): boolean;
   /** Called once when the window closes (tap on "Weiter" or close()). */
   onClosed(cb: () => void): void;
@@ -120,7 +124,10 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void, onCancel?
     play("dice");
     cancel?.remove();
     onRoll();
+    // No answer from the TV: never keep the die spinning forever.
+    noAnswer = setTimeout(() => api.fail("Keine Antwort vom Fernseher. Tippe auf „Weiter“ und versuch es noch einmal."), 12_000);
   });
+  let noAnswer: ReturnType<typeof setTimeout> | undefined;
 
   // Shaking the phone rolls too (a strong jolt, not just holding it).
   let last: { x: number; y: number; z: number } | undefined;
@@ -135,12 +142,26 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void, onCancel?
 
   const api: DiceOverlay = {
     land(result) {
+      if (noAnswer) clearTimeout(noAnswer);
       // Let the die tumble for at least 0.8 s, it feels better.
       pendingResult = result;
       const wait = Math.max(0, 800 - (Date.now() - started));
       setTimeout(() => pendingResult && showResult(pendingResult), rolled ? wait : 0);
     },
+    fail(reason) {
+      if (noAnswer) clearTimeout(noAnswer);
+      if (pendingResult) return;
+      if (rolling) clearInterval(rolling);
+      rolling = undefined;
+      stage.replaceChildren(dieSvg(prompt.sides, "–", "done"));
+      hint.textContent = `⛔ ${reason}`;
+      done.hidden = false;
+    },
+    isRolling() {
+      return rolled && !pendingResult && overlay.isConnected;
+    },
     close() {
+      if (noAnswer) clearTimeout(noAnswer);
       if (rolling) clearInterval(rolling);
       if (autoTimer) clearTimeout(autoTimer);
       window.removeEventListener("devicemotion", onMotion);

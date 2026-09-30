@@ -342,6 +342,10 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     });
     // Known weaknesses show over the foes.
     scene.typesOf = (x) => c.knownTypes(x);
+    // While the TV tells the story, the phones wait.
+    // (A new controller replaces the listener of the one before.)
+    game.events.off("narrating");
+    game.events.on("narrating", (on: boolean) => c.setNarrating(on));
     c.start();
     // Characters stroll, guards patrol.
     worldTimer = setInterval(() => c.tickWorld(), 3000);

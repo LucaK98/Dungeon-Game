@@ -134,7 +134,7 @@ describe("effect toolbox (rules)", () => {
     game.destroy();
   });
 
-  it("a free action in a fight uses up the action", async () => {
+  it("a trick in a fight uses up the bonus action – the attack still fits", async () => {
     const { game } = await gameInFight([{ monster: "bandit", count: 3, name: "Räuber" }]);
     let active = game.active()!;
     for (let i = 0; i < 10 && !active.playerId; i++) {
@@ -143,6 +143,10 @@ describe("effect toolbox (rules)", () => {
     }
     if (active.playerId) {
       game.handle(active.playerId, { kind: "free_text", text: "Ich rufe laut" });
+      expect(game.session.battle.combat!.turn.bonusAction).toBe(false);
+      expect(game.session.battle.combat!.turn.actions).toBe(1);
+      // A second trick then costs the action.
+      game.handle(active.playerId, { kind: "free_text", text: "Ich rufe noch lauter" });
       expect(game.session.battle.combat!.turn.actions).toBe(0);
     }
     game.destroy();

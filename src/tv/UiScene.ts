@@ -393,11 +393,14 @@ export class UiScene extends Phaser.Scene {
   /** Tells the queued narration line by line with a typewriter effect (and reads it aloud). */
   private async tell(): Promise<void> {
     this.telling = true;
+    // While the story is told, the phones wait (the game hears it through the board).
+    this.game.events.emit("narrating", true);
     while (this.queue.length) {
       const line = this.queue.shift()!;
       await this.showLine(line);
     }
     this.telling = false;
+    this.game.events.emit("narrating", false);
     this.tweens.add({ targets: this.narrationBox, alpha: 0, delay: 4000, duration: 800 });
   }
 

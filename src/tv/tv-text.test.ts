@@ -32,3 +32,13 @@ describe("less on the screen", () => {
     expect(targetShort({ detail: "RK 12" })).toBe("");
   });
 });
+
+describe("tricks and attacks in one sentence", () => {
+  it("splits off the trick, a vivid attack stays one attack", async () => {
+    const { splitCombo } = await import("./game");
+    expect(splitCombo("Ich beleidige den Goblin und greife ihn an")).toBe("Ich beleidige den Goblin");
+    expect(splitCombo("Ich stelle ihm ein Bein und schlage dann zu")).toBe("Ich stelle ihm ein Bein");
+    expect(splitCombo("Ich springe mit Anlauf vor und greife Goblin 1 mit aller Kraft an")).toBeUndefined();
+    expect(splitCombo("Ich greife den Goblin an")).toBeUndefined();
+  });
+});

@@ -223,6 +223,27 @@ function objectName(o: MapObject): string {
 /** Pause before and after a foe's move: time to see what happens (one thing after another). */
 const MONSTER_PAUSE_MS = 2200;
 
+/** Which resource an ability uses up (the rest use one of their own name). */
+const FEATURE_RESOURCE: Partial<Record<string, string>> = {
+  "flurry-of-blows": "ki",
+  "patient-defense": "ki",
+  "step-of-the-wind": "ki",
+  "turn-undead": "channel-divinity",
+};
+
+/** "Ich stelle ihm ein Bein und greife an" → the trick part ("Ich stelle ihm ein Bein"), or undefined. */
+export function splitCombo(text: string): string | undefined {
+  const m = /^(.{6,}?)\s*(?:,\s*)?\b(?:und|dann|danach|anschließend)\s+(?:dann\s+|danach\s+)?(?:greife|greif|schlage|schlag|hau|haue|attackiere|steche|stech|schieße|schiesse|schieß|triff|treffe|angreifen)\b/i.exec(text.trim());
+  if (!m) return undefined;
+  const trick = m[1]!.trim().replace(/[,;]$/, "");
+  // The first part must be a trick of its own ("ich springe mit Anlauf vor" is just a vivid attack).
+  if (/\b(greif|schlag|hau|attack|stech|schie)/i.test(trick)) return undefined;
+  return isTrick(trick) || /beleidig|verspott|beschimpf|provozier|verhöhn|bein stell|ein bein/i.test(trick) ? trick : undefined;
+}
+
+/** Moves that wait while the TV tells the story (dice already asked for, reactions and settings do not). */
+const LOCKED_WHILE_TOLD = new Set<PlayerAction["kind"]>(["attack", "approach", "cast", "use_item", "feature", "move", "free_text", "interact", "check", "end_turn", "go_use", "ground", "tame", "story_choice"]);
+
 export class GameController {
   private log: ExplainedLine[] = [];
   private pending: PendingRoll | undefined;
@@ -303,11 +324,18 @@ export class GameController {
   /** A free action was taken back before the throw: its action is free again. */
   refundFreeAction(hero: Creature): void {
     const turn = this.mode === "combat" ? this.battle.combat?.turn : undefined;
-    if (turn && turn.creatureId === hero.id) turn.actions += 1;
+    if (turn && turn.creatureId === hero.id) {
+      if (this.freePaid.get(hero.id) === "bonus") turn.bonusAction = true;
+      else turn.actions += 1;
+    }
+    this.freePaid.delete(hero.id);
     const stats = this.statsOf(hero.id);
     stats.freeActions = Math.max(0, stats.freeActions - 1);
     this.broadcast();
   }
+
+  /** What the last trick of a hero cost in this fight (to give it back when taken back). */
+  private freePaid = new Map<string, "bonus" | "action">();
 
   /** A short note for one player's phone. */
   tellPlayer(playerId: PlayerId, reason: string): void {
@@ -1818,6 +1846,8 @@ export class GameController {
   private maybeRunMonster(): void {
     const c = this.active();
     if (this.mode !== "combat" || !c || this.destroyed) return;
+    // Foes wait for the story to be told (setNarrating starts them again).
+    if (this.narrating) return;
     if (c.kind !== "monster" && !this.opts.autoHeroes) return;
     const delay = this.opts.monsterDelayMs ?? MONSTER_PAUSE_MS;
     const run = () => this.runMonster(c.id);
@@ -2052,7 +2082,25 @@ export class GameController {
     return Math.max(5, dc + DIFFICULTY[this.difficulty].dc);
   }
 
+  /** The TV tells the story right now: moves wait until it is done (at most 30 seconds). */
+  private narrating = false;
+  private narratingSafety: ReturnType<typeof setTimeout> | undefined;
+
+  setNarrating(on: boolean): void {
+    if (this.narratingSafety) clearTimeout(this.narratingSafety);
+    this.narratingSafety = on ? setTimeout(() => this.setNarrating(false), 30_000) : undefined;
+    if (this.narrating === on) return;
+    this.narrating = on;
+    this.broadcast();
+    // A foe whose turn waited for the story goes now.
+    if (!on) this.maybeRunMonster();
+  }
+
   handle(playerId: PlayerId, action: PlayerAction): void {
+    if (this.narrating && LOCKED_WHILE_TOLD.has(action.kind)) {
+      this.sendTo(playerId, { type: "action_error", reason: "📖 Kurz zuhören – der Erzähler spricht noch." });
+      return;
+    }
     this.lastActionAt = Date.now();
     if (this.active()?.playerId === playerId) this.turnActivityAt = this.lastActionAt;
     if (action.kind === "set_beginner_mode") {
@@ -2178,7 +2226,7 @@ export class GameController {
       const pending = this.pending;
       this.pending = undefined;
       this.undo = undefined;
-      const result = pending.run();
+      const result = this.safeRun(pending.run);
       queueMicrotask(() => this.flushDeferred());
       if ("error" in result) this.sendTo(playerId, { type: "action_error", reason: result.error });
       else this.publishRoll(result);
@@ -2308,6 +2356,14 @@ export class GameController {
         return;
       }
       case "free_text": {
+        // "Ich beleidige den Goblin und greife ihn an": the trick now, the attack stays for the button.
+        const combo = this.mode === "combat" ? splitCombo(action.text) : undefined;
+        if (combo) {
+          this.handle(playerId, { kind: "free_text", text: combo });
+          const t = this.battle.combat?.turn;
+          if (t?.creatureId === hero.id && t.actions > 0) this.tellPlayer(playerId, "⚔️ Angreifen kannst du danach trotzdem – deine Aktion ist noch frei.");
+          return;
+        }
         const said = action.text.trim();
         // "Ich gehe zur Theke (und frage nach dem Weg)": walk there first, as far as the movement goes.
         const walk = said ? walkIntent(said) : undefined;
@@ -2373,14 +2429,19 @@ export class GameController {
           this.handle(playerId, found.match.action);
           return;
         }
-        // In a fight a free action is a real action (tricks would be too strong otherwise).
+        // In a fight a trick costs the bonus action (so an attack still fits), else the action.
         const turn = this.mode === "combat" ? this.battle.combat?.turn : undefined;
         if (turn) {
-          if (turn.actions < 1) {
-            this.sendTo(playerId, { type: "action_error", reason: "Deine Aktion ist schon verbraucht. Im Kampf kostet eine freie Aktion deine Aktion." });
+          if (turn.bonusAction) {
+            turn.bonusAction = false;
+            this.freePaid.set(hero.id, "bonus");
+          } else if (turn.actions >= 1) {
+            turn.actions -= 1;
+            this.freePaid.set(hero.id, "action");
+          } else {
+            this.sendTo(playerId, { type: "action_error", reason: "Aktion und Bonusaktion sind schon verbraucht – im nächsten Zug wieder." });
             return;
           }
-          turn.actions -= 1;
         }
         this.statsOf(hero.id).freeActions++;
         this.addLog([{ text: `${hero.name} versucht: „${action.text.slice(0, 140)}“`, glossarKeys: ["freie_aktion"] }]);
@@ -2409,6 +2470,11 @@ export class GameController {
           // Silberstaub (Walpurgisnacht): the whole group's weapons count as silvered.
           if (this.heroes().some((h) => h.pc?.inventory.some((i) => i.itemId === "silberstaub" && i.qty > 0))) engineAction.silvered = true;
         }
+        // An ability that needs a target but got none: say so now, not after the throw.
+        if ("targetId" in engineAction && engineAction.targetId === "") {
+          this.sendTo(playerId, { type: "action_error", reason: "Wähle zuerst ein Ziel." });
+          return;
+        }
         const prompt = this.promptFor(hero, action);
         const run = () => {
           const outcome = perform(this.rng, this.battle, hero.id, engineAction);
@@ -2418,7 +2484,7 @@ export class GameController {
         };
         if (prompt) this.ask(playerId, hero, prompt, run);
         else {
-          const result = run();
+          const result = this.safeRun(run);
           if ("error" in result) this.sendTo(playerId, { type: "action_error", reason: result.error });
           else this.publishRoll(result);
           this.afterAction();
@@ -2524,6 +2590,16 @@ export class GameController {
       if (event === "dying") this.narrate([{ npc: enemy.name, text: line }]);
       else this.addLog([{ text: `💬 ${enemy.name}: „${line}“`, glossarKeys: [] }]);
       return;
+    }
+  }
+
+  /** Runs an action; a mistake in the rules code becomes an error message instead of a stuck game. */
+  private safeRun(run: () => RollOutcome | { error: string }): RollOutcome | { error: string } {
+    try {
+      return run();
+    } catch (err) {
+      console.error(err);
+      return { error: "Das hat gerade nicht geklappt – versuch etwas anderes." };
     }
   }
 
@@ -4707,6 +4783,7 @@ export class GameController {
     const view: PlayerView = {
       me,
       mode: this.mode,
+      ...(this.narrating ? { narrating: true } : {}),
       round: this.battle.combat?.round ?? 1,
       turn: {
         activeId: free ? me.id : (active?.id ?? ""),
@@ -5931,15 +6008,37 @@ export class GameController {
       }
     }
     if (this.mode === "combat") {
-      const reason = costReason("action");
-      choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: "Ein Trick: ablenken, umstoßen, bestechen, betören … · kostet deine Aktion", glossarKey: "freie_aktion", cost: "action", enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "free_text", text: "" } });
+      // A trick costs the bonus action while there is one – an attack still fits into the turn.
+      const bonus = !costReason("bonus");
+      const reason = bonus ? undefined : costReason("action");
+      choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: bonus ? "Ein Trick: ablenken, beleidigen, Bein stellen, bestechen … · kostet deine Bonusaktion – angreifen kannst du danach trotzdem" : "Ein Trick: ablenken, beleidigen, Bein stellen, bestechen … · kostet deine Aktion", glossarKey: "freie_aktion", cost: bonus ? "bonus" : "action", enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "free_text", text: "" } });
     } else {
       choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: "Beschreibe, was du tun willst", glossarKey: "freie_aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "free_text", text: "" } });
     }
     if (!this.freeExplore) choices.push({ id: "end", group: "end", label: "Zug beenden", detail: "Der Nächste ist dran", glossarKey: "zug_beenden", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "end_turn" } });
 
     if (beginnerMode && mine) this.recommend(me, choices);
+    for (const c of choices) {
+      const uses = this.usesOf(pc, c.action);
+      if (uses) c.uses = uses;
+    }
     return choices;
+  }
+
+  /** How often a spell or ability still works (slots of its level, uses until the next rest). */
+  private usesOf(pc: NonNullable<Creature["pc"]>, a: PlayerAction): string | undefined {
+    if (a.kind === "cast") {
+      const spell = getSpell(a.spellId);
+      if (spell.level === 0) return "∞";
+      const level = a.slotLevel ?? spell.level;
+      const left = pc.spellSlots.slice(level - 1).reduce((s, n) => s + (n ?? 0), 0);
+      return `${left}×`;
+    }
+    const resource = a.kind === "feature" ? FEATURE_RESOURCE[a.feature] ?? a.feature : a.kind === "attack" && a.stun ? "ki" : undefined;
+    const r = resource ? pc.resources[resource] : undefined;
+    if (!r) return undefined;
+    // Lay on hands is a pool of hit points, the rest are uses.
+    return resource === "lay-on-hands" ? `${r.max - r.used} TP` : `${r.max - r.used}×`;
   }
 
   /** Beginner mode: highlight one sensible next step. */
