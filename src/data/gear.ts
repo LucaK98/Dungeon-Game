@@ -14,8 +14,12 @@ export interface Gear {
   base?: string;
   /** +1: to hit and damage (weapons), armour class (armour, ring). */
   bonus: number;
-  /** Trinkets: what they do. */
-  effect?: "ac" | "hp" | "speed";
+  /** Trinkets: what they do ("arrows": arrowheads that give ranged weapon hits +1d4 of `element`). */
+  effect?: "ac" | "hp" | "speed" | "arrows";
+  /** Armour and amulets: this damage type only does half. */
+  resist?: import("../shared/rules").DamageType;
+  /** Elemental weapons and arrowheads: +1d4 damage of this type on a hit. */
+  element?: import("../shared/rules").DamageType;
   price: number;
   icon: string;
   /** One line for the phone. */
@@ -41,6 +45,20 @@ export const GEAR: Gear[] = [
   { id: "chain-shirt+1", name: "Elfenkettenhemd", slot: "armor", base: "chain-shirt", bonus: 1, price: 50, icon: "🥋", detail: "Kettenhemd +1 (mittlere Rüstung)", doll: { layer: "body", id: "chainmail" } },
   { id: "scale-mail+1", name: "Drachenschuppenpanzer", slot: "armor", base: "scale-mail", bonus: 1, price: 55, icon: "🐉", detail: "Schuppenpanzer +1 (mittlere Rüstung)", doll: { layer: "body", id: "scalemail" } },
   { id: "chain-mail+1", name: "Paladinplatte", slot: "armor", base: "chain-mail", bonus: 1, price: 60, icon: "🛡️", detail: "Kettenpanzer +1 (schwere Rüstung)", doll: { layer: "body", id: "half_plate" } },
+  // Elemental weapons: +1 and 1d4 of their element (strong against the right foes – see the type chart).
+  { id: "flame-longsword", name: "Flammenschwert", slot: "weapon", base: "longsword", bonus: 1, element: "fire", price: 70, icon: "🔥", detail: "Langschwert +1, +1W4 Feuer (gut gegen Tiere, Spinnen, Frost-Wesen)", doll: { layer: "weapon", id: "longsword" } },
+  { id: "frost-dagger", name: "Frostdolch", slot: "weapon", base: "dagger", bonus: 1, element: "cold", price: 55, icon: "❄️", detail: "Dolch +1, +1W4 Kälte (gut gegen Kobolde, Drachen, Feuer-Wesen)", doll: { layer: "weapon", id: "dagger" } },
+  { id: "storm-hammer", name: "Sturmhammer", slot: "weapon", base: "warhammer", bonus: 1, element: "lightning", price: 65, icon: "⚡", detail: "Kriegshammer +1, +1W4 Blitz (doppelt gegen Nasse)", doll: { layer: "weapon", id: "hammer" } },
+  { id: "sun-mace", name: "Sonnenkolben", slot: "weapon", base: "mace", bonus: 1, element: "radiant", price: 65, icon: "✨", detail: "Streitkolben +1, +1W4 strahlend (gut gegen Untote)", doll: { layer: "weapon", id: "mace" } },
+  { id: "thunder-staff", name: "Donnerstab", slot: "weapon", base: "quarterstaff", bonus: 1, element: "thunder", price: 55, icon: "💥", detail: "Kampfstab +1, +1W4 Donner (gut gegen Goblins, Fledermäuse)", doll: { layer: "weapon", id: "magestaff" } },
+  { id: "arrows-fire", name: "Feuerpfeilspitzen", slot: "trinket", bonus: 0, effect: "arrows", element: "fire", price: 45, icon: "🏹", detail: "Fernkampf mit Waffen: +1W4 Feuer" },
+  { id: "arrows-frost", name: "Frostpfeilspitzen", slot: "trinket", bonus: 0, effect: "arrows", element: "cold", price: 45, icon: "🏹", detail: "Fernkampf mit Waffen: +1W4 Kälte" },
+  // Protection against one element: that damage only does half.
+  { id: "dragon-leather", name: "Drachenleder", slot: "armor", base: "leather-armor", bonus: 0, resist: "fire", price: 50, icon: "🐲", detail: "Lederrüstung: Feuer macht nur halben Schaden", doll: { layer: "body", id: "leather_green" } },
+  { id: "amulet-ice", name: "Eisamulett", slot: "trinket", bonus: 0, resist: "cold", price: 40, icon: "🧊", detail: "Kälte macht nur halben Schaden" },
+  { id: "amulet-fire", name: "Glutamulett", slot: "trinket", bonus: 0, resist: "fire", price: 40, icon: "🔥", detail: "Feuer macht nur halben Schaden" },
+  { id: "amulet-storm", name: "Erdungsamulett", slot: "trinket", bonus: 0, resist: "lightning", price: 40, icon: "⚡", detail: "Blitz macht nur halben Schaden" },
+  { id: "amulet-antidote", name: "Giftstein", slot: "trinket", bonus: 0, resist: "poison", price: 35, icon: "🟢", detail: "Gift macht nur halben Schaden" },
   { id: "ring-protection", name: "Schutzring", slot: "trinket", bonus: 1, effect: "ac", price: 45, icon: "💍", detail: "+1 Rüstungsklasse, für alle" },
   { id: "amulet-health", name: "Amulett der Lebenskraft", slot: "trinket", bonus: 5, effect: "hp", price: 40, icon: "📿", detail: "+5 maximale Trefferpunkte, für alle" },
   { id: "boots-travel", name: "Stiefel des Wanderers", slot: "trinket", bonus: 10, effect: "speed", price: 35, icon: "🥾", detail: "+2 Felder Bewegung, für alle" },

@@ -14,6 +14,8 @@ import { averageOf, parseDice, rollDice } from "../engine/dice";
 import { explainCheck, explainDamage, explainDeathSave, explainHp, explainInitiative, explainOutcome, type ExplainedLine } from "../engine/explain";
 import { runAutoTurn } from "../engine/ai";
 import { createMonster, hardenMonster, MAX_LEVEL } from "../engine/creatures";
+import { applyElement, effectiveness, ELEMENT_CHANCE, TYPE_ICON, TYPE_NAME, typeKey, VARIANTS } from "../engine/types";
+import { afterHit, soak, turnStart } from "./elements";
 import { DIFFICULTY, type Difficulty } from "../shared/difficulty";
 import { itemIcon, itemTitle, levelGains, type Reward } from "../shared/reward";
 import { GOAL_GOLD, goalById, goalReached } from "../shared/goals";
@@ -56,8 +58,8 @@ import { cellIndex } from "../shared/map";
 import type { PlayerId } from "../shared/types";
 import { rollNeed, type ActionChoice, type ActionFx, type CampView, type FamilyView, type MiniMap, type OrderEntry, type PlayerView, type RollOutcome, type RollPrompt, type StoryView } from "../shared/view";
 import type { MonsterGroup, Narration } from "../shared/story";
-import type { CheckResult } from "../shared/game";
-import type { SkillId } from "../shared/rules";
+import type { CheckResult, DamageResult } from "../shared/game";
+import type { DamageType, SkillId } from "../shared/rules";
 import type { DungeonMap, MapObject } from "../shared/map";
 import { applyGear, createCharacter, gearProblem, refreshAttacks } from "../engine/creatures";
 import { scaleGroup } from "../dm/planner";
@@ -1492,8 +1494,9 @@ export class GameController {
         if (!t?.pos || t.dead || t.side !== "enemy") return undefined;
         if (hasEffect(t, "weakspot")) return `🔎 Die Schwachstelle von ${t.name} kennt ihr schon.`;
         addEffect(t, "weakspot", 99, actor.id);
+        this.learnAll(t);
         fx("sparkle", t.pos);
-        return `🔎 ${actor.name} studiert ${t.name} und entdeckt: ${weakSpot(t)}. Alle Angriffe auf ${t.name} haben jetzt Vorteil!`;
+        return `🔎 ${actor.name} studiert ${t.name} und entdeckt: ${weakSpot(t)}. Alle Angriffe auf ${t.name} haben jetzt Vorteil! (${this.typeSummary(t)})`;
       }
       case "set_trap": {
         if (this.map.objects.some((o) => o.x === pos.x && o.y === pos.y && (o.kind === "trap" || o.blocking))) return undefined;
@@ -1668,6 +1671,10 @@ export class GameController {
         this.publishWorld(now, "Feuer", burnCreature(this.envRng, now));
         if (this.checkWinner()) return;
       }
+      if (now) {
+        this.elementsAtTurnStart(now);
+        if (this.checkWinner()) return;
+      }
       if (start.deathSave) {
         const lines = explainDeathSave(this.battle, start.deathSave);
         this.addLog(lines);
@@ -1749,6 +1756,7 @@ export class GameController {
     this.emit("combat", true);
     this.tricksUsed.clear();
     this.startArena();
+    this.wizardLore();
     this.grantBoons();
     this.companionsAtFightStart();
     // Nobody can act while down or asleep: skip ahead like a normal turn change.
@@ -2568,6 +2576,9 @@ export class GameController {
     const lines = explainOutcome(this.battle, o);
     const world = this.worldReacts(o);
     lines.push(...world.lines);
+    const typed = this.typeReacts(hero, o);
+    lines.push(...typed.lines);
+    world.hits.push(...typed.hits);
     // A raven that goes for the eyes leaves its target distracted.
     if (o.ok && o.kind === "attack" && o.attack.hit && hero.companion?.trait === "augenpicker") {
       const t = this.battle.creatures[o.attack.targetId];
@@ -2748,6 +2759,129 @@ export class GameController {
       r.lines = r.lines.map((l) => ({ text: l.text.replace("🧊", "🪢").replace("schlittert übers Eis", "stolpert über den Draht").replace("rutscht auf dem Eis aus und fällt hin", "verfängt sich im Stolperdraht und schlägt der Länge nach hin"), glossarKeys: ["gegenstand:stolperdraht", ...l.glossarKeys.filter((k) => k !== "eis")] }));
       this.publishWorld(c, "Stolperdraht", r);
     }
+  }
+
+  // ---------------------------------------------------------------- types (like Pokémon)
+
+  /** What the heroes learned about each kind of foe: damage types seen, "*" = all. */
+  private known = new Map<string, Set<string>>();
+
+  /** Knowledge to keep (bestiary on the TV) and to bring back. */
+  knowledge(): Record<string, string[]> {
+    return Object.fromEntries([...this.known].map(([k, v]) => [k, [...v]]));
+  }
+
+  setKnowledge(k: Record<string, string[]>): void {
+    for (const [key, types] of Object.entries(k)) if (Array.isArray(types)) this.known.set(key, new Set([...(this.known.get(key) ?? []), ...types]));
+  }
+
+  private knows(c: Creature, type: string): boolean {
+    const set = this.known.get(typeKey(c));
+    return !!set && (set.has("*") || set.has(type));
+  }
+
+  /** Learns every strength and weakness of this kind of foe; true if something was new. */
+  private learnAll(c: Creature): boolean {
+    const set = this.known.get(typeKey(c)) ?? new Set<string>();
+    if (set.has("*")) return false;
+    set.add("*");
+    this.known.set(typeKey(c), set);
+    this.onKnowledge?.();
+    return true;
+  }
+
+  /** Something new was learned (the board keeps a bestiary). */
+  onKnowledge: (() => void) | undefined;
+
+  /** The strengths and weaknesses the heroes know about: "🔥 Feuer ×2", "❄️ Kälte ×½" … */
+  knownTypes(c: Creature): string[] {
+    if (!c.monsterId) return [];
+    const all = [...new Set([...c.vulnerabilities, ...c.resistances, ...c.immunities])];
+    return all
+      .filter((t) => this.knows(c, t))
+      .map((t) => {
+        const m = effectiveness(c, t);
+        return `${TYPE_ICON[t] ?? ""} ${TYPE_NAME[t]} ${m === 0 ? "✖" : m < 1 ? "×½" : "×2"}`.trim();
+      });
+  }
+
+  /** For the target list: how this weapon's damage works on the foe – only once learned. */
+  private typeHint(c: Creature, types: DamageType[]): string {
+    const out: string[] = [];
+    for (const t of new Set(types)) {
+      const m = effectiveness(c, t);
+      if (m === 1 || !this.knows(c, t)) continue;
+      out.push(`${m > 1 ? "💥" : m === 0 ? "🚫" : "🛡️"} ${TYPE_NAME[t]} ${m === 0 ? "wirkt nicht" : m < 1 ? "×½" : "×2"}`);
+    }
+    return out.length ? ` · ${out.join(" · ")}` : "";
+  }
+
+  /** What is known about a foe, in one line. */
+  private typeSummary(c: Creature): string {
+    const k = this.knownTypes(c);
+    return k.length ? k.join(" · ") : "keine besonderen Stärken oder Schwächen";
+  }
+
+  /**
+   * After damage: the heroes learn how their damage type works on this kind of foe ("Sehr
+   * effektiv!"), and small elemental states may follow.
+   */
+  private typeReacts(actor: Creature, o: ActionOutcome): WorldResult {
+    const out: WorldResult = { lines: [], hits: [] };
+    if (!o.ok) return out;
+    const pairs: [string, DamageResult][] = [];
+    if (o.kind === "attack" && o.attack.damage) pairs.push([o.attack.targetId, o.attack.damage]);
+    if (o.kind === "strikes") for (const a of o.attacks) if (a.damage) pairs.push([a.targetId, a.damage]);
+    if (o.kind === "spell") for (const t of o.spell.targets) if (t.damage) pairs.push([t.targetId, t.damage]);
+    let flash: string | undefined;
+    for (const [id, dmg] of pairs) {
+      const t = this.battle.creatures[id];
+      if (!t) continue;
+      if (actor.side === "party" && t.side === "enemy" && t.monsterId) {
+        let learned = false;
+        for (const l of dmg.lines) {
+          const fresh = !this.knows(t, l.type);
+          const set = this.known.get(typeKey(t)) ?? new Set<string>();
+          set.add(l.type);
+          this.known.set(typeKey(t), set);
+          learned ||= fresh;
+          if (!l.note) continue;
+          const word = l.note === "vulnerability" ? "💥 Sehr effektiv!" : l.note === "immunity" ? "🚫 Wirkt nicht!" : "🛡️ Nicht sehr effektiv …";
+          flash ??= word;
+          out.lines.push({ text: `${word} ${TYPE_ICON[l.type] ?? ""} ${TYPE_NAME[l.type]} gegen ${t.name}${fresh ? " – das merkt ihr euch!" : ""}`, glossarKeys: ["typen"] });
+        }
+        // Class roles: a fighter reads how a foe fights, a cleric knows the dead.
+        const role = actor.pc?.classId === "fighter" ? "⚔️ Kampferfahrung" : actor.pc?.classId === "cleric" && t.creatureType === "undead" ? "✨ Wissen über Untote" : undefined;
+        if (role && dmg.total > 0 && this.learnAll(t)) out.lines.push({ text: `${role}: ${actor.name} durchschaut ${t.name} – ${this.typeSummary(t)}.`, glossarKeys: ["typen"] });
+        else if (learned) this.onKnowledge?.();
+      }
+      const r = afterHit(this.envRng, this.map, this.battle, actor, t, dmg, !this.bossIds.has(t.id) && sizeInSquares(t.size) <= 1);
+      out.lines.push(...r.lines);
+      out.hits.push(...r.hits);
+    }
+    if (flash) this.emit("flash", flash);
+    return out;
+  }
+
+  /** At the start of a fight the wizard remembers what the books say about one of the foes. */
+  private wizardLore(): void {
+    const wizard = this.heroes().find((h) => h.pc?.classId === "wizard" && isActive(h));
+    if (!wizard) return;
+    const foe = Object.values(this.battle.creatures).find(
+      (c) => c.side === "enemy" && isActive(c) && c.monsterId && (c.vulnerabilities.length || c.resistances.length || c.immunities.length) && !this.known.get(typeKey(c))?.has("*"),
+    );
+    if (!foe || !this.learnAll(foe)) return;
+    this.addLog([{ text: `📚 ${wizard.name} erinnert sich an die Bücher: ${foe.name.replace(/ \d+$/, "")} – ${this.typeSummary(foe)}.`, glossarKeys: ["typen"] }]);
+  }
+
+  /** Start of a turn: wet from water or rain, burning, chilled. */
+  private elementsAtTurnStart(c: Creature): void {
+    if (this.mode !== "combat" || !isActive(c)) return;
+    soak(this.map, c);
+    const r = turnStart(this.envRng, c);
+    const turn = this.battle.combat?.turn;
+    if (r.slowFt && turn?.creatureId === c.id) turn.movementLeftFt = Math.max(0, turn.movementLeftFt - r.slowFt);
+    if (r.lines.length) this.publishWorld(c, "Brennt", r);
   }
 
   /** Shows what the room did (fire, ice …) like a roll: log, phones, floating numbers. */
@@ -4713,7 +4847,7 @@ export class GameController {
         ...(c.monsterId ? { monsterId: c.monsterId } : {}),
         health: c.maxHp ? c.hp / c.maxHp : 0,
         down: c.hp === 0,
-        ...(c.side === "enemy" ? { ac: armorClass(c), hp: c.hp, maxHp: c.maxHp, danger: dangerFor(me, c) } : {}),
+        ...(c.side === "enemy" ? { ac: armorClass(c), hp: c.hp, maxHp: c.maxHp, danger: dangerFor(me, c), ...(this.knownTypes(c).length ? { types: this.knownTypes(c) } : {}) } : {}),
         ...(c.side === "neutral" && !c.appearance ? this.noteFor(c.name, me.name) : {}),
       }));
     return { x0, y0, w, h, frames, overlays, ground, marks, objects, creatures, reachable: mine && !this.pending ? this.reachable(me).filter(inWindow) : [], ...(light ? { light } : {}) };
@@ -5189,9 +5323,14 @@ export class GameController {
       // Harder levels bring one more of the rank and file (never in the training fight).
       const count = scaleGroup(g, players) + (g.boss || training || !g.count ? 0 : extra);
       const spots = freeSpots(g.boss ? [...room.spots.boss, ...room.spots.monster] : room.spots.monster);
+      // Now and then the whole group is an elemental variant (Feuerkobolde, Frost-Skelette …).
+      const kinds = !g.boss && !training && !g.name ? VARIANTS[g.monster] : undefined;
+      const element = kinds && this.envRng.next() < ELEMENT_CHANCE ? kinds[Math.floor(this.envRng.next() * kinds.length) % kinds.length] : undefined;
       for (let i = 0; i < count && spots.length; i++) {
         const pos = spots.shift()!;
-        const m = createMonster(g.monster, `m${++this.rollCounter}`, { name: count > 1 ? `${g.name ?? nameOf("monsters", g.monster)} ${i + 1}` : (g.name ?? nameOf("monsters", g.monster)) });
+        const m = createMonster(g.monster, `m${++this.rollCounter}`, { name: g.name ?? nameOf("monsters", g.monster) });
+        if (element) applyElement(m, element);
+        if (count > 1) m.name = `${m.name} ${i + 1}`;
         m.pos = pos;
         if (!training) hardenMonster(m, rules);
         // The group is below this chapter's level: its foes are a bit weaker (−20 % hit points per level, at most half).
@@ -5233,6 +5372,7 @@ export class GameController {
     this.emit("combat", true);
     this.tricksUsed.clear();
     this.startArena();
+    this.wizardLore();
     this.grantBoons();
     this.companionsAtFightStart();
     const first = this.active();
@@ -5493,7 +5633,7 @@ export class GameController {
         enabled: !reason,
         ...(reason ? { reason } : {}),
         action: { kind: "attack", targetId: "", optionId: option.id },
-        targets: odds.map(({ t, chance, bonus, why }) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)} · ${Math.round(distanceFt(me, t) / 5)} Felder · ${Math.round(chance * 100)} %${bonus ? ` · +${bonus.value} ${bonus.label}` : ""}${why ? ` · ${why}` : ""}`, chance })),
+        targets: odds.map(({ t, chance, bonus, why }) => ({ id: t.id, name: t.name, detail: `RK ${armorClass(t)} · ${Math.round(distanceFt(me, t) / 5)} Felder · ${Math.round(chance * 100)} %${bonus ? ` · +${bonus.value} ${bonus.label}` : ""}${why ? ` · ${why}` : ""}${this.typeHint(t, option.damage.map((d) => d.type))}`, chance })),
         ...(odds.length ? { chance: best!.chance } : {}),
         avg: option.damage.reduce((sum, d) => sum + averageOf(d.dice), 0) + sumParts(option.damageBonus) + (best?.bonus?.value ?? 0),
         ...(edge ? { edge } : {}),

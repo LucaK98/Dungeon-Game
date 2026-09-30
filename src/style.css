@@ -931,6 +931,8 @@ body.tip-mode::after {
 .chip.danger.high { background: #5a1e1a; color: #ffb0a6; }
 .chip.danger.mid { background: #4a3d16; color: #ffe08a; }
 .chip.danger.low { background: #24452a; color: #aef0b0; }
+.chip.type.weak { background: #3d2a12; color: #ffc66b; }
+.chip.type.strong { background: #22303f; color: #a9c8ff; }
 
 /* ---------------------------------------------------------------- scene checklist */
 .st-tasks { list-style: none; padding: 0; margin: 0.35rem 0; display: grid; gap: 0.2rem; }

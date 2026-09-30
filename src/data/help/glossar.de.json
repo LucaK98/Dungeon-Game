@@ -3639,5 +3639,30 @@
     "siehe_auch": [
       "vorteil"
     ]
+  },
+  "typen": {
+    "titel": "Stärken und Schwächen (Typen)",
+    "kurz": "Manche Schadensarten wirken doppelt, halb oder gar nicht.",
+    "lang": "Wie bei Pokémon hat jeder Gegner Stärken und Schwächen: Skelette fürchten strahlenden Schaden, Wölfe und Spinnen Feuer, Kobolde Kälte, Goblins Donner. „Sehr effektiv!“ heißt doppelter Schaden (×2), „Nicht sehr effektiv …“ halber Schaden (×½), „Wirkt nicht!“ gar keiner. Angezeigt wird das erst, wenn ihr es gelernt habt: durch einen Treffer mit dieser Schadensart, durch genaues Studieren eines Gegners – oder durch eure Klasse: Der Magier kennt zu Kampfbeginn einen Gegner aus seinen Büchern, der Kämpfer durchschaut Gegner, die er trifft, der Kleriker kennt die Untoten. Das Wissen bleibt auf diesem Fernseher für die nächsten Abenteuer. Manche Gegner kommen als Element-Varianten: Feuer- (stark gegen Feuer, schwach gegen Kälte), Frost- (umgekehrt), Sumpf- (Gift, schwach gegen Feuer) und Sturm-Wesen (Blitz, schwach gegen Donner) – ihre Angriffe machen etwas Element-Schaden dazu (1W2, bei großen 1W4). Gegen Elemente schützen Drachenleder und Amulette (halber Schaden), Element-Waffen und Pfeilspitzen machen +1W4 ihres Elements.",
+    "siehe_auch": [
+      "zustand_element",
+      "schaden"
+    ]
+  },
+  "zustand_element": {
+    "titel": "Element-Zustände",
+    "kurz": "Kleine Folgen von Element-Treffern: brennen, unterkühlt, geschockt, nass, eingefroren.",
+    "lang": "Ab und zu (selten!) hat ein Element-Treffer eine kleine Folge: 🔥 Brennen – zu Beginn des nächsten Zuges 1W4 Feuerschaden, dann ist das Feuer aus. ❄️ Unterkühlt – 2 Felder weniger Bewegung im nächsten Zug (auf Eis immer). ⚡ Geschockt – keine Reaktion bis zum nächsten Zug. 🟢 Vergiftet – eine Runde Nachteil. 💧 Nass wird, wer im Wasser, in einer Pfütze oder draußen im Regen steht: Feuer macht dann nur halben, Blitz doppelten Schaden. Nass und dann unterkühlt heißt: eingefroren, eine Runde lang handlungsunfähig (nicht bei Bossen und großen Wesen). Ein Blitz ins Wasser springt auf alle über, die in der Nähe im Wasser stehen – Freund wie Feind!",
+    "siehe_auch": [
+      "typen"
+    ]
+  },
+  "lieblingsfeind": {
+    "titel": "Lieblingsfeind",
+    "kurz": "Waldläufer: +2 Schaden gegen Tiere und Ungeheuer.",
+    "lang": "Der Waldläufer kennt seine Beute: Gegen Tiere und Ungeheuer (Wölfe, Spinnen, Ratten, Eulenbären …) macht er mit jedem Treffer 2 Schaden mehr.",
+    "siehe_auch": [
+      "typen"
+    ]
   }
 }

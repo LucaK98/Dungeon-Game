@@ -56,6 +56,20 @@ export function rollDamage(rng: Rng, input: DamageInput, target?: Creature): Dam
         line.final = line.raw * 2;
         line.note = "vulnerability";
       }
+      // Soaking wet: lightning hits twice as hard, fire only half.
+      if (hasEffect(target, "wet") && line.final > 0) {
+        if (line.type === "lightning" && line.note !== "vulnerability") {
+          line.final *= 2;
+          line.note = "vulnerability";
+        } else if (line.type === "fire" && line.note === "vulnerability") {
+          // Weak to fire but soaked: evens out.
+          line.final = line.raw;
+          delete line.note;
+        } else if (line.type === "fire" && line.note !== "resistance") {
+          line.final = Math.floor(line.final / 2);
+          line.note = "resistance";
+        }
+      }
     }
   }
   return { lines, total: lines.reduce((s, l) => s + l.final, 0), crit: !!input.crit };
@@ -234,6 +248,8 @@ export function resolveAttack(
     if (battle.combat?.turn.creatureId === attacker.id) battle.combat.turn.sneakAttackUsed = true;
   }
   if (option.source === "weapon" && hasEffect(attacker, "divine-favor")) dmgParts.push({ dice: "1d4", type: "radiant" });
+  // Ranger: favoured enemies – beasts and monstrosities (+2 damage).
+  if (attacker.pc?.features.includes("favored-enemy-1-type") && (target.creatureType === "beast" || target.creatureType === "monstrosity")) bonus.push({ label: "Lieblingsfeind", value: 2, glossarKey: "lieblingsfeind" });
   // Hunter's Mark: +1d6 on weapon hits against the marked creature.
   if (option.source === "weapon" && target.effects.some((e) => e.id === "hunters-mark" && e.sourceId === attacker.id)) dmgParts.push({ dice: "1d6", type: option.damage[0]!.type });
   // Colossus Slayer (ranger, Hunter): once per turn +1d8 against a creature that is already hurt.

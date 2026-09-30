@@ -102,6 +102,11 @@ export type EffectId =
   | "feud"
   /** Its weak spot is known: attacks against it have advantage. */
   | "weakspot"
+  /** Small elemental states: burning (1d4 fire at the start of its turn), chilled (slower), shocked (no reaction), wet (lightning ×2, fire ×½). */
+  | "burning"
+  | "chilled"
+  | "shocked"
+  | "wet"
   /** Tricked by a free action: the next attack against it has advantage. */
   | "distracted"
   /** A friend helps: advantage on the next attack or check. */
@@ -206,6 +211,8 @@ export interface Creature {
   followId?: string;
   /** A foe who gave up: a prisoner (let go, taken along or handed over). */
   captive?: boolean;
+  /** Elemental variant (Feuerkobold, Frost-Skelett …, see engine/types.ts). */
+  element?: "fire" | "frost" | "swamp" | "storm";
   /** A hero's teenage child along as squire (fights beside them, goes home when wounded). */
   squire?: { ownerId: string };
   /** A companion's target, commanded by its hero ("Bello, fass den Goblin!"). */

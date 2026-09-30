@@ -3,6 +3,7 @@
  * The director owns the rules of the story (flags, clues, fights, endings);
  * the DungeonMaster (scripted or AI) tells it and makes the "creative" decisions.
  */
+import { loadBestiary, saveBestiary } from "../tv/bestiary";
 import { CLUE_XP } from "../shared/progression";
 import { hearRumors, spreadRumor, familyAfterAdventure, familyFarewell, STAGE_LABEL, holdWeddings, partnerOf, proposalAnswer, attractedTo, bondOf, canDate, changeBond, changeLove, flirtDc, flirtLine, flirtResult, genderOf, giftValue, greetingFor, IN_LOVE, loveOf, markDate, meet, mindPrompt, remember, type FlirtOutcome, type NpcMind, type NpcWorld } from "./npc-world";
 import { applyDamage, distanceFt, isActive } from "../engine/combat";
@@ -178,6 +179,8 @@ export class Director {
     game.onPropose = (playerId, hero, name) => this.propose(playerId, hero, name);
     game.onDeed = (hero, deed) => this.deed(hero, deed);
     game.onPressure = (hero, npcId, how) => this.pressure(hero, npcId, how);
+    game.setKnowledge(loadBestiary());
+    game.onKnowledge = () => saveBestiary(game.knowledge());
     game.onSpared = (name, monster) => {
       const w = this.opts.npcs;
       if (!w) return;

@@ -1,9 +1,10 @@
 /**
  * Builds creatures: player characters (with pregenerated defaults per class) and monsters.
  */
+import { applyTypeChart } from "./types";
 import { parseImprovement, sanitizeImprovements } from "../shared/improvements";
 import type { AttackOption, Creature, FightingStyle, PcInfo, Resource, SaveAction, Side } from "../shared/game";
-import type { AbilityScores, DamagePart, SkillId, WeaponDef } from "../shared/rules";
+import type { AbilityScores, DamagePart, DamageType, SkillId, WeaponDef } from "../shared/rules";
 import { ABILITIES } from "../shared/rules";
 import type { Ability, BreakdownPart } from "../shared/types";
 import { ABILITY_GLOSSAR, abilityMod, modPart, profPart } from "./core";
@@ -211,7 +212,7 @@ export function armorClassParts(abilities: AbilityScores, pc: Pick<PcInfo, "armo
   if (armorId) {
     const a = getArmor(armorId);
     parts.push({ label: magic ? magic.name : nameOf("armor", a.id), value: a.baseAc, glossarKey: "ruestung:" + a.id });
-    if (magic) parts.push({ label: "Magie", value: magic.bonus, glossarKey: "ausruestung" });
+    if (magic?.bonus) parts.push({ label: "Magie", value: magic.bonus, glossarKey: "ausruestung" });
     if (a.dexBonus) {
       const v = a.maxDexBonus !== undefined ? Math.min(dex, a.maxDexBonus) : dex;
       parts.push({ label: "Geschicklichkeit", value: v, glossarKey: ABILITY_GLOSSAR.DEX });
@@ -381,6 +382,8 @@ export function refreshAttacks(c: Creature): void {
         a.toHit.push({ label: magic.name, value: magic.bonus, glossarKey: "ausruestung" });
         a.damageBonus.push({ label: magic.name, value: magic.bonus, glossarKey: "ausruestung" });
         a.magical = true;
+        // Elemental weapons: +1d4 of their element.
+        if (magic.element) a.damage = [...a.damage, { dice: "1d4", type: magic.element }];
       }
       return a;
     }),
@@ -388,6 +391,12 @@ export function refreshAttacks(c: Creature): void {
   ];
   c.baseAc = armorClassParts(c.abilities, pc);
   const trinket = pc.gear?.trinket ? getGear(pc.gear.trinket) : undefined;
+  // Elemental arrowheads: ranged weapon hits +1d4 of the element.
+  if (trinket?.effect === "arrows" && trinket.element)
+    for (const a of c.attacks) if (a.kind === "ranged" && a.source === "weapon") a.damage = [...a.damage, { dice: "1d4", type: trinket.element }];
+  // Protective armour and amulets: the race's resistances plus theirs.
+  const armor = pc.gear?.armor ? getGear(pc.gear.armor) : undefined;
+  c.resistances = [...new Set([...getRace(pc.raceId).resistances, ...[armor?.resist, trinket?.resist].filter((t): t is DamageType => !!t)])];
   c.speedFt =
     getRace(pc.raceId).speedFt +
     (trinket?.effect === "speed" ? trinket.bonus : 0) +
@@ -493,7 +502,7 @@ export function createMonster(monsterId: string, id: string, opts: { name?: stri
       ...(a.kind === "melee" && a.rangeFt ? { thrown: true } : {}),
     });
   }
-  return {
+  const c: Creature = {
     id,
     name: opts.name ?? nameOf("monsters", m.id),
     kind: "monster",
@@ -527,6 +536,9 @@ export function createMonster(monsterId: string, id: string, opts: { name?: stri
     stable: false,
     dead: false,
   };
+  // Strengths and weaknesses like in Pokémon (src/engine/types.ts).
+  applyTypeChart(c);
+  return c;
 }
 
 /**

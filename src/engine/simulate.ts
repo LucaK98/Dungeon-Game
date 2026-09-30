@@ -5,6 +5,7 @@ import type { Battle, Side } from "../shared/game";
 import { runAutoTurn } from "./ai";
 import { combatWinner, endCombat, nextTurn, startCombat } from "./combat";
 import { createMonster, pregenCharacter } from "./creatures";
+import { applyElement, type Element } from "./types";
 import { explainDeathSave, explainInitiative, explainOutcome, type ExplainedLine } from "./explain";
 import { OPEN_FIELD } from "./grid";
 import { nameOf } from "./names";
@@ -14,6 +15,8 @@ export interface SimulationSetup {
   heroes: string[];
   enemies: string[];
   level?: number;
+  /** All foes as elemental variants (for balancing). */
+  element?: Element;
 }
 
 export interface SimulationResult {
@@ -33,6 +36,7 @@ export function setupBattle(setup: SimulationSetup): Battle {
   });
   setup.enemies.forEach((m, i) => {
     const c = createMonster(m, `gegner${i + 1}`, { name: `${nameOf("monsters", m)} ${i + 1}` });
+    if (setup.element) applyElement(c, setup.element);
     c.pos = { x: 12, y: 2 + i * 2 };
     battle.creatures[c.id] = c;
   });

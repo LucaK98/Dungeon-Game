@@ -33,6 +33,8 @@ import { itemIcon, itemTitle } from "../shared/reward";
 import { ABILITY_GLOSSAR } from "../engine/core";
 
 const ABILITY_ICON: Record<string, string> = { STR: "💪", DEX: "🤸", CON: "🫀", INT: "🧠", WIS: "🦉", CHA: "🗣️" };
+/** Small elemental states (src/tv/elements.ts). */
+const ELEMENT_STATES: Record<string, string> = { burning: "🔥 brennt", chilled: "❄️ unterkühlt", shocked: "⚡ geschockt", wet: "💧 nass" };
 
 type Tab = "action" | "sheet" | "inventory" | "clues";
 
@@ -942,6 +944,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
         h("span", { class: "chip" }, c.hp !== undefined ? `❤️ ${c.hp}/${c.maxHp}` : `❤️ ${pct} %`),
         c.ac !== undefined ? h("span", { class: "chip", dataset: { help: "ruestungsklasse" } }, `🛡️ RK ${c.ac}`) : "",
         c.danger ? h("span", { class: `chip danger ${tone}` }, tone === "high" ? "☠️ sehr gefährlich" : tone === "mid" ? "⚠️ gefährlich" : "🙂 leicht") : "",
+        ...(c.types ?? []).map((t) => h("span", { class: `chip type ${t.includes("×2") ? "weak" : "strong"}`, dataset: { help: "typen" } }, t)),
       ),
     );
   }
@@ -1484,6 +1487,7 @@ export function createController(playerId: () => string, send: (a: PlayerAction)
             { class: "chips" },
             ...me.conditions.map((c) => h("button", { class: "chip warn", type: "button", textContent: nameOf("conditions", c.id), onclick: () => openHelp(`zustand:${c.id}`) })),
             ...me.effects.filter((e) => ["bless", "shield-of-faith", "divine-favor"].includes(e.id)).map((e) => h("button", { class: "chip good", type: "button", textContent: nameOf("spells", e.id), onclick: () => openHelp(`zauber:${e.id}`) })),
+            ...me.effects.filter((e) => e.id in ELEMENT_STATES).map((e) => h("button", { class: "chip warn", type: "button", textContent: ELEMENT_STATES[e.id]!, onclick: () => openHelp("zustand_element") })),
           ),
         ),
       );

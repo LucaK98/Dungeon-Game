@@ -30,6 +30,8 @@ export interface MiniCreature {
   hp?: number;
   maxHp?: number;
   danger?: "leicht" | "gefährlich" | "sehr gefährlich";
+  /** Strengths and weaknesses the heroes have learned ("🔥 Feuer ×2"). */
+  types?: string[];
   /** Characters: how they feel about this hero (−10 … +10, in a word) and what they remember last. */
   bond?: number;
   mood?: string;
