@@ -3,6 +3,8 @@
  * and when they fall. Two registers: cheeky (for everyone) and crude (swearing; on by default,
  * switched off in the TV settings). Animals, swarms and the mindless dead only snarl.
  */
+import { YOUTH_TAUNTS } from "./youth";
+
 export type TauntEvent = "hit_hero" | "missed_hero" | "hero_missed" | "hurt" | "low" | "dying";
 
 /** Monsters that can talk (the rest growls at most). */
@@ -115,10 +117,11 @@ const GROWLS: Partial<Record<TauntEvent, string[]>> = {
  * A line for this moment, or none (not every blow needs a comment). `roll` is 0…1.
  * Chance: dying and low always, hits and misses now and then.
  */
-export function tauntFor(event: TauntEvent, monster: string, hero: string, crude: boolean, roll: number, pickRoll = Math.random()): string | undefined {
+export function tauntFor(event: TauntEvent, monster: string, hero: string, crude: boolean, roll: number, pickRoll = Math.random(), young = false): string | undefined {
   const chance: Record<TauntEvent, number> = { dying: 0.85, low: 0.7, hit_hero: 0.45, hero_missed: 0.45, missed_hero: 0.25, hurt: 0.3 };
   if (roll >= chance[event]) return undefined;
-  const pool = canTalk(monster) ? (crude ? [...CRUDE[event], ...CHEEKY[event].slice(0, 2)] : CHEEKY[event]) : GROWLS[event];
+  const youth = young && canTalk(monster) ? YOUTH_TAUNTS[event] : undefined;
+  const pool = youth ? (crude ? [...youth.crude, ...youth.cheeky] : youth.cheeky) : canTalk(monster) ? (crude ? [...CRUDE[event], ...CHEEKY[event].slice(0, 2)] : CHEEKY[event]) : GROWLS[event];
   if (!pool?.length) return undefined;
   return pool[Math.floor(pickRoll * pool.length) % pool.length]!.replaceAll("{hero}", hero);
 }

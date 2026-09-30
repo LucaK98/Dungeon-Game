@@ -10,6 +10,7 @@
  * Pure data and rules: stored on the TV (src/tv/npc-store.ts), read by the director and the AI DM.
  */
 import type { FamilyView } from "../shared/view";
+import { KID_FAREWELL, pick, soundsYoung, SQUIRE_FAREWELL, TEEN_FAREWELL, YOUTH_GREETINGS, YOUTH_SPEECH } from "./youth";
 
 export type Gender = "female" | "male";
 
@@ -29,6 +30,8 @@ export interface NpcPersona {
   romance: { open: boolean; likes: Gender[] };
   /** For the storyteller voice: "warm und langsam", "schnell und spitz" … */
   voiceStyle: string;
+  /** A young person: talks in today's youth slang (src/dm/youth.ts). */
+  young?: boolean;
 }
 
 export interface NpcMind {
@@ -181,17 +184,20 @@ export function personaFor(name: string, monster: string): NpcPersona {
   const likesThing = pickFrom(LIKES, key, 7);
   let dislikes = pickFrom(DISLIKES, key, 8);
   if (dislikes === likesThing) dislikes = pickFrom(DISLIKES, key, 9);
+  // Apprentices, squires, maids – and about one person in eight – are young.
+  const young = isPerson(monster) && (soundsYoung(name) || hash(key, 131) % 100 < 12);
   return {
     gender,
     traits,
-    speech: pickFrom(SPEECH, key, 4),
+    speech: young ? YOUTH_SPEECH : pickFrom(SPEECH, key, 4),
+    ...(young ? { young: true } : {}),
     wish: pickFrom(WISHES, key, 5),
     fear: pickFrom(FEARS, key, 6),
     secret: pickFrom(SECRETS, key, 10),
     likes: likesThing,
     dislikes,
     romance: { open, likes },
-    voiceStyle: pickFrom(VOICE, key, 11),
+    voiceStyle: young ? "jung, frech und schnell" : pickFrom(VOICE, key, 11),
   };
 }
 
@@ -278,6 +284,11 @@ export function greetingFor(mind: NpcMind, heroes: string[]): string {
   const who = known[0];
   const b = who ? bondOf(mind, who) : 0;
   const last = mind.facts[mind.facts.length - 1];
+  if (mind.persona.young) {
+    const r = (mind.facts.length % 7) / 7;
+    const yo = pick(!who ? YOUTH_GREETINGS.stranger : b >= 5 ? YOUTH_GREETINGS.friend : b <= -2 ? YOUTH_GREETINGS.enemy : YOUTH_GREETINGS.known, r, who ?? "");
+    return last ? `${yo} Weißt du noch? ${last}` : yo;
+  }
   const hello = b >= 5 ? `${who}! Wie schön, dich wiederzusehen!` : b >= 2 ? `Ah, ${who}! Ihr seid zurück.` : b <= -2 ? `Ihr schon wieder${who ? `, ${who}` : ""} …` : "Euch kenne ich doch!";
   return last ? `${hello} Ich weiß noch genau: ${last}` : hello;
 }
@@ -571,11 +582,11 @@ export function familyFarewell(world: NpcWorld, heroes: string[]): { npc?: strin
           ? `👶 ${child.name} gluckst in den Armen von ${mind.name}, als ${child.hero} sich verabschiedet.`
           : stage === "kind"
             ? child.visits > 3
-              ? `🧒 ${child.name} (${child.traits[1]}): „Schon wieder weg? Bring mir diesmal was mit!“`
+              ? `🧒 ${child.name} (${child.traits[1]}): ${pick(KID_FAREWELL, (child.visits % 5) / 5)}`
               : `🧒 ${child.name} (${child.traits[1]}) hängt an ${child.hero}s Bein: „Kommst du bald wieder?“`
             : child.squire
-              ? `🗡️ ${child.name} hat schon gepackt: „Heute bin ich dein Knappe!“`
-              : `🧑 ${child.name} (${child.traits[0]}): „Ich zähle mit – das ist dein ${child.visits}. Abenteuer, seit ich denken kann.“`;
+              ? `🗡️ ${child.name}: ${pick(SQUIRE_FAREWELL, (child.visits % 7) / 7, child.hero)}`
+              : `🧑 ${child.name} (${child.traits[0]}): ${pick(TEEN_FAREWELL, (child.visits % 9) / 9, child.hero)}`;
       lines.push({ text });
     }
   }

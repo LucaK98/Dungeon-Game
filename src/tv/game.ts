@@ -22,6 +22,9 @@ import { COMPANIONS, newCompanion, traitOf } from "../shared/companions";
 import { RECIPES } from "../shared/crafting";
 import { makeCompanion, placeStray } from "./companions";
 import { tauntFor } from "../dm/taunts";
+
+/** Foes who may be young (and talk like it). */
+const YOUNG_FOES = new Set(["goblin", "kobold", "bandit", "thug", "cultist", "scout", "spy", "commoner"]);
 import { arenaFor, arenaRound, type ArenaState } from "./arena";
 import { besideFree } from "./session";
 import { addTotals, newBadges } from "../shared/achievements";
@@ -1625,7 +1628,9 @@ export class GameController {
       const enemy = enemyActs ? actor : target;
       const hero = enemyActs ? target : actor;
       const event = enemyActs ? (hit.miss ? "missed_hero" : "hit_hero") : hit.miss ? "hero_missed" : target.dead || target.hp <= 0 ? "dying" : target.hp / target.maxHp < 0.3 ? "low" : "hurt";
-      const line = tauntFor(event, enemy.monsterId ?? "", hero.name, this.crude, this.envRng.next(), this.envRng.next());
+      // Some of the rank and file are young (goblin gangs, bandit kids): they talk in youth slang.
+      const young = YOUNG_FOES.has(enemy.monsterId ?? "") && [...enemy.id].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 3 === 0;
+      const line = tauntFor(event, enemy.monsterId ?? "", hero.name, this.crude, this.envRng.next(), this.envRng.next(), young);
       if (!line) continue;
       this.lastTaunt = Date.now();
       this.emit("speech", enemy.id, line);
