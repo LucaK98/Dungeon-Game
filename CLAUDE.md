@@ -293,6 +293,7 @@ Umsetzung:
 
 Jede Phase endet lauffähig, mit Commit und kurzer Zusammenfassung. **Danach auf mein OK warten.**
 Testen: 1 Tab `/#/tv`, 2–4 Tabs `/#/play` in DevTools-Mobile-Emulation.
+**Beim Testen kein KI-Guthaben verbrauchen:** Vitest, ferngesteuerte Browser (Playwright, `navigator.webdriver`) und Adressen mit `noai` (z. B. `/#/tv?noai`) haben keine KI – das Spiel läuft auf dem Drehbuch, die Stimme ist die kostenlose Browser-Stimme (`aiBlocked()` in `src/dm/ai/provider.ts`). Nie echte Schlüssel in Tests oder Skripte schreiben.
 
 ### A0 – Setup
 - Vite + TS + Phaser + Vitest, Ordnerstruktur (unten)

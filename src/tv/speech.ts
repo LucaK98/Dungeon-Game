@@ -11,6 +11,7 @@ import { duckMusic } from "../ui/music";
 import { browserStyle, neuralVoice, speakable, sentences, voiceIsFemale, voiceScore } from "./voice/cast";
 import { GEMINI_SAMPLE_RATE, geminiSpeech, TtsError } from "./voice/gemini-tts";
 import { loadAiSettings } from "../dm/ai/settings";
+import { aiBlocked } from "../dm/ai/provider";
 
 const KEY = "couch-dungeon.speech";
 const ENGINE_KEY = "couch-dungeon.voice-engine";
@@ -71,6 +72,8 @@ export function voiceEngine(): VoiceEngine {
 /** The Gemini key typed in on this TV (for the storyteller voice). */
 export function geminiKey(): string | undefined {
   // The storyteller voice also works with the backup key (server mode).
+  // Test runs: only the free browser voice.
+  if (aiBlocked()) return undefined;
   const s = loadAiSettings();
   return s.keys.gemini?.trim() || s.backupKey?.trim() || undefined;
 }

@@ -193,3 +193,29 @@ describe("Server provider (Supabase Edge Function)", () => {
     expect(await new ServerProvider("u", "k", "R", reply(200, { ok: true, configured: true })).ping()).toBe(true);
   });
 });
+
+describe("tests never spend AI credit", () => {
+  it("the real network is closed in test runs", async () => {
+    const { aiBlocked, ServerProvider } = await import("./provider");
+    expect(aiBlocked()).toBe(true);
+    const p = new ServerProvider("https://example.invalid/functions/v1/dm", "anon", "ROOM");
+    await expect(p.complete({ system: "s", prompt: "p", schema: {} })).rejects.toMatchObject({ kind: "network" });
+  });
+
+  it("no AI with \"noai\" in the address or in a remote-controlled browser", async () => {
+    const { aiBlocked } = await import("./provider");
+    const g = globalThis as { location?: unknown; navigator?: unknown };
+    const saved = { location: g.location, navigator: g.navigator };
+    try {
+      Object.defineProperty(globalThis, "location", { value: { href: "https://lucak98.github.io/Dungeon-Game/#/tv?noai" }, configurable: true });
+      expect(aiBlocked(false)).toBe(true);
+      Object.defineProperty(globalThis, "location", { value: { href: "https://lucak98.github.io/Dungeon-Game/#/tv" }, configurable: true });
+      expect(aiBlocked(false)).toBe(false);
+      Object.defineProperty(globalThis, "navigator", { value: { webdriver: true }, configurable: true });
+      expect(aiBlocked(false)).toBe(true);
+    } finally {
+      Object.defineProperty(globalThis, "location", { value: saved.location, configurable: true });
+      Object.defineProperty(globalThis, "navigator", { value: saved.navigator, configurable: true });
+    }
+  });
+});

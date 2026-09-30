@@ -35,6 +35,21 @@ export type ProviderId = "gemini" | "groq" | "server";
 
 type Fetch = typeof fetch;
 
+/**
+ * Tests never spend AI credit: automated test runs (Vitest), remote-controlled browsers
+ * (Playwright & co. set navigator.webdriver) and pages opened with "noai" in the address
+ * get no AI at all – the game runs on its script, the voice is the free browser voice.
+ */
+export function aiBlocked(inUnitTests = true): boolean {
+  const g = globalThis as { process?: { env?: Record<string, string | undefined> }; navigator?: { webdriver?: boolean }; location?: { href?: string } };
+  if (inUnitTests && g.process?.env?.VITEST) return true;
+  if (g.navigator?.webdriver) return true;
+  return /[?&#/]noai\b/i.test(g.location?.href ?? "");
+}
+
+/** The real network – refused while AI is blocked (a safety net behind providersFrom). */
+const realFetch: Fetch = (...a) => (aiBlocked() ? Promise.reject(new LlmError("network", "Im Testmodus ist die KI aus.")) : fetch(...a));
+
 const GEMINI = "https://generativelanguage.googleapis.com/v1beta";
 
 async function withTimeout<T>(ms: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
@@ -75,7 +90,7 @@ export class GeminiProvider implements LlmProvider {
   constructor(
     private key: string,
     readonly model: string,
-    private fetchFn: Fetch = (...a) => fetch(...a),
+    private fetchFn: Fetch = realFetch,
     private timeoutMs = 20000,
   ) {}
 
@@ -161,7 +176,7 @@ export class ServerProvider implements LlmProvider {
     private url: string,
     private anonKey: string,
     private room: string,
-    private fetchFn: Fetch = (...a) => fetch(...a),
+    private fetchFn: Fetch = realFetch,
     private timeoutMs = 25000,
   ) {}
 
@@ -207,7 +222,7 @@ export class GroqProvider implements LlmProvider {
   constructor(
     private key: string,
     readonly model: string,
-    private fetchFn: Fetch = (...a) => fetch(...a),
+    private fetchFn: Fetch = realFetch,
     private timeoutMs = 20000,
   ) {}
 

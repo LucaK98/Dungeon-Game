@@ -3,7 +3,7 @@
  * never sent to phones. "Nur auf eigenen Geräten verwenden."
  */
 import { DM_FUNCTION_URL, SUPABASE_ANON_JWT } from "../../net/supabase";
-import { GeminiProvider, GroqProvider, ServerProvider, type LlmProvider, type ProviderId } from "./provider";
+import { aiBlocked, GeminiProvider, GroqProvider, ServerProvider, type LlmProvider, type ProviderId } from "./provider";
 
 export interface AiSettings {
   /** "off" = scripted narrator only. */
@@ -19,9 +19,9 @@ export interface AiSettings {
 const KEY = "couch-dungeon.ai";
 const CALLS = "couch-dungeon.aiCalls";
 
-/** Aliases that follow Google's current free Flash models; changeable in the settings. */
+/** By default the game master runs on the server (its key never reaches the browser); models changeable in the settings. */
 export const DEFAULT_SETTINGS: AiSettings = {
-  provider: "off",
+  provider: "server",
   keys: {},
   models: { gemini: "gemini-flash-latest", groq: "llama-3.3-70b-versatile", server: "server" },
   fallbackModels: { gemini: "gemini-flash-lite-latest", groq: "llama-3.1-8b-instant", server: "" },
@@ -62,7 +62,8 @@ export function saveAiSettings(s: AiSettings): void {
 
 /** Main and fallback provider for the current settings, or undefined if the AI is off / has no key. */
 export function providersFrom(s: AiSettings, room = ""): LlmProvider[] | undefined {
-  if (s.provider === "off") return undefined;
+  // (Unit tests may build providers – their network is blocked in the providers themselves.)
+  if (s.provider === "off" || aiBlocked(false)) return undefined;
   // The server holds the key itself and does the fallback model.
   if (s.provider === "server") {
     // When the server's quota is used up, this TV's backup key takes over (main model, then Flash-Lite).
