@@ -147,4 +147,4 @@ export class MirrorHost {
 export const MIRRORED_UI = new Set(["ai-status", "asked", "ask-cancel", "camp", "chapter", "clock", "combat", "flash", "info-banner", "log", "narration", "notes", "order", "reward", "roll", "round", "saved", "scene-card", "travel", "turn", "vote"]);
 
 /** Board methods that viewers replay (refresh goes as a state snapshot). */
-export const MIRRORED_SCENE = ["showHits", "shake", "playFx", "showRoomName", "setCombatLayout", "showPoint", "showSpeech", "showSpeechByName", "showGain", "showEmote", "fx", "spotlight", "showAim", "clearAim"] as const;
+export const MIRRORED_SCENE = ["showHits", "shake", "playFx", "showRoomName", "setCombatLayout", "showPoint", "showSpeech", "showSpeechByName", "showGain", "showEmote", "fx", "spotlight", "showAim", "clearAim", "markTurn"] as const;

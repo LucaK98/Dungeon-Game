@@ -19,7 +19,7 @@ import { clearSave, writeSave } from "./save";
 import { formatCode, newCloudId, type CloudId } from "../net/cloud-save";
 import { createSession, type GameSession } from "./session";
 import { UiScene } from "./UiScene";
-import { initRes, loadCrude } from "./render";
+import { initRes, loadCrude, loadTempo, TEMPO_FACTOR } from "./render";
 import { THEMES } from "../map/modules";
 import { cellIndex } from "../shared/map";
 import { play, setAmbience, unlockSoundOnGesture } from "../ui/sound";
@@ -201,10 +201,11 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       rng,
       (playerId, event) => host.transport.send(event, playerId),
       (event) => host.transport.send(event),
-      { autoHeroes: !!opts.demo, turnBasedExplore: true },
+      { autoHeroes: !!opts.demo, turnBasedExplore: true, worldTurn: true, turnGapMs: 900 },
     );
     controller = c;
     c.crude = loadCrude();
+    c.tempo = TEMPO_FACTOR[loadTempo()];
     c.difficulty = difficulty;
     c.village = [...village.built];
     // Lines already in the TV's log column.
@@ -241,9 +242,14 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         if (uiReady) game.events.emit("scene-card", title, goal);
         else earlyScene = { title, goal };
       },
-      turn: (name, color, free, info) => {
+      turn: (name, color, free, info, id) => {
         askedFor = undefined;
-        if (scene.sys.isActive()) scene.clearAim();
+        if (scene.sys.isActive()) {
+          scene.clearAim();
+          // Foes and the people of the world get a sign over their head while it is their turn.
+          const who = id ? session.battle.creatures[id] : undefined;
+          scene.markTurn(who && who.side !== "party" ? who.id : undefined);
+        }
         game.events.emit("turn", name, color, free, info);
       },
       askCancelled: () => {
@@ -493,7 +499,10 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     void settingsScreen(layer).then(() => {
       layer.remove();
       settingsOpen = false;
-      if (controller) controller.crude = loadCrude();
+      if (controller) {
+        controller.crude = loadCrude();
+        controller.tempo = TEMPO_FACTOR[loadTempo()];
+      }
     });
   };
   const gear = document.createElement("button");

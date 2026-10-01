@@ -132,6 +132,8 @@ export interface OrderEntry {
   enemy: boolean;
   health: number;
   active: boolean;
+  /** Not a hero or a foe: a person nearby or the world itself (their turn comes after the heroes'). */
+  world?: boolean;
 }
 
 export interface CompanionView {

@@ -273,7 +273,10 @@ export class Director {
       if (!response.effects?.length && !response.request_roll) lines = lines.filter((l) => l.npc);
       lines.push({ npc: response.npc_say.name, text: response.npc_say.text });
     }
-    this.game.narrate(lines);
+    // Reactions to a move: one narrator line per turn is told, the rest goes to the log. A roll comes
+    // next: the roll card says what is tried, the narrator only tells what came of it.
+    const reaction = trigger.kind === "free_text" || trigger.kind === "roll_result" || trigger.kind === "idle" || trigger.kind === "npc_moment";
+    this.game.narrate(lines, reaction ? { aside: true, quiet: trigger.kind === "free_text" && !!response.request_roll } : {});
     if (response.reveal_twist) this.state.twistRevealed = true;
     this.set(response.set_flags);
     if (response.reveal_clue) this.addClue(response.reveal_clue);

@@ -117,7 +117,7 @@ export interface GameEvents {
   /** State changed: redraw the board. */
   changed(): void;
   roll(outcome: RollOutcome): void;
-  turn(name: string, color: string | undefined, free?: boolean, info?: string): void;
+  turn(name: string, color: string | undefined, free?: boolean, info?: string, id?: string): void;
   /** A short big note in the middle of the TV ("✨ Stark beschrieben!"). */
   flash(text: string): void;
   /** A player points at a square on the phone's map (and maybe a planned route). */
@@ -190,6 +190,13 @@ export interface ControllerOptions {
   autoHeroes?: boolean;
   /** Old behaviour: heroes explore in turns as well (default: everyone at the same time). */
   turnBasedExplore?: boolean;
+  /**
+   * Exploring in turns: after the heroes the world takes its own turn – the people nearby one after
+   * another, then at most one event – before the next round starts (off in tests: rounds end at once).
+   */
+  worldTurn?: boolean;
+  /** Short pause between one turn and the next (the next phone buzzes only after it; 0 in tests). */
+  turnGapMs?: number;
 }
 
 /** Has not noticed the heroes yet (sleeping or keeping watch). */
@@ -1575,6 +1582,8 @@ export class GameController {
   /** May this hero act right now? */
   private isMine(c: Creature): boolean {
     if (this.freeExplore) return isActive(c);
+    // Between two turns (the story is still told, the world takes its turn) nobody acts.
+    if (this.turnHeld || this.worldPhase) return false;
     return this.active()?.id === c.id;
   }
 
@@ -1627,6 +1636,8 @@ export class GameController {
   }
 
   announceTurn(): void {
+    this.clearFlow();
+    this.asideTold = false;
     if (this.freeExplore) {
       this.emit("turn", "Freies Erkunden – alle gleichzeitig", undefined, true);
       return;
@@ -1635,7 +1646,7 @@ export class GameController {
     if (!c) return;
     this.turnStartedAt = Date.now();
     this.turnActivityAt = this.turnStartedAt;
-    this.emit("turn", c.name, c.appearance?.color ?? (c.side === "enemy" ? "#b03030" : undefined), false, this.turnInfo());
+    this.emit("turn", c.name, c.appearance?.color ?? (c.side === "enemy" ? "#b03030" : undefined), false, this.turnInfo(), c.id);
   }
 
   /** "Runde 3 · danach: Brunhild, Ole" for the TV. */
@@ -1657,7 +1668,7 @@ export class GameController {
 
   /** Exploring in turns: seconds until the active player is skipped (undefined in fights and free exploring). */
   secondsLeft(): number | undefined {
-    if (this.freeExplore || this.mode !== "explore" || !this.active()?.playerId) return undefined;
+    if (this.freeExplore || this.mode !== "explore" || !this.active()?.playerId || this.worldPhase || this.turnHeld) return undefined;
     const since = Date.now() - Math.max(this.turnStartedAt, this.turnActivityAt);
     return Math.max(0, Math.ceil((SILENT_TURN_MS - since) / 1000));
   }
@@ -1680,7 +1691,16 @@ export class GameController {
     if (this.destroyed) return;
     this.pending = undefined;
     this.undo = undefined;
-    for (let guard = 0; guard < 40; guard++) {
+    const was = this.active();
+    this.lastActor = was ? { id: was.id, name: was.name, ...(was.appearance ? { color: was.appearance.color } : {}) } : undefined;
+    this.advance(0);
+  }
+
+  /** Who had the turn before (shown on the phones while the next one waits for the story or the world). */
+  private lastActor: { id: string; name: string; color?: string } | undefined;
+
+  private advance(from: number): void {
+    for (let guard = from; guard < 40; guard++) {
       const round = this.battle.combat?.round;
       const start = nextTurn(this.rng, this.battle);
       // A new round: fire spreads and burns down, ice melts.
@@ -1688,6 +1708,16 @@ export class GameController {
         this.tickSurfaces();
         this.arenaTick();
         if (this.checkWinner()) return;
+        // Exploring in turns: the world has its own turn now – one thing after another.
+        if (this.mode === "explore" && this.opts.worldTurn) {
+          void this.worldTurn(round).then((go) => {
+            if (!go) return;
+            const next = this.beginTurn(start);
+            if (next === "skip") this.advance(guard + 1);
+            else if (next === "go") this.startTurn();
+          });
+          return;
+        }
         // Exploring in turns: people in the scene move now, and now and then something happens.
         if (this.mode === "explore") {
           this.emit("round", round);
@@ -1696,36 +1726,199 @@ export class GameController {
           this.onRoundEnd?.(this.battle.combat.round);
         }
       }
-      // Starting the turn in flames hurts.
-      const now = this.battle.creatures[start.creatureId];
-      if (now && isActive(now) && surfaceKind(this.map, now.pos) === "fire") {
-        this.publishWorld(now, "Feuer", burnCreature(this.envRng, now));
-        if (this.checkWinner()) return;
-      }
-      if (now) {
-        this.elementsAtTurnStart(now);
-        if (this.checkWinner()) return;
-      }
-      if (start.deathSave) {
-        const lines = explainDeathSave(this.battle, start.deathSave);
-        this.addLog(lines);
-        this.publishRoll({
-          id: `o${++this.rollCounter}`,
-          creatureId: start.creatureId,
-          title: "Todesrettungswurf",
-          sides: 20,
-          dice: start.deathSave.roll.rolls,
-          kept: start.deathSave.roll.natural,
-          lines,
-          success: start.deathSave.success,
-        });
-      }
-      if (this.checkWinner()) return;
-      if (!start.skip) break;
+      const next = this.beginTurn(start);
+      if (next === "stop") return;
+      if (next === "go") break;
     }
-    this.announceTurn();
+    this.startTurn();
+  }
+
+  /** The start of a turn: flames and elements hurt, the fallen roll death saves. */
+  private beginTurn(start: ReturnType<typeof nextTurn>): "stop" | "skip" | "go" {
+    // Starting the turn in flames hurts.
+    const now = this.battle.creatures[start.creatureId];
+    if (now && isActive(now) && surfaceKind(this.map, now.pos) === "fire") {
+      this.publishWorld(now, "Feuer", burnCreature(this.envRng, now));
+      if (this.checkWinner()) return "stop";
+    }
+    if (now) {
+      this.elementsAtTurnStart(now);
+      if (this.checkWinner()) return "stop";
+    }
+    if (start.deathSave) {
+      const lines = explainDeathSave(this.battle, start.deathSave);
+      this.addLog(lines);
+      this.publishRoll({
+        id: `o${++this.rollCounter}`,
+        creatureId: start.creatureId,
+        title: "Todesrettungswurf",
+        sides: 20,
+        dice: start.deathSave.roll.rolls,
+        kept: start.deathSave.roll.natural,
+        lines,
+        success: start.deathSave.success,
+      });
+    }
+    if (this.checkWinner()) return "stop";
+    return start.skip ? "skip" : "go";
+  }
+
+  /** Between two turns: the next one waits a moment (and for the story being told) before it is announced. */
+  private turnHeld = false;
+  private heldToken = 0;
+  /** Called when the TV has finished telling (a held turn starts then). */
+  private afterTold: (() => void) | undefined;
+
+  /**
+   * The next one is up – one thing after another: what just happened is shown and told first,
+   * then a short pause, and only then the next phone buzzes (or the foe moves).
+   */
+  private startTurn(): void {
+    const gap = this.opts.turnGapMs ?? 0;
+    if (!gap && !this.narrating) {
+      this.announceTurn();
+      this.broadcast();
+      this.maybeRunMonster();
+      return;
+    }
+    this.turnHeld = true;
+    const token = ++this.heldToken;
     this.broadcast();
-    this.maybeRunMonster();
+    const go = () => {
+      if (this.destroyed || token !== this.heldToken) return;
+      if (this.narrating) {
+        this.afterTold = () => setTimeout(go, this.paced(gap || 600));
+        return;
+      }
+      this.announceTurn();
+      this.broadcast();
+      this.maybeRunMonster();
+    };
+    setTimeout(go, this.paced(gap));
+  }
+
+  /** Nothing waits any more (a new turn is announced, a fight starts, the scene changes). */
+  private clearFlow(): void {
+    this.turnHeld = false;
+    this.heldToken++;
+    this.afterTold = undefined;
+    this.worldPhase = false;
+    this.worldActor = undefined;
+  }
+
+  // ---------------------------------------------------------------- the world's turn
+
+  /** Exploring in turns: the world is taking its turn (people nearby, then at most one event). */
+  private worldPhase = false;
+  private worldToken = 0;
+  /** Who of the world acts right now: a person's id or "world" (highlighted in the turn order). */
+  private worldActor: string | undefined;
+  /** The world's one moment per round (the World: clock, event or hint). */
+  onWorldMoment: ((round: number) => Promise<void>) | undefined;
+  /** A person nearby takes their turn (the World: a greeting). True if they said something. */
+  onNpcTurn: ((c: Creature) => boolean) | undefined;
+
+  private wait(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, this.paced(ms)));
+  }
+
+  /** Waits until the TV has finished telling (at most 20 seconds). */
+  private async untilTold(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    for (let i = 0; i < 100 && this.narrating && !this.destroyed; i++) await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  /** The people with a place in the turn order: story characters and guards near the heroes (at most four). */
+  worldPeople(): Creature[] {
+    const heroes = this.heroes().filter((h) => h.pos && !h.dead);
+    return Object.values(this.battle.creatures)
+      .filter((c) => {
+        if (!c.pos || c.dead || c.followId || c.captive || c.companion) return false;
+        const person = c.id.startsWith("npc-") && c.side === "neutral";
+        if (!person && !hasEffect(c, "on-guard")) return false;
+        if (!this.map.explored[cellIndex(this.map, c.pos.x, c.pos.y)]) return false;
+        return heroes.some((h) => this.cheb(h.pos!, c.pos!) <= 8);
+      })
+      .slice(0, 4);
+  }
+
+  /**
+   * The world's turn after every round of exploring: the people nearby act one after another
+   * (a greeting, a few steps, a guard's round), the rest of the scene moves quietly, then at most
+   * one thing happens (an event, the clock, a hint) – and only then the round-end card and the next hero.
+   * False when the game went elsewhere meanwhile (a fight started, the scene changed).
+   */
+  private async worldTurn(ended: number): Promise<boolean> {
+    const combat = this.battle.combat;
+    const token = ++this.worldToken;
+    const still = () => !this.destroyed && this.mode === "explore" && this.battle.combat === combat && token === this.worldToken;
+    this.worldPhase = true;
+    this.worldActor = "world";
+    this.asideTold = false;
+    this.emit("turn", "🌍 Die Welt", "#6fa8dc", false, `Runde ${ended} · Personen und Ereignisse`);
+    this.emit("changed");
+    this.broadcast();
+    try {
+      await this.wait(800);
+      const people = this.worldPeople();
+      for (const c of people) {
+        if (!still()) return false;
+        this.worldActor = c.id;
+        this.emit("turn", c.name, c.appearance?.color ?? "#6fa8dc", false, `Runde ${ended} · Personen und Ereignisse`, c.id);
+        this.emit("changed");
+        const spoke = this.onNpcTurn?.(c) ?? false;
+        const moved = !spoke && this.stepCreature(c);
+        if (!spoke && !moved) continue;
+        this.emit("changed");
+        this.broadcast();
+        if (moved && this.worldCheckFight()) return false;
+        await this.wait(spoke ? 900 : 650);
+        if (spoke) await this.untilTold();
+      }
+      if (!still()) return false;
+      // Everyone further away (animals, people at the other end) moves quietly, all at once.
+      this.worldActor = "world";
+      if (people.length) this.emit("turn", "🌍 Die Welt", "#6fa8dc", false, `Runde ${ended} · Personen und Ereignisse`);
+      const others = Object.values(this.battle.creatures).filter((c) => !people.includes(c));
+      let moved = false;
+      for (const c of others) moved = this.stepCreature(c) || moved;
+      this.emit("changed");
+      this.broadcast();
+      if (moved && this.worldCheckFight()) return false;
+      // At most one thing of the world – it may take a while (a decision on the phones).
+      if (this.onWorldMoment) {
+        const moment = this.onWorldMoment(ended).catch(() => undefined);
+        const left = new Promise<void>((resolve) => {
+          const poll = setInterval(() => {
+            if (still()) return;
+            clearInterval(poll);
+            resolve();
+          }, 300);
+          void moment.finally(() => {
+            clearInterval(poll);
+            resolve();
+          });
+        });
+        await left;
+        if (!still()) return false;
+        await this.untilTold();
+      }
+      if (!still()) return false;
+      // The round is over: one card with what happened on the side.
+      this.emit("round", ended);
+      await this.wait(1300);
+      return still();
+    } finally {
+      if (token === this.worldToken) {
+        this.worldPhase = false;
+        this.worldActor = undefined;
+      }
+    }
+  }
+
+  /** Someone walked into the heroes during the world's turn: the fight starts (the world's turn ends). */
+  private worldCheckFight(): boolean {
+    return this.checkCombatStart();
   }
 
   // ---------------------------------------------------------------- combat
@@ -1846,10 +2039,10 @@ export class GameController {
   private maybeRunMonster(): void {
     const c = this.active();
     if (this.mode !== "combat" || !c || this.destroyed) return;
-    // Foes wait for the story to be told (setNarrating starts them again).
-    if (this.narrating) return;
+    // Foes wait for the story to be told (setNarrating starts them again) and for their turn to be announced.
+    if (this.narrating || this.turnHeld) return;
     if (c.kind !== "monster" && !this.opts.autoHeroes) return;
-    const delay = this.opts.monsterDelayMs ?? MONSTER_PAUSE_MS;
+    const delay = this.monsterDelay();
     const run = () => this.runMonster(c.id);
     if (delay <= 0) run();
     else this.monsterTimer = setTimeout(run, delay);
@@ -1868,7 +2061,7 @@ export class GameController {
       monster.effects = monster.effects.filter((e) => e.id !== "surprised");
       this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: id, title: `${monster.name} ist überrascht`, sides: 20, dice: [], kept: 0, lines: [{ text: `😲 ${monster.name} ist überrascht und verliert den ersten Zug.`, glossarKeys: ["ueberrascht"] }] });
       this.emit("changed");
-      const delay = this.opts.monsterDelayMs ?? MONSTER_PAUSE_MS;
+      const delay = this.monsterDelay();
       if (delay <= 0) this.endTurn();
       else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
       return;
@@ -1919,7 +2112,7 @@ export class GameController {
         this.publishRoll(roll);
         this.emit("changed");
         if (this.checkWinner()) return;
-        const delay = this.opts.monsterDelayMs ?? MONSTER_PAUSE_MS;
+        const delay = this.monsterDelay();
         if (delay <= 0) this.endTurn();
         else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
         return;
@@ -1948,7 +2141,7 @@ export class GameController {
     }
     this.emit("changed");
     if (this.checkWinner()) return;
-    const delay = this.opts.monsterDelayMs ?? MONSTER_PAUSE_MS;
+    const delay = this.monsterDelay();
     if (delay <= 0) this.endTurn();
     else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
   }
@@ -2084,6 +2277,18 @@ export class GameController {
 
   /** The TV tells the story right now: moves wait until it is done (at most 30 seconds). */
   private narrating = false;
+  /** Game speed (TV setting): pauses are multiplied by this (1.5 cosy, 1 normal, 0.6 brisk). */
+  tempo = 1;
+
+  /** A pause, scaled by the game speed. */
+  private paced(ms: number): number {
+    return Math.round(ms * this.tempo);
+  }
+
+  private monsterDelay(): number {
+    return this.opts.monsterDelayMs ?? this.paced(MONSTER_PAUSE_MS);
+  }
+
   private narratingSafety: ReturnType<typeof setTimeout> | undefined;
 
   setNarrating(on: boolean): void {
@@ -2092,13 +2297,23 @@ export class GameController {
     if (this.narrating === on) return;
     this.narrating = on;
     this.broadcast();
+    if (on) return;
+    // A turn that waited for the story starts now (after a short pause).
+    const after = this.afterTold;
+    this.afterTold = undefined;
+    after?.();
     // A foe whose turn waited for the story goes now.
-    if (!on) this.maybeRunMonster();
+    this.maybeRunMonster();
   }
 
   handle(playerId: PlayerId, action: PlayerAction): void {
     if (this.narrating && LOCKED_WHILE_TOLD.has(action.kind)) {
       this.sendTo(playerId, { type: "action_error", reason: "📖 Kurz zuhören – der Erzähler spricht noch." });
+      return;
+    }
+    // The world's turn: only its decisions (an event on the phones) can be answered.
+    if ((this.worldPhase || this.turnHeld) && LOCKED_WHILE_TOLD.has(action.kind) && action.kind !== "story_choice") {
+      this.sendTo(playerId, { type: "action_error", reason: this.worldPhase ? "🌍 Die Welt ist gerade dran – gleich geht's weiter." : "⏳ Gleich geht's weiter …" });
       return;
     }
     this.lastActionAt = Date.now();
@@ -2564,31 +2779,27 @@ export class GameController {
 
   /** Enemies swear (switched off in the TV settings: then they are only cheeky). */
   crude = true;
-  private lastTaunt = 0;
+  private tauntRound = -1;
 
-  /** Enemies who can talk mock the heroes – now and then (at most one line every 15 seconds). */
+  /** Enemies who can talk mock the heroes – only in their own turn, and at most one line per round. */
   private trashTalk(r: RollOutcome): void {
-    if (this.mode !== "combat" || !r.hits?.length || Date.now() - this.lastTaunt < 15_000) return;
+    const round = this.battle.combat?.round ?? 0;
+    if (this.mode !== "combat" || !r.hits?.length || this.tauntRound === round) return;
     const actor = this.battle.creatures[r.creatureId];
-    if (!actor) return;
+    if (!actor || actor.side !== "enemy" || this.active()?.id !== actor.id) return;
     for (const hit of r.hits) {
-      const target = this.battle.creatures[hit.targetId];
-      if (!target || hit.heal) continue;
-      const enemyActs = actor.side === "enemy" && target.side === "party";
-      const heroActs = actor.side === "party" && target.side === "enemy";
-      if (!enemyActs && !heroActs) continue;
-      const enemy = enemyActs ? actor : target;
-      const hero = enemyActs ? target : actor;
-      const event = enemyActs ? (hit.miss ? "missed_hero" : "hit_hero") : hit.miss ? "hero_missed" : target.dead || target.hp <= 0 ? "dying" : target.hp / target.maxHp < 0.3 ? "low" : "hurt";
+      const hero = this.battle.creatures[hit.targetId];
+      if (!hero || hit.heal || hero.side !== "party") continue;
+      const enemy = actor;
+      const event = hit.miss ? "missed_hero" : "hit_hero";
       // Some of the rank and file are young (goblin gangs, bandit kids): they talk in youth slang.
       const young = YOUNG_FOES.has(enemy.monsterId ?? "") && [...enemy.id].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 3 === 0;
       const line = tauntFor(event, enemy.monsterId ?? "", hero.name, this.crude, this.envRng.next(), this.envRng.next(), young);
       if (!line) continue;
-      this.lastTaunt = Date.now();
-      // A bubble over the foe; read aloud only for its last words (less talking over the game).
+      this.tauntRound = round;
+      // A bubble over the foe (not read aloud – less talking over the game).
       this.emit("speech", enemy.id, line);
-      if (event === "dying") this.narrate([{ npc: enemy.name, text: line }]);
-      else this.addLog([{ text: `💬 ${enemy.name}: „${line}“`, glossarKeys: [] }]);
+      this.addLog([{ text: `💬 ${enemy.name}: „${line}“`, glossarKeys: [] }]);
       return;
     }
   }
@@ -4780,22 +4991,25 @@ export class GameController {
     const free = this.freeExplore;
     const roomIndex = me.pos ? (this.map.roomOf[cellIndex(this.map, me.pos.x, me.pos.y)] ?? -1) : -1;
     const order = this.orderEntries();
+    // Between two turns the phones still show who just acted (or the world) – the next one is "gleich dran".
+    const between = !free && (this.worldPhase || this.turnHeld);
+    const shown = this.worldPhase ? { id: "world", name: "🌍 Die Welt", color: "#6fa8dc" } : this.turnHeld && this.lastActor ? this.lastActor : active ? { id: active.id, name: active.name, ...(active.appearance ? { color: active.appearance.color } : {}) } : undefined;
     const view: PlayerView = {
       me,
       mode: this.mode,
       ...(this.narrating ? { narrating: true } : {}),
       round: this.battle.combat?.round ?? 1,
       turn: {
-        activeId: free ? me.id : (active?.id ?? ""),
-        activeName: free ? "Alle" : (active?.name ?? ""),
-        ...(!free && active?.appearance ? { activeColor: active.appearance.color } : {}),
+        activeId: free ? me.id : (shown?.id ?? ""),
+        activeName: free ? "Alle" : (shown?.name ?? ""),
+        ...(!free && shown?.color ? { activeColor: shown.color } : {}),
         mine,
         ...(free ? { free: true } : {}),
         movementLeftFt: mine ? (turn?.movementLeftFt ?? 0) : 0,
         actions: mine ? (turn?.actions ?? 0) + (turn?.attacksLeft ?? 0) : 0,
         bonusAction: mine ? (turn?.bonusAction ?? false) : false,
         speedFt: me.speedFt,
-        ...(!mine && !free && this.nextUp()?.id === me.id ? { nextUp: true } : {}),
+        ...(!mine && !free && (between ? active?.id === me.id : this.nextUp()?.id === me.id) ? { nextUp: true } : {}),
         ...(mine && this.undo?.heroId === me.id ? { canUndo: true } : {}),
       },
       order,
@@ -4826,9 +5040,9 @@ export class GameController {
 
   /** Turn order for the initiative bar (TV) and the phones. */
   orderEntries(): OrderEntry[] {
-    const active = this.active();
+    const active = this.worldPhase ? undefined : this.active();
     // Creatures that left the fight (fled) are skipped.
-    return (this.battle.combat?.order ?? []).filter((o) => this.battle.creatures[o.creatureId]).map((o) => {
+    const entries: OrderEntry[] = (this.battle.combat?.order ?? []).filter((o) => this.battle.creatures[o.creatureId]).map((o) => {
       const c = this.battle.creatures[o.creatureId]!;
       return {
         id: c.id,
@@ -4841,6 +5055,23 @@ export class GameController {
         active: c.id === active?.id,
       };
     });
+    // Exploring in turns: after the heroes come the people nearby and the world itself.
+    if (this.mode === "explore" && this.opts.worldTurn && !this.freeExplore) {
+      for (const c of this.worldPeople()) {
+        entries.push({
+          id: c.id,
+          name: c.name,
+          ...(c.appearance ? { color: c.appearance.color, look: c.appearance.look } : {}),
+          ...(c.monsterId ? { monsterId: c.monsterId } : {}),
+          enemy: c.side === "enemy",
+          health: c.maxHp ? c.hp / c.maxHp : 0,
+          active: this.worldActor === c.id,
+          world: true,
+        });
+      }
+      entries.push({ id: "world", name: "🌍 Die Welt", enemy: false, health: 1, active: this.worldActor === "world", world: true });
+    }
+    return entries;
   }
 
   /**
@@ -4983,8 +5214,27 @@ export class GameController {
 
   // ---------------------------------------------------------------- story primitives (A6)
 
-  /** Narrator lines: log, phones, TV text box. */
-  narrate(lines: Narration[]): void {
+  /** A game master's answer has been told aloud this turn (the next ones only go to the log). */
+  private asideTold = false;
+
+  /**
+   * Narrator lines: log, phones, TV text box. `aside`: the game master's reaction to a move – only one
+   * narrator line per turn is told aloud, the rest goes quietly to the log (`quiet`: all of it).
+   * What characters say and beginner tips are always told.
+   */
+  narrate(lines: Narration[], opts: { aside?: boolean; quiet?: boolean } = {}): void {
+    if (opts.aside || opts.quiet) {
+      const told: Narration[] = [];
+      const kept: Narration[] = [];
+      for (const l of lines) {
+        if (l.npc || l.tip || (!opts.quiet && !this.asideTold)) {
+          told.push(l);
+          if (!l.npc && !l.tip) this.asideTold = true;
+        } else kept.push(l);
+      }
+      if (kept.length) this.addLog(kept.map((l) => ({ text: `📖 ${l.text}`, glossarKeys: [] })));
+      lines = told;
+    }
     if (!lines.length) return;
     this.narrationLog.push(...lines);
     if (this.narrationLog.length > 30) this.narrationLog.splice(0, this.narrationLog.length - 30);
@@ -5319,7 +5569,7 @@ export class GameController {
    * (`roundEnd`); the clock only skips a player who has been silent for a long time.
    */
   tickWorld(roundEnd = false): void {
-    if (this.destroyed || this.mode !== "explore") return;
+    if (this.destroyed || this.mode !== "explore" || this.worldPhase) return;
     if (!this.freeExplore && !roundEnd) {
       const c = this.active();
       const left = this.secondsLeft();
@@ -5332,45 +5582,7 @@ export class GameController {
     }
     if (roundEnd || this.tickSurfaces()) this.broadcast();
     let moved = false;
-    const creatures = Object.values(this.battle.creatures);
-    const free = (p: GridPos) => isWalkable(this.map, p) && !creatures.some((c) => !c.dead && c.pos?.x === p.x && c.pos?.y === p.y);
-    const heroes = this.heroes().filter((h) => h.pos && !h.dead);
-    const heroNear = (p: GridPos, d: number) => heroes.some((h) => Math.max(Math.abs(h.pos!.x - p.x), Math.abs(h.pos!.y - p.y)) <= d);
-    for (const c of creatures) {
-      if (!c.pos || c.dead) continue;
-      if ((c.id.startsWith("npc-") || c.wild) && c.side === "neutral") {
-        if (!this.npcHomes.has(c.id)) this.npcHomes.set(c.id, { ...c.pos });
-        // Stays put while someone talks to them (or walks along with the group); otherwise strolls now and then.
-        if (c.followId || heroNear(c.pos, 2) || this.rng.next() > 0.25) continue;
-        const home = this.npcHomes.get(c.id)!;
-        const options = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
-          .map((d) => ({ x: c.pos!.x + d.x, y: c.pos!.y + d.y }))
-          .filter((p) => free(p) && Math.max(Math.abs(p.x - home.x), Math.abs(p.y - home.y)) <= 2);
-        if (!options.length) continue;
-        c.pos = options[this.rng.int(0, options.length - 1)]!;
-        moved = true;
-      } else if (hasEffect(c, "on-guard")) {
-        let dir = this.patrolDir.get(c.id) ?? (this.rng.next() < 0.5 ? { x: 1, y: 0 } : { x: 0, y: 1 });
-        let next = { x: c.pos.x + dir.x, y: c.pos.y + dir.y };
-        if (!free(next)) {
-          dir = { x: -dir.x, y: -dir.y };
-          next = { x: c.pos.x + dir.x, y: c.pos.y + dir.y };
-        }
-        // Both ways blocked (a table, a crate …): turn around the corner.
-        if (!free(next)) {
-          const side = [{ x: dir.y, y: dir.x }, { x: -dir.y, y: -dir.x }].find((d) => free({ x: c.pos!.x + d.x, y: c.pos!.y + d.y }));
-          if (side) {
-            dir = side;
-            next = { x: c.pos.x + dir.x, y: c.pos.y + dir.y };
-          }
-        }
-        this.patrolDir.set(c.id, dir);
-        if (free(next)) {
-          c.pos = next;
-          moved = true;
-        }
-      }
-    }
+    for (const c of Object.values(this.battle.creatures)) moved = this.stepCreature(c) || moved;
     if (!moved) {
       // A hero may have walked right up to a guard that stands still.
       if (this.staged) this.checkCombatStart();
@@ -5380,6 +5592,46 @@ export class GameController {
     this.broadcast();
     // A patrol may walk right into the heroes.
     this.checkCombatStart();
+  }
+
+  /** One step of the world for this creature: people stroll near their place, guards walk their round. */
+  private stepCreature(c: Creature): boolean {
+    if (!c.pos || c.dead) return false;
+    const creatures = Object.values(this.battle.creatures);
+    const free = (p: GridPos) => isWalkable(this.map, p) && !creatures.some((o) => !o.dead && o.pos?.x === p.x && o.pos?.y === p.y);
+    const heroes = this.heroes().filter((h) => h.pos && !h.dead);
+    const heroNear = (p: GridPos, d: number) => heroes.some((h) => Math.max(Math.abs(h.pos!.x - p.x), Math.abs(h.pos!.y - p.y)) <= d);
+    if ((c.id.startsWith("npc-") || c.wild) && c.side === "neutral") {
+      if (!this.npcHomes.has(c.id)) this.npcHomes.set(c.id, { ...c.pos });
+      // Stays put while someone talks to them (or walks along with the group); otherwise strolls now and then.
+      if (c.followId || heroNear(c.pos, 2) || this.rng.next() > 0.25) return false;
+      const home = this.npcHomes.get(c.id)!;
+      const options = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+        .map((d) => ({ x: c.pos!.x + d.x, y: c.pos!.y + d.y }))
+        .filter((p) => free(p) && Math.max(Math.abs(p.x - home.x), Math.abs(p.y - home.y)) <= 2);
+      if (!options.length) return false;
+      c.pos = options[this.rng.int(0, options.length - 1)]!;
+      return true;
+    }
+    if (!hasEffect(c, "on-guard")) return false;
+    let dir = this.patrolDir.get(c.id) ?? (this.rng.next() < 0.5 ? { x: 1, y: 0 } : { x: 0, y: 1 });
+    let next = { x: c.pos.x + dir.x, y: c.pos.y + dir.y };
+    if (!free(next)) {
+      dir = { x: -dir.x, y: -dir.y };
+      next = { x: c.pos.x + dir.x, y: c.pos.y + dir.y };
+    }
+    // Both ways blocked (a table, a crate …): turn around the corner.
+    if (!free(next)) {
+      const side = [{ x: dir.y, y: dir.x }, { x: -dir.y, y: -dir.x }].find((d) => free({ x: c.pos!.x + d.x, y: c.pos!.y + d.y }));
+      if (side) {
+        dir = side;
+        next = { x: c.pos.x + dir.x, y: c.pos.y + dir.y };
+      }
+    }
+    this.patrolDir.set(c.id, dir);
+    if (!free(next)) return false;
+    c.pos = next;
+    return true;
   }
 
   private spawnGroups(groups: MonsterGroup[], allies: { monster: string; name: string }[], training = false): Creature[] {

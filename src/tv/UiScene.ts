@@ -607,17 +607,23 @@ export class UiScene extends Phaser.Scene {
     visible.forEach((e, i) => {
       const y = i * row;
       const bg = this.add.graphics();
-      const edge = e.active ? 0xe0a526 : e.enemy ? 0x8a2a2a : e.color ? Phaser.Display.Color.HexStringToColor(e.color).color : 0x5a4d42;
-      bg.fillStyle(0x14110f, e.active ? 0.95 : 0.8).fillRoundedRect(0, y, e.active ? 320 : 290, row - 6, 12);
+      const edge = e.active ? 0xe0a526 : e.world ? 0x4a6f8f : e.enemy ? 0x8a2a2a : e.color ? Phaser.Display.Color.HexStringToColor(e.color).color : 0x5a4d42;
+      bg.fillStyle(e.world ? 0x0f1620 : 0x14110f, e.active ? 0.95 : 0.8).fillRoundedRect(0, y, e.active ? 320 : 290, row - 6, 12);
       bg.lineStyle(e.active ? 5 : 3, edge, 1).strokeRoundedRect(0, y, e.active ? 320 : 290, row - 6, 12);
       this.orderBar.add(bg);
       const frames = e.look ? dollFrames(e.look) : e.monsterId ? [`monster.${e.monsterId}`] : [];
       // (Right at the start the upscaled tiles may not be ready yet: the portrait comes with the next update.)
       const atlas = this.textures.exists(TILES) ? this.textures.get(TILES) : undefined;
       for (const f of frames) if (atlas?.has(f)) this.orderBar.add(this.add.image(44, y + (row - 6) / 2, TILES, f).setScale((2 * scale) / UP));
-      const name = this.add.text(88, y + 8 * scale, e.name, crisp({ fontFamily: FONT, fontSize: `${Math.round(26 * Math.max(0.75, scale))}px`, color: e.health <= 0 ? "#8d8172" : "#f3e9d2", fontStyle: e.active ? "bold" : "normal" }));
+      if (e.id === "world") this.orderBar.add(this.add.text(44, y + (row - 6) / 2, "🌍", crisp({ fontSize: `${Math.round(44 * scale)}px` })).setOrigin(0.5));
+      const name = this.add.text(88, y + 8 * scale, e.id === "world" ? "Die Welt" : e.name, crisp({ fontFamily: FONT, fontSize: `${Math.round(26 * Math.max(0.75, scale))}px`, color: e.health <= 0 ? "#8d8172" : "#f3e9d2", fontStyle: e.active ? "bold" : "normal" }));
       this.orderBar.add(name);
       if (e.initiative !== undefined) this.orderBar.add(this.add.text(e.active ? 300 : 270, y + 8 * scale, String(e.initiative), crisp({ fontFamily: FONT, fontSize: `${Math.round(24 * Math.max(0.75, scale))}px`, color: "#b3a58a" })).setOrigin(1, 0));
+      // People and the world: no health bar, just what they are.
+      if (e.world) {
+        this.orderBar.add(this.add.text(88, y + row - 6 - 30 * Math.max(0.6, scale), e.id === "world" ? "am Rundenende" : "in der Nähe", crisp({ fontFamily: FONT, fontSize: `${Math.round(18 * Math.max(0.75, scale))}px`, color: "#8fb3d0" })));
+        return;
+      }
       const hp = this.add.graphics();
       const hpY = y + row - 6 - 20 * Math.max(0.6, scale);
       hp.fillStyle(0x3a2f27, 1).fillRect(88, hpY, 180, 10);

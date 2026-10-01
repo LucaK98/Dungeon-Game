@@ -134,6 +134,29 @@ export function prepareTiles(scene: Phaser.Scene): void {
   canvas.setFilter(Phaser.Textures.FilterMode.LINEAR);
 }
 
+const TEMPO_KEY = "couch-dungeon.tempo";
+
+/** How fast the game moves on: pauses between turns, foes and the world's turn. */
+export type Tempo = "slow" | "normal" | "fast";
+export const TEMPO_FACTOR: Record<Tempo, number> = { slow: 1.5, normal: 1, fast: 0.6 };
+
+export function loadTempo(): Tempo {
+  try {
+    const t = localStorage.getItem(TEMPO_KEY);
+    return t === "slow" || t === "fast" ? t : "normal";
+  } catch {
+    return "normal";
+  }
+}
+
+export function saveTempo(t: Tempo): void {
+  try {
+    localStorage.setItem(TEMPO_KEY, t);
+  } catch {
+    // ignore
+  }
+}
+
 const CRUDE_KEY = "couch-dungeon.crude";
 
 /** Enemies swear in their trash talk (on unless switched off). */

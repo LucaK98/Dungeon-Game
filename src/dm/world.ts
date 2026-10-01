@@ -65,7 +65,47 @@ export class World {
   private rounds = 0;
   private nextEventRound = 0;
 
-  constructor(private host: WorldHost) {}
+  constructor(private host: WorldHost) {
+    // Exploring in turns: the world's own turn (see GameController.worldTurn).
+    host.game.onNpcTurn = (c) => this.greet(c);
+    host.game.onWorldMoment = () => this.worldMoment();
+  }
+
+  /**
+   * The world's turn (once per round): at most one thing – the clock, an event, or a hint when the
+   * group has been stuck for long. Never in the middle of a hero's turn.
+   */
+  async worldMoment(): Promise<void> {
+    if (!this.timer || this.running) return;
+    this.rounds++;
+    const clock = CLOCK_ROUNDS[this.host.duration];
+    if (!this.gentle && this.rounds > clock * (this.warnings + 1)) {
+      this.warnings++;
+      if (this.warnings === 1) this.game.narrate([clockWarning(this.place())]);
+      else await this.track(this.lateConsequence());
+      return;
+    }
+    if (this.rounds >= this.nextEventRound) {
+      this.nextEventRound = this.rounds + this.host.rng.int(...EVENT_GAP_ROUNDS);
+      const ev = pickEvent(this.host.rng, this.place(), this.used);
+      if (ev) {
+        this.used.push(ev.id);
+        await this.track(this.event(ev));
+        return;
+      }
+    }
+    const now = this.host.now();
+    if (Math.min(now - this.game.lastActionAt, now - this.lastNudgeAt) > QUIET_S * 1000) {
+      this.lastNudgeAt = now;
+      await this.track(this.host.nudge());
+    }
+  }
+
+  /** Runs a world moment and keeps it as the running one (the story waits for it before moving on). */
+  private track(p: Promise<void>): Promise<void> {
+    this.run(p);
+    return this.running ?? Promise.resolve();
+  }
 
   private get game(): GameController {
     return this.host.game;
@@ -105,6 +145,11 @@ export class World {
     }
     // Otherwise, one character nearby may greet the heroes (never in the middle of a turn).
     this.greetings();
+    const now = this.host.now();
+    if (!this.running && Math.min(now - this.game.lastActionAt, now - this.lastNudgeAt) > QUIET_S * 1000) {
+      this.lastNudgeAt = now;
+      this.run(this.host.nudge());
+    }
   }
 
   /** Lets the world run while the story waits for the heroes (reach/explore steps). */
@@ -130,14 +175,8 @@ export class World {
     const now = this.host.now();
     // Exploring in turns: greetings, events and the clock come at the end of a round (roundEnded).
     if (this.game.freeExplore) this.greetings();
-    if (!this.game.freeExplore) {
-      const quiet = Math.min(now - this.game.lastActionAt, now - this.lastNudgeAt);
-      if (quiet > QUIET_S * 1000) {
-        this.lastNudgeAt = now;
-        this.run(this.host.nudge());
-      }
-      return;
-    }
+    // Exploring in turns: the game master never speaks up in the middle of someone's turn (only in the world's turn).
+    if (!this.game.freeExplore) return;
     const clock = CLOCK[this.host.duration] * 60000;
     if (!this.gentle && now - this.stepStartedAt > clock * (this.warnings + 1)) {
       this.warnings++;
@@ -193,19 +232,23 @@ export class World {
   // ---------------------------------------------------------------- greetings
 
   private greetings(): void {
+    for (const c of Object.values(this.game.session.battle.creatures)) if (this.greet(c)) return;
+  }
+
+  /** A story character the heroes come close to says hello (once per scene). True if they spoke. */
+  greet(c: Creature): boolean {
     const map = this.game.map;
+    if (!this.timer) return false;
+    if (!c.id.startsWith("npc-") || c.side !== "neutral" || !c.pos || this.greeted.has(c.id)) return false;
+    if (!map.explored[cellIndex(map, c.pos.x, c.pos.y)]) return false;
     const heroes = this.game.heroes().filter((h) => h.pos && !h.dead);
-    for (const c of Object.values(this.game.session.battle.creatures)) {
-      if (!c.id.startsWith("npc-") || c.side !== "neutral" || !c.pos || this.greeted.has(c.id)) continue;
-      if (!map.explored[cellIndex(map, c.pos.x, c.pos.y)]) continue;
-      const near = heroes.some((h) => Math.max(Math.abs(h.pos!.x - c.pos!.x), Math.abs(h.pos!.y - c.pos!.y)) <= 3);
-      if (!near) continue;
-      this.greeted.add(c.id);
-      const att = this.host.attitude(c.id.slice(4));
-      const pool = GREET[att >= 1 ? "friend" : att <= -1 ? "foe" : "neutral"];
-      this.game.narrate([{ npc: c.name, text: pool[this.host.rng.int(0, pool.length - 1)]! }]);
-      return;
-    }
+    const near = heroes.some((h) => Math.max(Math.abs(h.pos!.x - c.pos!.x), Math.abs(h.pos!.y - c.pos!.y)) <= 3);
+    if (!near) return false;
+    this.greeted.add(c.id);
+    const att = this.host.attitude(c.id.slice(4));
+    const pool = GREET[att >= 1 ? "friend" : att <= -1 ? "foe" : "neutral"];
+    this.game.narrate([{ npc: c.name, text: pool[this.host.rng.int(0, pool.length - 1)]! }]);
+    return true;
   }
 
   // ---------------------------------------------------------------- time pressure

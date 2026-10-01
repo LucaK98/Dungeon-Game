@@ -720,6 +720,26 @@ export class DungeonScene extends Phaser.Scene {
     } });
   }
 
+  private turnMark: Phaser.GameObjects.Text | undefined;
+
+  /** Whose turn it is (a foe, a person of the world): a small bobbing sign over the figure. */
+  markTurn(id: string | undefined): void {
+    if (this.turnMark) {
+      this.tweens.killTweensOf(this.turnMark);
+      this.turnMark.destroy();
+      this.turnMark = undefined;
+    }
+    const f = id ? this.figures.get(id) : undefined;
+    const c = id ? this.session.battle.creatures[id] : undefined;
+    if (!f || !c?.pos || c.dead || !this.explored(c)) return;
+    const icon = c.side === "enemy" ? "👹" : "💬";
+    const n = sizeInSquares(c.size);
+    const mark = this.add.text(0, -(n * TILE) / 2 - 10, `${icon} ist dran`, crisp({ fontFamily: "system-ui, sans-serif", fontSize: "26px", fontStyle: "bold", color: c.side === "enemy" ? "#ffb0a0" : "#cfe6ff", stroke: "#000", strokeThickness: 6 })).setOrigin(0.5, 1).setScale(0.34);
+    f.container.add(mark);
+    this.turnMark = mark;
+    this.tweens.add({ targets: mark, y: mark.y - 3, duration: 450, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+  }
+
   /** Bubble over the figure with this name (NPC lines in the narration). */
   showSpeechByName(name: string, text: string): void {
     const c = Object.values(this.session.battle.creatures).find((x) => x.name === name && !x.dead && x.pos);
