@@ -1080,3 +1080,16 @@ details.fold > .card { background: #00000022; }
 /* The TV tells the story: moves wait. */
 .story-lock .col-actions, .story-lock .bottom-bar .btn, .story-lock .col-map { pointer-events: none; opacity: 0.45; transition: opacity 0.3s; }
 .story-note { border: 2px solid var(--info); color: var(--info); font-weight: 800; text-align: center; }
+
+/* iPhone as an app from the home screen: the status bar and the camera notch lie over the page
+   (black-translucent) – keep that strip free, also for sticky bars and full-screen sheets. */
+:root { --safe-top: env(safe-area-inset-top, 0px); }
+body:not(.is-tv) { padding-top: var(--safe-top); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+body:not(.is-tv)::before { content: ""; position: fixed; left: 0; right: 0; top: 0; height: var(--safe-top); background: #1a1511; z-index: 200; pointer-events: none; }
+.ctl-head, .offline-banner { top: var(--safe-top); }
+.ctl-status { top: calc(72px + var(--safe-top)); }
+.gain-pop { top: calc(84px + var(--safe-top)); }
+.big-map, .ingame-settings { padding-top: var(--safe-top); }
+.recap-sheet { padding-top: calc(24px + var(--safe-top)); }
+.reward-sheet, .dice-overlay { padding-top: calc(16px + var(--safe-top)); }
+@media (orientation: landscape) and (min-width: 700px) { .col-map { top: calc(150px + var(--safe-top)); } }
