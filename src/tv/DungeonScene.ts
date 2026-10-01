@@ -16,6 +16,7 @@ import { crisp, loadLookMode, prepareTiles, RES, TILES, UP } from "./render";
 import { DETAIL_PX, detailFrame, ensureDetailTexture } from "./textures";
 import type { GameSession } from "./session";
 import { gridPath } from "./walk-path";
+import { MoodGrade } from "./mood-grade";
 
 export const BOARD_WIDTH = 1920;
 export const BOARD_HEIGHT = 1080;
@@ -150,13 +151,12 @@ export class DungeonScene extends Phaser.Scene {
     cam.roundPixels = false;
     this.layout();
     cam.setBackgroundColor("#000000");
-    // Stimmungsvoll: a soft vignette and a little more contrast and colour (WebGL only).
+    // Stimmungsvoll: a soft vignette and a little more contrast and colour (WebGL only) – in one pass.
     if (this.mood && this.renderer.type === Phaser.WEBGL) {
-      cam.postFX.clear();
-      cam.postFX.addVignette(0.5, 0.5, 0.92, 0.3);
-      const grade = cam.postFX.addColorMatrix();
-      grade.contrast(0.08);
-      grade.saturate(0.12, true);
+      const pipes = (this.renderer as Phaser.Renderer.WebGL.WebGLRenderer).pipelines;
+      if (!pipes.postPipelineClasses.has("MoodGrade")) pipes.addPostPipeline("MoodGrade", MoodGrade);
+      cam.resetPostPipeline(true);
+      cam.setPostPipeline("MoodGrade");
     }
     this.focusParty(true);
 
@@ -1018,6 +1018,9 @@ export class DungeonScene extends Phaser.Scene {
       if (!map.explored[i]) {
         unexplored.fillStyle = "#000";
         unexplored.fillRect(x, y, 1, 1);
+        // The darkness itself is already black there (lights are kept out of it, see drawLight).
+        fog.fillStyle = "#000";
+        fog.fillRect(x, y, 1, 1);
       } else {
         const indoor = this.indoorCell(map, i);
         const a = map.dark ? DARK_NIGHT : indoor ? (this.mood ? MOOD_DARK_INDOOR : DARK_INDOOR) : DARK_OUTDOOR;
@@ -1037,9 +1040,18 @@ export class DungeonScene extends Phaser.Scene {
     const dark = this.dark;
     dark.clear();
     dark.draw(this.fogImage, 0, 0);
+    // WebGL: all lights go into one batch that is erased in a single pass (each erase on its own
+    // would copy the whole darkness once per light). The result is the same: every light takes
+    // away its share of the darkness, (1 − a₁)(1 − a₂)…
+    const batched = this.renderer.type === Phaser.WEBGL;
+    if (batched) dark.beginDraw();
+    const cut = (img: Phaser.GameObjects.Image, x: number, y: number) => {
+      if (batched) dark.batchDraw(img, x, y);
+      else dark.erase(img, x, y);
+    };
     const erase = (cx: number, cy: number, radius: number, strength = 1) => {
       this.lightBrush.setScale((radius * 2 * TILE) / 256).setAlpha(strength);
-      dark.erase(this.lightBrush, cx * TILE, cy * TILE);
+      cut(this.lightBrush, cx * TILE, cy * TILE);
     };
     for (const id of this.session.partyIds) {
       const c = this.session.battle.creatures[id];
@@ -1061,7 +1073,7 @@ export class DungeonScene extends Phaser.Scene {
     const shaped = (key: string, x: number, y: number, radius: number, flicker: number, strength = 1) => {
       const img = this.shapedLight(key, x, y, radius);
       img.setScale((TILE / LIGHT_PX) * (1 + flicker * 0.04)).setAlpha(strength);
-      dark.erase(img, x * TILE, y * TILE);
+      cut(img, x * TILE, y * TILE);
     };
     [...this.torches, ...this.fires].forEach((t, k) => {
       const flicker = Math.sin(time / 90 + t.phase) * 0.15 + Math.sin(time / 37 + t.phase * 3) * 0.1;
@@ -1085,7 +1097,14 @@ export class DungeonScene extends Phaser.Scene {
       const flicker = 0.85 + Math.sin(time / 95 + g.phase) * 0.1 + Math.sin(time / 41 + g.phase * 2) * 0.05;
       g.img.setAlpha(seen ? g.strength * flicker * (this.mood ? 1.4 : 1) : 0);
     }
-    dark.draw(this.unexploredImage, 0, 0);
+    if (batched) {
+      // No light reaches into unexplored places: the mask takes the light away there, in the same batch
+      // (the same as drawing the black of the unexplored on top afterwards, one full pass less).
+      this.unexploredImage.setBlendMode(Phaser.BlendModes.ERASE);
+      dark.batchDraw(this.unexploredImage, 0, 0);
+      this.unexploredImage.setBlendMode(Phaser.BlendModes.NORMAL);
+      dark.endDraw(true);
+    } else dark.draw(this.unexploredImage, 0, 0);
   }
 
   override update(time: number): void {
