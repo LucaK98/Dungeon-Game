@@ -125,6 +125,15 @@ export const CAMP_QUESTIONS = [
 const FINAL_BLOW_S = 90;
 /** The campfire ends after this long even if not everyone tapped "Weiter". */
 const CAMP_MINUTES = 5;
+/** Stock gossip when the scene has nothing better (no AI store, no open clue). */
+const RUMORS = [
+  "Nachts soll man seltsame Lichter im Wald sehen.",
+  "Der Schmied hat wieder zu viel getrunken – sagt jedenfalls seine Frau.",
+  "Seit Tagen sind die Krähen so unruhig. Das bedeutet nichts Gutes.",
+  "Ein Händler erzählt von Räubern an der alten Brücke.",
+  "Im Keller der Mühle spukt es – angeblich.",
+];
+
 /** Ideas for the same situation are reused this long (ms) – asking again costs nothing. */
 const IDEAS_KEEP_MS = 3 * 60_000;
 
@@ -180,6 +189,9 @@ export class Director {
     game.onGift = (_playerId, hero, name, itemId, itemName) => this.gift(hero, name, itemId, itemName);
     game.onPropose = (playerId, hero, name) => this.propose(playerId, hero, name);
     game.onDeed = (hero, deed) => this.deed(hero, deed);
+    // Free actions that touch people: feelings (compliment, promise, apology, caught stealing) and gossip.
+    game.onAttitude = (personId, change) => this.changeAttitude(personId, change);
+    game.onRumor = () => this.world?.takeMoment() ?? RUMORS[Math.floor(this.now() / 1000) % RUMORS.length];
     game.onPressure = (hero, npcId, how) => this.pressure(hero, npcId, how);
     game.setKnowledge(loadBestiary());
     game.onKnowledge = () => saveBestiary(game.knowledge());
@@ -1315,6 +1327,20 @@ export class Director {
   }
 
   /** "Was könnte ich tun?" – a few ideas for this hero, sent only to their phone. */
+  /** A character's feelings (−3 … +3) after a free action; "reset" forgives (back to neutral). */
+  private changeAttitude(personId: string, change: number | "reset"): void {
+    const id = personId.startsWith("npc-") ? personId.slice(4) : personId;
+    const npc = this.story.npcs.find((n) => n.id === id);
+    if (!npc) return;
+    const atts = (this.state.attitudes ??= {});
+    const before = atts[id] ?? 0;
+    const after = change === "reset" ? Math.max(0, before) : Math.max(-3, Math.min(3, before + change));
+    if (after === before) return;
+    atts[id] = after;
+    const mind = this.minds.get(npc.name) ?? this.metMinds.get(npc.name);
+    if (mind) for (const h of this.heroes().map((x) => x.name)) changeBond(mind, h, (after - before) * 2);
+  }
+
   /** Ideas already asked for in the same situation (reused for a few minutes – no new call). */
   private ideasCache = new Map<string, { at: number; ideas: string[] }>();
   /** Rules questions already answered in this game. */

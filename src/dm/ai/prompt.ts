@@ -2,6 +2,7 @@
  * What the AI game master gets to read: the rules for telling the story (system prompt)
  * and a small context of the current moment (< 3,000 tokens). Also the JSON schema of its answer.
  */
+import { stuntByName } from "../stunts";
 import { nameOf } from "../../engine/names";
 import type { DmContext, DmResponse, DmTrigger } from "../../shared/dm";
 import { SKILL_IDS } from "../../shared/rules";
@@ -183,7 +184,7 @@ export function buildPrompt(story: Story, ctx: DmContext, trigger: DmTrigger, sc
       : "",
     ctx.bypass && need.acting ? `ABKÜRZUNG möglich: ${ctx.bypass}. Nur mit schwerer Probe (SG 15–17), dann Effekt abkuerzung.` : "",
     effects.length
-      ? `${isClearMiss(trigger) ? "RÜCKSCHLÄGE (wähle genau einen)" : "EFFEKTE"} (Name: Wirkung): ${effects.map((n) => `${n}: ${(EFFECT_HELP[n] ?? SETBACK_HELP[n])!.text}`).join(" | ")}. Ziele: Gegner-id aus KAMPF, Helden-id aus HELDEN-IDS, oder „alle“.`
+      ? `${isClearMiss(trigger) ? "RÜCKSCHLÄGE (wähle genau einen)" : "EFFEKTE"} (Name: Wirkung): ${effects.map((n) => `${n}: ${(EFFECT_HELP[n] ?? SETBACK_HELP[n])?.text ?? stuntByName(n)?.help ?? ""}`).join(" | ")}. Ziele: Gegner-id aus KAMPF, Helden-id aus HELDEN-IDS, oder „alle“.`
       : "",
     need.rules ? "" : `ZEIT: ${Math.round(ctx.minutesPlayed)} von geplant ${Math.round(ctx.minutesPlanned)} Minuten bis Ende dieser Szene`,
     trigger.kind === "story_end" ? `MÖGLICHE ENDEN: ${eligibleEndings(story, ctx).map((e) => `${e.id} (${e.title})`).join(", ")}` : "",

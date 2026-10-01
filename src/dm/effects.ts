@@ -11,6 +11,7 @@
  */
 import type { DmContext, DmEffect, DmTrigger } from "../shared/dm";
 import { canFlee } from "./combat-tricks";
+import { stuntById, stuntByName, stuntsIn } from "./stunts";
 
 export const BRIBE_PER_ENEMY = 5;
 
@@ -116,6 +117,8 @@ export function allowedEffectNames(ctx: DmContext, trigger: DmTrigger): string[]
       .map(([name]) => name)
       .filter((name) => name !== "gold_verloren" || (ctx.gold ?? 0) > 0);
   }
+  // The stunts this idea is about (by its words) – only those, so the request stays small.
+  const stunts = stuntsIn(trigger.text, fighting).map((st) => st.name);
   const names = Object.entries(EFFECT_HELP)
     .filter(([, e]) => e.combat === "both" || e.combat === fighting)
     .map(([name]) => name)
@@ -126,8 +129,8 @@ export function allowedEffectNames(ctx: DmContext, trigger: DmTrigger): string[]
     .filter((name) => name !== "flucht" || canFlee(ctx))
     .filter((name) => name !== "bestechen" || (ctx.gold ?? 0) >= BRIBE_PER_ENEMY)
     .filter((name) => name !== "abkuerzung" || (!!ctx.bypass && trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC));
-  if (trigger.kind === "free_text") return names.filter((n) => NO_ROLL.has(n));
-  if (trigger.kind === "roll_result") return names;
+  if (trigger.kind === "free_text") return [...names.filter((n) => NO_ROLL.has(n)), ...stunts.filter((n) => !stuntByName(n)!.skill)];
+  if (trigger.kind === "roll_result") return [...names, ...stunts];
   return [];
 }
 
@@ -315,10 +318,25 @@ export function effectFromName(name: string, target: string | undefined, ctx: Dm
       const t = enemy ?? enemies[0];
       return t ? { kind: "enrage", target: t.id } : undefined;
     }
-    default:
-      return undefined;
+    default: {
+      // More free actions (the stunt table): the target by its kind.
+      const st = stuntByName(name);
+      if (!st) return undefined;
+      const people = ctx.room?.people ?? [];
+      const things = ctx.room?.things ?? [];
+      const ref =
+        st.target === "enemy" ? (enemy ?? enemies.find((e) => !e.boss) ?? enemies[0])?.id :
+        st.target === "hero" ? hero?.id :
+        st.target === "person" ? (people.find((p) => p.id === target || p.name === target) ?? (fightingCtx(ctx) ? enemy : undefined))?.id :
+        st.target === "thing" ? things.find((t) => t.id === target || t.name === target)?.id :
+        target || undefined;
+      if (st.target === "enemy" && !ref) return undefined;
+      return { kind: "stunt", id: st.id, ...(ref ? { target: ref } : {}) };
+    }
   }
 }
+
+const fightingCtx = (ctx: DmContext) => !!ctx.combat?.enemies.length;
 
 const COMBAT_KINDS = new Set<DmEffect["kind"]>(["animals", "shove", "weakness", "distract", "prone", "hamper", "help", "cover", "hazard", "flee", "pacify", "exposed", "fall", "fumble", "enrage", "retreat", "turncoat", "rout", "improvised", "pounce", "feud", "disarm", "hurl"]);
 const SETBACK_KINDS = new Set<DmEffect["kind"]>(["exposed", "fall", "fumble", "hurt", "lose_gold", "enrage"]);
@@ -331,7 +349,12 @@ export function filterEffects(effects: DmEffect[] | undefined, ctx: DmContext, t
   if (!max) return [];
   const fighting = !!ctx.combat?.enemies.length;
   const miss = isClearMiss(trigger);
-  const fits = (e: DmEffect) => (BOTH_KINDS.has(e.kind) ? true : COMBAT_KINDS.has(e.kind) === fighting);
+  const stuntFits = (e: DmEffect) => {
+    const st = e.kind === "stunt" ? stuntById(e.id) : undefined;
+    return !!st && (st.combat === "both" || st.combat === fighting);
+  };
+  const fits = (e: DmEffect) => (e.kind === "stunt" ? stuntFits(e) : BOTH_KINDS.has(e.kind) ? true : COMBAT_KINDS.has(e.kind) === fighting);
+  const noRoll = (e: DmEffect) => (e.kind === "stunt" ? !stuntById(e.id)?.skill : NO_ROLL_KINDS.has(e.kind));
   // Free steps (walking there, getting up) happen whatever the dice say – they start a chain.
   const free = (effects ?? []).filter((e) => FREE_KINDS.has(e.kind) && fits(e)).slice(0, 2);
   const lights = (effects ?? []).filter((e) => e.kind === "light" && e.on && trigger.kind === "free_text").slice(0, 1);
@@ -341,8 +364,8 @@ export function filterEffects(effects: DmEffect[] | undefined, ctx: DmContext, t
     .filter((e) => !HARD_KINDS.has(e.kind) || (trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))
     // Clear miss: only setbacks. Otherwise: no setbacks.
     .filter((e) => SETBACK_KINDS.has(e.kind) === miss)
-    .filter((e) => (BOTH_KINDS.has(e.kind) ? true : COMBAT_KINDS.has(e.kind) === fighting))
-    .filter((e) => trigger.kind !== "free_text" || NO_ROLL_KINDS.has(e.kind))
+    .filter(fits)
+    .filter((e) => trigger.kind !== "free_text" || noRoll(e))
     .filter((e) => e.kind !== "flee" || canFlee(ctx))
     // A shortcut needs a clean success on a hard roll – it must not make the game easy.
     .filter((e) => e.kind !== "bypass" || (!!ctx.bypass && trigger.kind === "roll_result" && trigger.success && trigger.dc >= BYPASS_DC))

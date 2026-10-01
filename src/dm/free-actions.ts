@@ -9,6 +9,7 @@ import type { DmContext, DmEffect, DmResponse, DmTrigger } from "../shared/dm";
 import type { Narration } from "../shared/story";
 import { canFlee } from "./combat-tricks";
 import { BRIBE_PER_ENEMY, BYPASS_DC } from "./effects";
+import { stuntOf, type Stunt } from "./stunts";
 
 type Intent =
   | "attack" | "help" | "cover" | "bribe" | "charm" | "surrender" | "scare" | "push" | "blind" | "hazard" | "trick"
@@ -98,6 +99,7 @@ export function intentOf(text: string, fighting: boolean): IntentRule | undefine
 
 /** A combat trick (push, sand, bribe, scare …) rather than a plain attack. */
 export function isTrick(text: string): boolean {
+  if (stuntOf(text, true)) return true;
   const rule = intentOf(text, true);
   return !!rule && rule.intent !== "attack" && rule.intent !== "help" && rule.intent !== "cover";
 }
@@ -122,8 +124,20 @@ function respond(lines: Narration[], extra: Partial<DmResponse> = {}): DmRespons
 /** First reaction to a free action (no roll yet). */
 export function scriptedFreeText(ctx: DmContext, trigger: Extract<DmTrigger, { kind: "free_text" }>): DmResponse | undefined {
   const fighting = !!ctx.combat?.enemies.length;
-  const rule = intentOf(trigger.text, fighting);
   const hero = trigger.heroName;
+  // The stunts first (more specific words): without a skill it simply happens, else a roll.
+  const stunt = stuntOf(trigger.text, fighting);
+  if (stunt) {
+    const target = stuntTarget(stunt, ctx, trigger.text, trigger.playerId);
+    if (stunt.target === "enemy" && !target) return respond([line(`${hero} sucht ein Ziel – aber hier ist kein passender Gegner.`)]);
+    if (!stunt.skill) return respond([line(`${hero} legt los.`)], { effects: [{ kind: "stunt", id: stunt.id, ...(target ? { target } : {}) }] });
+    return respond([line(`${hero} versucht es. Gelingt die Probe?`)], {
+      request_roll: { playerId: trigger.playerId, ability: getSkill(stunt.skill as never).ability, skill: stunt.skill, dc: stunt.dc ?? 12 },
+      next: "await_roll",
+      ...(stunt.plan ? { plan: stunt.plan } : {}),
+    });
+  }
+  const rule = intentOf(trigger.text, fighting);
   if (!rule) {
     // Too little to go on ("Ich mache was"): ask back instead of guessing.
     if (trigger.text.trim().split(/\s+/).length <= 2 || /^(ich )?(mach|tu|probier)\w* (was|etwas|irgendwas)\b/.test(trigger.text.toLowerCase().trim())) {
@@ -187,6 +201,22 @@ export function scriptedRollResult(ctx: DmContext, trigger: Extract<DmTrigger, {
   const hero = trigger.heroName;
   const nearMiss = !trigger.success && margin >= -2;
   const intro = trigger.success ? (margin >= 5 ? "Großartig geschafft!" : "Geschafft!") : nearMiss ? "Knapp! Es klappt – aber nicht ohne Preis." : "Das geht schief!";
+  const stunt = stuntOf(trigger.text, fighting);
+  if (stunt) {
+    const target = stuntTarget(stunt, ctx, trigger.text, trigger.playerId);
+    if (trigger.success || nearMiss) return respond([line(intro)], { effects: [{ kind: "stunt", id: stunt.id, ...(target ? { target } : {}) }] });
+    // Caught stealing: the person is cross.
+    if (stunt.id === "pickpocket") return respond([line(`Das geht schief! ${hero} wird erwischt.`)], { effects: [{ kind: "stunt", id: "caught", ...(target ? { target } : {}) }] });
+    const enemies = ctx.combat?.enemies ?? [];
+    const foe = enemies.find((e) => e.id === target) ?? enemies[0];
+    const back: DmEffect | undefined =
+      stunt.setback === "fall" ? { kind: "fall" } :
+      stunt.setback === "fumble" ? { kind: "fumble" } :
+      stunt.setback === "hurt" ? { kind: "hurt", severity: "leicht" } :
+      stunt.setback === "enrage" && foe ? { kind: "enrage", target: foe.id } :
+      stunt.setback === "exposed" ? { kind: "exposed" } : undefined;
+    return respond([line(`Das geht schief! ${hero} versucht es, aber es klappt nicht.`)], back ? { effects: [back] } : {});
+  }
   if (!rule) {
     // An idea without keywords: success uncovers something, a near miss too (with a price).
     if (fighting || (!trigger.success && !nearMiss)) return respond([line(`${intro} ${trigger.success ? `${hero} gelingt es.` : `${hero} versucht es, aber es klappt nicht.`}`)]);
@@ -486,6 +516,26 @@ const PLANS: Partial<Record<Intent, string>> = {
   disarm: "Waffe weg oder Schild kaputt",
   hurl: "Du wirfst ihn auf einen anderen – beide am Boden",
 };
+
+/** Who or what a stunt is about: named in the text, else the most likely one. */
+function stuntTarget(stunt: Stunt, ctx: DmContext, text: string, playerId: string): string | undefined {
+  const enemies = ctx.combat?.enemies ?? [];
+  switch (stunt.target) {
+    case "enemy": {
+      const named = mentioned(text, enemies);
+      return (named ?? enemies.find((e) => !e.boss) ?? enemies[0])?.id;
+    }
+    case "hero":
+      return mentioned(text, ctx.players.filter((p) => p.id !== playerId))?.id;
+    case "person":
+      return (mentioned(text, ctx.room?.people ?? []) ?? (enemies.length ? mentioned(text, enemies) : undefined))?.id;
+    case "thing":
+      return thingIn(text, ctx, /./)?.id;
+    default:
+      // Throwing a friend somewhere: the friend or thing named is the goal.
+      return stunt.id === "toss_friend" ? (mentioned(text, ctx.players.filter((p) => p.id !== playerId)) ?? thingIn(text, ctx, /$^/))?.id : undefined;
+  }
+}
 
 /** A thing from the surroundings the text is about (by its name, else the first of the right sort). */
 function thingIn(text: string, ctx: DmContext, sort: RegExp): { id: string; name: string } | undefined {

@@ -82,7 +82,7 @@ export class World {
     if (!this.gentle && this.rounds > clock * (this.warnings + 1)) {
       this.warnings++;
       if (this.warnings === 1) this.game.narrate([clockWarning(this.place())]);
-      else await this.track(this.lateConsequence());
+      else if (!this.warded()) await this.track(this.lateConsequence());
       return;
     }
     if (this.rounds >= this.nextEventRound) {
@@ -90,6 +90,7 @@ export class World {
       const ev = pickEvent(this.host.rng, this.place(), this.used);
       if (ev) {
         this.used.push(ev.id);
+        if (ev.id === "wandernde_monster" && this.warded()) return;
         await this.track(this.event(ev));
         return;
       }
@@ -118,6 +119,13 @@ export class World {
     this.pack = { greetings: new Map(p.greetings.map((g) => [g.name, g.text])), moments: [...p.moments] };
   }
 
+  /** Someone kept watch or laid a false trail: this danger passes the group by (used up). */
+  private warded(): boolean {
+    if (!this.game.useWorldShield()) return false;
+    this.game.narrate([{ text: "👁️ Gut, dass jemand aufgepasst hat: Die Gefahr zieht an euch vorbei." }]);
+    return true;
+  }
+
   /** One quiet moment from the store (a sound, gossip, a hint), or undefined when it is used up. */
   takeMoment(): string | undefined {
     return this.pack?.moments.shift();
@@ -144,7 +152,8 @@ export class World {
     const clock = CLOCK_ROUNDS[this.host.duration];
     if (!this.gentle && this.rounds > clock * (this.warnings + 1)) {
       this.warnings++;
-      this.run(this.warnings === 1 ? Promise.resolve(this.game.narrate([clockWarning(this.place())])) : this.lateConsequence());
+      if (this.warnings === 1) this.game.narrate([clockWarning(this.place())]);
+      else if (!this.warded()) this.run(this.lateConsequence());
       return;
     }
     if (this.rounds >= this.nextEventRound) {
@@ -152,6 +161,7 @@ export class World {
       const ev = pickEvent(this.host.rng, this.place(), this.used);
       if (ev) {
         this.used.push(ev.id);
+        if (ev.id === "wandernde_monster" && this.warded()) return;
         this.run(this.event(ev));
         return;
       }

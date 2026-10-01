@@ -49,12 +49,13 @@ import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
 import { glossaryAnswer } from "../dm/rules-help";
 import { isTrick } from "../dm/free-actions";
+import { stuntOf } from "../dm/stunts";
 import { matchFreeText, matchUtility, type IntentMatch } from "../shared/intent-match";
 import { nameFits, walkIntent } from "../shared/walk-text";
 import { BULLET_ICON, bulletsFor } from "../shared/bullets";
 import type { AttackOption, Creature, GridPos, TurnState } from "../shared/game";
 import type { BreakdownPart } from "../shared/types";
-import { cellIndex } from "../shared/map";
+import { cellIndex, inBounds } from "../shared/map";
 import type { PlayerId } from "../shared/types";
 import { rollNeed, type ActionChoice, type ActionFx, type CampView, type FamilyView, type MiniMap, type OrderEntry, type PlayerView, type RollOutcome, type RollPrompt, type StoryView } from "../shared/view";
 import type { MonsterGroup, Narration } from "../shared/story";
@@ -271,6 +272,23 @@ export class GameController {
   private victoryNote: string | undefined;
   /** Free-action finds and first aid are limited per map. */
   private findsThisMap = 0;
+  /** Stunts that work once per place (a meal, herbs, a drawn map). */
+  private stuntsThisMap = new Set<string>();
+  /** Heroes who haggled: their next purchase is 20 % cheaper. */
+  private haggled = new Set<string>();
+  /** Someone keeps watch or laid a false trail: the world's next danger passes the group by. */
+  private worldShield = false;
+  /** A character's feelings change (the Director keeps them): +1/−1, or "reset" to neutral. */
+  onAttitude: ((personId: string, change: number | "reset") => void) | undefined;
+  /** What people tell each other here (the Director: the scene's store, or a stock rumour). */
+  onRumor: ((personId: string | undefined) => string | undefined) | undefined;
+
+  /** The world's next danger is warded off (watch, false trail) – used once. */
+  useWorldShield(): boolean {
+    const had = this.worldShield;
+    this.worldShield = false;
+    return had;
+  }
   private firstAidThisMap = new Set<string>();
   private waiters: { pred: () => boolean; resolve: () => void }[] = [];
   /** Free text from a phone goes to the DM. */
@@ -805,6 +823,11 @@ export class GameController {
         }
         case "bypass":
           break;
+        case "stunt": {
+          const line = this.applyStunt(e.id, e.target, actor);
+          if (line) lines.push(line);
+          break;
+        }
         case "move_to":
         case "climb":
         case "hide":
@@ -988,6 +1011,420 @@ export class GameController {
   private gave = new Set<string>();
 
   /** The new toolbox of free actions: walking, climbing, ground, things, people, items. Returns a log line. */
+  /** A haggled price (20 % off the next purchase). */
+  private priceFor(hero: Creature, price: number): number {
+    return this.haggled.has(hero.id) ? Math.ceil(price * 0.8) : price;
+  }
+
+  /**
+   * The free actions of the stunt table (src/dm/stunts.ts): small rules, mostly made of the
+   * existing states (distracted, hampered, prone, frightened …). Returns the log line.
+   */
+  private applyStunt(id: string, ref: string | undefined, actor: Creature): string | undefined {
+    const pos = actor.pos;
+    const fx = (kind: "puff" | "shake" | "sparkle" | "splash", at: GridPos | undefined = pos) => at && this.emit("fx", kind, at);
+    const foes = () => this.enemiesInFight().map((x) => this.battle.creatures[x.id]!).filter((c) => c && isActive(c));
+    const ordinary = () => foes().filter((c) => !this.bossIds.has(c.id));
+    const near = (list: Creature[]) => (pos ? [...list].sort((a, b) => this.cheb(pos, a.pos ?? pos) - this.cheb(pos, b.pos ?? pos)) : list);
+    const named = ref ? this.battle.creatures[ref] : undefined;
+    const foe = (bossOk = false): Creature | undefined => {
+      if (named && named.side === "enemy" && isActive(named) && (bossOk || !this.bossIds.has(named.id))) return named;
+      return near(bossOk ? foes() : ordinary())[0];
+    };
+    const friend = (): Creature | undefined => {
+      const h = ref ? this.heroByRef(ref) : undefined;
+      if (h && h.id !== actor.id) return h;
+      return near(this.heroes().filter((x) => x.id !== actor.id && !x.dead))[0];
+    };
+    const person = (): Creature | undefined => {
+      const c = ref ? this.battle.creatures[ref] : undefined;
+      if (c && c.side === "neutral" && !c.dead) return c;
+      return near(Object.values(this.battle.creatures).filter((x) => x.side === "neutral" && !x.dead && x.pos && x.id.startsWith("npc-")))[0];
+    };
+    const once = (key: string) => {
+      if (this.stuntsThisMap.has(key)) return false;
+      this.stuntsThisMap.add(key);
+      return true;
+    };
+    const small = (c: Creature) => ["tiny", "small", "medium"].includes(c.size);
+    switch (id) {
+      // ⚔️ fighting tricks
+      case "feint":
+        addEffect(actor, "helped", 99, actor.id);
+        return `🤺 ${actor.name} täuscht eine Bewegung an: Vorteil auf den nächsten Angriff.`;
+      case "shield_bash": {
+        const hasShield = actor.baseAc.some((p) => /schild/i.test(p.label));
+        if (!hasShield) return `🛡️ ${actor.name} hat keinen Schild zum Rammen.`;
+        const t = foe();
+        if (!t?.pos || !pos || this.cheb(pos, t.pos) > 1) return t ? `🛡️ ${t.name} ist zu weit weg.` : undefined;
+        const line = this.pushCreature(t, { x: Math.sign(t.pos.x - pos.x), y: Math.sign(t.pos.y - pos.y) }, 1, actor);
+        if (!t.dead && small(t)) addCondition(t, { id: "prone" });
+        return `🛡️ ${actor.name} rammt ${t.name} mit dem Schild! ${line ?? ""} ${t.dead ? "" : `${t.name} liegt am Boden.`}`.trim();
+      }
+      case "sweep":
+      case "rug_pull": {
+        const t = foe();
+        if (!t || !small(t)) return t ? `🦵 ${t.name} ist zu groß, um umzufallen.` : undefined;
+        const hit = [t, ...(id === "rug_pull" && t.pos ? ordinary().filter((o) => o.id !== t.id && o.pos && this.cheb(o.pos, t.pos!) <= 1 && small(o)) : [])];
+        for (const c of hit) addCondition(c, { id: "prone" });
+        fx("puff", t.pos);
+        return id === "rug_pull" ? `🧶 ${actor.name} reißt den Teppich weg: ${hit.map((c) => c.name).join(", ")} ${hit.length > 1 ? "liegen" : "liegt"} am Boden!` : `🦵 ${actor.name} fegt ${t.name} die Beine weg: ${t.name} liegt am Boden.`;
+      }
+      case "grapple": {
+        const t = foe();
+        if (!t?.pos || !pos) return undefined;
+        if (this.cheb(pos, t.pos) > 1) return `🤼 ${t.name} ist zu weit weg zum Festhalten.`;
+        if (!small(t)) return `🤼 ${t.name} ist viel zu groß zum Festhalten.`;
+        addCondition(t, { id: "restrained", rounds: 1, sourceId: actor.id });
+        return `🤼 ${actor.name} hält ${t.name} fest: eine Runde keine Bewegung, Angriffe auf ${t.name} haben Vorteil.`;
+      }
+      case "protect": {
+        const h = friend();
+        if (!h) return undefined;
+        addEffect(h, "cover", 1, actor.id);
+        if (h.pos) {
+          const spot = besideFree(this.map, this.battle, h.pos);
+          if (pos && this.cheb(pos, h.pos) > 1 && this.cheb(pos, spot) <= Math.floor(actor.speedFt / 5)) actor.pos = spot;
+        }
+        this.syncWorld();
+        return `🛡️ ${actor.name} stellt sich schützend vor ${h.name}: +2 Rüstungsklasse für ${h.name} bis zum nächsten Zug.`;
+      }
+      case "battle_cry":
+      case "ghost": {
+        const scared = id === "ghost" ? [foe()].filter((c): c is Creature => !!c) : ordinary().filter((c) => small(c) && pos && c.pos && this.cheb(pos, c.pos) <= 6);
+        for (const c of scared) addCondition(c, { id: "frightened", rounds: 1, sourceId: actor.id });
+        if (!scared.length) return `📢 Niemand lässt sich davon beeindrucken.`;
+        return id === "ghost" ? `👻 „Huuuh!“ ${scared[0]!.name} schlottert vor Angst (eine Runde Nachteil).` : `📢 ${actor.name} stößt einen Kampfschrei aus: ${scared.map((c) => c.name).join(", ")} ${scared.length > 1 ? "bekommen" : "bekommt"} Angst (eine Runde Nachteil).`;
+      }
+      case "taunt": {
+        const t = foe(true);
+        if (!t) return undefined;
+        addEffect(t, "taunted", 2, actor.id);
+        this.emit("speech", t.id, "Na warte!");
+        return `😤 ${actor.name} provoziert ${t.name}: Der greift in seinem nächsten Zug nur noch ${actor.name} an.`;
+      }
+      case "grab_weapon": {
+        const t = foe();
+        if (!t) return undefined;
+        addEffect(t, "hampered", 99, actor.id);
+        addEffect(actor, "helped", 99, actor.id);
+        return `🗡️ ${actor.name} schnappt sich die Waffe von ${t.name}! ${t.name} hat Nachteil, ${actor.name} Vorteil auf den nächsten Angriff.`;
+      }
+      case "slide":
+        addEffect(actor, "disengage", 1, actor.id);
+        return `🛷 ${actor.name} rutscht geschickt durch: keine Gelegenheitsangriffe in diesem Zug.`;
+      case "tap_barrel": {
+        const t = foe();
+        return this.worldEffect({ kind: "ground", target: t?.id ?? ref ?? "", surface: "mud" }, actor) ?? `🍺 ${actor.name} sticht das Fass an – Bier spritzt über den Boden!`;
+      }
+      // 🧙 magic used creatively
+      case "redirect": {
+        const caster = (actor.pc?.spells.length ?? 0) > 0;
+        if (!caster) return `✨ Dafür braucht es Zauberkraft – die hat ${actor.name} nicht.`;
+        const t = foe(true);
+        if (!t) return undefined;
+        const d = rollDice(this.rng, parseDice("2d6"));
+        applyDamage(this.rng, t, d.total);
+        fx("shake", t.pos);
+        return `💥 ${actor.name} lenkt den Zauber um – es knallt bei ${t.name}: ${d.total} Schaden${t.dead ? ` – ${t.name} ist besiegt!` : "."}`;
+      }
+      case "light_blind": {
+        const t = foe();
+        if (!t) return undefined;
+        addCondition(t, { id: "blinded", rounds: 1, sourceId: actor.id });
+        return `🔦 ${actor.name} blendet ${t.name}: eine Runde blind (Angriffe auf ${t.name} mit Vorteil, seine mit Nachteil).`;
+      }
+      case "frost_grip": {
+        const cold = actor.pc?.spells.some((x) => ["ray-of-frost"].includes(x)) || actor.attacks.some((a) => a.damage.some((d) => d.type === "cold"));
+        if (!cold) return `❄️ Dafür braucht es Frostmagie – die hat ${actor.name} nicht.`;
+        const t = foe();
+        if (!t) return undefined;
+        addEffect(t, "hampered", 99, actor.id);
+        fx("sparkle", t.pos);
+        return `🧊 Die Hand von ${t.name} friert am Griff fest: Nachteil auf seine Angriffe bis zum Ende des Kampfes.`;
+      }
+      case "illusion": {
+        const fooled = near(foes()).slice(0, 3);
+        for (const c of fooled) addEffect(c, "distracted", 99, actor.id);
+        fx("sparkle");
+        return fooled.length ? `🌀 Eine Illusion! ${fooled.map((c) => c.name).join(", ")} ${fooled.length > 1 ? "drehen" : "dreht"} sich um – der nächste Angriff auf ${fooled.length > 1 ? "sie" : fooled[0]!.name} hat Vorteil.` : undefined;
+      }
+      case "mage_hand":
+      case "fetch": {
+        if (id === "fetch" && !Object.values(this.battle.creatures).some((c) => c.companion?.ownerId === actor.id && !c.dead)) return `🐾 ${actor.name} hat keinen Begleiter, der etwas holen könnte.`;
+        const loot = pos ? this.map.objects.filter((o) => (o.kind === "gold" || o.kind === "potion") && o.state !== "used" && this.cheb(pos, o) <= 6 && this.map.explored[cellIndex(this.map, o.x, o.y)]).sort((a, b) => this.cheb(pos, a) - this.cheb(pos, b))[0] : undefined;
+        if (!loot) return id === "fetch" ? `🐾 Weit und breit nichts zum Apportieren.` : `✋ Hier liegt nichts, was ${actor.name} zu sich holen könnte.`;
+        loot.state = "used";
+        if (loot.kind === "gold") {
+          const amount = rollDice(this.rng, parseDice("1d8")).total;
+          this.addItem(actor, "gold", amount);
+          this.syncWorld();
+          return id === "fetch" ? `🐕 Der Begleiter bringt ${actor.name} ${amount} Goldmünzen.` : `✋ Eine unsichtbare Hand bringt ${actor.name} ${amount} Goldmünzen.`;
+        }
+        this.addItem(actor, "potion-of-healing", 1);
+        this.syncWorld();
+        return id === "fetch" ? `🐕 Der Begleiter bringt ${actor.name} einen Heiltrank.` : `✋ Ein Heiltrank schwebt zu ${actor.name}.`;
+      }
+      case "charge":
+        addEffect(actor, "helped", 99, actor.id);
+        return `🔆 ${actor.name} sammelt Kraft: Vorteil auf den nächsten Angriff oder Zauber.`;
+      // 🗣️ talking
+      case "lie_army": {
+        const weak = near(ordinary().filter((c) => c.hp < c.maxHp)).slice(0, 2);
+        if (!weak.length) {
+          for (const c of ordinary().slice(0, 2)) addEffect(c, "distracted", 99, actor.id);
+          return `📯 „Die Wache kommt!“ – die Gegner schauen sich nervös um (abgelenkt).`;
+        }
+        const out = weak.map((c) => this.worldEffect({ kind: "rout", target: c.id }, actor)).filter(Boolean);
+        return `📯 „Die Stadtwache ist gleich da!“ ${out.join(" ")}`;
+      }
+      case "haggle":
+        this.haggled.add(actor.id);
+        return `🪙 ${actor.name} feilscht hart: Beim nächsten Einkauf bei einer Händlerin ist alles 20 % billiger.`;
+      case "compliment":
+      case "promise":
+      case "apology":
+      case "joke":
+      case "dance": {
+        if (this.mode === "combat" && (id === "joke" || id === "dance")) {
+          const hit = id === "dance" ? near(foes()).slice(0, 2) : [foe(true)].filter((c): c is Creature => !!c);
+          for (const c of hit) addEffect(c, "distracted", 99, actor.id);
+          return hit.length ? `${id === "dance" ? "💃" : "😂"} ${hit.map((c) => c.name).join(" und ")} ${hit.length > 1 ? "schauen" : "schaut"} verdutzt zu – abgelenkt!` : undefined;
+        }
+        const p = person();
+        if (!p) return `🗣️ Hier ist niemand, der zuhört.`;
+        this.onAttitude?.(p.id, id === "apology" ? "reset" : 1);
+        this.emit("speech", p.id, id === "joke" || id === "dance" ? "Hahaha!" : id === "apology" ? "Schon gut …" : id === "promise" ? "Ich verlasse mich auf euch." : "Oh, danke!");
+        return id === "apology" ? `🙏 ${p.name} nimmt die Entschuldigung an.` : `${id === "promise" ? "🤝" : id === "compliment" ? "🌸" : "😄"} ${p.name} mag euch jetzt mehr.`;
+      }
+      case "caught": {
+        const p = person();
+        if (p) this.onAttitude?.(p.id, -1);
+        return p ? `🫢 ${p.name} hat es gemerkt – und ist sauer!` : undefined;
+      }
+      case "song":
+        for (const h of this.heroes().filter((x) => isActive(x))) addEffect(h, "helped", 99, actor.id);
+        this.emit("speech", actor.id, "🎵");
+        return `🎵 ${actor.name} singt – alle Helden fassen Mut: Vorteil auf den nächsten Wurf.`;
+      case "rumors": {
+        const p = person();
+        const said = this.onRumor?.(p?.id);
+        if (!said) return `🗣️ ${p ? `${p.name} zuckt mit den Schultern` : "Niemand hier"} – keine Neuigkeiten.`;
+        if (p) this.emit("speech", p.id, said.slice(0, 60));
+        return `🗣️ ${p ? `${p.name} erzählt` : "Man erzählt sich"}: ${said}`;
+      }
+      case "why_fight": {
+        const t = foe();
+        if (!t) return undefined;
+        addEffect(t, "hampered", 2, actor.id);
+        this.emit("speech", t.id, "Äh … für Gold?");
+        return `🤔 ${t.name} zögert: Nachteil auf seine Angriffe bis nach seinem nächsten Zug.`;
+      }
+      case "accuse": {
+        const p = person();
+        if (!p) return `🗣️ Hier ist niemand zum Beschuldigen.`;
+        return this.worldEffect({ kind: "pressure", target: p.id, how: "blackmail" }, actor) ?? `😠 ${p.name} wird blass und weicht deinem Blick aus.`;
+      }
+      // 🔎 exploring
+      case "listen": {
+        if (!pos) return undefined;
+        const hidden = Object.values(this.battle.creatures).filter((c) => c.side === "enemy" && !c.dead && c.pos && this.cheb(pos, c.pos) <= 12 && !this.map.explored[cellIndex(this.map, c.pos.x, c.pos.y)]);
+        return hidden.length ? `👂 ${actor.name} lauscht: Dahinter sind ${hidden.length === 1 ? "eine Stimme" : `etwa ${hidden.length} Stimmen`} zu hören.` : `👂 ${actor.name} lauscht: Alles still.`;
+      }
+      case "tracks": {
+        if (!pos) return undefined;
+        const open = this.map.rooms
+          .map((r) => ({ r, c: { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) } }))
+          .filter(({ c }) => !this.map.explored[cellIndex(this.map, c.x, c.y)])
+          .sort((a, b) => this.cheb(pos, a.c) - this.cheb(pos, b.c))[0];
+        if (!open) return `🐾 Die Spuren führen kreuz und quer – hier wart ihr schon überall.`;
+        const dx = open.c.x - pos.x, dy = open.c.y - pos.y;
+        const dir = Math.abs(dx) > Math.abs(dy) * 2 ? (dx > 0 ? "Osten" : "Westen") : Math.abs(dy) > Math.abs(dx) * 2 ? (dy > 0 ? "Süden" : "Norden") : `${dy > 0 ? "Süd" : "Nord"}${dx > 0 ? "osten" : "westen"}`;
+        return `🐾 ${actor.name} liest die Spuren: Sie führen nach ${dir}.`;
+      }
+      case "keyhole": {
+        if (!pos) return undefined;
+        const door = this.map.objects.filter((o) => o.kind === "door" && this.cheb(pos, o) <= 3).sort((a, b) => this.cheb(pos, a) - this.cheb(pos, b))[0];
+        if (!door) return `🔍 Hier ist keine Tür zum Durchschauen.`;
+        revealAround(this.map, { x: door.x, y: door.y }, 4);
+        this.emit("mapChanged");
+        return `🔍 ${actor.name} späht durch das Schlüsselloch: Der Raum dahinter ist jetzt auf der Karte.`;
+      }
+      case "disarm_trap": {
+        if (!pos) return undefined;
+        const trap = this.map.objects.find((o) => o.kind === "trap" && o.state !== "used" && this.cheb(pos, o) <= 2);
+        if (!trap) return `🪤 Hier ist keine Falle in Reichweite (erst entdecken!).`;
+        this.map.objects = this.map.objects.filter((o) => o !== trap);
+        const own = this.worldEffect({ kind: "set_trap" }, actor);
+        return `🪤 ${actor.name} entschärft die Falle${own ? " und baut daraus eine eigene Stolperfalle" : ""}.`;
+      }
+      case "meal": {
+        if (!once("meal")) return `🍞 Ihr habt hier schon gerastet.`;
+        const healed = this.heroes().filter((h) => !h.dead && h.hp < h.maxHp);
+        for (const h of healed) heal(h, rollDice(this.rng, parseDice("1d4")).total);
+        return `🍞 Kurze Rast mit Brot und Käse: ${healed.length ? `${healed.map((h) => h.name).join(", ")} ${healed.length > 1 ? "kommen" : "kommt"} wieder zu Kräften.` : "Alle sind satt und zufrieden."}`;
+      }
+      case "fire": {
+        this.worldEffect({ kind: "light", on: true }, actor);
+        for (const h of this.heroes()) if (h.pos && pos && this.cheb(h.pos, pos) <= 3) h.effects = h.effects.filter((x) => x.id !== "wet" && x.id !== "chilled");
+        return `🔥 ${actor.name} macht ein kleines Feuer: Licht und Wärme – wer nass war, ist wieder trocken.`;
+      }
+      case "rope": {
+        if (!pos) return undefined;
+        let made = 0;
+        for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) {
+          const p = { x: pos.x + dx, y: pos.y + dy };
+          if (!inBounds(this.map, p.x, p.y)) continue;
+          const i = cellIndex(this.map, p.x, p.y);
+          if (this.map.cells[i] === "deep") {
+            this.map.cells[i] = "water";
+            made++;
+          }
+        }
+        if (!made) return `🪢 Hier gibt es nichts zu überbrücken.`;
+        this.syncWorld();
+        this.emit("mapChanged");
+        fx("puff");
+        return `🪢 ${actor.name} spannt ein Seil hinüber – jetzt kommt man (nass, aber sicher) auf die andere Seite.`;
+      }
+      case "map":
+        if (!pos) return undefined;
+        revealAround(this.map, pos, 6);
+        this.emit("mapChanged");
+        return `🗺️ ${actor.name} zeichnet eine Karte: Die Umgebung ist jetzt aufgedeckt.`;
+      case "herbs":
+        if (!once("herbs")) return `🌿 Hier wächst nichts Brauchbares mehr.`;
+        this.addItem(actor, "heilkraut", 1);
+        return `🌿 ${actor.name} erkennt ein Heilkraut und pflückt es (zwei ergeben einen Trank).`;
+      case "inspect": {
+        if (this.findsThisMap >= 2) return `🔍 ${actor.name} dreht alles um – aber hier ist nichts mehr versteckt.`;
+        this.findsThisMap++;
+        const amount = rollDice(this.rng, parseDice("1d6")).total;
+        this.addItem(actor, "gold", amount);
+        return `🔍 ${actor.name} entdeckt ein Versteck: ${amount} Goldmünzen!`;
+      }
+      case "drink": {
+        const water = pos && [-2, -1, 0, 1, 2].some((dx) => [-2, -1, 0, 1, 2].some((dy) => ["water", "deep"].includes(this.map.cells[cellIndex(this.map, pos.x + dx, pos.y + dy)] ?? "") || this.map.objects.some((o) => o.kind === "fountain" && o.x === pos.x + dx && o.y === pos.y + dy)));
+        if (!water) return `💧 Hier gibt es kein sauberes Wasser.`;
+        const was = hasCondition(actor, "poisoned");
+        actor.conditions = actor.conditions.filter((c) => c.id !== "poisoned");
+        return was ? `💧 ${actor.name} trinkt frisches Wasser – die Übelkeit ist weg.` : `💧 ${actor.name} trinkt einen Schluck frisches Wasser.`;
+      }
+      // 🎭 cunning
+      case "hide_body": {
+        const body = pos ? Object.values(this.battle.creatures).find((c) => c.dead && c.pos && this.cheb(pos, c.pos) <= 2 && c.side !== "party") : undefined;
+        if (!body) return `🫣 Hier ist niemand zum Verstecken.`;
+        delete this.battle.creatures[body.id];
+        this.syncWorld();
+        return `🫣 ${actor.name} schafft ${body.name} beiseite – niemand wird etwas merken.`;
+      }
+      case "pickpocket": {
+        const amount = rollDice(this.rng, parseDice("1d6+2")).total;
+        this.addItem(actor, "gold", amount);
+        return `🤏 ${actor.name} lässt ${amount} Münzen mitgehen – keiner hat es gemerkt.`;
+      }
+      case "bait": {
+        const beasts = foes().filter((c) => c.creatureType === "beast");
+        for (const c of beasts) addEffect(c, "distracted", 99, actor.id);
+        if (beasts.length) return `🍖 ${beasts.map((c) => c.name).join(", ")} ${beasts.length > 1 ? "stürzen" : "stürzt"} sich auf den Köder – abgelenkt!`;
+        return `🍖 ${actor.name} legt einen Köder aus. ${this.mode === "combat" ? "Diese Gegner interessiert das nicht." : "Irgendwo schnüffelt es neugierig."}`;
+      }
+      case "play_dead": {
+        if (this.mode === "combat") addCondition(actor, { id: "prone" });
+        const hid = this.worldEffect({ kind: "hide" }, actor);
+        return `💀 ${actor.name} stellt sich tot … ${hid ? "die Gegner beachten ihn nicht mehr (bis zum nächsten Angriff)." : ""}`.trim();
+      }
+      case "shadows":
+        return this.worldEffect({ kind: "hide" }, actor);
+      case "false_trail":
+      case "watch":
+        this.worldShield = true;
+        return id === "watch" ? `👁️ ${actor.name} hält Wache: Die nächste Gefahr erwischt euch nicht unvorbereitet.` : `👣 ${actor.name} legt eine falsche Spur: Verfolger laufen in die falsche Richtung.`;
+      case "sleep_herb": {
+        const guards = pos ? Object.values(this.battle.creatures).filter((c) => !c.dead && hasEffect(c, "on-guard") && c.pos && this.cheb(pos, c.pos) <= 10) : [];
+        if (!guards.length) return `🌙 Hier ist niemand, der gerade isst oder trinkt.`;
+        for (const g of guards) {
+          g.effects = g.effects.filter((x) => x.id !== "on-guard");
+          addEffect(g, "asleep", 99, actor.id);
+        }
+        this.syncWorld();
+        return `🌙 Ein bisschen Schlafkraut ins Bier … ${guards.map((g) => g.name).join(", ")} ${guards.length > 1 ? "schnarchen" : "schnarcht"} bald.`;
+      }
+      // 🤝 together
+      case "boost": {
+        const h = friend();
+        if (!h) return undefined;
+        addEffect(h, "elevated", 3, actor.id);
+        this.syncWorld();
+        return `🧗 ${actor.name} macht ${h.name} eine Räuberleiter: ${h.name} steht erhöht (3 Runden).`;
+      }
+      case "toss_friend": {
+        const goal = ref ?? "";
+        return goal ? this.worldEffect({ kind: "leap", target: goal }, actor) : `🤾 Wohin denn? Nenne ein Ziel, z. B. „Wirf mich zu Brunhild rüber“.`;
+      }
+      case "shieldwall": {
+        const wall = [actor, ...this.heroes().filter((h) => h.id !== actor.id && isActive(h) && h.pos && pos && this.cheb(h.pos, pos) <= 1)];
+        for (const h of wall) addEffect(h, "cover", 1, actor.id);
+        return `🛡️ Schildwall! ${wall.map((h) => h.name).join(", ")}: +2 Rüstungsklasse bis zum nächsten Zug.`;
+      }
+      case "encourage": {
+        const h = friend();
+        if (!h) return undefined;
+        h.conditions = h.conditions.filter((c) => c.id !== "frightened");
+        addEffect(h, "helped", 99, actor.id);
+        return `💪 „${h.name}, du schaffst das!“ – ${h.name} hat keine Angst mehr und Vorteil auf den nächsten Wurf.`;
+      }
+      case "stabilize": {
+        const down = ref ? this.heroByRef(ref) : undefined;
+        const h = down && !down.dead && down.hp <= 0 ? down : this.heroes().find((x) => !x.dead && x.hp <= 0);
+        if (!h) return `🩺 Niemand hier ist bewusstlos.`;
+        heal(h, 1);
+        return `🩺 ${actor.name} versorgt ${h.name}: ${h.name} kommt mit 1 Trefferpunkt wieder zu sich.`;
+      }
+      // 🐾 animals
+      case "calm": {
+        const t = named?.side === "enemy" && named.creatureType === "beast" ? named : near(ordinary().filter((c) => c.creatureType === "beast"))[0];
+        if (!t) return `🐾 Hier ist kein Tier zum Beruhigen.`;
+        t.side = "neutral";
+        t.effects = [];
+        this.emit("speech", t.id, "…");
+        this.victoryNote = "Die Tiere haben sich beruhigt.";
+        return `🐾 ${actor.name} redet ruhig auf ${t.name} ein – ${t.name} legt sich hin und kämpft nicht mehr.`;
+      }
+      case "scout": {
+        const pet = Object.values(this.battle.creatures).find((c) => c.companion?.ownerId === actor.id && !c.dead);
+        if (!pet) return `🐾 ${actor.name} hat keinen Begleiter zum Auskundschaften.`;
+        revealAround(this.map, pet.pos ?? pos!, 8);
+        this.emit("mapChanged");
+        return `🐾 ${pet.name} läuft voraus und kommt zurück – die Umgebung ist jetzt auf der Karte.`;
+      }
+      case "ride": {
+        const horse = pos ? Object.values(this.battle.creatures).find((c) => !c.dead && c.pos && this.cheb(pos, c.pos) <= 1 && /horse|pony|mule|pferd/i.test(c.monsterId ?? c.name)) : undefined;
+        if (!horse) return `🐎 Hier ist kein Pferd zum Reiten.`;
+        const turn = this.battle.combat?.turn;
+        if (turn && turn.creatureId === actor.id) turn.movementLeftFt += actor.speedFt;
+        return `🐎 ${actor.name} schwingt sich auf ${horse.name}: doppelte Bewegung in diesem Zug!`;
+      }
+      // 😄 fun
+      case "call_name": {
+        const t = foe(true);
+        if (!t) return undefined;
+        addEffect(t, "distracted", 99, actor.id);
+        this.emit("speech", t.id, "Hä? Ich?");
+        return `🙋 ${t.name} dreht sich verwirrt um – abgelenkt!`;
+      }
+      case "tickle": {
+        const t = foe();
+        if (!t) return undefined;
+        addEffect(t, "hampered", 2, actor.id);
+        this.emit("speech", t.id, "Hatschi!");
+        return `🤧 ${t.name} muss niesen und lachen: Nachteil auf seine Angriffe bis nach seinem nächsten Zug.`;
+      }
+      default:
+        return undefined;
+    }
+  }
+
   private worldEffect(e: DmEffect, actor: Creature): string | undefined {
     const pos = actor.pos;
     if (!pos) return undefined;
@@ -2225,14 +2662,16 @@ export class GameController {
     } else if (action.kind === "camp_buy") {
       const offer = camp.shop.find((o) => o.id === action.offerId);
       if (!offer) return "Das hat die Händlerin nicht mehr.";
-      if (this.goldOf(hero) < offer.price) return `Dafür fehlen dir ${offer.price - this.goldOf(hero)} Gold.`;
-      this.addItem(hero, "gold", -offer.price);
+      const price = this.priceFor(hero, offer.price);
+      if (this.goldOf(hero) < price) return `Dafür fehlen dir ${price - this.goldOf(hero)} Gold.`;
+      this.addItem(hero, "gold", -price);
+      this.haggled.delete(hero.id);
       if (offer.gearId) {
         camp.shop = camp.shop.filter((o) => o !== offer);
         this.grantGear(hero, offer.gearId, "Gekauft bei der Händlerin");
       } else if (offer.itemId) {
         this.addItem(hero, offer.itemId, 1);
-        this.addLog([{ text: `🛒 ${hero.name} kauft ${offer.icon} ${offer.name} für ${offer.price} Gold.`, glossarKeys: [] }]);
+        this.addLog([{ text: `🛒 ${hero.name} kauft ${offer.icon} ${offer.name} für ${price} Gold.`, glossarKeys: [] }]);
       }
     } else {
       camp.done.add(hero.id);
@@ -2258,8 +2697,9 @@ export class GameController {
       shop: camp.shop.map((o) => {
         const problem = o.gearId ? gearProblem(hero, o.gearId) : undefined;
         const owned = o.gearId && hero.pc?.gear?.owned.includes(o.gearId);
-        const blocked = owned ? "Hast du schon" : gold < o.price ? `Noch ${o.price - gold} Gold` : undefined;
-        return { id: o.id, icon: o.icon, name: o.name, detail: o.detail, price: o.price, ...(blocked ? { blocked } : {}), ...(problem ? { warning: problem } : {}) };
+        const price = this.priceFor(hero, o.price);
+        const blocked = owned ? "Hast du schon" : gold < price ? `Noch ${price - gold} Gold` : undefined;
+        return { id: o.id, icon: o.icon, name: o.name, detail: o.detail, price, ...(blocked ? { blocked } : {}), ...(problem ? { warning: problem } : {}) };
       }),
       tales: [...camp.tales].map(([id, text]) => {
         const h = this.battle.creatures[id];
@@ -2612,11 +3052,13 @@ export class GameController {
           else this.broadcast();
           return;
         }
-        const choices = said ? this.choicesFor(hero, true, false) : [];
+        // A stunt from the table ("Ich ramme ihn mit dem Schild", "Ich verstecke die Leiche") is never a button.
+        const stunt = said ? stuntOf(said, this.mode === "combat") : undefined;
+        const choices = said && !stunt ? this.choicesFor(hero, true, false) : [];
         // Things, furniture and abilities: "Ich trinke einen Heiltrank", "Ich kippe den Tisch um", "Ich verstecke mich".
-        const thing = said ? matchUtility(said, choices, hero.id) : undefined;
+        const thing = said && !stunt ? matchUtility(said, choices, hero.id) : undefined;
         // "Ich schieße mit dem Bogen auf den Goblin": that is simply the bow attack (or the fitting spell).
-        const found = thing ?? (said ? matchFreeText(said, choices, hero.id, isTrick(said)) : undefined);
+        const found = thing ?? (said && !stunt ? matchFreeText(said, choices, hero.id, isTrick(said)) : undefined);
         if (found && "blocked" in found) {
           // Not possible – but maybe something else is: offer it right away.
           const alternatives = this.alternativesFor(hero, found.choice, choices);
@@ -5726,6 +6168,7 @@ export class GameController {
     this.session.map = map;
     this.seedEnv(map);
     this.findsThisMap = 0;
+    this.stuntsThisMap.clear();
     this.ratsCalled = false;
     this.setups.clear();
     this.combosRewarded = 0;

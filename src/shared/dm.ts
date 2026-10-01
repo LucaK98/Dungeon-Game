@@ -170,6 +170,8 @@ export type DmEffect =
   | { kind: "captive"; target: string; how: "free" | "take" | "hand_over" }
   // study a foe: a weak spot (attacks against it have advantage)
   | { kind: "weakness"; target: string }
+  // more free actions from the stunt table (src/dm/stunts.ts), carried out by GameController.applyStunt
+  | { kind: "stunt"; id: string; target?: string }
   // "yes, but": the acting hero pays a small price (1W4 damage, never knocked out)
   | { kind: "cost" }
   // setbacks after a clearly failed attempt

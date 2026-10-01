@@ -36,6 +36,10 @@ function pickTarget(battle: Battle, c: Creature): Creature | undefined {
   // A companion goes for the enemy its hero pointed at.
   const focus = c.focusId ? enemies.find((e) => e.id === c.focusId && isActive(e)) : undefined;
   if (focus) return focus;
+  // Provoked: it goes for the one who taunted it.
+  const taunt = c.effects.find((e) => e.id === "taunted");
+  const taunter = taunt ? enemies.find((e) => e.id === taunt.sourceId && isActive(e)) : undefined;
+  if (taunter) return taunter;
   const standing = enemies.filter(isActive);
   const pool = standing.length ? standing : enemies;
   return pool.sort((a, b) => distanceFt(c, a) - distanceFt(c, b) || a.hp - b.hp)[0];

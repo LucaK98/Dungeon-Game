@@ -128,7 +128,9 @@ export type EffectId =
   /** A druid in the shape of a wolf (bite attack, extra hit points). */
   | "wild-shape"
   /** Monk: Patient Defense (like dodging, as a bonus action). */
-  | "patient-defense";
+  | "patient-defense"
+  /** Provoked: on its next turn it goes only for the hero named by sourceId. */
+  | "taunted";
 
 export interface ActiveEffect {
   id: EffectId;
