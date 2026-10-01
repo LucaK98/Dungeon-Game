@@ -48,8 +48,8 @@ import { emptyStats, type HeroStats, type Recap, type RecapHero } from "../share
 import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
 import { glossaryAnswer } from "../dm/rules-help";
-import { isTrick } from "../dm/free-actions";
-import { stuntById, stuntOf, type Mishap } from "../dm/stunts";
+import { intentOf, isTrick } from "../dm/free-actions";
+import { isSupport, stuntById, stuntOf, type Mishap } from "../dm/stunts";
 import { matchFreeText, matchUtility, type IntentMatch } from "../shared/intent-match";
 import { nameFits, walkIntent } from "../shared/walk-text";
 import { BULLET_ICON, bulletsFor } from "../shared/bullets";
@@ -681,11 +681,20 @@ export class GameController {
    */
   applyEffects(effects: DmEffect[], actor: Creature): string[] {
     const lines: string[] = [];
+    // Ups! decided first: when it only just worked, an accident replaces the small price (never both).
+    const oops = this.rollMishap(effects);
+    let costLater = false;
     const enemy = (id: string) => {
       const c = this.battle.creatures[id];
       return c && c.side === "enemy" && isActive(c) ? c : undefined;
     };
     for (const e of effects) {
+      // The same trick on the same foe works once per fight ("Gerd fällt nicht nochmal darauf rein").
+      const worn = this.wornOut(e);
+      if (worn) {
+        lines.push(worn);
+        continue;
+      }
       switch (e.kind) {
         case "distract": {
           const t = enemy(e.target);
@@ -886,6 +895,10 @@ export class GameController {
           break;
         }
         case "cost": {
+          if (oops) {
+            costLater = true;
+            break;
+          }
           const roll = rollDice(this.rng, parseDice("1d4"));
           const dmg = Math.min(roll.total, Math.max(0, actor.hp - 1));
           if (dmg > 0) applyDamage(this.rng, actor, dmg);
@@ -895,9 +908,14 @@ export class GameController {
       }
     }
     // Ups! Now and then an action sets off something else (more often when it only just worked).
-    if (lines.length) {
-      const oops = this.mishapFor(effects, actor);
-      if (oops) lines.push(oops);
+    const happened = oops && lines.length ? this.applyMishap(oops.kinds, actor, oops.target) : undefined;
+    if (happened) lines.push(happened);
+    else if (costLater) {
+      // No accident fitted after all: the small price of "ja, aber" stays.
+      const roll = rollDice(this.rng, parseDice("1d4"));
+      const dmg = Math.min(roll.total, Math.max(0, actor.hp - 1));
+      if (dmg > 0) applyDamage(this.rng, actor, dmg);
+      lines.push(`⚠️ Ja, aber: ${actor.name} bezahlt einen Preis und verliert ${dmg} Trefferpunkte.`);
     }
     // A foe set up by this hero (knocked down, distracted, soaked in oil …): a friend's hit becomes a combo.
     for (const e of effects) {
@@ -1016,11 +1034,31 @@ export class GameController {
   private gave = new Set<string>();
 
   /** The new toolbox of free actions: walking, climbing, ground, things, people, items. Returns a log line. */
+  /** Tricks already played on foes in this fight (trick|foe). */
+  private tricksOnFoes = new Set<string>();
+
+  /** A trick played on the same foe a second time in one fight: it no longer works. Returns the line. */
+  private wornOut(e: DmEffect): string | undefined {
+    if (this.mode !== "combat") return undefined;
+    const stunt = e.kind === "stunt" ? stuntById(e.id) : undefined;
+    if (stunt?.support) return undefined;
+    const trick = stunt ? stunt.id : e.kind === "distract" || e.kind === "hamper" || e.kind === "weakness" ? e.kind : undefined;
+    if (!trick) return undefined;
+    const target = "target" in e && typeof e.target === "string" ? e.target : "*";
+    const key = `${trick}|${target}`;
+    if (!this.tricksOnFoes.has(key)) {
+      this.tricksOnFoes.add(key);
+      return undefined;
+    }
+    const foe = this.battle.creatures[target];
+    return `🙄 ${foe?.name ?? "Die Gegner"} ${foe ? "fällt" : "fallen"} nicht nochmal auf denselben Trick rein – probiert etwas anderes!`;
+  }
+
   /** Chance of an accident: on a clean success, and when it only just worked ("ja, aber"). */
   static readonly MISHAP_CHANCE = { clean: 0.12, close: 0.35 };
 
-  /** What a free action may set off by accident (the stunt table, and a few of the old tricks). */
-  private mishapFor(effects: DmEffect[], actor: Creature): string | undefined {
+  /** Whether an accident happens this time, and which kinds fit the action (the stunt table, and a few of the old tricks). */
+  private rollMishap(effects: DmEffect[]): { kinds: Mishap[]; target: string | undefined } | undefined {
     const main = effects.find((e) => e.kind !== "cost" && e.kind !== "move_to" && e.kind !== "posture");
     if (!main) return undefined;
     const kinds: Mishap[] | undefined =
@@ -1036,8 +1074,11 @@ export class GameController {
     if (!kinds?.length) return undefined;
     const close = effects.some((e) => e.kind === "cost");
     if (this.envRng.next() >= (close ? GameController.MISHAP_CHANCE.close : GameController.MISHAP_CHANCE.clean)) return undefined;
-    const target = "target" in main && typeof main.target === "string" ? main.target : undefined;
-    // The first one that fits the situation (in a random order).
+    return { kinds, target: "target" in main && typeof main.target === "string" ? main.target : undefined };
+  }
+
+  /** The first accident that fits the situation (in a random order). */
+  private applyMishap(kinds: Mishap[], actor: Creature, target: string | undefined): string | undefined {
     const order = [...kinds].sort(() => this.envRng.next() - 0.5);
     for (const k of order) {
       const line = this.mishap(k, actor, target);
@@ -2552,6 +2593,7 @@ export class GameController {
     this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: combat.order[0]!.creatureId, title: "Kampf!", sides: 20, dice: [], kept: 0, lines });
     this.emit("combat", true);
     this.tricksUsed.clear();
+    this.tricksOnFoes.clear();
     this.startArena();
     this.wizardLore();
     this.grantBoons();
@@ -3223,8 +3265,17 @@ export class GameController {
           return;
         }
         // In a fight a trick costs the bonus action (so an attack still fits), else the action.
+        // Helping, guarding and cheering on cost the action, like the Help action of the rules.
         const turn = this.mode === "combat" ? this.battle.combat?.turn : undefined;
-        if (turn) {
+        const support = isSupport(action.text) || ["help", "cover"].includes(intentOf(action.text, true)?.intent ?? "");
+        if (turn && support) {
+          if (turn.actions < 1) {
+            this.sendTo(playerId, { type: "action_error", reason: "Helfen und Beschützen kosten deine Aktion – die ist in diesem Zug schon verbraucht." });
+            return;
+          }
+          turn.actions -= 1;
+          this.freePaid.set(hero.id, "action");
+        } else if (turn) {
           if (turn.bonusAction) {
             turn.bonusAction = false;
             this.freePaid.set(hero.id, "bonus");
@@ -6283,6 +6334,7 @@ export class GameController {
     this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: combat.order[0]!.creatureId, title: "Kampf!", sides: 20, dice: [], kept: 0, lines });
     this.emit("combat", true);
     this.tricksUsed.clear();
+    this.tricksOnFoes.clear();
     this.startArena();
     this.wizardLore();
     this.grantBoons();
@@ -6842,7 +6894,7 @@ export class GameController {
       // A trick costs the bonus action while there is one – an attack still fits into the turn.
       const bonus = !costReason("bonus");
       const reason = bonus ? undefined : costReason("action");
-      choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: bonus ? "Ein Trick: ablenken, beleidigen, Bein stellen, bestechen … · kostet deine Bonusaktion – angreifen kannst du danach trotzdem" : "Ein Trick: ablenken, beleidigen, Bein stellen, bestechen … · kostet deine Aktion", glossarKey: "freie_aktion", cost: bonus ? "bonus" : "action", enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "free_text", text: "" } });
+      choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: bonus ? "Ein Trick: ablenken, beleidigen, Bein stellen, bestechen … · kostet deine Bonusaktion – angreifen kannst du danach trotzdem (Helfen und Beschützen kosten die Aktion)" : "Ein Trick: ablenken, beleidigen, Bein stellen, bestechen … · kostet deine Aktion", glossarKey: "freie_aktion", cost: bonus ? "bonus" : "action", enabled: !reason, ...(reason ? { reason } : {}), action: { kind: "free_text", text: "" } });
     } else {
       choices.push({ id: "free", group: "free", label: "Freie Aktion", detail: "Beschreibe, was du tun willst", glossarKey: "freie_aktion", cost: "free", enabled: mine, ...(notMine ? { reason: notMine } : {}), action: { kind: "free_text", text: "" } });
     }

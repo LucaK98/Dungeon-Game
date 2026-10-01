@@ -230,3 +230,46 @@ describe("by accident (ups!)", () => {
     }
   });
 });
+
+describe("no free advantage every round", () => {
+  it("the same trick on the same foe works once per fight; a different trick still works", () => {
+    const { game, session, a } = setup();
+    game.spawnNearParty(["goblin"]);
+    const g = Object.values(session.battle.creatures).find((c) => c.side === "enemy")!;
+    expect(game.applyEffects([{ kind: "stunt", id: "call_name", target: g.id }], a).join(" ")).toContain("abgelenkt");
+    g.effects = [];
+    expect(game.applyEffects([{ kind: "stunt", id: "call_name", target: g.id }], a).join(" ")).toContain("nicht nochmal");
+    expect(g.effects.some((e) => e.id === "distracted")).toBe(false);
+    expect(game.applyEffects([{ kind: "stunt", id: "tickle", target: g.id }], a).join(" ")).toContain("niesen");
+  });
+
+  it("helping and guarding cost the action in a fight; 'Hey Gerd!' needs a roll", () => {
+    expect(STUNTS.filter((s) => s.support).map((s) => s.id).sort()).toEqual(["boost", "charge", "encourage", "protect", "shieldwall", "song", "stabilize"]);
+    expect(STUNTS.find((s) => s.id === "call_name")!.skill).toBe("deception");
+    // No stunt gives advantage or armour without a roll and with only the bonus action.
+    for (const s of STUNTS.filter((x) => x.combat !== false && !x.skill)) expect(s.support || ["fetch", "scout", "ride", "rumors", "meal", "map", "drink", "watch", "false_trail"].includes(s.id), s.id).toBe(true);
+  });
+});
+
+describe("'ja, aber' is never punished twice", () => {
+  const chance = GameController.MISHAP_CHANCE as { clean: number; close: number };
+  it("when it only just worked: either the small price or an accident – not both", () => {
+    const keep = { ...chance };
+    try {
+      chance.close = 1;
+      const { game, a } = setup();
+      const hp = a.hp;
+      const text = game.applyEffects([{ kind: "stunt", id: "tracks" }, { kind: "cost" }], a).join(" ");
+      expect(text).toContain("Zufall!");
+      expect(text).not.toContain("Ja, aber");
+      expect(a.hp).toBe(hp);
+      chance.close = 0;
+      const s2 = setup();
+      const text2 = s2.game.applyEffects([{ kind: "stunt", id: "tracks" }, { kind: "cost" }], s2.a).join(" ");
+      expect(text2).toContain("Ja, aber");
+      expect(text2).not.toMatch(/Ups!|Zufall!/);
+    } finally {
+      Object.assign(chance, keep);
+    }
+  });
+});
