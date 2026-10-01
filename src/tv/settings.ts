@@ -5,6 +5,7 @@
  */
 import { SYSTEM_PROMPT } from "../dm/ai/prompt";
 import { GeminiProvider, GroqProvider, LlmError, ServerProvider, type ProviderId } from "../dm/ai/provider";
+import { loadAllFeatures, saveAllFeatures } from "./homeland-store";
 import { aiUsageToday, BUDGET_CALLS, budgetState, countAiCall, countAiUsage, loadAiBudget, loadAiSettings, providersFrom, saveAiBudget, saveAiSettings, type AiBudget, type AiSettings } from "../dm/ai/settings";
 import { h } from "../ui/dom";
 import { loadCrude, loadGraphicsMode, loadLookMode, loadTempo, saveCrude, saveGraphicsMode, saveLookMode, saveTempo, type GraphicsMode, type LookMode, type Tempo } from "./render";
@@ -293,6 +294,26 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     };
     renderCrude();
 
+    // Everything from the start, or step by step (src/shared/unlocks.ts).
+    const allRow = h("div", { class: "tv-row" });
+    const renderAll = () => {
+      const on = loadAllFeatures();
+      allRow.replaceChildren(
+        ...([
+          [false, "🌱 Nach und nach (empfohlen)"],
+          [true, "🔓 Alles von Anfang an"],
+        ] as const).map(([value, label]) => {
+          const b = h("button", { class: `tv-btn${on === value ? " primary" : ""}`, type: "button", textContent: label });
+          b.addEventListener("click", () => {
+            saveAllFeatures(value);
+            renderAll();
+          });
+          return b;
+        }),
+      );
+    };
+    renderAll();
+
     const tempoRow = h("div", { class: "tv-row" });
     const renderTempo = () => {
       const now = loadTempo();
@@ -384,7 +405,7 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     const el = h(
       "main",
       { class: "tv-screen" },
-      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("p", { class: "muted" }, "KI-Aufrufe pro Tag (ab 80 % nur noch wichtige Momente, danach erzählt das Drehbuch):"), budgetRow, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("p", { class: "muted" }, "Sprechtempo (antippen zum Anhören):"), rateRow, h("h2", {}, "🖼 Grafik"), graphicsRow, h("p", { class: "muted" }, "Aussehen des Spielbretts (gilt ab der nächsten Karte):"), lookRow, h("h2", {}, "⏱️ Spieltempo"), h("p", { class: "muted" }, "Wie lange das Spiel zwischen den Zügen wartet (Gemütlich ist gut für Einsteiger):"), tempoRow, h("h2", {}, "💬 Sprüche der Gegner"), crudeRow, h("div", { class: "tv-row" }, done)),
+      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("p", { class: "muted" }, "KI-Aufrufe pro Tag (ab 80 % nur noch wichtige Momente, danach erzählt das Drehbuch):"), budgetRow, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("p", { class: "muted" }, "Sprechtempo (antippen zum Anhören):"), rateRow, h("h2", {}, "🖼 Grafik"), graphicsRow, h("p", { class: "muted" }, "Aussehen des Spielbretts (gilt ab der nächsten Karte):"), lookRow, h("h2", {}, "⏱️ Spieltempo"), h("p", { class: "muted" }, "Wie lange das Spiel zwischen den Zügen wartet (Gemütlich ist gut für Einsteiger):"), tempoRow, h("h2", {}, "💬 Sprüche der Gegner"), crudeRow, h("h2", {}, "🔓 Spielumfang"), h("p", { class: "muted" }, "Heimatdorf, Reisekarte und Brauen kommen nach dem ersten Abenteuer, Liebe und Elemente nach dem zweiten – oder alles gleich:"), allRow, h("div", { class: "tv-row" }, done)),
     );
     done.addEventListener("click", () => {
       pull();

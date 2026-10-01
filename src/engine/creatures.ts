@@ -146,7 +146,9 @@ export function weaponAttack(c: Pick<Creature, "abilities" | "proficiencyBonus">
   const dex = abilityMod(c.abilities.DEX);
   // Monks may use Dexterity with their simple weapons and short swords (Martial Arts).
   const monkWeapon = c.pc.classId === "monk" && !w.properties.includes("two-handed") && !w.properties.includes("heavy") && (w.category === "simple" || w.id === "shortsword");
-  const ability: Ability = w.ranged ? "DEX" : (finesse || monkWeapon) && dex > str ? "DEX" : "STR";
+  // Druids fight with nature's magic in staff and club (like Shillelagh): Wisdom if better.
+  const druidStaff = c.pc.classId === "druid" && (w.id === "quarterstaff" || w.id === "club") && abilityMod(c.abilities.WIS) > str;
+  const ability: Ability = w.ranged ? "DEX" : druidStaff ? "WIS" : (finesse || monkWeapon) && dex > str ? "DEX" : "STR";
   const mod = modPart(c as Creature, ability);
   const toHit: BreakdownPart[] = [mod];
   if (isProficientWithWeapon(c.pc, w)) toHit.push(profPart(c.proficiencyBonus));
@@ -175,7 +177,8 @@ export function weaponAttack(c: Pick<Creature, "abilities" | "proficiencyBonus">
 }
 
 function unarmedStrike(c: Creature): AttackOption {
-  // Monks: Martial Arts – Dexterity if better, and a real damage die (1d4, 1d6 from level 5).
+  // Monks: Martial Arts – Dexterity if better, and a real damage die (1d6, 1d8 from level 5 – a bit
+  // more than the rule book, the class bench found monks far behind at low levels).
   const monk = c.pc?.classId === "monk";
   const mod = modPart(c, monk && c.abilities.DEX > c.abilities.STR ? "DEX" : "STR");
   if (monk) {
@@ -185,7 +188,7 @@ function unarmedStrike(c: Creature): AttackOption {
       source: "unarmed",
       kind: "melee",
       toHit: [mod, profPart(c.proficiencyBonus)],
-      damage: [{ dice: (c.pc?.level ?? 1) >= 5 ? "1d6" : "1d4", type: "bludgeoning" }],
+      damage: [{ dice: (c.pc?.level ?? 1) >= 5 ? "1d8" : "1d6", type: "bludgeoning" }],
       damageBonus: [mod],
       reachFt: 5,
     };
@@ -221,7 +224,11 @@ export function armorClassParts(abilities: AbilityScores, pc: Pick<PcInfo, "armo
     parts.push({ label: "Grundwert", value: 10, glossarKey: "ruestungsklasse" });
     parts.push({ label: "Geschicklichkeit", value: dex, glossarKey: ABILITY_GLOSSAR.DEX });
     // Monk: Unarmored Defense adds Wisdom (without armour and shield).
-    if (pc.classId === "monk" && !pc.shield) parts.push({ label: "Weisheit (Abwehr ohne Rüstung)", value: abilityMod(abilities.WIS), glossarKey: "merkmal:unarmored-defense-monk" });
+    if (pc.classId === "monk" && !pc.shield) {
+      parts.push({ label: "Weisheit (Abwehr ohne Rüstung)", value: abilityMod(abilities.WIS), glossarKey: "merkmal:unarmored-defense-monk" });
+      // Fighting stance: monks stand in the thick of it without armour (the class bench found them far behind).
+      parts.push({ label: "Kampfhaltung", value: 1, glossarKey: "merkmal:unarmored-defense-monk" });
+    }
   }
   if (pc.shield) parts.push({ label: "Schild", value: 2, glossarKey: "ruestung:shield" });
   if (pc.fightingStyle === "defense" && armorId) {

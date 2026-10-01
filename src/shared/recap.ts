@@ -3,6 +3,7 @@
  * The TV collects the numbers during the game; this file turns them into highlights.
  */
 import type { DollLook } from "./doll";
+import type { ReportLine } from "./report";
 
 export interface HeroStats {
   damageDealt: number;
@@ -63,6 +64,8 @@ export interface Recap {
   finalBlow?: { heroId: string; name: string; boss: string; text: string; narration: string };
   /** Badges earned in this adventure. */
   badges?: { heroId: string; name: string; color: string; icon: string; title: string; how: string }[];
+  /** The evening's report (src/shared/report.ts). */
+  report?: ReportLine[];
   /** The secret goals, revealed. */
   goals?: { heroId: string; name: string; color: string; icon: string; reveal: string; done: boolean }[];
 }

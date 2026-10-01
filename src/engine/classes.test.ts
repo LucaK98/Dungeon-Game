@@ -49,7 +49,7 @@ describe("new classes", () => {
     const m = pregenCharacter("monk", 5, "m");
     const dex = Math.floor((m.abilities.DEX - 10) / 2);
     const wis = Math.floor((m.abilities.WIS - 10) / 2);
-    expect(armorClass(m)).toBe(10 + dex + wis);
+    expect(armorClass(m)).toBe(10 + dex + wis + 1); // + Kampfhaltung
     const ogre = createMonster("ogre", "o");
     const battle = battleOf([m, 0, 0], [ogre, 1, 0]);
     startCombat(scriptedRng([20, 1]), battle);

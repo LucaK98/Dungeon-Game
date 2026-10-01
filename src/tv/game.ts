@@ -55,6 +55,9 @@ import { nameFits, walkIntent } from "../shared/walk-text";
 import { BULLET_ICON, bulletsFor } from "../shared/bullets";
 import type { AttackOption, Creature, GridPos, TurnState } from "../shared/game";
 import type { BreakdownPart } from "../shared/types";
+import type { Feature } from "../shared/unlocks";
+import { idleHero, spotlightLine } from "../shared/spotlight";
+import type { EveningStats, FightStat } from "../shared/report";
 import { cellIndex, inBounds } from "../shared/map";
 import type { PlayerId } from "../shared/types";
 import { rollNeed, type ActionChoice, type ActionFx, type CampView, type FamilyView, type MiniMap, type OrderEntry, type PlayerView, type RollOutcome, type RollPrompt, type StoryView } from "../shared/view";
@@ -63,7 +66,7 @@ import type { CheckResult, DamageResult } from "../shared/game";
 import type { DamageType, SkillId } from "../shared/rules";
 import type { DungeonMap, MapObject } from "../shared/map";
 import { applyGear, createCharacter, gearProblem, refreshAttacks } from "../engine/creatures";
-import { scaleGroup } from "../dm/planner";
+import { entourage, fightFactor, groupCount, kindOf, modFor, TUNING } from "../dm/encounter";
 import { getModule, moduleExits, THEMES } from "../map/modules";
 import type { GameSession } from "./session";
 
@@ -230,6 +233,12 @@ function objectName(o: MapObject): string {
 
 /** Pause before and after a foe's move: time to see what happens (one thing after another). */
 const MONSTER_PAUSE_MS = 2200;
+/** The rank and file are quicker … */
+const MINION_PAUSE_MS = 1200;
+/** Actions that do not count as "doing something" for the spotlight guard. */
+const QUIET_ACTIONS = new Set<PlayerAction["kind"]>(["end_turn", "move", "emote", "point", "undo_move", "set_beginner_mode", "suggest", "ask_rules", "cancel_roll", "equip", "unequip", "final_blow"]);
+/** … and foes of the same kind right after each other act almost as one. */
+const GROUP_PAUSE_MS = 350;
 
 /** Which resource an ability uses up (the rest use one of their own name). */
 const FEATURE_RESOURCE: Partial<Record<string, string>> = {
@@ -272,6 +281,11 @@ export class GameController {
   private victoryNote: string | undefined;
   /** Free-action finds and first aid are limited per map. */
   private findsThisMap = 0;
+  /** Fights of this adventure so far (the first one is for learning). */
+  private fightsStarted = 0;
+  /** The beginners' adventure: every fight is a gentle one (set by the Director). */
+  gentleFights = false;
+
   /** Stunts that work once per place (a meal, herbs, a drawn map). */
   private stuntsThisMap = new Set<string>();
   /** Heroes who haggled: their next purchase is 20 % cheaper. */
@@ -2388,7 +2402,9 @@ export class GameController {
    * then a short pause, and only then the next phone buzzes (or the foe moves).
    */
   private startTurn(): void {
-    const gap = this.opts.turnGapMs ?? 0;
+    // Foes of the same kind follow each other without the pause between turns (one group move).
+    const prev = this.lastActor ? this.battle.creatures[this.lastActor.id] : undefined;
+    const gap = this.sameKind(prev, this.active()) ? 0 : (this.opts.turnGapMs ?? 0);
     if (!gap && !this.narrating) {
       this.announceTurn();
       this.broadcast();
@@ -2490,6 +2506,8 @@ export class GameController {
         if (spoke) await this.untilTold();
       }
       if (!still()) return false;
+      this.worldRounds++;
+      this.spotlight(people);
       // Everyone further away (animals, people at the other end) moves quietly, all at once.
       this.worldActor = "world";
       if (people.length) this.emit("turn", "🌍 Die Welt", "#6fa8dc", false, `Runde ${ended} · Personen und Ereignisse`);
@@ -2529,6 +2547,26 @@ export class GameController {
       }
     }
   }
+
+  /** Rounds of exploring so far (for the spotlight guard) and when each hero last did something of note. */
+  private worldRounds = 0;
+  private lastDid = new Map<string, number>();
+
+  /** The spotlight guard: a hero idle for three rounds gets a hook (a person nearby, or what the class notices). */
+  private spotlight(people: Creature[]): void {
+    const heroes = this.heroes().filter((h) => h.playerId && h.pos && !h.dead);
+    const id = idleHero(heroes.map((h) => h.id), this.lastDid, this.worldRounds);
+    const hero = heroes.find((h) => h.id === id);
+    if (!hero) return;
+    this.lastDid.set(hero.id, this.worldRounds);
+    const person = people.filter((c) => c.id.startsWith("npc-") && this.cheb(c.pos!, hero.pos!) <= 6).sort((a, b) => this.cheb(a.pos!, hero.pos!) - this.cheb(b.pos!, hero.pos!))[0];
+    const line = spotlightLine(hero.name, hero.pc?.classId, this.envRng.int(0, 99), person?.name);
+    this.spotlights++;
+    this.narrate([{ text: line }], { aside: true });
+    this.tellPlayer(hero.playerId!, line);
+  }
+  /** How often the spotlight guard had to step in (for the evening's report). */
+  spotlights = 0;
 
   /** Someone walked into the heroes during the world's turn: the fight starts (the world's turn ends). */
   private worldCheckFight(): boolean {
@@ -2594,6 +2632,8 @@ export class GameController {
     this.emit("combat", true);
     this.tricksUsed.clear();
     this.tricksOnFoes.clear();
+    const party = this.heroes().filter((h) => !h.dead);
+    this.fightStart = this.training ? undefined : { hp: party.reduce((s, h) => s + h.hp, 0), max: party.reduce((s, h) => s + h.maxHp, 0), boss: enemies.some((e) => this.bossIds.has(e.id)) };
     this.startArena();
     this.wizardLore();
     this.grantBoons();
@@ -2616,6 +2656,11 @@ export class GameController {
     const winner = combatWinner(this.battle);
     if (!winner) return false;
     if (this.monsterTimer) clearTimeout(this.monsterTimer);
+    if (this.fightStart) {
+      const hp = this.heroes().filter((h) => !h.dead).reduce((s, h) => s + Math.max(0, h.hp), 0);
+      this.evening.fights.push({ rounds: this.battle.combat?.round ?? 1, hpLost: Math.max(0, Math.min(1, (this.fightStart.hp - hp) / Math.max(1, this.fightStart.max))), won: winner === "party", boss: this.fightStart.boss });
+      this.fightStart = undefined;
+    }
     endCombat(this.battle);
     const lines: ExplainedLine[] = [];
     if (winner === "party") {
@@ -2657,7 +2702,7 @@ export class GameController {
     // Foes wait for the story to be told (setNarrating starts them again) and for their turn to be announced.
     if (this.narrating || this.turnHeld) return;
     if (c.kind !== "monster" && !this.opts.autoHeroes) return;
-    const delay = this.monsterDelay();
+    const delay = this.monsterDelay(c, "before");
     const run = () => this.runMonster(c.id);
     if (delay <= 0) run();
     else this.monsterTimer = setTimeout(run, delay);
@@ -2676,7 +2721,7 @@ export class GameController {
       monster.effects = monster.effects.filter((e) => e.id !== "surprised");
       this.publishRoll({ id: `o${++this.rollCounter}`, creatureId: id, title: `${monster.name} ist überrascht`, sides: 20, dice: [], kept: 0, lines: [{ text: `😲 ${monster.name} ist überrascht und verliert den ersten Zug.`, glossarKeys: ["ueberrascht"] }] });
       this.emit("changed");
-      const delay = this.monsterDelay();
+      const delay = this.monsterDelay(monster, "after");
       if (delay <= 0) this.endTurn();
       else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
       return;
@@ -2727,7 +2772,7 @@ export class GameController {
         this.publishRoll(roll);
         this.emit("changed");
         if (this.checkWinner()) return;
-        const delay = this.monsterDelay();
+        const delay = this.monsterDelay(monster, "after");
         if (delay <= 0) this.endTurn();
         else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
         return;
@@ -2754,9 +2799,22 @@ export class GameController {
       } else this.publishRoll(roll);
       if (o.kind === "move" && monster.pos) this.walkedThrough(monster, [monster.pos]);
     }
+    // A badly hurt foe that ran away and is out of reach leaves the fight (else it hides forever).
+    const ran = hasEffect(monster, "dodge") || hasEffect(monster, "disengage");
+    const heroesNear = Object.values(this.battle.creatures).filter((c) => c.side === "party" && isActive(c) && c.pos);
+    if (ran && monster.pos && !this.bossIds.has(monster.id) && monster.hp <= monster.maxHp / 4 && heroesNear.every((h) => this.cheb(h.pos!, monster.pos!) >= 6)) {
+      delete this.battle.creatures[monster.id];
+      const lines: ExplainedLine[] = [{ text: `🏃 ${monster.name} flieht aus dem Kampf und ist verschwunden.`, glossarKeys: [] }];
+      this.addLog(lines);
+      this.emit("lines", lines);
+      this.emit("changed");
+      if (this.checkWinner()) return;
+      this.endTurn();
+      return;
+    }
     this.emit("changed");
     if (this.checkWinner()) return;
-    const delay = this.monsterDelay();
+    const delay = this.monsterDelay(monster, "after");
     if (delay <= 0) this.endTurn();
     else this.monsterTimer = setTimeout(() => this.endTurn(), delay);
   }
@@ -2903,8 +2961,32 @@ export class GameController {
     return Math.round(ms * this.tempo);
   }
 
-  private monsterDelay(): number {
-    return this.opts.monsterDelayMs ?? this.paced(MONSTER_PAUSE_MS);
+  /**
+   * The pause around a foe's move. Bosses take their time; the rank and file are quicker, and foes
+   * of the same kind act right after each other like one group ("Die Goblins greifen an").
+   */
+  private monsterDelay(c?: Creature, phase: "before" | "after" = "before"): number {
+    if (this.opts.monsterDelayMs !== undefined) return this.opts.monsterDelayMs;
+    if (!c || this.bossIds.has(c.id)) return this.paced(MONSTER_PAUSE_MS);
+    if (c.pos && !this.map.explored[cellIndex(this.map, c.pos.x, c.pos.y)]) return this.paced(300);
+    const other = phase === "before" ? (this.lastActor ? this.battle.creatures[this.lastActor.id] : undefined) : this.peekNext();
+    return this.paced(this.sameKind(c, other) ? GROUP_PAUSE_MS : MINION_PAUSE_MS);
+  }
+
+  /** Two foes of the same kind (not bosses): they act as one group. */
+  private sameKind(a: Creature | undefined, b: Creature | undefined): boolean {
+    return !!a && !!b && a.id !== b.id && a.kind === "monster" && b.kind === "monster" && !!a.monsterId && a.monsterId === b.monsterId && a.side === b.side && !this.bossIds.has(a.id) && !this.bossIds.has(b.id);
+  }
+
+  /** Who comes after the active one (still standing). */
+  private peekNext(): Creature | undefined {
+    const combat = this.battle.combat;
+    if (!combat) return undefined;
+    for (let k = 1; k < combat.order.length; k++) {
+      const c = this.battle.creatures[combat.order[(combat.turnIndex + k) % combat.order.length]!.creatureId];
+      if (c && isActive(c)) return c;
+    }
+    return undefined;
   }
 
   private narratingSafety: ReturnType<typeof setTimeout> | undefined;
@@ -2935,7 +3017,11 @@ export class GameController {
       return;
     }
     this.lastActionAt = Date.now();
-    if (this.active()?.playerId === playerId) this.turnActivityAt = this.lastActionAt;
+    if (this.active()?.playerId === playerId) {
+      // The report: how long until a player does the first thing in their turn.
+      if (this.turnActivityAt === this.turnStartedAt && !this.freeExplore && action.kind !== "emote" && action.kind !== "point") this.evening.waits.push(Math.min(300, Math.round((this.lastActionAt - this.turnStartedAt) / 1000)));
+      this.turnActivityAt = this.lastActionAt;
+    }
     if (action.kind === "set_beginner_mode") {
       this.beginner.set(playerId, action.on);
       this.sendView(playerId);
@@ -2943,6 +3029,10 @@ export class GameController {
     }
     const hero = this.heroOf(playerId);
     if (!hero) return;
+    if (!QUIET_ACTIONS.has(action.kind)) {
+      this.lastDid.set(hero.id, this.worldRounds);
+      this.evening.acts[hero.id] = (this.evening.acts[hero.id] ?? 0) + 1;
+    }
     if (action.kind === "final_blow") {
       const ask = this.blowAsk;
       if (!ask || ask.heroId !== hero.id) return;
@@ -3133,6 +3223,10 @@ export class GameController {
         }
         if (this.mode === "combat") {
           this.sendTo(playerId, { type: "action_error", reason: "Mitten im Kampf? Das hat Zeit bis später!" });
+          return;
+        }
+        if (action.kind !== "gift" && this.locked.has("romance")) {
+          this.sendTo(playerId, { type: "action_error", reason: "🌹 Flirten und Liebe kommen nach dem zweiten Abenteuer dazu." });
           return;
         }
         if (Math.max(Math.abs(npc.pos.x - hero.pos.x), Math.abs(npc.pos.y - hero.pos.y)) > 1) {
@@ -4185,6 +4279,21 @@ export class GameController {
   }
 
   /** The heroes with their numbers, for the look back. */
+  /** The evening's numbers for the report in the look back (src/shared/report.ts). */
+  private evening = { fights: [] as FightStat[], waits: [] as number[], acts: {} as Record<string, number> };
+  private fightStart: { hp: number; max: number; boss: boolean } | undefined;
+
+  eveningStats(): EveningStats {
+    const heroes = this.heroes().filter((h) => h.playerId);
+    return {
+      fights: [...this.evening.fights],
+      waits: [...this.evening.waits],
+      spotlights: this.spotlights,
+      acts: Object.fromEntries(heroes.map((h) => [h.name, this.evening.acts[h.id] ?? 0])),
+      tricks: heroes.reduce((sum, h) => sum + this.statsOf(h.id).freeActions, 0),
+    };
+  }
+
   recapHeroes(): RecapHero[] {
     return this.heroes().map((h) => ({
       id: h.id,
@@ -5177,6 +5286,8 @@ export class GameController {
 
   /** Buildings of the home village (set by the board, src/shared/homeland.ts). */
   village: string[] = [];
+  /** Features not unlocked yet for this group (src/shared/unlocks.ts; set by the board). */
+  locked = new Set<Feature>();
   /** The temple's blessing is used once per adventure. */
   private templeUsed = false;
   /** The kennel's dog waits only at the adventure's first map. */
@@ -5647,6 +5758,7 @@ export class GameController {
       choices: this.choicesFor(me, mine, this.beginner.get(playerId) ?? true),
       log: this.log.slice(-15),
       beginnerMode: this.beginner.get(playerId) ?? true,
+      ...(this.locked.size ? { locked: [...this.locked] } : {}),
       party: this.heroes().filter((h) => h.id !== me.id && !h.dead).map((h) => ({ id: h.id, name: h.name, ...(h.appearance ? { color: h.appearance.color } : {}) })),
     };
     if (this.pending?.playerId === playerId) view.pendingRoll = this.pending.prompt;
@@ -6282,13 +6394,24 @@ export class GameController {
       }
       return out;
     };
-    for (const g of groups) {
+    // Fitted to the group (number of heroes and their level): see src/dm/encounter.ts and the bench.
+    // A boss alone against many heroes brings followers (the table is keyed by the story's own groups).
+    const all = training ? groups : [...groups, ...entourage(groups, players)];
+    const counts = all.map((g) => groupCount(g, players) + (g.boss || training || !g.count ? 0 : extra));
+    const level = Math.round(this.heroes().reduce((s, h) => s + (h.pc?.level ?? 1), 0) / Math.max(1, players));
+    const kind = kindOf(groups, this.fightsStarted === 0, this.gentleFights);
+    // The bench fits fights to heroes at full health: a battered group meets somewhat softer foes.
+    const party = this.heroes().filter((h) => !h.dead);
+    const health = party.reduce((s, h) => s + Math.max(0, h.hp), 0) / Math.max(1, party.reduce((s, h) => s + h.maxHp, 0));
+    const fit = training ? undefined : modFor(fightFactor(groups, all.flatMap((g, gi) => Array.from({ length: counts[gi]! }, () => g.monster)), players, level, kind) * TUNING.realism * (0.5 + 0.5 * Math.min(1, health)));
+    if (!training) this.fightsStarted++;
+    for (const [gi, g] of all.entries()) {
       // Harder levels bring one more of the rank and file (never in the training fight).
-      const count = scaleGroup(g, players) + (g.boss || training || !g.count ? 0 : extra);
+      const count = counts[gi]!;
       const spots = freeSpots(g.boss ? [...room.spots.boss, ...room.spots.monster] : room.spots.monster);
       // Now and then the whole group is an elemental variant (Feuerkobolde, Frost-Skelette …).
       const kinds = !g.boss && !training && !g.name ? VARIANTS[g.monster] : undefined;
-      const element = kinds && this.envRng.next() < ELEMENT_CHANCE ? kinds[Math.floor(this.envRng.next() * kinds.length) % kinds.length] : undefined;
+      const element = kinds && !this.locked.has("elements") && this.envRng.next() < ELEMENT_CHANCE ? kinds[Math.floor(this.envRng.next() * kinds.length) % kinds.length] : undefined;
       for (let i = 0; i < count && spots.length; i++) {
         const pos = spots.shift()!;
         const m = createMonster(g.monster, `m${++this.rollCounter}`, { name: g.name ?? nameOf("monsters", g.monster) });
@@ -6296,6 +6419,7 @@ export class GameController {
         if (count > 1) m.name = `${m.name} ${i + 1}`;
         m.pos = pos;
         if (!training) hardenMonster(m, rules);
+        if (fit) hardenMonster(m, fit);
         // The group is below this chapter's level: its foes are a bit weaker (−20 % hit points per level, at most half).
         if (!training && this.levelGap > 0) {
           m.maxHp = Math.max(1, Math.round(m.maxHp * Math.max(0.5, 1 - 0.2 * this.levelGap)));

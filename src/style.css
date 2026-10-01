@@ -794,6 +794,13 @@ body.tip-mode::after {
 .saga-tag.good { background: rgba(90,200,120,0.2); }
 .saga-tag.bad { background: rgba(230,70,60,0.2); }
 .end-home { margin: 12px 0; padding: 12px 18px; border-radius: 14px; background: rgba(224,165,38,0.1); }
+.end-unlocks { margin: 12px 0; }
+.end-report { margin: 12px 0; padding: 12px 18px; border-radius: 14px; background: rgba(111,168,220,0.1); text-align: left; }
+.end-report .checklist { list-style: none; padding: 0; margin: 6px 0; }
+.unlock-cards { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.unlock-card { display: flex; flex-direction: column; gap: 4px; width: 260px; padding: 14px 16px; border-radius: 14px; background: rgba(120,200,140,0.12); border: 2px solid rgba(120,200,140,0.5); text-align: left; animation: unlock-pop 0.6s ease-out both; }
+.unlock-icon { font-size: 34px; }
+@keyframes unlock-pop { from { transform: scale(0.8); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ---------------------------------------------------------------- phone UI 2 (branch claude/handy-ui) */
 

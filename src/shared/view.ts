@@ -5,6 +5,7 @@
 import type { PlayerAction } from "./events";
 import type { Creature, GridPos } from "./game";
 import type { DollLook } from "./doll";
+import type { Feature } from "./unlocks";
 import type { Narration } from "./story";
 
 export interface ExplainedLine {
@@ -164,6 +165,8 @@ export interface PlayerView {
   /** Set when this phone has to roll now. */
   pendingRoll?: RollPrompt;
   beginnerMode: boolean;
+  /** Features this group has not unlocked yet (hidden on the phone, src/shared/unlocks.ts). */
+  locked?: Feature[];
   story?: StoryView;
   /** Married to / engaged with a character (from the characters' memory). */
   family?: FamilyView;

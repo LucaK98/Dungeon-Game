@@ -13,7 +13,7 @@ import type { Duration, Story } from "../shared/story";
 import { spriteCanvas } from "../ui/atlas";
 import { h } from "../ui/dom";
 import { BUILDINGS, build } from "../shared/homeland";
-import { loadSaga, loadVillage, saveVillage } from "./homeland-store";
+import { loadSaga, loadVillage, lockedNow, saveVillage } from "./homeland-store";
 
 export interface StartChoice {
   story: Story;
@@ -107,7 +107,7 @@ export function titleScreen(root: HTMLElement, opts: TitleOptions): Promise<"new
   return new Promise((resolve) => {
     const newGame = h("button", { class: "tv-btn primary big", type: "button", textContent: "▶ Neues Abenteuer" });
     const howto = h("button", { class: "tv-btn", type: "button", textContent: "❓ Wie spielt man das?" });
-    const home = h("button", { class: "tv-btn", type: "button", textContent: "🏘️ Heimatdorf & Heldensaga" });
+    const home = h("button", { class: "tv-btn", type: "button", textContent: "🏘️ Heimatdorf & Heldensaga", hidden: lockedNow().has("village") });
     const cont = h("button", { class: "tv-btn", type: "button", textContent: `💾 Gespeichertes Spiel fortsetzen${opts.saveCode ? ` (Code ${opts.saveCode})` : ""}`, hidden: !opts.canContinue });
     const cloud = h("button", { class: "tv-btn small", type: "button", textContent: "☁️ Spielstand-Code eingeben" });
     const speech = h("button", { class: "tv-btn small", type: "button" });

@@ -1111,6 +1111,7 @@ export function createController(playerId: () => string, sendRaw: (a: PlayerActi
       if (!ring) showToast("Ohne Ring? Die Händlerin am Lagerfeuer hat welche.");
       else send({ kind: "propose", npcId: person.id });
     });
+    if (v.locked?.includes("romance")) return h("div", { class: "row social-row" }, gift);
     return h("div", { class: "row social-row" }, flirt, gift, ...(propose ? [propose] : []));
   }
 
@@ -1746,7 +1747,7 @@ export function createController(playerId: () => string, sendRaw: (a: PlayerActi
             closeSheet();
             choose(use!);
           });
-          const brew = RECIPES.filter((r) => i.itemId in r.needs);
+          const brew = v.locked?.includes("brewing") ? [] : RECIPES.filter((r) => i.itemId in r.needs);
           const info = h("button", { class: "btn secondary", type: "button", textContent: "❓ Was ist das?" });
           info.addEventListener("click", () => openHelp(`gegenstand:${i.itemId}`, true));
           showSheet(
@@ -1826,7 +1827,7 @@ export function createController(playerId: () => string, sendRaw: (a: PlayerActi
         ],
         gearRows.length ? `${gearRows.length} Besonderes` : undefined,
       ),
-      fold("bag-craft", "⚗️ Brauen & Basteln", [craftingCard(pc.inventory)]),
+      ...(v.locked?.includes("brewing") ? [] : [fold("bag-craft", "⚗️ Brauen & Basteln", [craftingCard(pc.inventory)])]),
     ];
   }
 

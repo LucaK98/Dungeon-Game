@@ -28,6 +28,7 @@ import { glossaryAnswer, glossaryDirect, glossaryExcerpt, heroSummary } from "./
 import { SKILL_IDS, type SkillId } from "../shared/rules";
 import { World } from "./world";
 import { buildHighlights, type Recap } from "../shared/recap";
+import { reportLines } from "../shared/report";
 import type { Difficulty } from "../shared/difficulty";
 import { getGear } from "../data/gear";
 import { seededRng } from "../engine/rng";
@@ -79,6 +80,8 @@ export interface StoryResult {
   homeland?: { ally?: SagaNpc; nemesis?: SagaNpc; heroes: string[] };
   /** Filled in by the board: what the village got. */
   village?: { income: number; gold: number; ally?: string | undefined; nemesis?: string | undefined };
+  /** "🔓 Neu freigeschaltet": what this adventure opened up for the next one. */
+  unlocks?: { icon: string; title: string; text: string }[];
 }
 
 export interface DirectorOptions {
@@ -189,6 +192,8 @@ export class Director {
     game.onGift = (_playerId, hero, name, itemId, itemName) => this.gift(hero, name, itemId, itemName);
     game.onPropose = (playerId, hero, name) => this.propose(playerId, hero, name);
     game.onDeed = (hero, deed) => this.deed(hero, deed);
+    // The beginners' adventure: all its fights are gentle ones.
+    game.gentleFights = /einstieg/i.test(story.subtitle ?? "");
     // Free actions that touch people: feelings (compliment, promise, apology, caught stealing) and gossip.
     game.onAttitude = (personId, change) => this.changeAttitude(personId, change);
     game.onRumor = () => this.world?.takeMoment() ?? RUMORS[Math.floor(this.now() / 1000) % RUMORS.length];
@@ -1431,7 +1436,7 @@ export class Director {
         return { text: c.text, falseLead: !!c.falseLeadFor };
       }),
       missed: relevant.filter((c) => !c.falseLeadFor && !this.state.clues.includes(c.id)).map((c) => ({ text: c.text })),
-      recap: { ...this.recap(ending), goals: this.game.finalizeGoals(), ...(this.state.finalBlow ? { finalBlow: this.state.finalBlow } : {}) },
+      recap: { ...this.recap(ending), goals: this.game.finalizeGoals(), report: reportLines(this.game.eveningStats()), ...(this.state.finalBlow ? { finalBlow: this.state.finalBlow } : {}) },
     };
     // The saga remembers a friend won over and a foe who got away.
     const allyNpc =

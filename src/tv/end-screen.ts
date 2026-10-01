@@ -3,6 +3,7 @@ import type { StoryResult } from "../dm/director";
 import { h } from "../ui/dom";
 import { dollCanvas } from "../ui/atlas";
 import { shareRecap } from "../ui/recap-image";
+import { CHECKLIST } from "../shared/report";
 
 const KIND_ICON: Record<string, string> = { sieg: "🏆", friedlich: "🕊️", bittersuess: "🥀", scheitern: "💫" };
 
@@ -45,6 +46,14 @@ export function endScreen(root: HTMLElement, r: StoryResult, onDone: () => void)
             r.village.nemesis ? h("p", {}, `🗡️ ${r.village.nemesis} ist entkommen … und wird sich rächen wollen.`) : "",
           )
         : "",
+      r.unlocks?.length
+        ? h(
+            "div",
+            { class: "end-unlocks" },
+            h("h2", {}, "🔓 Neu freigeschaltet"),
+            h("div", { class: "unlock-cards" }, ...r.unlocks.map((u) => h("div", { class: "unlock-card" }, h("span", { class: "unlock-icon" }, u.icon), h("strong", {}, u.title), h("span", { class: "muted" }, u.text)))),
+          )
+        : "",
       h("h2", {}, "🌟 Eure Highlights"),
       highlights,
       r.recap.bestIdea ? h("p", { class: "best-idea" }, `🎭 Beste Idee: „${r.recap.bestIdea}“`) : "",
@@ -65,6 +74,16 @@ export function endScreen(root: HTMLElement, r: StoryResult, onDone: () => void)
             { class: "end-goals" },
             h("h2", {}, "🤫 Die geheimen Ziele"),
             ...r.recap.goals.map((g) => h("p", { class: `goal-reveal${g.done ? " done" : ""}`, style: `--player:${g.color}` }, `${g.done ? "✅" : "❌"} ${g.icon} `, h("strong", {}, g.name), ` ${g.reveal}${g.done ? " – geschafft! 💰 +25" : ""}`)),
+          )
+        : "",
+      r.recap.report?.length
+        ? h(
+            "div",
+            { class: "end-report" },
+            h("h2", {}, "📊 Spielbericht"),
+            ...r.recap.report.map((l) => h("p", {}, `${l.icon} ${l.text}`)),
+            h("h3", {}, "💬 Kurz drüber reden"),
+            h("ul", { class: "checklist" }, ...CHECKLIST.map((q) => h("li", {}, `☐ ${q}`))),
           )
         : "",
       h("h2", {}, "Was wirklich geschah"),

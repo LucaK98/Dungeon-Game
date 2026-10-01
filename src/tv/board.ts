@@ -1,5 +1,6 @@
 import Phaser from "phaser";
-import { loadSaga, loadVillage, saveSaga, saveVillage } from "./homeland-store";
+import { loadAllFeatures, loadSaga, loadVillage, saveSaga, saveVillage } from "./homeland-store";
+import { lockedFeatures, newUnlocks } from "../shared/unlocks";
 import { markCarried, sagaCarry, villageIncome, type SagaEntry } from "../shared/homeland";
 import { Director, newStoryState, type StoryResult, type StoryState } from "../dm/director";
 import { sceneById, sceneRooms } from "../dm/planner";
@@ -94,6 +95,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   // The home village and the saga of earlier adventures (kept on this TV).
   const village = loadVillage();
   const saga = loadSaga();
+  // Not everything at once: what this group has unlocked by its finished adventures.
+  const locked = lockedFeatures(saga.entries.length, loadAllFeatures());
   const carry = opts.story && !opts.resume ? sagaCarry(saga) : {};
 
   const newSession = (): GameSession => {
@@ -208,6 +211,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     c.tempo = TEMPO_FACTOR[loadTempo()];
     c.difficulty = difficulty;
     c.village = [...village.built];
+    c.locked = locked;
     // Lines already in the TV's log column.
     let shownLog = -1;
     // Who the TV is waiting on to roll (the hero whose phone shows the die).
@@ -416,6 +420,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         },
         duration,
         world: true,
+        travel: !locked.has("travel"),
         saga: carry,
         onSave: (saved, announce) => {
           // Every scene is saved (here and, with the code, online); long games announce their save points.
@@ -448,6 +453,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
             ...(result.homeland?.nemesis ? { nemesis: result.homeland.nemesis } : {}),
           });
           saveSaga(book);
+          const fresh = newUnlocks(book.entries.length, loadAllFeatures());
+          if (fresh.length) result.unlocks = fresh.map((u) => ({ icon: u.icon, title: u.title, text: u.text }));
           result.village = { income, gold: home.gold, ally: result.homeland?.ally?.name, nemesis: result.homeland?.nemesis?.name };
           // Let the last narration run before showing the summary.
           setTimeout(() => {

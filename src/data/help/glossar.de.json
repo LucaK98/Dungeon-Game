@@ -2876,7 +2876,7 @@
   "klasse:druid": {
     "titel": "Druide",
     "kurz": "Hüter der Natur: heilt, ruft Flammen und Donner – und wird zum Wolf.",
-    "lang": "Der Druide zaubert mit der Kraft der Natur (Weisheit). Er kann heilen, Flammen erzeugen und mit einer Donnerwoge alle um sich herum treffen. Ab Stufe 2 verwandelt er sich in einen Wolf (Tiergestalt): Dann beißt er, hat zusätzliche Trefferpunkte, kann aber nicht zaubern. Gut für Spieler, die gern vielseitig sind.",
+    "lang": "Der Druide zaubert mit der Kraft der Natur (Weisheit). Er kann heilen, Flammen erzeugen und mit einer Donnerwoge alle um sich herum treffen. Mit Kampfstab oder Knüppel trifft er dank Naturmagie mit Weisheit statt Stärke. Ab Stufe 2 verwandelt er sich in einen Wolf (Tiergestalt): Dann beißt er, hat zusätzliche Trefferpunkte, kann aber nicht zaubern. Gut für Spieler, die gern vielseitig sind.",
     "beispiel": "Der Druide wird zum Wolf, springt vor die Gruppe und fängt die Treffer ab.",
     "siehe_auch": [
       "merkmal:wild-shape",
@@ -3086,9 +3086,9 @@
   },
   "merkmal:unarmored-defense-monk": {
     "titel": "Abwehr ohne Rüstung",
-    "kurz": "Ohne Rüstung schwer zu treffen: RK = 10 + Geschicklichkeit + Weisheit.",
-    "lang": "Solange der Mönch keine Rüstung und keinen Schild trägt, ist seine Rüstungsklasse 10 plus Geschicklichkeits- und Weisheitsmodifikator.",
-    "beispiel": "10 + 3 (Geschicklichkeit) + 2 (Weisheit) = RK 15.",
+    "kurz": "Ohne Rüstung schwer zu treffen: RK = 10 + Geschicklichkeit + Weisheit + 1 (Kampfhaltung).",
+    "lang": "Solange der Mönch keine Rüstung und keinen Schild trägt, ist seine Rüstungsklasse 10 plus Geschicklichkeits- und Weisheitsmodifikator plus 1 für seine Kampfhaltung.",
+    "beispiel": "10 + 3 (Geschicklichkeit) + 2 (Weisheit) + 1 (Kampfhaltung) = RK 16.",
     "siehe_auch": [
       "ruestungsklasse",
       "weisheit"
@@ -3097,7 +3097,7 @@
   "merkmal:martial-arts": {
     "titel": "Kampfkunst",
     "kurz": "Fäuste als Waffe – und nach dem Angriff noch ein Extraschlag.",
-    "lang": "Der Mönch schlägt waffenlos mit 1W4 (ab Stufe 5 1W6) und nimmt Geschicklichkeit statt Stärke. Nach dem Angriff mit der Aktion darf er als Bonusaktion noch einmal waffenlos zuschlagen.",
+    "lang": "Der Mönch schlägt waffenlos mit 1W6 (ab Stufe 5 1W8) und nimmt Geschicklichkeit statt Stärke. Nach dem Angriff mit der Aktion darf er als Bonusaktion noch einmal waffenlos zuschlagen.",
     "beispiel": "Kurzschwert, dann Faust: zwei Angriffe in einem Zug.",
     "siehe_auch": [
       "bonusaktion",
