@@ -49,7 +49,7 @@ import type { DmEffect } from "../shared/dm";
 import { BRIBE_PER_ENEMY } from "../dm/effects";
 import { glossaryAnswer } from "../dm/rules-help";
 import { isTrick } from "../dm/free-actions";
-import { stuntOf } from "../dm/stunts";
+import { stuntById, stuntOf, type Mishap } from "../dm/stunts";
 import { matchFreeText, matchUtility, type IntentMatch } from "../shared/intent-match";
 import { nameFits, walkIntent } from "../shared/walk-text";
 import { BULLET_ICON, bulletsFor } from "../shared/bullets";
@@ -894,6 +894,11 @@ export class GameController {
         }
       }
     }
+    // Ups! Now and then an action sets off something else (more often when it only just worked).
+    if (lines.length) {
+      const oops = this.mishapFor(effects, actor);
+      if (oops) lines.push(oops);
+    }
     // A foe set up by this hero (knocked down, distracted, soaked in oil …): a friend's hit becomes a combo.
     for (const e of effects) {
       const id = "target" in e && typeof e.target === "string" ? e.target : undefined;
@@ -1011,6 +1016,137 @@ export class GameController {
   private gave = new Set<string>();
 
   /** The new toolbox of free actions: walking, climbing, ground, things, people, items. Returns a log line. */
+  /** Chance of an accident: on a clean success, and when it only just worked ("ja, aber"). */
+  static readonly MISHAP_CHANCE = { clean: 0.12, close: 0.35 };
+
+  /** What a free action may set off by accident (the stunt table, and a few of the old tricks). */
+  private mishapFor(effects: DmEffect[], actor: Creature): string | undefined {
+    const main = effects.find((e) => e.kind !== "cost" && e.kind !== "move_to" && e.kind !== "posture");
+    if (!main) return undefined;
+    const kinds: Mishap[] | undefined =
+      main.kind === "stunt" ? stuntById(main.id)?.oops :
+      main.kind === "object" ? (main.how === "ignite" ? ["hurt"] : ["wake", "hurt"]) :
+      main.kind === "climb" ? ["slip"] :
+      main.kind === "leap" || main.kind === "barricade" || main.kind === "improvised" ? ["hurt"] :
+      main.kind === "wall_break" ? ["wake", "hurt_friend"] :
+      main.kind === "hazard" ? ["hurt_friend"] :
+      main.kind === "ground" && main.surface === "oil" ? ["slip_friend"] :
+      main.kind === "set_trap" ? ["trap"] :
+      main.kind === "light" && !main.on ? ["scare_friend"] : undefined;
+    if (!kinds?.length) return undefined;
+    const close = effects.some((e) => e.kind === "cost");
+    if (this.envRng.next() >= (close ? GameController.MISHAP_CHANCE.close : GameController.MISHAP_CHANCE.clean)) return undefined;
+    const target = "target" in main && typeof main.target === "string" ? main.target : undefined;
+    // The first one that fits the situation (in a random order).
+    const order = [...kinds].sort(() => this.envRng.next() - 0.5);
+    for (const k of order) {
+      const line = this.mishap(k, actor, target);
+      if (line) return line;
+    }
+    return undefined;
+  }
+
+  /** One accident (or lucky chance); undefined if it does not fit here. */
+  private mishap(kind: Mishap, actor: Creature, ref: string | undefined): string | undefined {
+    const pos = actor.pos;
+    const friends = () => this.heroes().filter((h) => h.id !== actor.id && isActive(h) && h.pos && pos && this.cheb(h.pos, pos) <= 3);
+    const pick = <T,>(list: T[]) => list[Math.floor(this.envRng.next() * list.length) % Math.max(1, list.length)];
+    const ouch = (h: Creature, dice: string) => {
+      const d = Math.min(rollDice(this.envRng, parseDice(dice)).total, Math.max(0, h.hp - 1));
+      if (d > 0) applyDamage(this.envRng, h, d);
+      return d;
+    };
+    switch (kind) {
+      case "wake": {
+        if (!this.staged) return undefined;
+        this.engage(false, `😱 Ups! Das war zu laut – die Gegner sind aufgewacht!`);
+        return `😱 Ups! ${actor.name} war zu laut – die Gegner sind wach!`;
+      }
+      case "fire": {
+        if (!pos) return undefined;
+        const spot = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }].map((d) => ({ x: pos.x + d.x, y: pos.y + d.y })).find((p) => isWalkable(this.map, p));
+        if (!spot) return undefined;
+        const lit = this.worldEffect({ kind: "ground", target: `${spot.x},${spot.y}`, surface: "fire" }, actor);
+        return lit ? `😱 Ups! Funken fliegen – direkt neben ${actor.name} fängt der Boden Feuer!` : undefined;
+      }
+      case "slip":
+        if (this.mode === "combat" ? addCondition(actor, { id: "prone" }) : ouch(actor, "1d2") > 0) return `😱 Ups! ${actor.name} rutscht aus und landet auf dem Hosenboden.`;
+        return undefined;
+      case "slip_friend": {
+        const f = pick(friends());
+        if (!f) return undefined;
+        if (this.mode === "combat") addCondition(f, { id: "prone" });
+        else ouch(f, "1d2");
+        return `😱 Ups! ${f.name} rutscht dabei mit aus${this.mode === "combat" ? " und liegt am Boden" : ""}.`;
+      }
+      case "hurt": {
+        const d = ouch(actor, "1d4");
+        return d > 0 ? `😱 Ups! ${actor.name} hat sich dabei wehgetan (−${d} TP).` : undefined;
+      }
+      case "hurt_friend": {
+        const f = pick(friends());
+        if (!f) return undefined;
+        const d = ouch(f, "1d4");
+        return d > 0 ? `😱 Ups! ${f.name} bekommt dabei etwas ab (−${d} TP).` : undefined;
+      }
+      case "enrage": {
+        const foes = this.enemiesInFight().map((x) => this.battle.creatures[x.id]!).filter((c) => c && isActive(c) && c.id !== ref);
+        const t = pick(foes.length ? foes : this.enemiesInFight().map((x) => this.battle.creatures[x.id]!).filter((c) => c && isActive(c)));
+        if (!t) return undefined;
+        addEffect(t, "enraged", 99, actor.id);
+        return `😱 Ups! Das macht ${t.name} richtig wütend – Vorteil auf seinen nächsten Angriff.`;
+      }
+      case "offend": {
+        const p = (ref ? this.battle.creatures[ref] : undefined) ?? Object.values(this.battle.creatures).find((c) => c.side === "neutral" && !c.dead && c.id.startsWith("npc-") && c.pos && pos && this.cheb(c.pos, pos) <= 4);
+        if (!p || p.side !== "neutral") return undefined;
+        this.onAttitude?.(p.id, -1);
+        this.emit("speech", p.id, "Wie bitte?!");
+        return `😱 Ups! ${p.name} versteht das völlig falsch und ist beleidigt.`;
+      }
+      case "drop": {
+        const gold = this.goldOf(actor);
+        if (gold <= 0) return undefined;
+        const lost = Math.min(gold, rollDice(this.envRng, parseDice("1d4")).total);
+        this.addItem(actor, "gold", -lost);
+        return `😱 Ups! Dabei fallen ${actor.name} ${lost} Münzen aus der Tasche – weg sind sie.`;
+      }
+      case "dark": {
+        const out = this.worldEffect({ kind: "light", on: false }, actor);
+        return out ? `😱 Ups! Dabei geht das Licht aus.` : undefined;
+      }
+      case "scare_friend": {
+        const f = pick(friends());
+        if (!f || this.mode !== "combat") return undefined;
+        addCondition(f, { id: "frightened", rounds: 1, sourceId: actor.id });
+        return `😱 Ups! ${f.name} erschrickt sich selbst furchtbar (eine Runde Angst).`;
+      }
+      case "flee_npc": {
+        const p = (ref ? this.battle.creatures[ref] : undefined) ?? Object.values(this.battle.creatures).find((c) => c.side === "neutral" && !c.dead && c.id.startsWith("npc-") && c.pos && pos && this.cheb(c.pos, pos) <= 4);
+        if (!p?.pos || p.side !== "neutral") return undefined;
+        const away = this.worldEffect({ kind: "npc", target: p.id, how: "leave" }, actor);
+        return away ? `😱 Ups! ${p.name} bekommt es mit der Angst und läuft davon.` : undefined;
+      }
+      case "trap": {
+        const d = ouch(actor, "1d6");
+        if (pos) this.emit("fx", "shake", pos);
+        return `😱 Ups! Klack – eine versteckte Falle schnappt zu (−${d} TP).`;
+      }
+      case "lucky_find": {
+        if (this.findsThisMap >= 2) return undefined;
+        this.findsThisMap++;
+        const n = rollDice(this.envRng, parseDice("1d4")).total;
+        this.addItem(actor, "gold", n);
+        return `🍀 Zufall! Dabei findet ${actor.name} noch ${n} Münzen.`;
+      }
+      case "reveal": {
+        if (!pos) return undefined;
+        revealAround(this.map, pos, 7);
+        this.emit("mapChanged");
+        return `🍀 Zufall! Dabei entdeckt ${actor.name} noch einen Teil der Umgebung.`;
+      }
+    }
+  }
+
   /** A haggled price (20 % off the next purchase). */
   private priceFor(hero: Creature, price: number): number {
     return this.haggled.has(hero.id) ? Math.ceil(price * 0.8) : price;

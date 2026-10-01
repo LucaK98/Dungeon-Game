@@ -181,3 +181,52 @@ describe("stunts in the game", () => {
     void cellIndex;
   });
 });
+
+describe("by accident (ups!)", () => {
+  const chance = GameController.MISHAP_CHANCE as { clean: number; close: number };
+  it("sometimes an action sets off something else – and it fits the action", () => {
+    const keep = { ...chance };
+    chance.clean = 1;
+    chance.close = 1;
+    try {
+      // A fire: sparks fly.
+      const { game, session, a } = setup();
+      const lines = game.applyEffects([{ kind: "stunt", id: "fire" }], a);
+      const text = lines.join(" ");
+      expect(text).toMatch(/Ups!|Zufall!/);
+      if (/Funken/.test(text)) expect(Object.values(session.map.surface ?? {}).some((x) => x.kind === "fire")).toBe(true);
+      // Singing near sleeping foes wakes them.
+      const s2 = setup();
+      s2.game.stageFight([{ monster: "goblin", count: 2 }], "asleep");
+      s2.game.applyEffects([{ kind: "stunt", id: "song" }], s2.a);
+      expect(s2.game.mode).toBe("combat");
+      // A lucky find on the tracks.
+      const s3 = setup();
+      const before = s3.a.pc!.inventory.find((i) => i.itemId === "gold")?.qty ?? 0;
+      expect(s3.game.applyEffects([{ kind: "stunt", id: "tracks" }], s3.a).join(" ")).toContain("Zufall!");
+      expect(s3.a.pc!.inventory.find((i) => i.itemId === "gold")!.qty).toBeGreaterThan(before);
+    } finally {
+      Object.assign(chance, keep);
+    }
+  });
+
+  it("never with no chance, and only for actions that have accidents", () => {
+    const keep = { ...chance };
+    chance.clean = 0;
+    chance.close = 0;
+    try {
+      const { game, a } = setup();
+      expect(game.applyEffects([{ kind: "stunt", id: "fire" }], a).join(" ")).not.toMatch(/Ups!|Zufall!/);
+    } finally {
+      Object.assign(chance, keep);
+    }
+    chance.clean = 1;
+    try {
+      const { game, a } = setup();
+      // Keeping watch has no accident.
+      expect(game.applyEffects([{ kind: "stunt", id: "watch" }], a).join(" ")).not.toMatch(/Ups!|Zufall!/);
+    } finally {
+      Object.assign(chance, keep);
+    }
+  });
+});
