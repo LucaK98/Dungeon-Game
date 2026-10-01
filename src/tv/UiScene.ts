@@ -390,13 +390,24 @@ export class UiScene extends Phaser.Scene {
     this.tweens.add({ targets: this.aiBadge, alpha: 0.6, delay: 8000, duration: 1000 });
   }
 
+  /** The roll card slides in softly instead of popping up. */
+  private popRollBox(): void {
+    this.rollBox.setAlpha(0).setY(26);
+    this.tweens.add({ targets: this.rollBox, alpha: 1, y: 40, duration: 220, ease: "Sine.easeOut" });
+  }
+
   /** Tells the queued narration line by line with a typewriter effect (and reads it aloud). */
   private async tell(): Promise<void> {
     this.telling = true;
     // While the story is told, the phones wait (the game hears it through the board).
     this.game.events.emit("narrating", true);
+    let first = true;
     while (this.queue.length) {
       const line = this.queue.shift()!;
+      // A breath between two lines (shorter when many are waiting).
+      if (!first) await new Promise<void>((r) => this.time.delayedCall((this.queue.length >= 2 ? 150 : 380) / speechRate(), () => r()));
+      first = false;
+      await this.fadeLineOut();
       await this.showLine(line);
     }
     this.telling = false;
@@ -404,11 +415,21 @@ export class UiScene extends Phaser.Scene {
     this.tweens.add({ targets: this.narrationBox, alpha: 0, delay: 4000, duration: 800 });
   }
 
+  /** The line on screen gives way softly (instead of being swapped from one frame to the next). */
+  private fadeLineOut(): Promise<void> {
+    const box = this.narrationBox;
+    if (!box.length || box.alpha < 0.05) return Promise.resolve();
+    this.tweens.killTweensOf(box);
+    return new Promise((resolve) => this.tweens.add({ targets: box, alpha: 0, duration: 160, ease: "Sine.easeIn", onComplete: () => resolve() }));
+  }
+
   private showLine(line: Narration): Promise<void> {
     const box = this.narrationBox;
     box.removeAll(true);
     this.tweens.killTweensOf(box);
-    box.setAlpha(1);
+    // The new line glides in from slightly below.
+    box.setAlpha(0).setY(14);
+    this.tweens.add({ targets: box, alpha: 1, y: 0, duration: 260, ease: "Sine.easeOut" });
     // Between the initiative bar (left, in fights) and the log column.
     const width = 1060;
     // (The box moves with the right edge of the map, see anchor.)
@@ -884,7 +905,7 @@ export class UiScene extends Phaser.Scene {
     this.asking = true;
     this.tweens.add({ targets: dieBox, y: -8, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     this.tweens.add({ targets: tip, alpha: 0.35, duration: 800, yoyo: true, repeat: -1 });
-    this.rollBox.setAlpha(1);
+    this.popRollBox();
     // The card goes away by itself if the roll never comes (turn skipped, scene changed).
     this.tweens.add({ targets: this.rollBox, alpha: 0, delay: 120_000, duration: 800 });
   }
@@ -907,7 +928,7 @@ export class UiScene extends Phaser.Scene {
     const d = this.drawDie(-68, -68, 136, 0x7a2e22, String(1 + Math.floor(Math.random() * r.sides)), r.sides);
     const dieBox = this.add.container(-width + 98, 98, [d.die, d.n, d.s]);
     this.rollBox.add([bg, title, rolling, dieBox]);
-    this.rollBox.setAlpha(1);
+    this.popRollBox();
     this.tweens.add({ targets: dieBox, angle: 720, duration: tumble, ease: "Cubic.easeOut" });
     this.tweens.add({ targets: dieBox, y: 80, duration: tumble / 6, yoyo: true, repeat: 2, ease: "Sine.easeOut" });
     const flips = this.time.addEvent({
@@ -965,7 +986,7 @@ export class UiScene extends Phaser.Scene {
       n.setScale(1.6);
       this.tweens.add({ targets: n, scale: 1, duration: 300, ease: "Back.easeOut" });
     }
-    this.rollBox.setAlpha(1);
+    this.popRollBox();
     this.tweens.add({ targets: this.rollBox, alpha: 0, delay: 3200 + points.length * 700, duration: 600 });
   }
 }

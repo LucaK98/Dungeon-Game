@@ -20,9 +20,9 @@ const ENGINE_KEY = "couch-dungeon.voice-engine.v2";
 export type VoiceEngine = "storyteller" | "natural" | "browser";
 
 /** New key: the default got faster, earlier choices start again from the new default. */
-const RATE_KEY = "couch-dungeon.speech-rate2";
-/** Standard tempo (1 = how the voices speak by themselves, which felt too slow). */
-export const DEFAULT_SPEECH_RATE = 1.2;
+const RATE_KEY = "couch-dungeon.speech-rate3";
+/** Standard tempo (1 = how the voices speak by themselves, which felt too slow; 1.2 a bit rushed). */
+export const DEFAULT_SPEECH_RATE = 1.14;
 
 /** How fast the voices speak (setting): 1 slow … 1.6 very fast. */
 export function speechRate(): number {

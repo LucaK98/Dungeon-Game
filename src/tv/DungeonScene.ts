@@ -159,6 +159,8 @@ export class DungeonScene extends Phaser.Scene {
       cam.setPostPipeline("MoodGrade");
     }
     this.focusParty(true);
+    // A new map comes up out of black (it went dark before, see fadeAway).
+    cam.fadeIn(700, 0, 0, 0);
 
     this.showRoomName(map.rooms[0]!.name);
   }
@@ -480,6 +482,20 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   /** Called by the host after the state changed. */
+  /** While a blow is still on its way, the fallen keep standing (released by releaseDeaths). */
+  holdDeaths = false;
+  private pendingDeaths: Phaser.GameObjects.Container[] = [];
+
+  /** The blow has landed: the fallen sink now. */
+  releaseDeaths(delay = 250): void {
+    this.holdDeaths = false;
+    for (const f of this.pendingDeaths.splice(0)) this.fadeDeath(f, delay);
+  }
+
+  private fadeDeath(f: Phaser.GameObjects.Container, delay: number): void {
+    this.tweens.add({ targets: f, alpha: 0, angle: 80, y: f.y + 8, duration: 900, delay, ease: "Sine.easeIn", onComplete: () => f.destroy() });
+  }
+
   refresh(): void {
     // Creatures that left the game (fled, or an NPC that turned into an enemy) simply fade out.
     for (const [id, f] of this.figures) {
@@ -495,9 +511,10 @@ export class DungeonScene extends Phaser.Scene {
       if (at && was !== undefined && was !== at && (c.side === "party" || this.combatLayout)) this.focusId = c.id;
       this.lastPos.set(c.id, at);
       if (c.dead && f) {
-        // Defeated: sink and fade away.
+        // Defeated: sink and fade away – once the blow is seen landing (the board holds it until then).
         this.figures.delete(c.id);
-        this.tweens.add({ targets: f.container, alpha: 0, angle: 80, y: f.container.y + 8, duration: 700, delay: 700, onComplete: () => f.container.destroy() });
+        if (this.holdDeaths) this.pendingDeaths.push(f.container);
+        else this.fadeDeath(f.container, 450);
       } else if (!f && !c.dead) this.addFigure(c);
       else if (f && f.lookKey !== lookKey(c)) {
         // New equipment: rebuild the figure where it stands.
@@ -838,7 +855,7 @@ export class DungeonScene extends Phaser.Scene {
   setCombatLayout(on: boolean): void {
     this.ambience?.setCombat(on);
     this.combatLayout = on;
-    this.layout();
+    this.layout(true);
     this.focusParty(false);
   }
 
@@ -846,7 +863,7 @@ export class DungeonScene extends Phaser.Scene {
   private zoomBase = MIN_ZOOM * RES;
 
   /** The map's part of the screen (between the initiative bar and the log) and a zoom that fills it. */
-  private layout(): void {
+  private layout(glide = false): void {
     const cam = this.cameras.main;
     const left = this.combatLayout ? ORDER_PANEL : 0;
     cam.setViewport(Math.round(left * RES), 0, Math.round((BOARD_WIDTH - left - (this.logOpen ? LOG_PANEL : 0)) * RES), Math.round(BOARD_HEIGHT * RES));
@@ -854,9 +871,19 @@ export class DungeonScene extends Phaser.Scene {
     const fit = Math.min(cam.width / (map.width * TILE), cam.height / (map.height * TILE)) / RES;
     this.zoomBase = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, fit)) * RES;
     this.tweens.killTweensOf(cam);
-    cam.setZoom(this.zoomBase);
-    this.zoomTarget = 0;
+    // Into and out of a fight the camera glides to the new size instead of jumping.
+    if (glide) cam.zoomTo(this.zoomBase, 650, "Sine.easeInOut", true, (_c: unknown, progress: number) => progress >= 1 && this.applyBounds());
+    else cam.setZoom(this.zoomBase);
+    this.zoomTarget = glide ? this.zoomBase : 0;
     this.applyBounds();
+  }
+
+  /** Leaving this map: the picture fades to black first (then the board is rebuilt). */
+  fadeAway(then: () => void): void {
+    const cam = this.cameras.main;
+    if (cam.fadeEffect.isRunning) return;
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, then);
+    cam.fadeOut(450, 0, 0, 0);
   }
 
   /** Camera limits: the map edges, but a map smaller than the screen sits in the middle. */

@@ -220,7 +220,8 @@ function start(mood: Exclude<Mood, "silent">): void {
   const style = STYLES[mood];
   const gain = a.createGain();
   gain.gain.setValueAtTime(0.0001, a.currentTime);
-  gain.gain.exponentialRampToValueAtTime(style.volume * duck, a.currentTime + 2);
+  // Comes up slowly while the old music fades out underneath (a soft cross-fade, no hard cut).
+  gain.gain.exponentialRampToValueAtTime(style.volume * duck, a.currentTime + 3);
   gain.connect(out);
   const stepDur = 60 / style.bpm / 4;
   let seed = mood.length * 97 + 11;
@@ -282,8 +283,8 @@ function stopMusic(): void {
   const t = ctx.currentTime;
   p.gain.gain.cancelScheduledValues(t);
   p.gain.gain.setValueAtTime(Math.max(0.0001, p.gain.gain.value), t);
-  p.gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.5);
-  setTimeout(() => p.gain.disconnect(), 1700);
+  p.gain.gain.exponentialRampToValueAtTime(0.0001, t + 2.5);
+  setTimeout(() => p.gain.disconnect(), 2700);
 }
 
 /** Switches the music to a mood (cross-fade); the same mood again does nothing. */
@@ -303,7 +304,7 @@ export function duckMusic(on: boolean): void {
   const target = STYLES[playing.mood as Exclude<Mood, "silent">].volume * duck;
   playing.gain.gain.cancelScheduledValues(t);
   playing.gain.gain.setValueAtTime(Math.max(0.0001, playing.gain.gain.value), t);
-  playing.gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, target), t + 0.4);
+  playing.gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, target), t + (on ? 0.35 : 0.9));
 }
 
 /** First tap/key: start what should be playing (browsers block sound before). */

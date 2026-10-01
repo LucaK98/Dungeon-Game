@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { Stage } from "./stage";
 import { loadAllFeatures, loadSaga, loadVillage, saveSaga, saveVillage } from "./homeland-store";
 import { lockedFeatures, newUnlocks } from "../shared/unlocks";
 import { markCarried, sagaCarry, villageIncome, type SagaEntry } from "../shared/homeland";
@@ -45,15 +46,49 @@ function sfx(name: Parameters<typeof play>[0]): void {
   play(name);
   mirror?.push({ k: "sound", n: name });
 }
-function moodTo(m: Parameters<typeof setMood>[0]): void {
+function moodNow(m: Parameters<typeof setMood>[0]): void {
   setMood(m);
   if (m !== lastMood) mirror?.push({ k: "mood", mood: m });
   lastMood = m;
 }
+/**
+ * Music follows the place calmly: walking through a doorway and back does not flip the music each
+ * time – a new place has to last a few seconds. Fights (and what the camp wants) switch at once.
+ */
+let moodTimer: ReturnType<typeof setTimeout> | undefined;
+let moodWanted: Parameters<typeof setMood>[0] | undefined;
+function moodTo(m: Parameters<typeof setMood>[0], soon = false): void {
+  if (!soon || m === "fight" || m === "boss") {
+    if (moodTimer) clearTimeout(moodTimer);
+    moodTimer = undefined;
+    moodWanted = m;
+    moodNow(m);
+    return;
+  }
+  if (m === moodWanted) return;
+  moodWanted = m;
+  if (moodTimer) clearTimeout(moodTimer);
+  // Right after a fight the victory sound gets its moment before the music changes.
+  const wait = lastMood === "fight" || lastMood === "boss" ? 2500 : 3500;
+  moodTimer = setTimeout(() => {
+    moodTimer = undefined;
+    moodNow(m);
+  }, m === lastMood ? 0 : wait);
+}
+let ambienceTimer: ReturnType<typeof setTimeout> | undefined;
+let ambienceWanted = "";
 function ambienceTo(a: Parameters<typeof setAmbience>[0]): void {
-  setAmbience(a);
-  if (JSON.stringify(a) !== JSON.stringify(lastAmbience)) mirror?.push({ k: "mood", ambience: a ?? null });
-  lastAmbience = a;
+  const key = JSON.stringify(a ?? null);
+  if (key === ambienceWanted) return;
+  ambienceWanted = key;
+  if (ambienceTimer) clearTimeout(ambienceTimer);
+  // The same calm as the music: a new background noise once the heroes stay.
+  ambienceTimer = setTimeout(() => {
+    ambienceTimer = undefined;
+    setAmbience(a);
+    if (JSON.stringify(a) !== JSON.stringify(lastAmbience)) mirror?.push({ k: "mood", ambience: a ?? null });
+    lastAmbience = a;
+  }, lastAmbience === undefined ? 0 : 2500);
 }
 
 function rollSounds(r: RollOutcome, impactMs = 0, tumbled = false): void {
@@ -185,10 +220,10 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     ambienceTo({ outdoor: THEMES[room.theme].outdoor, night: !!map.dark, cave: ["cave", "mine", "lair"].includes(room.theme) });
     // Music: the fight decides; otherwise the place.
     if (c.mode === "combat") moodTo(c.enemiesInFight().some((e) => e.boss) ? "boss" : "fight");
-    else if (map.dark || ["cave", "mine", "lair", "crypt"].includes(room.theme)) moodTo("night");
-    else if (["village", "town", "tavern"].includes(room.theme)) moodTo("town");
-    else if (THEMES[room.theme].outdoor) moodTo("wild");
-    else moodTo("halls");
+    else if (map.dark || ["cave", "mine", "lair", "crypt"].includes(room.theme)) moodTo("night", true);
+    else if (["village", "town", "tavern"].includes(room.theme)) moodTo("town", true);
+    else if (THEMES[room.theme].outdoor) moodTo("wild", true);
+    else moodTo("halls", true);
   };
   let controller: GameController | undefined;
   let worldTimer: ReturnType<typeof setInterval> | undefined;
@@ -196,8 +231,13 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
   let earlyScene: { title: string; goal: string } | undefined;
   const early: import("../shared/story").Narration[] = [];
   let closeEnd: (() => void) | undefined;
+  // The stage: a blow lands on the board before words, rewards and the next turn follow (src/tv/stage.ts).
+  let stage: Stage | undefined;
+  let uiNarrating = false;
+  let stageHolding = false;
   const wire = () => {
     controller?.destroy();
+    stage?.drain();
     if (worldTimer) clearInterval(worldTimer);
     const c = new GameController(
       session,
@@ -207,6 +247,12 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       { autoHeroes: !!opts.demo, turnBasedExplore: true, worldTurn: true, turnGapMs: 900 },
     );
     controller = c;
+    const st = new Stage((on) => {
+      stageHolding = on;
+      c.setNarrating(uiNarrating || stageHolding);
+    });
+    stage = st;
+    c.present = (fn) => st.run(fn, false);
     c.crude = loadCrude();
     c.tempo = TEMPO_FACTOR[loadTempo()];
     c.difficulty = difficulty;
@@ -219,16 +265,46 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     const showHitsLater = (hits: NonNullable<RollOutcome["hits"]>, delay: number) =>
       scene.time.delayedCall(delay, () => {
         scene.showHits(hits);
+        scene.releaseDeaths();
         const big = hits.some((h) => !h.miss && !h.heal && (h.crit || h.amount >= 10));
         if (big) scene.shake(hits.some((h) => h.crit));
       });
+    /** A roll on the TV: the die tumbles, the hero walks up, the blow flies – the stage waits for all of it. */
+    const showRoll = (r: RollOutcome, asked: boolean) => {
+      // The die tumbles on the TV first (longer when everybody waited for this throw).
+      const tumble = r.dice.length ? (asked ? TUMBLE_ASKED : TUMBLE_QUICK) : 0;
+      st.hold(tumble + 700);
+      game.events.emit("roll", r, tumble);
+      if (scene.sys.isActive()) setTimeout(() => scene.sys.isActive() && scene.clearAim(), tumble + 400);
+      if (tumble) sfx("dice");
+      const strikes = scene.sys.isActive() && !!r.hits?.some((x) => !x.miss && !x.heal);
+      // First the swing, arrow or spell, then the numbers where it lands.
+      const start = () => {
+        const impact = scene.sys.isActive() ? scene.playFx(r.fx) : 0;
+        rollSounds(r, impact, tumble > 0);
+        // What follows waits until the numbers are up and the fallen have begun to sink.
+        st.hold(impact + (strikes ? 1100 : 600));
+        if (scene.sys.isActive() && r.hits?.length) showHitsLater(r.hits, impact);
+        else if (scene.sys.isActive()) scene.releaseDeaths();
+      };
+      // A hero who walks up first strikes when arrived, never from mid-way (the walk starts with the
+      // board update right after this, so look a moment later).
+      setTimeout(() => {
+        const wait = Math.max(tumble, scene.sys.isActive() ? scene.walkRemaining() : 0);
+        st.hold(wait + 700);
+        if (wait) setTimeout(start, wait);
+        else start();
+      }, 0);
+    };
     c.on({
       changed: () => {
         if (scene.sys.isActive()) scene.refresh();
         if (c.logCount !== shownLog) {
           const added = shownLog < 0 ? 0 : c.logCount - shownLog;
           shownLog = c.logCount;
-          game.events.emit("log", c.recentLog(14), added);
+          const log = c.recentLog(14);
+          // The log tells what happened only once it can be seen.
+          st.run(() => game.events.emit("log", log, added), false);
         }
         updateAmbience(c);
         // The group at the left edge: in fights and when exploring in turns (who is next).
@@ -239,14 +315,14 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         }
       },
       clock: (seconds) => game.events.emit("clock", seconds),
-      round: (ended) => game.events.emit("round", ended),
-      flash: (text) => game.events.emit("flash", text),
-      scene: (title, goal) => {
+      round: (ended) => st.run(() => game.events.emit("round", ended)),
+      flash: (text) => st.run(() => game.events.emit("flash", text)),
+      scene: (title, goal) => st.run(() => {
         // The first scene starts before the TV's overlay is ready: shown as soon as it is.
         if (uiReady) game.events.emit("scene-card", title, goal);
         else earlyScene = { title, goal };
-      },
-      turn: (name, color, free, info, id) => {
+      }),
+      turn: (name, color, free, info, id) => st.run(() => {
         askedFor = undefined;
         if (scene.sys.isActive()) {
           scene.clearAim();
@@ -255,7 +331,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
           scene.markTurn(who && who.side !== "party" ? who.id : undefined);
         }
         game.events.emit("turn", name, color, free, info);
-      },
+      }, false),
       askCancelled: () => {
         askedFor = undefined;
         if (scene.sys.isActive()) scene.clearAim();
@@ -267,48 +343,32 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         if (scene.sys.isActive() && prompt.targetIds?.length) scene.showAim(id, prompt.targetIds);
       },
       roll: (r) => {
-        // The die tumbles on the TV first (longer when everybody waited for this throw).
-        const tumble = r.dice.length ? (askedFor === r.creatureId ? TUMBLE_ASKED : TUMBLE_QUICK) : 0;
+        // Whoever falls to this blow keeps standing until it lands (the board update comes right after).
+        if (scene.sys.isActive() && r.hits?.some((x) => !x.miss && !x.heal)) scene.holdDeaths = true;
+        const asked = askedFor === r.creatureId;
         askedFor = undefined;
-        game.events.emit("roll", r, tumble);
-        if (scene.sys.isActive()) setTimeout(() => scene.sys.isActive() && scene.clearAim(), tumble + 400);
-        if (tumble) sfx("dice");
-        // First the swing, arrow or spell, then the numbers where it lands.
-        const start = () => {
-          const impact = scene.sys.isActive() ? scene.playFx(r.fx) : 0;
-          rollSounds(r, impact, tumble > 0);
-          if (scene.sys.isActive() && r.hits?.length) showHitsLater(r.hits, impact);
-        };
-        // A hero who walks up first strikes when arrived, never from mid-way (the walk starts with the
-        // board update right after this, so look a moment later).
-        setTimeout(() => {
-          const wait = Math.max(tumble, scene.sys.isActive() ? scene.walkRemaining() : 0);
-          if (wait) setTimeout(start, wait);
-          else start();
-        }, 0);
+        st.run(() => showRoll(r, asked), false);
       },
-      roomRevealed: (name) => scene.showRoomName(name),
-      combat: (started) => {
+      roomRevealed: (name) => st.run(() => scene.showRoomName(name), false),
+      combat: (started) => st.run(() => {
         game.events.emit("combat", started);
         updateAmbience(c);
         if (started) sfx("fight");
         if (scene.sys.isActive()) scene.setCombatLayout(started);
-      },
+      }),
       point: (id, at, path) => {
         if (scene.sys.isActive()) scene.showPoint(id, at, path);
       },
-      speech: (id, text) => {
-        if (scene.sys.isActive()) scene.showSpeech(id, text);
-      },
-      narration: (lines) => {
+      speech: (id, text) => st.run(() => scene.sys.isActive() && scene.showSpeech(id, text), false),
+      narration: (lines) => st.run(() => {
         // NPCs talk with a bubble over their figure too.
         if (scene.sys.isActive()) for (const l of lines) if (l.npc) scene.showSpeechByName(l.npc, l.text);
         if (lines.some((l) => l.text.startsWith("✨"))) sfx("chime");
         // The UI scene may not exist yet (story intro): keep the lines until it is ready.
         if (uiReady) game.events.emit("narration", lines);
         else early.push(...lines);
-      },
-      banner: (info) => game.events.emit("info-banner", info),
+      }),
+      banner: (info) => st.run(() => game.events.emit("info-banner", info), false),
       travel: (t) => {
         game.events.emit("travel", t);
         if (t?.chosen !== undefined) sfx("chime");
@@ -322,7 +382,7 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         if (state) moodTo("town");
         else updateAmbience(c);
       },
-      reward: (r) => {
+      reward: (r) => st.run(() => {
         const active = scene.sys.isActive();
         if (r.kind === "gold") {
           if (active) scene.showGain(r.heroId, `+${r.amount} 💰`);
@@ -337,21 +397,25 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         if (active) scene.showGain(r.heroId, r.kind === "level" ? `⬆️ Stufe ${r.level}` : `${r.icon} ${r.title}`);
         sfx(r.kind === "level" ? "victory" : "chime");
         game.events.emit("reward", r, c.battle.creatures[r.heroId]?.appearance?.look);
-      },
+      }),
       emote: (id, emoji) => {
         if (scene.sys.isActive()) scene.showEmote(id, emoji);
         sfx("pop");
       },
-      fx: (kind, pos) => {
-        if (scene.sys.isActive()) scene.fx(kind, pos);
-        sfx(kind === "puff" ? "thud" : kind === "shake" ? "rumble" : kind === "splash" ? "splash" : "coin");
-      },
-      spotlight: (id) => {
-        if (scene.sys.isActive()) scene.spotlight(id);
-        sfx("boss");
-      },
+      fx: (kind, pos) =>
+        st.run(() => {
+          if (scene.sys.isActive()) scene.fx(kind, pos);
+          sfx(kind === "puff" ? "thud" : kind === "shake" ? "rumble" : kind === "splash" ? "splash" : "coin");
+        }, false),
+      spotlight: (id) =>
+        st.run(() => {
+          if (scene.sys.isActive()) scene.spotlight(id);
+          sfx("boss");
+        }),
       mapChanged: () => {
-        if (scene.sys.isActive() || scene.sys.isPaused()) scene.scene.restart();
+        // A short fade to black instead of a hard cut (the new map fades in by itself).
+        if (scene.sys.isActive()) scene.fadeAway(() => scene.scene.restart());
+        else if (scene.sys.isPaused()) scene.scene.restart();
         mirror?.sendMap();
       },
     });
@@ -360,7 +424,10 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
     // While the TV tells the story, the phones wait.
     // (A new controller replaces the listener of the one before.)
     game.events.off("narrating");
-    game.events.on("narrating", (on: boolean) => c.setNarrating(on));
+    game.events.on("narrating", (on: boolean) => {
+      uiNarrating = on;
+      c.setNarrating(uiNarrating || stageHolding);
+    });
     c.start();
     // Characters stroll, guards patrol.
     worldTimer = setInterval(() => c.tickWorld(), 3000);

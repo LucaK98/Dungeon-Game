@@ -4015,9 +4015,14 @@ export class GameController {
   }
 
   /** Tells the TV and the hero's phone what the hero just gained. */
+  /** Shows something once the TV has caught up (set by the board: its stage, src/tv/stage.ts). */
+  present: ((fn: () => void) => void) | undefined;
+
   private reward(hero: Creature, reward: Reward): void {
     this.emit("reward", reward);
-    if (hero.playerId) this.sendTo(hero.playerId, { type: "reward", reward });
+    const playerId = hero.playerId;
+    // The phone celebrates together with the TV, not before the blow has landed there.
+    if (playerId) (this.present ?? ((fn) => fn()))(() => this.sendTo(playerId, { type: "reward", reward }));
   }
 
   // ---------------------------------------------------------------- equipment

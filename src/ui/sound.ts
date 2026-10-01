@@ -267,11 +267,11 @@ export function setAmbience(kind: AmbienceKind | undefined): void {
       const t = a.currentTime;
       out.gain.cancelScheduledValues(t);
       out.gain.setValueAtTime(out.gain.value, t);
-      out.gain.exponentialRampToValueAtTime(0.0001, t + 1);
+      out.gain.exponentialRampToValueAtTime(0.0001, t + 2);
       setTimeout(() => {
         nodes.forEach((n) => n.stop());
         out.disconnect();
-      }, 1100);
+      }, 2100);
     },
   };
 }
