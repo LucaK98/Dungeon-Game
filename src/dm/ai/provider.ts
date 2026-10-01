@@ -11,6 +11,15 @@ export interface LlmRequest {
   /** JSON schema (OpenAPI subset as used by Gemini) the answer must follow. */
   schema: Record<string, unknown>;
   maxTokens?: number;
+  /** "lite": a small task (ideas, rules, a hint) – the smaller, cheaper model is enough. */
+  tier?: "lite";
+}
+
+/** Tokens of one call: sent, of those reused from the provider's cache (cheaper), and the answer (incl. thinking). */
+export interface LlmUsage {
+  input: number;
+  cached: number;
+  output: number;
 }
 
 export type LlmErrorKind = "limit" | "timeout" | "auth" | "bad_json" | "network" | "other";
@@ -27,6 +36,10 @@ export class LlmError extends Error {
 export interface LlmProvider {
   readonly id: ProviderId;
   readonly model: string;
+  /** A small, cheap model (tried first for small tasks). */
+  readonly lite?: boolean;
+  /** What the last successful call used (if the provider reports it). */
+  lastUsage?: LlmUsage;
   /** Returns the parsed JSON object (not yet validated). */
   complete(req: LlmRequest): Promise<unknown>;
 }
@@ -85,8 +98,18 @@ export function parseJson(text: string): unknown {
   }
 }
 
+/** Gemini's usageMetadata → tokens (thinking counts like answer tokens). */
+export function geminiUsage(u: { promptTokenCount?: number; cachedContentTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number } | undefined): LlmUsage | undefined {
+  if (!u) return undefined;
+  return { input: u.promptTokenCount ?? 0, cached: u.cachedContentTokenCount ?? 0, output: (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0) };
+}
+
 export class GeminiProvider implements LlmProvider {
   readonly id = "gemini" as const;
+  lastUsage?: LlmUsage;
+  get lite(): boolean {
+    return /lite/i.test(this.model);
+  }
   constructor(
     private key: string,
     readonly model: string,
@@ -128,9 +151,10 @@ export class GeminiProvider implements LlmProvider {
         text = await res.text();
       }
       if (!res.ok) throw httpError(res.status, text);
-      const data = JSON.parse(text) as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
+      const data = JSON.parse(text) as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[]; usageMetadata?: Parameters<typeof geminiUsage>[0] };
       const parts = data.candidates?.[0]?.content?.parts ?? [];
       const out = parts.filter((p) => !p.thought && typeof p.text === "string").map((p) => p.text).join("");
+      this.lastUsage = geminiUsage(data.usageMetadata);
       if (!out) throw new LlmError("bad_json", "Leere Antwort.");
       return parseJson(out);
     });
@@ -172,6 +196,7 @@ export function thinkingFor(model: string): Record<string, unknown> | undefined 
 export class ServerProvider implements LlmProvider {
   readonly id = "server" as const;
   readonly model = "server";
+  lastUsage?: LlmUsage;
   constructor(
     private url: string,
     private anonKey: string,
@@ -180,7 +205,7 @@ export class ServerProvider implements LlmProvider {
     private timeoutMs = 25000,
   ) {}
 
-  private async call(body: Record<string, unknown>, signal: AbortSignal): Promise<{ ok?: boolean; text?: string; configured?: boolean; error?: string }> {
+  private async call(body: Record<string, unknown>, signal: AbortSignal): Promise<{ ok?: boolean; text?: string; configured?: boolean; error?: string; usage?: LlmUsage }> {
     const res = await this.fetchFn(this.url, {
       method: "POST",
       headers: { "content-type": "application/json", apikey: this.anonKey, authorization: `Bearer ${this.anonKey}` },
@@ -188,7 +213,7 @@ export class ServerProvider implements LlmProvider {
       signal,
     });
     const text = await res.text();
-    let data: { ok?: boolean; text?: string; configured?: boolean; error?: string } = {};
+    let data: { ok?: boolean; text?: string; configured?: boolean; error?: string; usage?: LlmUsage } = {};
     try {
       data = JSON.parse(text);
     } catch {
@@ -204,7 +229,8 @@ export class ServerProvider implements LlmProvider {
 
   async complete(req: LlmRequest): Promise<unknown> {
     return withTimeout(this.timeoutMs, async (signal) => {
-      const data = await this.call({ mode: "complete", room: this.room, system: req.system, prompt: req.prompt, schema: req.schema, maxTokens: req.maxTokens ?? 2048 }, signal);
+      const data = await this.call({ mode: "complete", room: this.room, system: req.system, prompt: req.prompt, schema: req.schema, maxTokens: req.maxTokens ?? 2048, ...(req.tier ? { tier: req.tier } : {}) }, signal);
+      this.lastUsage = data.usage;
       if (!data.text) throw new LlmError("bad_json", "Leere Antwort.");
       return parseJson(data.text);
     });
@@ -219,6 +245,10 @@ export class ServerProvider implements LlmProvider {
 /** Groq (OpenAI-compatible, also has a free tier) as a stand-in when Gemini is at its limit. */
 export class GroqProvider implements LlmProvider {
   readonly id = "groq" as const;
+  lastUsage?: LlmUsage;
+  get lite(): boolean {
+    return /instant|8b/i.test(this.model);
+  }
   constructor(
     private key: string,
     readonly model: string,
@@ -245,7 +275,8 @@ export class GroqProvider implements LlmProvider {
       });
       const text = await res.text();
       if (!res.ok) throw httpError(res.status, text);
-      const data = JSON.parse(text) as { choices?: { message?: { content?: string } }[] };
+      const data = JSON.parse(text) as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };
+      if (data.usage) this.lastUsage = { input: data.usage.prompt_tokens ?? 0, cached: data.usage.prompt_tokens_details?.cached_tokens ?? 0, output: data.usage.completion_tokens ?? 0 };
       const out = data.choices?.[0]?.message?.content;
       if (!out) throw new LlmError("bad_json", "Leere Antwort.");
       return parseJson(out);

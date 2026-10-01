@@ -5,7 +5,7 @@ import { Director, newStoryState, type StoryResult, type StoryState } from "../d
 import { sceneById, sceneRooms } from "../dm/planner";
 import { ScriptedDM } from "../dm/scripted";
 import { AiDM, type AiStatus } from "../dm/ai/aidm";
-import { countAiCall, loadAiSettings, providersFrom } from "../dm/ai/settings";
+import { budgetState, countAiCall, countAiUsage, loadAiSettings, providersFrom } from "../dm/ai/settings";
 import { randomRng, seededRng, type Rng } from "../engine/rng";
 import type { Creature } from "../shared/game";
 import type { RollOutcome } from "../shared/view";
@@ -372,6 +372,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
       const dm = providers
         ? new AiDM(story, providers, {
             onCall: countAiCall,
+            onUsage: countAiUsage,
+            budget: () => budgetState(),
             onStatus: (s) => {
               aiStatus = s;
               lastAi = s;

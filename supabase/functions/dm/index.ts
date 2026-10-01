@@ -7,6 +7,9 @@
  *   GEMINI_MODEL          optional, default "gemini-flash-latest"
  *   GEMINI_FALLBACK_MODEL optional, default "gemini-flash-lite-latest" (used on rate limits)
  *
+ * Small tasks (body.tier = "lite": ideas, rules questions, hints) go to the fallback model first –
+ * it is cheaper and good enough for them. Every answer reports its tokens (usage) for the TV's counter.
+ *
  * Protection against misuse (the function is reachable with the public anon key):
  * allowed origins, size limits, a small rate limit per room and per instance.
  */
@@ -87,9 +90,14 @@ async function gemini(key: string, model: string, body: { system: string; prompt
     text = await res.text();
   }
   if (!res.ok) return { status: res.status, error: text.slice(0, 300) };
-  const data = JSON.parse(text) as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
+  const data = JSON.parse(text) as {
+    candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[];
+    usageMetadata?: { promptTokenCount?: number; cachedContentTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number };
+  };
   const out = (data.candidates?.[0]?.content?.parts ?? []).filter((p) => !p.thought && typeof p.text === "string").map((p) => p.text).join("");
-  return { status: 200, text: out };
+  const u = data.usageMetadata;
+  const usage = u ? { input: u.promptTokenCount ?? 0, cached: u.cachedContentTokenCount ?? 0, output: (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0) } : undefined;
+  return { status: 200, text: out, usage };
 }
 
 Deno.serve(async (req) => {
@@ -99,7 +107,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return reply({ error: "method" }, 405, headers);
   if (origin && !ORIGINS.some((r) => r.test(origin))) return reply({ error: "origin" }, 403, headers);
 
-  let body: { mode?: string; room?: string; system?: string; prompt?: string; schema?: unknown; maxTokens?: number };
+  let body: { mode?: string; room?: string; system?: string; prompt?: string; schema?: unknown; maxTokens?: number; tier?: string };
   try {
     body = await req.json();
   } catch {
@@ -116,15 +124,17 @@ Deno.serve(async (req) => {
   if (!allowed(`room:${room}`, PER_ROOM) || !allowed("instance", PER_INSTANCE)) return reply({ error: "limit" }, 429, headers);
 
   const maxTokens = Math.min(Math.max(Number(body.maxTokens) || 2048, 128), 4096);
-  const models = [Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest", Deno.env.get("GEMINI_FALLBACK_MODEL") || "gemini-flash-lite-latest"];
-  let last = { status: 500, error: "no_model" } as { status: number; error?: string; text?: string };
+  const main = Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest";
+  const small = Deno.env.get("GEMINI_FALLBACK_MODEL") || "gemini-flash-lite-latest";
+  const models = body.tier === "lite" ? [small, main] : [main, small];
+  let last = { status: 500, error: "no_model" } as { status: number; error?: string; text?: string; usage?: unknown };
   for (const model of models) {
     try {
       last = await gemini(key, model, { system, prompt, schema: body.schema, maxTokens });
     } catch (err) {
       last = { status: 504, error: String(err).slice(0, 200) };
     }
-    if (last.status === 200) return reply({ ok: true, model, text: last.text }, 200, headers);
+    if (last.status === 200) return reply({ ok: true, model, text: last.text, ...(last.usage ? { usage: last.usage } : {}) }, 200, headers);
     if (last.status !== 429 && last.status < 500) break; // wrong key or bad request: no point in the fallback
   }
   const status = last.status === 429 ? 429 : last.status === 401 || last.status === 403 ? 502 : last.status >= 500 ? 502 : 400;

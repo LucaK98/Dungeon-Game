@@ -2,12 +2,26 @@
  * "Frag den Spielleiter": rules questions from a phone. Without AI the best glossary entry
  * answers; with AI the game master gets the matching glossary entries and answers in its words.
  */
-import { glossarForQuestion } from "../data/help/glossar";
+import { glossarForQuestion, glossarScores } from "../data/help/glossar";
 import { nameOf } from "../engine/names";
 import type { Creature } from "../shared/game";
 
 export function glossaryExcerpt(question: string): { title: string; text: string }[] {
   return glossarForQuestion(question, 4).map(({ entry }) => ({ title: entry.titel, text: `${entry.kurz} ${entry.lang}${entry.beispiel ? ` Beispiel: ${entry.beispiel}` : ""}` }));
+}
+
+/**
+ * "Was ist Vorteil?", "Was bedeutet Initiative?": a plain question about a word the rule book
+ * explains is answered from the book right away (no AI call). Questions about the hero's own
+ * situation ("Kann ich noch angreifen?") still go to the game master.
+ */
+export function glossaryDirect(question: string): string | undefined {
+  const q = question.trim().toLowerCase();
+  if (!/^(was (ist|sind|bedeutet|bedeuten|heißt|heisst|macht|bringt)|wie funktionier|erklär)/.test(q)) return undefined;
+  if (/\b(ich|mich|mir|mein|meine|wir|uns|unser)\b/.test(q)) return undefined;
+  const [best, next] = glossarScores(question);
+  if (!best || best.score < 6 || (next && next.score >= best.score)) return undefined;
+  return `${best.entry.titel}: ${best.entry.kurz} ${best.entry.lang}`;
 }
 
 export function glossaryAnswer(question: string): string {

@@ -469,3 +469,44 @@ describe("level up keeps the equipment", () => {
     expect(after.attacks.find((a) => a.sourceId === "longsword")?.magical).toBe(true);
   });
 });
+
+describe("the scene's store (written by the AI at the start)", () => {
+  it("characters greet in their own words, quiet moments come from the store", async () => {
+    const { game, session, rng, sent } = setup(4, true);
+    const story = STORIES[0]!;
+    const host: WorldHost = {
+      game,
+      rng,
+      story,
+      duration: "kurz",
+      scene: () => story.acts[0]!.scenes[0]!,
+      now: Date.now,
+      attitude: () => 0,
+      fight: async () => "won",
+      changeGold: () => undefined,
+      remember: () => undefined,
+      nudge: async () => undefined,
+    };
+    const world = new World(host);
+    world.newScene(false);
+    world.usePack({ greetings: [{ name: "Wirtin Rosa", text: "Ach, die Helden! Setzt euch, der Eintopf ist heiß." }], moments: ["Ein Fensterladen klappert im Wind."] });
+    let stop = () => undefined as void;
+    const roaming = world.roam(new Promise<void>((r) => (stop = r)));
+    const a = game.heroes()[0]!;
+    const { createMonster } = await import("../engine/creatures");
+    const rosa = createMonster("commoner", "npc-rosa", { name: "Wirtin Rosa", side: "neutral" });
+    rosa.pos = { x: a.pos!.x + 1, y: a.pos!.y };
+    session.battle.creatures[rosa.id] = rosa;
+    session.map.explored.fill(true);
+    expect(world.greet(rosa)).toBe(true);
+    expect(JSON.stringify(sent.filter((x) => x.event.type === "narration").at(-1)?.event)).toContain("der Eintopf ist heiß");
+    expect(world.takeMoment()).toBe("Ein Fensterladen klappert im Wind.");
+    expect(world.takeMoment()).toBeUndefined();
+    // A new scene: the store is gone.
+    world.usePack({ greetings: [], moments: ["x"] });
+    world.newScene(false);
+    expect(world.takeMoment()).toBeUndefined();
+    stop();
+    await roaming;
+  });
+});

@@ -87,19 +87,72 @@ export function providersFrom(s: AiSettings, room = ""): LlmProvider[] | undefin
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export function aiCallsToday(): number {
+/** Today's use of the AI on this TV: calls and tokens (sent, of those from the provider's cache, answered). */
+export interface AiUsageToday {
+  date: string;
+  count: number;
+  input: number;
+  cached: number;
+  output: number;
+}
+
+export function aiUsageToday(): AiUsageToday {
+  const empty = { date: today(), count: 0, input: 0, cached: 0, output: 0 };
   try {
-    const c = JSON.parse(storage()?.getItem(CALLS) ?? "null") as { date: string; count: number } | null;
-    return c && c.date === today() ? c.count : 0;
+    const c = JSON.parse(storage()?.getItem(CALLS) ?? "null") as Partial<AiUsageToday> | null;
+    return c && c.date === today() ? { ...empty, ...c } : empty;
   } catch {
-    return 0;
+    return empty;
   }
 }
 
-export function countAiCall(): void {
+function saveUsage(u: AiUsageToday): void {
   try {
-    storage()?.setItem(CALLS, JSON.stringify({ date: today(), count: aiCallsToday() + 1 }));
+    storage()?.setItem(CALLS, JSON.stringify(u));
   } catch {
     // ignore
   }
+}
+
+export function aiCallsToday(): number {
+  return aiUsageToday().count;
+}
+
+export function countAiCall(): void {
+  const u = aiUsageToday();
+  saveUsage({ ...u, count: u.count + 1 });
+}
+
+export function countAiUsage(usage: { input: number; cached: number; output: number }): void {
+  const u = aiUsageToday();
+  saveUsage({ ...u, input: u.input + usage.input, cached: u.cached + usage.cached, output: u.output + usage.output });
+}
+
+/** The saving brake: how many AI calls per day (this TV). "open" = no limit. */
+export type AiBudget = "small" | "medium" | "large" | "open";
+export const BUDGET_CALLS: Record<Exclude<AiBudget, "open">, number> = { small: 100, medium: 250, large: 500 };
+const BUDGET = "couch-dungeon.aiBudget";
+
+export function loadAiBudget(): AiBudget {
+  try {
+    const b = storage()?.getItem(BUDGET);
+    return b === "small" || b === "large" || b === "open" ? b : "medium";
+  } catch {
+    return "medium";
+  }
+}
+
+export function saveAiBudget(b: AiBudget): void {
+  try {
+    storage()?.setItem(BUDGET, b);
+  } catch {
+    // ignore
+  }
+}
+
+/** From 80 % of the day's budget only the important moments get the AI, at 100 % none (the script takes over). */
+export function budgetState(budget = loadAiBudget(), calls = aiCallsToday()): "full" | "important" | "none" {
+  if (budget === "open") return "full";
+  const limit = BUDGET_CALLS[budget];
+  return calls >= limit ? "none" : calls >= limit * 0.8 ? "important" : "full";
 }

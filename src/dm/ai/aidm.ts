@@ -15,7 +15,7 @@ import type { Narration, Story } from "../../shared/story";
 import { sceneById } from "../planner";
 import { ScriptedDM } from "../scripted";
 import { allowedClues, allowedFlags, buildPrompt, eligibleEndings, responseSchema, SYSTEM_PROMPT } from "./prompt";
-import { LlmError, type LlmProvider } from "./provider";
+import { LlmError, type LlmProvider, type LlmUsage } from "./provider";
 
 export type AiStatus = { kind: "ok"; model: string } | { kind: "thinking" } | { kind: "pause"; reason: string };
 
@@ -26,12 +26,23 @@ export interface AiDmOptions {
   now?: () => number;
   /** How long to leave the AI alone after a limit error. */
   cooldownMs?: number;
+  /** Tokens of every answered call (for the counter in the settings). */
+  onUsage?: (usage: LlmUsage) => void;
+  /**
+   * Saving brake: "full" – the AI for every moment; "important" – only for what really matters
+   * (a hero's idea, its roll, the start and end of scenes); "none" – the script tells everything.
+   */
+  budget?: () => "full" | "important" | "none";
   /** For the DM lab: see the raw exchange. */
   onExchange?: (e: { provider: string; model: string; prompt: string; raw?: unknown; error?: string; ms: number }) => void;
 }
 
 /** Which moments go to the AI. Everything else is told by the script (saves free-tier calls). */
 const AI_TRIGGERS: DmTrigger["kind"][] = ["scene_start", "free_text", "roll_result", "story_end", "suggest", "rules_question", "idle", "campfire", "final_blow", "npc_moment"];
+/** What still gets the AI when the day's budget runs low. */
+const IMPORTANT: DmTrigger["kind"][] = ["scene_start", "free_text", "roll_result", "story_end", "final_blow"];
+/** Small tasks: the smaller, cheaper model (Flash-Lite) answers first. */
+const LITE: DmTrigger["kind"][] = ["suggest", "rules_question", "idle", "npc_moment"];
 
 const str = (v: unknown, max: number): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
@@ -99,6 +110,15 @@ export function coerceAiAnswer(raw: unknown, story: Story, ctx: DmContext, trigg
     out.ideas = (Array.isArray(o.ideas) ? o.ideas : []).filter((i): i is string => typeof i === "string").map((i) => i.slice(0, 90)).slice(0, 4);
   }
   if (trigger.kind === "scene_start") {
+    // The store for the scene: only for characters that are really here, short and plain.
+    const here = (scene.npcs ?? []).map((n) => story.npcs.find((x) => x.id === n.npc)?.name).filter((n): n is string => !!n);
+    const greetings = (Array.isArray(o.gruesse) ? o.gruesse : [])
+      .map((g) => (typeof g === "object" && g ? (g as Record<string, unknown>) : {}))
+      .map((g) => ({ name: str(g.name, 40), text: str(g.text, 160).replace(/^[„"“]+|[“"”]+$/g, "") }))
+      .filter((g) => g.text && here.includes(g.name))
+      .slice(0, 6);
+    const moments = (Array.isArray(o.momente) ? o.momente : []).filter((m): m is string => typeof m === "string" && !!m.trim()).map((m) => m.trim().slice(0, 200)).slice(0, 3);
+    if (greetings.length || moments.length) out.pack = { greetings, moments };
     // Keep the scripted beginner tips; the AI replaces only the plain text.
     const tips = (scripted.script ?? []).filter((l) => l.tip);
     out.script = [...script, ...tips];
@@ -130,20 +150,27 @@ export class AiDM implements DungeonMaster {
     const scripted = await this.scripted.respond(ctx, trigger);
     if (!AI_TRIGGERS.includes(trigger.kind) || !this.providers.length) return scripted;
     if (this.now() < this.pausedUntil) return scripted;
+    const budget = this.opts.budget?.() ?? "full";
+    if (budget === "none" || (budget === "important" && !IMPORTANT.includes(trigger.kind))) return scripted;
+    const lite = LITE.includes(trigger.kind);
     const req = {
       system: SYSTEM_PROMPT,
       prompt: buildPrompt(this.story, ctx, trigger, scripted),
       schema: responseSchema(this.story, ctx, trigger),
+      ...(lite ? { tier: "lite" as const } : {}),
     };
+    // Small tasks try the small model first (the server picks it itself from the tier).
+    const providers = lite ? [...this.providers.filter((p) => p.lite), ...this.providers.filter((p) => !p.lite)] : this.providers;
     let lastError = "";
     this.opts.onStatus?.({ kind: "thinking" });
-    for (const provider of this.providers) {
+    for (const provider of providers) {
       // One retry on the same model for a broken answer, then the next model (e.g. Flash-Lite).
       for (let attempt = 0; attempt < 2; attempt++) {
         const started = this.now();
         try {
           this.opts.onCall?.();
           const raw = await provider.complete(req);
+          if (provider.lastUsage) this.opts.onUsage?.(provider.lastUsage);
           const answer = coerceAiAnswer(raw, this.story, ctx, trigger, scripted);
           this.opts.onExchange?.({ provider: provider.id, model: provider.model, prompt: req.prompt, raw, ms: this.now() - started });
           this.opts.onStatus?.({ kind: "ok", model: provider.model });

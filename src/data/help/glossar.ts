@@ -54,3 +54,22 @@ export function glossarForQuestion(question: string, limit = 4): { key: string; 
   });
   return scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score).slice(0, limit);
 }
+
+/** Scores like glossarForQuestion, for deciding whether the rule book alone answers a question. */
+export function glossarScores(question: string): { key: string; entry: GlossarEntry; score: number }[] {
+  const words = question
+    .toLowerCase()
+    .replace(/[^a-zäöüß0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !STOP.has(w))
+    .map((w) => (w.length > 5 ? w.slice(0, w.length - 1) : w));
+  if (!words.length) return [];
+  return Object.entries(GLOSSAR)
+    .map(([key, entry]) => {
+      const t = entry.titel.toLowerCase();
+      const score = words.reduce((sum, w) => sum + (t.includes(w) ? 6 : 0) + (entry.kurz.toLowerCase().includes(w) ? 2 : 0) + (entry.lang.toLowerCase().includes(w) ? 1 : 0), 0);
+      return { key, entry, score };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+}

@@ -94,6 +94,8 @@ export interface DmResponse {
   set_flags?: string[];
   /** Real consequences of a free action, applied by the code (see src/dm/effects.ts). */
   effects?: DmEffect[];
+  /** Scene start (AI): a small store for the rest of the scene – greetings per character, quiet moments. */
+  pack?: { greetings: { name: string; text: string }[]; moments: string[] };
   /** Answer to "suggest": short ideas for free actions. */
   ideas?: string[];
   /** Answer to "rules_question". */

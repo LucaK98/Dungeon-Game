@@ -24,7 +24,7 @@ import { actOf, planScenes, plannedMinutes, sceneById, sceneRooms, tempoCheck } 
 import { pickEnding } from "./scripted";
 import { resolveClue, validateResponse } from "./validate";
 import { filterEffects } from "./effects";
-import { glossaryAnswer, glossaryExcerpt, heroSummary } from "./rules-help";
+import { glossaryAnswer, glossaryDirect, glossaryExcerpt, heroSummary } from "./rules-help";
 import { SKILL_IDS, type SkillId } from "../shared/rules";
 import { World } from "./world";
 import { buildHighlights, type Recap } from "../shared/recap";
@@ -125,6 +125,8 @@ export const CAMP_QUESTIONS = [
 const FINAL_BLOW_S = 90;
 /** The campfire ends after this long even if not everyone tapped "Weiter". */
 const CAMP_MINUTES = 5;
+/** Ideas for the same situation are reused this long (ms) – asking again costs nothing. */
+const IDEAS_KEEP_MS = 3 * 60_000;
 
 export function newStoryState(story: Story, rng: Rng, duration: Duration, truth?: string): StoryState {
   return {
@@ -203,6 +205,12 @@ export class Director {
         remember: (entry) => this.remember(entry),
         nudge: async () => {
           if (this.finished) return;
+          // A moment from the scene's store first – it costs nothing.
+          const moment = this.world?.takeMoment();
+          if (moment) {
+            this.game.narrate([{ text: moment }]);
+            return;
+          }
           await this.askDm({ kind: "idle", seconds: Math.round((this.now() - this.game.lastActionAt) / 1000) });
         },
       });
@@ -860,7 +868,9 @@ export class Director {
     this.game.sceneCard(scene.title, scene.ziel);
     this.lowestHpRatio = 1;
     this.updateView();
-    await this.askDm({ kind: "scene_start" });
+    const opening = await this.askDm({ kind: "scene_start" });
+    // The AI's store for this scene (greetings, quiet moments): used later without another call.
+    if (opening.pack) this.world?.usePack(opening.pack);
     this.greetReturning();
     if (this.state.sceneIndex === 0) this.seeOff();
 
@@ -1305,9 +1315,18 @@ export class Director {
   }
 
   /** "Was könnte ich tun?" – a few ideas for this hero, sent only to their phone. */
+  /** Ideas already asked for in the same situation (reused for a few minutes – no new call). */
+  private ideasCache = new Map<string, { at: number; ideas: string[] }>();
+  /** Rules questions already answered in this game. */
+  private rulesCache = new Map<string, string>();
+
   async suggest(playerId: PlayerId, hero: Creature): Promise<string[]> {
     if (!this.scene || this.finished) return [];
-    this.actingRoom = this.game.surroundings(hero);
+    const room = this.game.surroundings(hero);
+    const key = [hero.id, this.scene.id, this.stepId ?? "", this.game.mode, room?.name ?? "", (room?.people ?? []).map((p) => p.id).join(","), (room?.things ?? []).length].join("|");
+    const kept = this.ideasCache.get(key);
+    if (kept && this.now() - kept.at < IDEAS_KEEP_MS) return kept.ideas;
+    this.actingRoom = room;
     const trigger: DmTrigger = { kind: "suggest", playerId, heroName: hero.name };
     let ideas: string[] = [];
     try {
@@ -1316,16 +1335,29 @@ export class Director {
       ideas = [];
     }
     this.actingRoom = undefined;
-    return ideas.filter((i) => typeof i === "string" && i.trim()).map((i) => i.trim().slice(0, 90)).slice(0, 4);
+    const clean = ideas.filter((i) => typeof i === "string" && i.trim()).map((i) => i.trim().slice(0, 90)).slice(0, 4);
+    if (clean.length) this.ideasCache.set(key, { at: this.now(), ideas: clean });
+    return clean;
   }
 
   /** "Frag den Spielleiter": answer a rules question for one player (never changes the game). */
   async askRules(playerId: PlayerId, hero: Creature, question: string): Promise<string> {
+    // A plain "Was ist …?" is in the rule book; the same question twice gets the same answer.
+    const direct = glossaryDirect(question);
+    if (direct) return direct;
+    const asked = question.trim().toLowerCase().replace(/[?!. ]+$/g, "");
+    const known = this.rulesCache.get(asked);
+    if (known) return known;
     const turn = this.game.mode === "combat" && this.game.active()?.id === hero.id ? this.game.session.battle.combat?.turn : undefined;
     const trigger: DmTrigger = { kind: "rules_question", question, playerId, heroName: hero.name, glossary: glossaryExcerpt(question), hero: heroSummary(hero, turn) };
     try {
       const res = await this.dm.respond(this.ctx(), trigger);
-      if (res.answer?.trim()) return res.answer.trim().slice(0, 900);
+      if (res.answer?.trim()) {
+        const answer = res.answer.trim().slice(0, 900);
+        // Questions about the own turn change with the situation: only general ones are kept.
+        if (!/\b(ich|mich|mir|mein|meine)\b/.test(asked)) this.rulesCache.set(asked, answer);
+        return answer;
+      }
     } catch {
       // fall back to the glossary
     }

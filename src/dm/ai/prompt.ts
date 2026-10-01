@@ -117,51 +117,86 @@ Erzähle in 2–3 warmen, bildhaften Sätzen den Abend am Feuer und greife dabei
   }
 }
 
+/** What a moment needs to know: acting moments see the whole toolbox, small ones only the basics. */
+function needs(trigger: DmTrigger) {
+  const k = trigger.kind;
+  const acting = k === "free_text" || k === "roll_result";
+  const small = k === "suggest" || k === "rules_question" || k === "idle";
+  return { acting, small, rules: k === "rules_question", room: acting || k === "suggest" || k === "idle" || k === "npc_moment" };
+}
+
+/** The characters' minds that matter now: who is here, who is named, who is being talked to. */
+function mindsFor(ctx: DmContext, trigger: DmTrigger, sceneNpcs: string[]): string[] {
+  if (!ctx.minds?.length) return [];
+  const text = ("text" in trigger ? trigger.text : "").toLowerCase();
+  const present = [...sceneNpcs, ...(ctx.room?.people ?? []).map((p) => p.name), ...(trigger.kind === "npc_moment" ? [trigger.npc] : [])].map((n) => n.toLowerCase());
+  return ctx.minds.filter((m) => {
+    const name = m.slice(0, m.indexOf(" (")).toLowerCase();
+    return !!name && (present.some((p) => p.includes(name) || name.includes(p)) || text.includes(name.split(" ").pop()!));
+  });
+}
+
+/**
+ * The context for one moment. Stable lines come first (the provider can reuse that part of the
+ * request more cheaply), and each moment gets only what it needs: rules questions and ideas no
+ * toolbox, characters' minds only for the people who are here.
+ */
 export function buildPrompt(story: Story, ctx: DmContext, trigger: DmTrigger, scripted: DmResponse): string {
   const scene = sceneById(story, ctx.sceneId);
   const { act } = actOf(story, scene.id);
   const truth = story.truths.find((t) => t.id === ctx.truth);
   const npcs = (scene.npcs ?? []).map((n) => story.npcs.find((x) => x.id === n.npc)).filter((n) => !!n);
-  const clues = allowedClues(story, scene, ctx);
-  const flags = allowedFlags(scene);
+  const need = needs(trigger);
+  const clues = need.acting ? allowedClues(story, scene, ctx) : [];
+  const flags = need.acting ? allowedFlags(scene) : [];
   const found = ctx.cluesFound.map((id) => story.clues.find((c) => c.id === id)?.text).filter(Boolean);
+  const minds = need.small ? [] : mindsFor(ctx, trigger, npcs.map((n) => n.name));
+  const effects = allowedEffectNames(ctx, trigger);
   const lines = [
+    // Stable for the whole adventure.
     `GESCHICHTE: ${story.title} – ${story.description}`,
-    `GEHEIME WAHRHEIT (nie direkt verraten): ${truth ? `${truth.title}: ${truth.summary}` : "–"}`,
-    `Wendung schon enthüllt: ${ctx.twistRevealed ? "ja" : "nein"}`,
+    need.rules ? "" : `GEHEIME WAHRHEIT (nie direkt verraten): ${truth ? `${truth.title}: ${truth.summary}` : "–"}`,
+    `HELDEN-IDS: ${ctx.players.map((p) => `${p.id} = ${p.name}`).join(", ")}`,
+    need.acting && story.npcs.length ? `FIGUREN-IDS (für npc_attitude): ${story.npcs.map((n) => `${n.id} = ${n.name}`).join(", ")}` : "",
+    // Stable for the scene.
     `KAPITEL: ${act.title} · SZENE ${ctx.sceneIndex + 1} von ${ctx.sceneCount}: ${scene.title}`,
     `ZIEL DER SZENE: ${scene.ziel}`,
-    npcs.length ? `NICHTSPIELERFIGUREN HIER: ${npcs.map((n) => `${n.name} (${n.description})`).join("; ")}` : "",
-    `HELDEN: ${ctx.players.map((p) => `${p.name} (${nameOf("classes", p.classId)}, ${p.hp}/${p.maxHp} TP)`).join("; ")}`,
-    `SCHON GEFUNDENE HINWEISE: ${found.length ? found.join(" | ") : "keine"}`,
-    clues.length ? `ERLAUBTE HINWEISE (reveal_clue = id): ${clues.map((c) => `${c.id}: ${c.text}`).join(" | ")}` : "ERLAUBTE HINWEISE: keine",
+    npcs.length && !need.rules ? `NICHTSPIELERFIGUREN HIER: ${npcs.map((n) => `${n.name} (${n.description})`).join("; ")}` : "",
+    need.acting ? (clues.length ? `ERLAUBTE HINWEISE (reveal_clue = id): ${clues.map((c) => `${c.id}: ${c.text}`).join(" | ")}` : "ERLAUBTE HINWEISE: keine") : "",
     flags.length ? `ERLAUBTE MERKER (set_flags), wenn die Helden so etwas tun: ${flags.map((f) => `${f.flag} = ${f.meaning}`).join(" | ")}` : "",
+    // The moment.
+    need.rules ? "" : `Wendung schon enthüllt: ${ctx.twistRevealed ? "ja" : "nein"}`,
+    `HELDEN: ${ctx.players.map((p) => `${p.name} (${nameOf("classes", p.classId)}, ${p.hp}/${p.maxHp} TP)`).join("; ")}`,
+    need.rules ? "" : `SCHON GEFUNDENE HINWEISE: ${found.length ? found.join(" | ") : "keine"}`,
     ctx.combat
       ? `KAMPF LÄUFT. Gegner: ${ctx.combat.enemies.map((e) => `${e.id} = ${e.name} (${e.hp}/${e.maxHp} TP${e.boss ? ", Anführer" : ""})`).join("; ")}. Flucht möglich: ${canFlee(ctx) ? "ja" : "nein"}`
       : "",
-    ctx.room ? `UMGEBUNG: ${ctx.room.name}${ctx.room.objects.length ? ` – ${ctx.room.objects.join(", ")}` : ""}` : "",
-    ctx.room?.things?.length ? `DINGE (id = Name, für objekt/hingehen): ${ctx.room.things.map((t) => `${t.id} = ${t.name}`).join(", ")}` : "",
-    ctx.room?.people?.length ? `LEUTE (id = Name, für figur/geschenk/hingehen): ${ctx.room.people.map((p) => `${p.id} = ${p.name}`).join(", ")}` : "",
-    `GOLD DER GRUPPE: ${ctx.gold ?? 0} (Bestechung kostet ${BRIBE_PER_ENEMY} Gold pro Gegner)`,
-    ctx.chronicle?.length ? `CHRONIK (frühere Taten): ${ctx.chronicle.join(" | ")}` : "",
-    ctx.tales?.length ? `LAGERFEUER (die Helden über sich): ${ctx.tales.join(" | ")}` : "",
-    ctx.minds?.length ? `FIGUREN (Charakter, Gefühle, Gedächtnis):\n${ctx.minds.map((m) => `- ${m}`).join("\n")}` : "",
-    Object.keys(ctx.attitudes ?? {}).length
+    ctx.room && !need.rules ? `UMGEBUNG: ${ctx.room.name}${ctx.room.objects.length ? ` – ${ctx.room.objects.join(", ")}` : ""}` : "",
+    need.room && ctx.room?.things?.length ? `DINGE (id = Name, für objekt/hingehen): ${ctx.room.things.map((t) => `${t.id} = ${t.name}`).join(", ")}` : "",
+    need.room && ctx.room?.people?.length ? `LEUTE (id = Name, für figur/geschenk/hingehen): ${ctx.room.people.map((p) => `${p.id} = ${p.name}`).join(", ")}` : "",
+    need.acting ? `GOLD DER GRUPPE: ${ctx.gold ?? 0} (Bestechung kostet ${BRIBE_PER_ENEMY} Gold pro Gegner)` : "",
+    !need.small && ctx.chronicle?.length ? `CHRONIK (frühere Taten): ${ctx.chronicle.slice(-6).join(" | ")}` : "",
+    !need.small && ctx.tales?.length ? `LAGERFEUER (die Helden über sich): ${ctx.tales.slice(-4).join(" | ")}` : "",
+    minds.length ? `FIGUREN (Charakter, Gefühle, Gedächtnis):\n${minds.map((m) => `- ${m}`).join("\n")}` : "",
+    !need.small && Object.keys(ctx.attitudes ?? {}).length
       ? `HALTUNG DER FIGUREN: ${Object.entries(ctx.attitudes!).map(([id, v]) => `${story.npcs.find((n) => n.id === id)?.name ?? id} ${v > 0 ? "+" : ""}${v}`).join(", ")}`
       : "",
-    story.npcs.length ? `FIGUREN-IDS (für npc_attitude): ${story.npcs.map((n) => `${n.id} = ${n.name}`).join(", ")}` : "",
-    ctx.bypass && (trigger.kind === "free_text" || trigger.kind === "roll_result") ? `ABKÜRZUNG möglich: ${ctx.bypass}. Nur mit schwerer Probe (SG 15–17), dann Effekt abkuerzung.` : "",
-    allowedEffectNames(ctx, trigger).length
-      ? `${isClearMiss(trigger) ? "RÜCKSCHLÄGE (wähle genau einen)" : "EFFEKTE"} (Name: Wirkung): ${allowedEffectNames(ctx, trigger).map((n) => `${n}: ${(EFFECT_HELP[n] ?? SETBACK_HELP[n])!.text}`).join(" | ")}. Ziele: Gegner-id aus KAMPF, Helden-id aus HELDEN-IDS, oder „alle“.`
+    ctx.bypass && need.acting ? `ABKÜRZUNG möglich: ${ctx.bypass}. Nur mit schwerer Probe (SG 15–17), dann Effekt abkuerzung.` : "",
+    effects.length
+      ? `${isClearMiss(trigger) ? "RÜCKSCHLÄGE (wähle genau einen)" : "EFFEKTE"} (Name: Wirkung): ${effects.map((n) => `${n}: ${(EFFECT_HELP[n] ?? SETBACK_HELP[n])!.text}`).join(" | ")}. Ziele: Gegner-id aus KAMPF, Helden-id aus HELDEN-IDS, oder „alle“.`
       : "",
-    `HELDEN-IDS: ${ctx.players.map((p) => `${p.id} = ${p.name}`).join(", ")}`,
-    `ZEIT: ${Math.round(ctx.minutesPlayed)} von geplant ${Math.round(ctx.minutesPlanned)} Minuten bis Ende dieser Szene`,
+    need.rules ? "" : `ZEIT: ${Math.round(ctx.minutesPlayed)} von geplant ${Math.round(ctx.minutesPlanned)} Minuten bis Ende dieser Szene`,
     trigger.kind === "story_end" ? `MÖGLICHE ENDEN: ${eligibleEndings(story, ctx).map((e) => `${e.id} (${e.title})`).join(", ")}` : "",
-    `DREHBUCH-VORSCHLAG (Inhalt beibehalten, frei formulieren): ${scripted.narration || "–"}`,
+    scripted.narration ? `DREHBUCH-VORSCHLAG (Inhalt beibehalten, frei formulieren): ${scripted.narration}` : "",
+    trigger.kind === "scene_start" ? SCENE_PACK_NOTE : "",
     `JETZT: ${triggerText(trigger)}`,
   ];
   return lines.filter(Boolean).join("\n");
 }
+
+/** At the start of a scene the AI also fills a small store for the rest of it (used without further calls). */
+const SCENE_PACK_NOTE =
+  "VORRAT FÜR DIESE SZENE: Schreib zusätzlich für jede Nichtspielerfigur hier einen kurzen Gruß in ihrer Art (gruesse) und 2–3 kleine Momente der Umgebung oder Gerüchte, die die Gruppe später hören kann, wenn es still ist (momente: Geräusche, Gerede, Andeutungen – nie die Lösung).";
 
 const S = (description: string, extra: Record<string, unknown> = {}) => ({ type: "STRING", description, ...extra });
 
@@ -209,6 +244,10 @@ export function responseSchema(story: Story, ctx: DmContext, trigger: DmTrigger)
       description: "Nur wenn eine Figur ihre Haltung ändert",
       properties: { npc: S("Figuren-id", { enum: story.npcs.map((n) => n.id) }), change: { type: "INTEGER", description: "−2 bis +2" } },
     };
+  }
+  if (trigger.kind === "scene_start") {
+    properties.gruesse = { type: "ARRAY", items: { type: "OBJECT", properties: { name: S("Name der Figur"), text: S("Gruß, ein kurzer Satz") }, required: ["name", "text"] } };
+    properties.momente = { type: "ARRAY", items: S("Ein kurzer Satz") };
   }
   if (trigger.kind === "suggest") properties.ideas = { type: "ARRAY", items: S("Idee in Ich-Form") };
   if (trigger.kind === "rules_question") properties.answer = S("Antwort auf die Regelfrage, 2–4 Sätze");

@@ -111,9 +111,22 @@ export class World {
     return this.host.game;
   }
 
+  /** The AI's store for this scene: a greeting per character and a few quiet moments. */
+  private pack: { greetings: Map<string, string>; moments: string[] } | undefined;
+
+  usePack(p: { greetings: { name: string; text: string }[]; moments: string[] }): void {
+    this.pack = { greetings: new Map(p.greetings.map((g) => [g.name, g.text])), moments: [...p.moments] };
+  }
+
+  /** One quiet moment from the store (a sound, gossip, a hint), or undefined when it is used up. */
+  takeMoment(): string | undefined {
+    return this.pack?.moments.shift();
+  }
+
   /** A new scene: greetings start over, the first event comes after a while. */
   newScene(firstOfStory = false): void {
     this.greeted.clear();
+    this.pack = undefined;
     this.gentle = firstOfStory;
     // The very first scene teaches the basics: no surprises there yet.
     this.nextEventAt = firstOfStory ? Number.POSITIVE_INFINITY : this.host.now() + eventGapSeconds(this.host.rng, this.game.heroes().length) * 1000;
@@ -247,7 +260,8 @@ export class World {
     this.greeted.add(c.id);
     const att = this.host.attitude(c.id.slice(4));
     const pool = GREET[att >= 1 ? "friend" : att <= -1 ? "foe" : "neutral"];
-    this.game.narrate([{ npc: c.name, text: pool[this.host.rng.int(0, pool.length - 1)]! }]);
+    // The AI wrote a greeting in this character's own way at the start of the scene; else a stock one.
+    this.game.narrate([{ npc: c.name, text: this.pack?.greetings.get(c.name) ?? pool[this.host.rng.int(0, pool.length - 1)]! }]);
     return true;
   }
 

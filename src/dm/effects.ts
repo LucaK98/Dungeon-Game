@@ -107,6 +107,8 @@ export function isClearMiss(trigger: DmTrigger): boolean {
 
 /** Effect names the DM may use for this trigger (for the AI schema). */
 export function allowedEffectNames(ctx: DmContext, trigger: DmTrigger): string[] {
+  // Only a hero's own idea (and its roll) changes the world – no toolbox for other moments.
+  if (trigger.kind !== "free_text" && trigger.kind !== "roll_result") return [];
   const fighting = !!ctx.combat?.enemies.length;
   if (isClearMiss(trigger)) {
     return Object.entries(SETBACK_HELP)

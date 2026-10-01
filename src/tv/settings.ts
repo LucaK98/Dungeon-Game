@@ -5,7 +5,7 @@
  */
 import { SYSTEM_PROMPT } from "../dm/ai/prompt";
 import { GeminiProvider, GroqProvider, LlmError, ServerProvider, type ProviderId } from "../dm/ai/provider";
-import { aiCallsToday, countAiCall, loadAiSettings, providersFrom, saveAiSettings, type AiSettings } from "../dm/ai/settings";
+import { aiUsageToday, BUDGET_CALLS, budgetState, countAiCall, countAiUsage, loadAiBudget, loadAiSettings, providersFrom, saveAiBudget, saveAiSettings, type AiBudget, type AiSettings } from "../dm/ai/settings";
 import { h } from "../ui/dom";
 import { loadCrude, loadGraphicsMode, loadLookMode, loadTempo, saveCrude, saveGraphicsMode, saveLookMode, saveTempo, type GraphicsMode, type LookMode, type Tempo } from "./render";
 import { prepareVoice, setSpeechRate, setVoiceEngine, speak, speechRate, stopSpeaking, storytellerProblem, voiceEngine, type VoiceEngine } from "./speech";
@@ -51,8 +51,38 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     const s = loadAiSettings();
     const status = h("p", { class: "settings-status" });
     const calls = h("p", { class: "muted" });
-    const renderCalls = () => (calls.textContent = `KI-Aufrufe heute: ${aiCallsToday()}`);
+    const num = (n: number) => n.toLocaleString("de-DE");
+    const renderCalls = () => {
+      const u = aiUsageToday();
+      const tokens = u.input + u.output;
+      const brake = budgetState();
+      calls.textContent =
+        `KI heute: ${u.count} Aufrufe${tokens ? ` · ${num(tokens)} Tokens (${num(u.input)} gesendet${u.cached ? `, davon ${num(u.cached)} günstiger aus dem Zwischenspeicher` : ""}, ${num(u.output)} Antwort)` : ""}` +
+        (brake === "important" ? " · 🟡 Sparmodus: nur noch wichtige Momente" : brake === "none" ? " · 🔴 Tagesbudget aufgebraucht: das Drehbuch erzählt" : "");
+    };
     renderCalls();
+    // The saving brake: AI calls per day on this TV.
+    const budgetRow = h("div", { class: "tv-row" });
+    const renderBudget = () => {
+      const now = loadAiBudget();
+      budgetRow.replaceChildren(
+        ...([
+          ["small", `🪙 Sparsam (${BUDGET_CALLS.small})`],
+          ["medium", `💰 Normal (${BUDGET_CALLS.medium})`],
+          ["large", `💎 Großzügig (${BUDGET_CALLS.large})`],
+          ["open", "♾️ Ohne Grenze"],
+        ] as const).map(([value, label]) => {
+          const b = h("button", { class: `tv-btn${now === value ? " primary" : ""}`, type: "button", textContent: label });
+          b.addEventListener("click", () => {
+            saveAiBudget(value as AiBudget);
+            renderBudget();
+            renderCalls();
+          });
+          return b;
+        }),
+      );
+    };
+    renderBudget();
 
     const providerRow = h("div", { class: "settings-providers" });
     const keyInput = h("input", { class: "settings-input", type: "password", autocomplete: "off", spellcheck: false, placeholder: "API-Schlüssel hier einfügen" }) as HTMLInputElement;
@@ -110,6 +140,7 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
           schema: { type: "OBJECT", properties: { narration: { type: "STRING" } }, required: ["narration"] },
           maxTokens: 512,
         })) as { narration?: string };
+        if (provider.lastUsage) countAiUsage(provider.lastUsage);
         const secs = ((performance.now() - started) / 1000).toFixed(1).replace(".", ",");
         status.textContent = `✅ Server-KI antwortet in ${secs} s: „${answer.narration ?? "…"}“`;
         saveAiSettings(s);
@@ -199,6 +230,7 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
           schema: { type: "OBJECT", properties: { narration: { type: "STRING" } }, required: ["narration"] },
           maxTokens: 512,
         })) as { narration?: string };
+        if (provider.lastUsage) countAiUsage(provider.lastUsage);
         const secs = ((performance.now() - started) / 1000).toFixed(1).replace(".", ",");
         status.textContent = `✅ Verbindung klappt. ${s.models[p]} antwortet in ${secs} s: „${answer.narration ?? "…"}“ (${list.length} Modelle verfügbar)`;
         saveAiSettings(s);
@@ -352,7 +384,7 @@ export function settingsScreen(root: HTMLElement): Promise<void> {
     const el = h(
       "main",
       { class: "tv-screen" },
-      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("p", { class: "muted" }, "Sprechtempo (antippen zum Anhören):"), rateRow, h("h2", {}, "🖼 Grafik"), graphicsRow, h("p", { class: "muted" }, "Aussehen des Spielbretts (gilt ab der nächsten Karte):"), lookRow, h("h2", {}, "⏱️ Spieltempo"), h("p", { class: "muted" }, "Wie lange das Spiel zwischen den Zügen wartet (Gemütlich ist gut für Einsteiger):"), tempoRow, h("h2", {}, "💬 Sprüche der Gegner"), crudeRow, h("div", { class: "tv-row" }, done)),
+      h("section", { class: "pick settings" }, h("h1", {}, "⚙️ Einstellungen: Wer erzählt?"), providerRow, serverPart, aiPart, status, calls, h("p", { class: "muted" }, "KI-Aufrufe pro Tag (ab 80 % nur noch wichtige Momente, danach erzählt das Drehbuch):"), budgetRow, h("h2", {}, "🗣️ Stimmen"), voiceRow, ttsKeyRow, voiceStatus, h("p", { class: "muted" }, "Sprechtempo (antippen zum Anhören):"), rateRow, h("h2", {}, "🖼 Grafik"), graphicsRow, h("p", { class: "muted" }, "Aussehen des Spielbretts (gilt ab der nächsten Karte):"), lookRow, h("h2", {}, "⏱️ Spieltempo"), h("p", { class: "muted" }, "Wie lange das Spiel zwischen den Zügen wartet (Gemütlich ist gut für Einsteiger):"), tempoRow, h("h2", {}, "💬 Sprüche der Gegner"), crudeRow, h("div", { class: "tv-row" }, done)),
     );
     done.addEventListener("click", () => {
       pull();
