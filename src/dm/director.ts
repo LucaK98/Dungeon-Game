@@ -29,6 +29,7 @@ import { SKILL_IDS, type SkillId } from "../shared/rules";
 import { World } from "./world";
 import { buildHighlights, type Recap } from "../shared/recap";
 import { reportLines } from "../shared/report";
+import { pratfall, pratfallEffect, triumph } from "./pratfalls";
 import type { Difficulty } from "../shared/difficulty";
 import { getGear } from "../data/gear";
 import { seededRng } from "../engine/rng";
@@ -1285,14 +1286,46 @@ export class Director {
       this.actingRoom = undefined;
       return;
     }
-    const result = { kind: "roll_result" as const, text, playerId, heroName: hero.name, skill, dc: roll.dc, total: r.total, success: r.success };
+    // A natural 1: the comic opposite of the plan (scripted, no AI call – and nothing that ruins the evening).
+    if (r.roll.natural === 1) {
+      this.pratfall(hero, text, { kind: "roll_result", text, playerId, heroName: hero.name, skill, dc: roll.dc, total: r.total, success: false });
+      this.actingRoom = undefined;
+      return;
+    }
+    // A natural 20: it works, and better than planned.
+    const natural20 = r.roll.natural === 20;
+    if (natural20) this.game.narrate([{ text: triumph(hero.name, this.rng.int(0, 999)) }]);
+    const success = r.success || natural20;
+    const total = natural20 ? Math.max(r.total, roll.dc + 5) : r.total;
+    const result = { kind: "roll_result" as const, text, playerId, heroName: hero.name, skill, dc: roll.dc, total, success };
     const after = await this.askDm(result);
     // Real consequences – decided by the DM, checked and carried out by the rules.
     this.applyEffects(after.effects, result, hero);
-    const margin = r.total - roll.dc;
-    if (r.success && margin >= 5) this.game.creativeIdea(hero);
-    this.remember(`${hero.name}: ${text} → ${r.success ? (margin >= 5 ? "großartig geschafft" : "geschafft") : margin >= -2 ? "knapp, mit Preis" : "misslungen"}`);
+    const margin = total - roll.dc;
+    if (success && margin >= 5) this.game.creativeIdea(hero);
+    this.remember(`${hero.name}: ${text} → ${success ? (margin >= 5 ? "großartig geschafft" : "geschafft") : margin >= -2 ? "knapp, mit Preis" : "misslungen"}`);
     this.actingRoom = undefined;
+  }
+
+  /** The critical fumble: who it was aimed at, what goes comically wrong, a small consequence. */
+  private pratfall(hero: Creature, text: string, result: Extract<DmTrigger, { kind: "roll_result" }>): void {
+    const low = text.toLowerCase();
+    const others = Object.values(this.game.session.battle.creatures).filter((c) => c.id !== hero.id && !c.dead && c.pos && hero.pos);
+    const dist = (c: Creature) => Math.max(Math.abs(c.pos!.x - hero.pos!.x), Math.abs(c.pos!.y - hero.pos!.y));
+    // Named in the text, or the animal/person right next to the hero.
+    const named = others.find((c) => low.includes(c.name.toLowerCase().split(" ")[0]!));
+    const animal = /hund|katze|wolf|pferd|tier|ratte|ziege|kuh|schwein|vogel|rabe|bär/.test(low) ? others.filter((c) => c.kind === "monster" && c.creatureType === "beast").sort((a, b) => dist(a) - dist(b))[0] : undefined;
+    const near = others.filter((c) => c.side !== "party" && dist(c) <= 2).sort((a, b) => dist(a) - dist(b))[0];
+    const aim = named ?? animal ?? near;
+    const animalWord = /(hund|katze|wolf|pferd|ratte|ziege|kuh|schwein|vogel|rabe|bär)/.exec(low)?.[1];
+    const article: Record<string, string> = { katze: "die", ratte: "die", ziege: "die", kuh: "die" };
+    const who = aim?.name ?? (animalWord ? `${article[animalWord] ?? "den"} ${animalWord[0]!.toUpperCase()}${animalWord.slice(1)}${animalWord === "bär" ? "en" : ""}` : undefined);
+    const fall = pratfall(text, hero.name, who, this.rng.int(0, 999));
+    this.game.narrate([{ text: `🎲 Natürliche 1 … oh nein.` }, { text: fall.line }]);
+    const effect = pratfallEffect(fall.effect, aim?.side === "enemy" ? aim.id : undefined);
+    if (effect) this.applyEffects([effect], result, hero);
+    this.game.criticalFumble(hero);
+    this.remember(`${hero.name}: ${text} → kritischer Patzer`);
   }
 
   private applyEffects(effects: DmResponse["effects"], trigger: DmTrigger, hero: Creature): void {

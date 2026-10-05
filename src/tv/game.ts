@@ -335,6 +335,12 @@ export class GameController {
     this.awardXp(10, `💡 geniale Idee von ${hero.name}`);
   }
 
+  /** A critical fumble on a free action: everybody sees the hero facepalm (counted for the look back). */
+  criticalFumble(hero: Creature): void {
+    this.emit("emote", hero.id, "🤦");
+    this.emit("changed");
+  }
+
   /** A speech bubble over a figure on the board. */
   bubble(creatureId: string, text: string): void {
     this.emit("speech", creatureId, text);
