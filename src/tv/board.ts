@@ -35,8 +35,9 @@ import { openStream } from "../net/stream";
 
 /** Sounds for a roll on the TV: dice first, then what happened. */
 /** How long the die tumbles on the TV before it lands (ms). */
-const TUMBLE_ASKED = 900;
-const TUMBLE_QUICK = 450;
+// How long the die tumbles on the TV (long enough to follow; the waiting player's throw a little longer).
+const TUMBLE_ASKED = 1400;
+const TUMBLE_QUICK = 900;
 
 /** Sounds, music and background noise also go to viewers at home (src/tv/mirror.ts). */
 let mirror: MirrorHost | undefined;
@@ -283,7 +284,8 @@ export function startBoard(root: HTMLElement, host: GameHost, opts: BoardOptions
         const impact = scene.sys.isActive() ? scene.playFx(r.fx) : 0;
         rollSounds(r, impact, tumble > 0);
         // What follows waits until the numbers are up and the fallen have begun to sink.
-        st.hold(impact + (strikes ? 1100 : 600));
+        // The result card stays up so the sofa can read "Nötig … Gewürfelt …" before anything else happens.
+        st.hold(impact + (r.dice.length ? (strikes ? 2600 : 2200) : strikes ? 1300 : 800) * c.tempo);
         if (scene.sys.isActive() && r.hits?.length) showHitsLater(r.hits, impact);
         else if (scene.sys.isActive()) scene.releaseDeaths();
       };

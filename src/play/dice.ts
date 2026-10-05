@@ -1,6 +1,7 @@
 /**
  * Dice on the phone: the player taps, the die tumbles, and it lands on the value the TV rolled.
  */
+import { needText, rollMath, sumText } from "../shared/roll-math";
 import { play } from "../ui/sound";
 import { h } from "../ui/dom";
 import type { RollOutcome, RollPrompt } from "../shared/view";
@@ -89,13 +90,21 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void, onCancel?
       }),
     );
     hint.textContent = r.crit ? "🎉 Kritischer Treffer!" : r.success === true ? "Geschafft!" : r.success === false ? "Leider nicht geschafft." : "";
+    // Needed and rolled, side by side – so it is clear why it worked (or not).
+    const math = rollMath(r);
+    const needMin = math?.need ?? prompt.need?.min;
+    if (needMin !== undefined) {
+      const compare = h("div", { class: `dice-compare ${state}` }, h("span", {}, `🎯 ${needText(needMin)}`), h("span", {}, `🎲 Gewürfelt: ${r.kept}`));
+      if (math) compare.append(h("small", {}, sumText(math)));
+      hint.after(compare);
+    }
     // What it did, at a glance; the full calculation folded away.
     const how = h("details", { class: "dice-how" }, h("summary", {}, "🧮 Wie wurde gerechnet?"), ...r.lines.map((l) => explainedLine(l)));
     lines.replaceChildren(...(r.bullets?.length ? [bulletList(r.bullets), how] : r.lines.map((l) => explainedLine(l))));
     done.hidden = false;
     // Closes by itself after a moment (long enough to read the points); a touch keeps it open.
     if (loadPrefs().autoClose) {
-      const ms = Math.min(8000, 3500 + (r.bullets?.length ?? r.lines.length) * 700);
+      const ms = Math.min(12000, 6000 + (r.bullets?.length ?? r.lines.length) * 900);
       done.classList.add("autoclose");
       done.style.setProperty("--autoclose", `${ms}ms`);
       autoTimer = setTimeout(() => api.close(), ms);
@@ -143,9 +152,9 @@ export function showRollPrompt(prompt: RollPrompt, onRoll: () => void, onCancel?
   const api: DiceOverlay = {
     land(result) {
       if (noAnswer) clearTimeout(noAnswer);
-      // Let the die tumble for at least 0.8 s, it feels better.
+      // Let the die tumble for at least 1.4 s – long enough to feel it, like the die on the TV.
       pendingResult = result;
-      const wait = Math.max(0, 800 - (Date.now() - started));
+      const wait = Math.max(0, 1400 - (Date.now() - started));
       setTimeout(() => pendingResult && showResult(pendingResult), rolled ? wait : 0);
     },
     fail(reason) {

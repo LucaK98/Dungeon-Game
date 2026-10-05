@@ -1,3 +1,4 @@
+import { needText, rollMath, sumText } from "../shared/roll-math";
 import { BULLET_COLOR, BULLET_ICON } from "../shared/bullets";
 import Phaser from "phaser";
 import { dollFrames } from "../shared/doll";
@@ -924,7 +925,9 @@ export class UiScene extends Phaser.Scene {
     bg.fillStyle(0x14110f, 0.94).fillRoundedRect(-width, 0, width, 200, 18);
     bg.lineStyle(6, 0x5a4d42, 1).strokeRoundedRect(-width, 0, width, 200, 18);
     const title = this.add.text(-width + 190, 30, r.title, crisp({ fontFamily: FONT, fontSize: "36px", color: "#e0a526", fontStyle: "bold" }));
-    const rolling = this.add.text(-width + 190, 90, "Der Würfel rollt …", crisp({ fontFamily: FONT, fontSize: "30px", color: "#f3e9d2" }));
+    // While it tumbles everybody already sees what it has to show.
+    const ahead = rollMath(r);
+    const rolling = this.add.text(-width + 190, 84, ahead ? `🎯 ${needText(ahead.need)} – der Würfel rollt …` : "Der Würfel rollt …", crisp({ fontFamily: FONT, fontSize: "34px", color: ahead ? "#ffe9a8" : "#f3e9d2", fontStyle: ahead ? "bold" : "normal" }));
     const d = this.drawDie(-68, -68, 136, 0x7a2e22, String(1 + Math.floor(Math.random() * r.sides)), r.sides);
     const dieBox = this.add.container(-width + 98, 98, [d.die, d.n, d.s]);
     this.rollBox.add([bg, title, rolling, dieBox]);
@@ -952,7 +955,7 @@ export class UiScene extends Phaser.Scene {
     this.tumbleFlips?.remove(false);
     this.tumbleFlips = undefined;
     this.clearRollBox();
-    const width = 780;
+    const width = 880;
     const hasDie = r.dice.length > 0;
     const left = hasDie ? 150 : 30;
     const title = this.add.text(-width + left, 20, r.title, crisp({ fontFamily: FONT, fontSize: "26px", color: "#b3a58a", fontStyle: "bold", wordWrap: { width: width - left - 30 } }));
@@ -960,6 +963,14 @@ export class UiScene extends Phaser.Scene {
     const head = this.add.text(-width + left, 24 + title.height, verdict.text, crisp({ fontFamily: FONT, fontSize: "46px", color: verdict.color, fontStyle: "bold", stroke: "#000", strokeThickness: 6 }));
     const parts: Phaser.GameObjects.Text[] = [head];
     let y = 30 + title.height + head.height;
+    // What it took and what came – side by side, big enough for the sofa ("Nötig: 10+ · Gewürfelt: 9").
+    const math = rollMath(r);
+    if (math) {
+      const compare = this.add.text(-width + left, y + 2, `🎯 ${needText(math.need)}    🎲 Gewürfelt: ${math.die}`, crisp({ fontFamily: FONT, fontSize: "34px", color: "#ffe9a8", fontStyle: "bold", stroke: "#000", strokeThickness: 5 }));
+      const sum = this.add.text(-width + left, y + 4 + compare.height, sumText(math), crisp({ fontFamily: FONT, fontSize: "22px", color: "#b3a58a" }));
+      parts.push(compare, sum);
+      y += compare.height + sum.height + 12;
+    }
     // What it did: at most three short points (the rest is in the log and on the phone).
     const points = (r.bullets?.length ? r.bullets.map((b) => ({ text: `${BULLET_ICON[b.tone]} ${b.text}`, color: BULLET_COLOR[b.tone] })) : r.lines.filter((l) => !/= \d+ gegen (RK|SG)/.test(l.text)).slice(0, 1).map((l) => ({ text: l.text, color: TONE.text })))
       .concat(r.lines.filter((l) => /^(💥 Sehr effektiv|🛡️ Nicht sehr effektiv|🚫 Wirkt nicht)/u.test(l.text)).slice(0, 1).map((l) => ({ text: l.text.replace(/ – das merkt ihr euch!$/, ""), color: l.text.startsWith("💥") ? TONE.good : TONE.danger })))
@@ -987,7 +998,8 @@ export class UiScene extends Phaser.Scene {
       this.tweens.add({ targets: n, scale: 1, duration: 300, ease: "Back.easeOut" });
     }
     this.popRollBox();
-    this.tweens.add({ targets: this.rollBox, alpha: 0, delay: 3200 + points.length * 700, duration: 600 });
+    // Long enough to read on the sofa (the next roll replaces it earlier if one comes).
+    this.tweens.add({ targets: this.rollBox, alpha: 0, delay: 6500 + points.length * 900, duration: 700 });
   }
 }
 

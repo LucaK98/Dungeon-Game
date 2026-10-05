@@ -622,6 +622,12 @@ body.tip-mode::after {
 .dice-need .need-label { font-size: 0.95rem; color: var(--muted); }
 .dice-need .need-min { font-size: 2.6rem; line-height: 1; color: var(--accent); }
 .dice-need .need-why { font-size: 0.85rem; color: var(--muted); }
+.dice-compare { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin: 8px auto; padding: 10px 16px; border-radius: 14px; background: #1d1813; border: 2px solid var(--muted); font-size: 1.35rem; font-weight: bold; animation: compare-in 0.35s ease-out both; }
+.dice-compare.good { border-color: #4caf50; }
+.dice-compare.crit { border-color: #e0a526; }
+.dice-compare.bad { border-color: #e05a4a; }
+.dice-compare small { flex-basis: 100%; text-align: center; font-size: 0.85rem; font-weight: normal; color: var(--muted); }
+@keyframes compare-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* ---------------------------------------------------------------- rewards (phone) */
 .gain-pop {
