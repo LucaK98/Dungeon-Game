@@ -15,9 +15,28 @@ import type { Narration, Story } from "../../shared/story";
 import { sceneById } from "../planner";
 import { ScriptedDM } from "../scripted";
 import { allowedClues, allowedFlags, buildPrompt, eligibleEndings, responseSchema, SYSTEM_PROMPT } from "./prompt";
-import { LlmError, type LlmProvider, type LlmUsage } from "./provider";
+import { LlmError, type LlmErrorKind, type LlmProvider, type LlmUsage } from "./provider";
 
-export type AiStatus = { kind: "ok"; model: string } | { kind: "thinking" } | { kind: "pause"; reason: string };
+export type AiStatus = { kind: "ok"; model: string } | { kind: "thinking" } | { kind: "pause"; reason: string; cause: LlmErrorKind; retryS: number };
+
+/** Why the AI is taking a break, in words for the sofa (shown under the note on the TV). */
+export function pauseReason(cause: LlmErrorKind, cooldownS = 60): string {
+  const retry = `neuer Versuch in ${cooldownS} Sekunden`;
+  switch (cause) {
+    case "limit":
+      return `Grund: KI-Kontingent gerade erschöpft (zu viele Anfragen) – ${retry}`;
+    case "timeout":
+      return `Grund: Die KI hat zu lange gebraucht – ${retry}`;
+    case "network":
+      return `Grund: Keine Verbindung zur KI (Internet?) – ${retry}`;
+    case "auth":
+      return "Grund: KI-Schlüssel ungültig – bis Spielende erzählt das Drehbuch (⚙️ Einstellungen prüfen)";
+    case "bad_json":
+      return `Grund: Die KI hat unbrauchbar geantwortet – ${retry}`;
+    default:
+      return `Grund: Unbekannter Fehler bei der KI – ${retry}`;
+  }
+}
 
 export interface AiDmOptions {
   onStatus?: (status: AiStatus) => void;
@@ -162,6 +181,7 @@ export class AiDM implements DungeonMaster {
     // Small tasks try the small model first (the server picks it itself from the tier).
     const providers = lite ? [...this.providers.filter((p) => p.lite), ...this.providers.filter((p) => !p.lite)] : this.providers;
     let lastError = "";
+    let lastKind: LlmErrorKind = "other";
     this.opts.onStatus?.({ kind: "thinking" });
     for (const provider of providers) {
       // One retry on the same model for a broken answer, then the next model (e.g. Flash-Lite).
@@ -178,13 +198,14 @@ export class AiDM implements DungeonMaster {
         } catch (err) {
           const e = err instanceof LlmError ? err : new LlmError("other", String(err));
           lastError = e.message;
+          lastKind = e.kind;
           this.opts.onExchange?.({ provider: provider.id, model: provider.model, prompt: req.prompt, error: `${e.kind}: ${e.message}`, ms: this.now() - started });
           if (e.kind === "bad_json" && attempt === 0) continue;
           if (e.kind === "auth") {
             // A wrong key will not get better: drop it for this game (a backup key may still take over).
             this.providers = this.providers.filter((p) => p.id !== provider.id);
             if (this.providers.length) break;
-            this.opts.onStatus?.({ kind: "pause", reason: e.message });
+            this.opts.onStatus?.({ kind: "pause", reason: e.message, cause: "auth", retryS: 0 });
             return scripted;
           }
           break; // limit, timeout, network, other → next model
@@ -192,7 +213,7 @@ export class AiDM implements DungeonMaster {
       }
     }
     this.pausedUntil = this.now() + (this.opts.cooldownMs ?? 60_000);
-    this.opts.onStatus?.({ kind: "pause", reason: lastError });
+    this.opts.onStatus?.({ kind: "pause", reason: lastError, cause: lastKind, retryS: Math.round((this.opts.cooldownMs ?? 60_000) / 1000) });
     return scripted;
   }
 }

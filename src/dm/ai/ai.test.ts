@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { DmContext } from "../../shared/dm";
 import type { Story } from "../../shared/story";
 import storyJson from "../stories/drachenfels.json";
-import { AiDM, coerceAiAnswer } from "./aidm";
+import { AiDM, coerceAiAnswer, pauseReason } from "./aidm";
 import { allowedClues } from "./prompt";
 import { GeminiProvider, LlmError, thinkingFor, type LlmProvider } from "./provider";
 import { sceneById } from "../planner";
@@ -140,10 +140,13 @@ describe("AiDM", () => {
     const calls: string[] = [];
     let now = 0;
     const status: string[] = [];
-    const dm = new AiDM(STORY, [failing("limit", calls)], { now: () => now, cooldownMs: 60_000, onStatus: (s) => status.push(s.kind) });
+    const reasons: string[] = [];
+    const dm = new AiDM(STORY, [failing("limit", calls)], { now: () => now, cooldownMs: 60_000, onStatus: (s) => (status.push(s.kind), s.kind === "pause" && reasons.push(pauseReason(s.cause, s.retryS))) });
     const res = await dm.respond(ctx(), scripted);
     expect(res.narration).toBe(SCENE.travel ?? "");
     expect(status).toEqual(["thinking", "pause"]);
+    // The TV says why: the free quota is used up for the moment, next try in a minute.
+    expect(reasons).toEqual(["Grund: KI-Kontingent gerade erschöpft (zu viele Anfragen) – neuer Versuch in 60 Sekunden"]);
     await dm.respond(ctx(), free);
     expect(calls).toHaveLength(1);
     now = 61_000;

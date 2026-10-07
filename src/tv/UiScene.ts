@@ -9,7 +9,7 @@ import type { DollLook } from "../shared/doll";
 import { prefetchSpeech, speak, speechRate, stopSpeaking } from "./speech";
 import { BOARD_HEIGHT, BOARD_WIDTH, LOG_PANEL } from "./DungeonScene";
 
-import type { AiStatus } from "../dm/ai/aidm";
+import { pauseReason, type AiStatus } from "../dm/ai/aidm";
 import { crisp, RES, TILES, UP } from "./render";
 import { mergeSummary, rollVerdict, summaryOf, TONE } from "./tv-text";
 
@@ -104,7 +104,7 @@ export class UiScene extends Phaser.Scene {
     this.notesLine = this.add.text(26, 98, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#b3a58a", stroke: "#000", strokeThickness: 5 }));
     this.ticker = this.add.container(0, 0).setDepth(20);
     this.narrationBox = this.anchor(this.add.container(0, 0).setAlpha(0), (r) => r - BOARD_WIDTH);
-    this.aiBadge = this.add.text(0, BOARD_HEIGHT - 20, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4 })).setOrigin(1, 1);
+    this.aiBadge = this.add.text(0, BOARD_HEIGHT - 20, "", crisp({ fontFamily: FONT, fontSize: "22px", color: "#8f8574", stroke: "#000", strokeThickness: 4, align: "right" })).setOrigin(1, 1);
     this.anchor(this.aiBadge, (r) => r - 24);
 
     // The scene card already names the place: no second title right after it.
@@ -387,7 +387,8 @@ export class UiScene extends Phaser.Scene {
       this.aiBadge.setText("🧠 KI-Spielleitung").setColor("#8f8574").setAlpha(0.8);
       return;
     }
-    this.aiBadge.setText("☕ Der Spielleiter macht kurz Pause – das Drehbuch erzählt weiter").setColor("#e0a526").setAlpha(1);
+    // The reason underneath: limit, slow answer, no internet, wrong key …
+    this.aiBadge.setText(`☕ Der Spielleiter macht kurz Pause – das Drehbuch erzählt weiter\n${pauseReason(s.cause, s.retryS)}`).setColor("#e0a526").setAlpha(1);
     this.tweens.add({ targets: this.aiBadge, alpha: 0.6, delay: 8000, duration: 1000 });
   }
 
