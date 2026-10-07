@@ -30,6 +30,7 @@ import { World } from "./world";
 import { buildHighlights, type Recap } from "../shared/recap";
 import { reportLines } from "../shared/report";
 import { pratfall, pratfallEffect, triumph } from "./pratfalls";
+import { retell } from "./retell";
 import type { Difficulty } from "../shared/difficulty";
 import { getGear } from "../data/gear";
 import { seededRng } from "../engine/rng";
@@ -1278,8 +1279,12 @@ export class Director {
     }
     // The DM wants a roll for this idea: the same hero rolls, then the DM tells what follows.
     const skill = roll.skill as SkillId;
+    // The game master tells the table what is being tried ("Brunhild streichelt den Hund."),
+    // the same sentence heads the roll card.
+    const told = retell(text, hero.name);
+    this.game.narrate([{ text: `✍️ ${told}` }]);
     // The phone shows what would happen – the player may still say "Lieber nicht".
-    const r = await this.game.check(hero, skill, roll.dc, "Freie Aktion", { plan: res.plan?.trim() || `„${text.slice(0, 60)}“`, cancellable: true });
+    const r = await this.game.check(hero, skill, roll.dc, `✍️ ${told}`, { plan: res.plan?.trim() || `„${text.slice(0, 60)}“`, cancellable: true });
     if (r.cancelled) {
       this.game.refundFreeAction(hero);
       if (hero.playerId) this.game.tellPlayer(hero.playerId, "Okay – nichts passiert. Schreib einfach etwas anderes.");
